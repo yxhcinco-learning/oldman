@@ -2,18 +2,18 @@ import { useEffect, useState, useSyncExternalStore, useRef } from 'react';
 import { IndexedWorkRepository, type WorkRepository } from '../../lib/storage/repository';
 import { Workspace } from './workspace';
 import { makeBackup, MAX_BACKUP_BYTES } from '../../lib/storage/backup';
-import { articleText, effectiveSegments, emptyDraft, type Work, type Draft } from '../../lib/domain/writing';
+import { articleText, effectiveSegments, formatTime, type Work, type Draft } from '../../lib/domain/writing';
 import { download, exportText } from '../../lib/domain/download';
 import { Dialog } from '../../components/Dialog';
 import { DemoApp } from '../demo/DemoApp';
 import { WorksHome } from './WorksHome';
 import { Editor } from './Editor';
 
-type Menu = 'library' | 'editor' | Work | null;
+type Menu = 'library' | 'works' | 'trash' | Work | null;
 export function ProductApp({ repository }: { repository?: WorkRepository }) {
   const [workspace] = useState(() => new Workspace(repository ?? new IndexedWorkRepository()));
   const state = useSyncExternalStore(workspace.subscribe, workspace.getSnapshot, workspace.getSnapshot);
-  const [demo, setDemo] = useState<{ source: Draft; entry: 'chat' | 'optimize' | 'editor' } | null>(null);
+  const [demo, setDemo] = useState<{ source: Draft; entry: 'chat' | 'optimize' } | null>(null);
   const [menu, setMenu] = useState<Menu>(null);
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
@@ -26,28 +26,46 @@ export function ProductApp({ repository }: { repository?: WorkRepository }) {
     try { await navigator.clipboard.writeText(articleText(effectiveSegments(draft))); setNotice('正文已复制'); }
     catch { setNotice('浏览器未允许复制，请使用导出 TXT'); }
   };
-  const openDemo = (entry: 'chat' | 'optimize' | 'editor') => { setDemo({ source: structuredClone(state.draft ?? emptyDraft()), entry }); };
+  const openDemo = (entry: 'chat' | 'optimize') => { if (state.draft) setDemo({ source: structuredClone(state.draft), entry }); };
+  const menuWorks = state.works.filter(work => Boolean(work.deletedAt) === (menu === 'trash'));
   if (demo) return <DemoApp source={demo.source} entry={demo.entry} onExit={() => setDemo(null)} />;
   return <main className="stage"><section className={`phone-shell ${state.draft ? 'app-view editor-screen' : 'home-screen'}`} aria-label="岁月有声写作应用">
-    {state.loading ? <div className="loading-state" role="status">正在打开本机作品…</div> : state.draft ? <Editor draft={state.draft} update={draft => { void workspace.update(draft); }} onSave={() => void finish()} onBack={() => void finish()} onDemo={openDemo} onMore={() => setMenu('editor')} saveStatus={state.saveStatus} /> :
-      <WorksHome works={state.works} onNew={() => void workspace.newWork()} onOpen={work => void workspace.open(work)} onMenu={() => setMenu('library')} onWorkMenu={setMenu} onDemo={() => openDemo('editor')} />}
+    {state.loading ? <div className="loading-state" role="status">正在打开本机作品…</div> : state.draft ? <Editor draft={state.draft} update={draft => { void workspace.update(draft); }} onSave={() => void finish()} onBack={() => void finish()} onDemo={openDemo} saveStatus={state.saveStatus} /> :
+      <WorksHome works={state.works} onNew={() => void workspace.newWork()} onOpen={work => void workspace.open(work)} onMenu={() => setMenu('library')} />}
     {state.error && <div className="storage-error" role="alert"><p>{state.error}</p><div>{state.draft && <button type="button" onClick={() => void workspace.update(state.draft!)}>重试保存</button>}<button type="button" onClick={backup}>导出当前备份</button></div></div>}
-    {notice && <div className={`toast ${state.draft ? 'editor' : 'home'}`} role="status">{notice}</div>}
-    <input ref={file} className="visually-hidden" type="file" accept=".json,application/json" aria-label="选择备份文件" onChange={async e => {
+    {notice && <div className={`toast ${state.draft ? state.draft.segmentEdit ? 'segment' : `editor ${state.draft.inputMode}` : 'home'}`} role="status">{notice}</div>}
+    <input ref={file} hidden type="file" accept=".json,application/json" aria-label="选择备份文件" onChange={async e => {
       const selected = e.target.files?.[0]; e.target.value = '';
       if (!selected) return;
+      // Native dialogs sit above toasts/alerts. Return to the library before
+      // reporting import results so failures cannot be hidden behind the menu.
+      setMenu(null);
       if (selected.size > MAX_BACKUP_BYTES) { setNotice('备份超过 10MB，未导入'); return; }
       setBusy(true);
-      try { const count = await workspace.import(await selected.text()); setNotice(`已恢复 ${count} 篇副本，原作品未改变`); setMenu(null); }
+      try { const count = await workspace.import(await selected.text()); setNotice(`已恢复 ${count} 篇副本，原作品未改变`); }
       catch (error) { setNotice(error instanceof Error ? error.message : '导入失败，原作品未改变'); }
       finally { setBusy(false); }
     }} />
-    {menu && <Dialog title={typeof menu === 'object' ? menu.title : menu === 'library' ? '作品与备份' : '文章操作'} onClose={() => setMenu(null)}>
+    {menu && <Dialog title={typeof menu === 'object' ? menu.title : menu === 'library' ? '作品与备份' : menu === 'trash' ? '回收站' : '管理作品'} onClose={() => setMenu(null)}
+      onBack={menu === 'library' ? undefined : () => setMenu(typeof menu === 'object' ? menu.deletedAt ? 'trash' : 'works' : 'library')}>
       <div className="menu-actions">
-        {menu === 'library' ? <><button type="button" onClick={backup}>导出全部备份</button><button type="button" disabled={busy} onClick={() => file.current?.click()}>从备份恢复副本</button><p>作品只在当前浏览器中。清理浏览器数据可能丢失，请定期备份。</p></> : <>
-          <button type="button" onClick={() => exportText(typeof menu === 'object' ? menu.draft : state.draft!)}>导出 TXT</button>
-          <button type="button" onClick={() => void copy(typeof menu === 'object' ? menu.draft : state.draft!)}>复制正文</button>
-          {typeof menu === 'object' ? <button className={menu.deletedAt ? '' : 'danger'} type="button" onClick={async () => { const ok = await workspace.setDeleted(menu, !menu.deletedAt); if (ok) { setNotice(menu.deletedAt ? '作品已恢复' : '已移入回收站，可以随时恢复'); setMenu(null); } }}>{menu.deletedAt ? '恢复作品' : '移入回收站'}</button> : <button type="button" onClick={backup}>导出当前备份</button>}
+        {menu === 'library' ? <>
+          <button type="button" onClick={() => setMenu('works')}>管理作品</button>
+          <button type="button" onClick={() => setMenu('trash')}>回收站</button>
+          <button type="button" onClick={() => { backup(); setMenu(null); }}>导出全部备份</button>
+          <button type="button" disabled={busy} onClick={() => file.current?.click()}>从备份恢复副本</button>
+          <p>作品只在当前浏览器中。清理浏览器数据可能丢失，请定期备份。</p>
+        </> : typeof menu === 'object' ? <>
+          <button type="button" onClick={() => { exportText(menu.draft); setMenu(null); }}>导出 TXT</button>
+          <button type="button" onClick={() => { void copy(menu.draft); setMenu(null); }}>复制正文</button>
+          <button className={menu.deletedAt ? '' : 'danger'} type="button" disabled={busy} onClick={async () => {
+            setBusy(true); const ok = await workspace.setDeleted(menu, !menu.deletedAt); setBusy(false);
+            setMenu(null);
+            if (ok) setNotice(menu.deletedAt ? '作品已恢复' : '已移入回收站，可以随时恢复');
+          }}>{menu.deletedAt ? '恢复作品' : '移入回收站'}</button>
+        </> : <>
+          {menuWorks.map(work => <button className="managed-work" key={work.id} type="button" aria-label={`选择作品：${work.title}`} onClick={() => setMenu(work)}><span>{work.title}</span><small>{formatTime(work.updatedAt)}</small></button>)}
+          {!menuWorks.length && <p>{menu === 'trash' ? '回收站是空的' : '还没有作品'}</p>}
         </>}
       </div>
     </Dialog>}

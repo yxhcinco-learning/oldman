@@ -57,6 +57,17 @@ export function completeVoice(draft: Draft): Draft {
   const segments = [...effectiveSegments(draft), { id: newId(), text: draft.pendingVoice.trim() }];
   return { ...draft, segments, textDraft: articleText(segments), pendingVoice: '' };
 }
-export function formatTime(value: string): string {
-  return new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+export function formatTime(value: string, now = new Date()): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '时间未知';
+  const elapsed = now.getTime() - date.getTime();
+  if (elapsed >= 0 && elapsed < 60_000) return '刚刚';
+  const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  // Compare local calendar dates, not elapsed 24-hour windows (including DST).
+  const calendarDay = (d: Date) => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  const days = (calendarDay(now) - calendarDay(date)) / 86_400_000;
+  if (days === 0) return `今天 ${time}`;
+  if (days === 1) return `昨天 ${time}`;
+  const year = date.getFullYear() === now.getFullYear() ? '' : `${date.getFullYear()}年`;
+  return `${year}${date.getMonth() + 1}月${date.getDate()}日 ${time}`;
 }
