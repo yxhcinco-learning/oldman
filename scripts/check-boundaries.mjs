@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 let errors = 0;
 const report = text => { console.error(text); errors++; };
@@ -11,7 +11,11 @@ async function scan(dir) {
     if (item.isDirectory()) { await scan(path); continue; }
     if (!/\.[cm]?[jt]sx?$/.test(path)) continue;
     const source = await readFile(path, 'utf8');
-    if (dir.startsWith('features/demo') && /from\s+['"][^'"]*(?:lib\/storage|server\/|features\/speech)/.test(source)) report(`演示不能调用真实服务: ${path}`);
+    if (dir.startsWith('features/demo')) for (const match of source.matchAll(/(?:from\s*|import\s*\(\s*)['"]([^'"]+)['"]/g)) {
+      if (!match[1].startsWith('.')) continue;
+      const imported = resolve(dirname(path), match[1]).replaceAll('\\', '/');
+      if (['lib/storage', 'server', 'features/speech', 'features/writing'].some(area => imported.startsWith(resolve(area).replaceAll('\\', '/') + '/'))) report(`演示不能调用真实业务: ${path}`);
+    }
     if ((dir.startsWith('app') || dir.startsWith('features')) && /process\.env\.TENCENT|TENCENT_ASR_SECRET_KEY/.test(source)) report(`客户端出现服务端凭据引用: ${path}`);
     if (!dir.startsWith('features/demo') && /from\s+['"][^'"]*mock-data/.test(source)) report(`真实业务依赖演示数据: ${path}`);
   }

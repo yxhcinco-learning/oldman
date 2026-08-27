@@ -27,6 +27,7 @@ npm run dev
 - [产品边界](docs/PRODUCT.md)、[设计规范](DESIGN-SYSTEM.md)、[架构与决策](docs/ARCHITECTURE.md)
 - [AI 开发约定](AGENTS.md)、[开发与验收](docs/DEVELOPMENT.md)
 - [隐私与数据边界](docs/PRIVACY.md)、[清理与回退](docs/CLEANUP.md)
+- [本地验收与待办记录](docs/ACCEPTANCE.md)
 - 当前 OpenSpec 变更：`productize-local-writing`
 
 ```powershell

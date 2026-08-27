@@ -6,7 +6,7 @@ import { defineConfig } from 'vite';
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   '00000000-0000-4000-8000-000000000000';
 
-// This design-review copy is intentionally detached from the original hosted Site.
+// The formal local product remains detached from the original hosted Site.
 const d1 = null;
 const r2 = null;
 
@@ -48,7 +48,7 @@ export default defineConfig(async () => {
   return {
     css: { postcss: { plugins: [tailwindcss()] } },
     server: {
-      host: '127.0.0.1', port: 3001, strictPort: true,
+      host: 'localhost', port: 3001, strictPort: true,
       proxy: { '/api/speech': { target: 'http://127.0.0.1:3002', ws: true, changeOrigin: true } },
       ...(isCodexSeatbeltSandbox ? { watch: { useFsEvents: false, usePolling: true } } : {}),
     },
