@@ -46,3 +46,20 @@ it('recovers an unfinished edit after remount', async () => {
   await waitFor(async () => expect((await repository.load()).recovery?.draft.segmentEdit?.text).toBe('还没点完成的修改'));
   view.unmount(); render(<ProductApp repository={repository} />); expect(await screen.findByLabelText('段落内容')).toHaveValue('还没点完成的修改');
 });
+it('copies real body and restores a work from the recycle bin', async () => {
+  const repository = repo(); render(<ProductApp repository={repository} />); await startWriting();
+  const writeText = vi.fn().mockResolvedValue(undefined); Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+  fireEvent.click(screen.getByRole('button', { name: '导出与更多操作' })); fireEvent.click(screen.getByRole('button', { name: '复制正文' }));
+  expect(writeText).toHaveBeenCalledWith('窗前的雨\n落进了风里\n\n我想把这一刻写下来。'); fireEvent.click(screen.getByRole('button', { name: '关闭' }));
+  fireEvent.click(screen.getByRole('button', { name: '保存' })); await screen.findByRole('heading', { name: '我的作品' });
+  fireEvent.click(screen.getByRole('button', { name: '夏日有感的更多操作' })); fireEvent.click(screen.getByRole('button', { name: '移入回收站' })); await screen.findByText('已移入回收站，可以随时恢复');
+  fireEvent.click(screen.getByRole('button', { name: '回收站' })); fireEvent.click(screen.getByRole('button', { name: '夏日有感的更多操作' })); fireEvent.click(screen.getByRole('button', { name: '恢复作品' })); await screen.findByText('作品已恢复');
+  expect((await repository.load()).works[0].deletedAt).toBeNull();
+});
+it('can undo an illustration in the isolated demo', async () => {
+  const repository = repo(); render(<ProductApp repository={repository} />); await startWriting(); const before = (await repository.load()).works[0];
+  fireEvent.click(screen.getByRole('button', { name: '文章优化' })); fireEvent.click(screen.getByRole('button', { name: /AI 配图/ }));
+  fireEvent.click(screen.getByRole('button', { name: /北去的列车/ })); fireEvent.click(screen.getByRole('button', { name: '应用优化' }));
+  expect(screen.getByRole('figure', { name: '文章配图：北去的列车' })).toBeInTheDocument(); fireEvent.click(screen.getByRole('button', { name: '撤销' }));
+  expect(screen.queryByRole('figure', { name: '文章配图：北去的列车' })).not.toBeInTheDocument(); fireEvent.click(screen.getByRole('button', { name: '退出演示' })); expect((await repository.load()).works[0]).toEqual(before);
+});

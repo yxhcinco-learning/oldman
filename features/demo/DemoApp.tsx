@@ -329,19 +329,19 @@ export function DemoApp({ source, entry, onExit }: { source: Draft; entry: 'chat
 
   function applyOptimization() {
     if (state.optimizeChoice.startsWith('配图：')) {
-      patch({ illustration: state.optimizeChoice.replace('配图：', ''), optimizeSheet: null, toast: '配图已经放进文章里了' });
+      patch({ previousSegments: state.segments, previousIllustration: state.illustration, illustration: state.optimizeChoice.replace('配图：', ''), optimizeSheet: null, toast: '配图已经放进文章里了' });
       return;
     }
     const source = state.segments;
     const next = optimizedSegments(source, state.optimizeChoice);
     dispatch({ type: 'replace-segments', segments: next, previous: source });
-    patch({ optimizeSheet: null, toast: null });
+    patch({ previousIllustration: state.illustration, optimizeSheet: null, toast: null });
   }
 
   function undoOptimization() {
     if (!state.previousSegments) return;
     dispatch({ type: 'replace-segments', segments: state.previousSegments, previous: null });
-    patch({ toast: '已经恢复到优化前的内容' });
+    patch({ illustration: state.previousIllustration, previousIllustration: null, toast: '已经恢复到优化前的内容' });
   }
 
   function openSegment(segment: Segment) {
@@ -351,9 +351,7 @@ export function DemoApp({ source, entry, onExit }: { source: Draft; entry: 'chat
   const recordingCopy = [state.pendingVoice, state.liveVoice].filter(Boolean).join('');
 
   function renderToast() {
-    const placement = state.screen === 'home'
-      ? 'home'
-      : state.screen === 'chat'
+    const placement = state.screen === 'chat'
         ? 'chat'
         : state.screen === 'segment-edit'
           ? 'segment'

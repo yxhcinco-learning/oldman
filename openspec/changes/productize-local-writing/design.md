@@ -10,10 +10,10 @@ V2 已验收，页面及 mock 混在单文件中且无持久化。用户批准�
 
 ## Decisions
 
-- 沿用 npm/Vinext；业务组件不依赖框架 API，暂不迁移工具链。
+- 沿用 npm/Vinext；业务组件不依赖框架 API，暂不迁移工具链。安全更新在同一工具链内升级并重跑检查与构建。
 - `features/writing` 管理工作副本，`lib/storage` 暴露 WorkRepository。IndexedDB v1 使用 works 和 recovery 两个 store；逐次串行事务、乐观 revision 检查，多标签冲突不静默覆盖。
 - 编辑快照包括 title、segments、textDraft、inputMode、pendingVoice、单段编辑缓存。保存恢复快照和作品在同一事务提交；空白新建只保存恢复状态，不生成空作品。手动保存必须等待落盘。
-- 备份 JSON 使用 schemaVersion=1；导入校验全部数据后在单事务中创建新 ID 的副本；未知版本拒绝且不修改数据库。TXT 导出只含标题与正文。
+- 备份 JSON 使用 schemaVersion=1；导入全部校验后事务创建新 ID 副本；未知版本拒绝且不修改数据库。TXT 包括标题/正文，待确认语音或未完成编辑附明确标注，避免故障补救导出遗漏。
 - `features/demo` 只接收副本和退出回调，不导入存储/语音网关。保留旧交互；顶部持续显示演示标识。
 - 浏览器通过 AudioWorklet 采集 16kHz PCM16 单声道；同源 `/api/speech` 代理到回环地址 Node/Fastify 网关。网关只接受已配置 Origin、固定腾讯云上游、最大 5 分钟、最大 10MB 和有限连接数。
 - `SpeechSession` 以会话代号隔离迟到回调；每句按 index 覆写临时结果，最终结果收尾后才完成；结束采音立即停止全部 tracks。短按、授权期间松手及取消不能偷偷开始录音。

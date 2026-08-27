@@ -4,8 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-for (const port of [3001, 3002]) {
-  try { await new Promise((resolve, reject) => { const probe = createServer(); probe.once('error', reject); probe.listen(port, '127.0.0.1', () => probe.close(resolve)); }); }
+for (const port of [3001, 3002]) for (const host of ['127.0.0.1', '::1']) {
+  try { await new Promise((resolve, reject) => { const probe = createServer(); probe.once('error', reject); probe.listen(port, host, () => probe.close(resolve)); }); }
   catch { console.error(`端口 ${port} 已被占用。请先停止已有服务；不会自动更换端口。`); process.exit(1); }
 }
 const children = [

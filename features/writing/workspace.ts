@@ -36,11 +36,19 @@ export class Workspace {
     }).catch(error => { if (serial === this.serial) this.patch({ saveStatus: 'error', error: message(error) }); return false; });
   }
   async finish(): Promise<boolean> {
-    const draft = this.state.draft;
-    if (!draft) return true;
-    if (!await this.update(draft)) return false;
-    try { await this.writer.flush(); await this.repository.clearRecovery(draft.id); this.patch({ draft: null, saveStatus: 'idle' }); return true; }
-    catch (error) { this.patch({ saveStatus: 'error', error: message(error) }); return false; }
+    // Typing may continue while an IndexedDB transaction is pending. Close only
+    // after the latest revision, including edits during clearRecovery, is saved.
+    while (this.state.draft) {
+      const draft = this.state.draft;
+      if (!await this.update(draft)) return false;
+      const serial = this.serial;
+      try {
+        await this.writer.flush(); await this.repository.clearRecovery(draft.id);
+        if (serial !== this.serial) continue;
+        this.patch({ draft: null, saveStatus: 'idle' }); return true;
+      } catch (error) { this.patch({ saveStatus: 'error', error: message(error) }); return false; }
+    }
+    return true;
   }
   async setDeleted(work: Work, deleted: boolean) {
     try {

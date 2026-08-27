@@ -61,6 +61,22 @@ describe('speech session', () => {
     await s.session.start(); const ready = s.socket.event({ type: 'ready' }); s.session.cancel(); finishCapture({ stop: s.stopAudio }); await ready;
     expect(s.stopAudio).toHaveBeenCalled(); expect(s.session.state.phase).toBe('idle');
   });
+  it('stops at five minutes and retains the confirmed text', async () => {
+    vi.useFakeTimers(); const s = setup(); await s.session.start(); await s.socket.event({ type: 'ready' });
+    s.socket.event({ type: 'transcript', text: '长段录音的内容。', final: true }); await vi.advanceTimersByTimeAsync(300000);
+    expect(s.session.state.phase).toBe('finishing'); expect(s.socket.send).toHaveBeenCalledWith('{"type":"end"}');
+    s.socket.event({ type: 'done' }); expect(s.session.state.text).toBe('长段录音的内容。');
+  });
+  it('allows a second session and ignores the first session callbacks', async () => {
+    const second = new Socket(); const s = setup(); await s.session.start(); await s.socket.event({ type: 'ready' }); s.session.cancel();
+    s.deps.socket = () => second as unknown as WebSocket; await s.session.start(); await second.event({ type: 'ready' });
+    second.event({ type: 'transcript', text: '第二段。', final: true }); s.socket.event({ type: 'transcript', text: '旧结果', final: true });
+    expect(s.session.state.text).toBe('第二段。'); s.session.cancel();
+  });
+  it('still closes cleanly when browser audio cleanup rejects', async () => {
+    const s = setup(); s.stopAudio.mockRejectedValue(new Error('context already closed')); await s.session.start(); await s.socket.event({ type: 'ready' });
+    await s.session.stop(); expect(s.socket.send).toHaveBeenCalledWith('{"type":"end"}'); s.socket.event({ type: 'done' }); expect(s.session.state.phase).toBe('idle');
+  });
 });
 it('revises one sentence without duplicates and does not downgrade final text', () => {
   const acc = new TranscriptAccumulator(); acc.accept(0, '我十六岁', false); acc.accept(0, '我十六岁那年。', true); acc.accept(1, '坐火车。', true); acc.accept(0, '过期临时结果', false);

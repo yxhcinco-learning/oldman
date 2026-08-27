@@ -11,6 +11,10 @@
 - **WHEN** 连续编辑、存储失败或并发 revision 冲突
 - **THEN** 不用旧内容覆盖新内容，失败时保留内存副本、报告问题并可导出
 
+#### Scenario: Input during manual save
+- **WHEN** 用户点击保存后在写入完成前继续输入
+- **THEN** 等待包含最新输入的写入再退出编辑器，不丢弃新修订
+
 ### Requirement: Work lifecycle
 系统 SHALL 支持新建、继续编辑、手动保存、软删除与恢复，显示真实字数与修改时间，无标题作品使用未命名作品。
 
@@ -28,3 +32,7 @@
 #### Scenario: Invalid import or failed migration
 - **WHEN** 备份损坏、未知版本或事务失败
 - **THEN** 拒绝操作并保留已有数据，不清空数据库
+
+#### Scenario: Rescue export includes unfinished input
+- **WHEN** 存储失败且尚有待确认语音或未完成单段编辑
+- **THEN** JSON 包含工作快照，TXT 另外标出未完成内容供人工保留

@@ -11,7 +11,10 @@ const work = z.object({
   id: z.string().min(1).max(128), title: z.string().max(120), segments: z.array(segment).max(10000),
   createdAt: z.iso.datetime(), updatedAt: z.iso.datetime(), revision: z.number().int().positive(),
   deletedAt: z.iso.datetime().nullable(), draft,
-}).strict().refine(w => w.id === w.draft.id, '作品与草稿 ID 不一致');
+}).strict().refine(w => w.id === w.draft.id, '作品与草稿 ID 不一致')
+  .refine(w => new Set(w.draft.segments.map(s => s.id)).size === w.draft.segments.length, '重复的段落标识')
+  .refine(w => JSON.stringify(w.segments) === JSON.stringify(w.draft.segments), '作品与编辑快照不一致')
+  .refine(w => !w.draft.segmentEdit || w.draft.segmentEdit.id === 'pending' || w.draft.segments.some(s => s.id === w.draft.segmentEdit?.id), '无效的段落编辑信息');
 export const backupSchema = z.object({ app: z.literal('suiyue-yousheng'), schemaVersion: z.literal(1), exportedAt: z.iso.datetime(), works: z.array(work).max(10000) }).strict();
 export const MAX_BACKUP_BYTES = 10 * 1024 * 1024;
 export function parseBackup(raw: string): Work[] {

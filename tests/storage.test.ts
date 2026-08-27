@@ -96,4 +96,12 @@ describe('editing and failure semantics', () => {
     expect(await workspace.finish()).toBe(false); expect(repo.clearRecovery).not.toHaveBeenCalled();
     expect(parseBackup(makeBackup(workspace.state.works, workspace.state.draft))).toHaveLength(1);
   });
+  it('does not close over a newer edit made while finishing', async () => {
+    const repo = repository(); const workspace = new Workspace(repo); await workspace.initialize(); await workspace.update(writing('先前内容'));
+    const originalClear = repo.clearRecovery.bind(repo); let release!: () => void;
+    const clear = vi.spyOn(repo, 'clearRecovery').mockImplementationOnce(async id => { await new Promise<void>(resolve => { release = resolve; }); await originalClear(id); });
+    const finished = workspace.finish(); await vi.waitFor(() => expect(clear).toHaveBeenCalled());
+    await workspace.update({ ...workspace.state.draft!, textDraft: '保存期间新输入的内容' }); release(); await finished;
+    expect(workspace.state.draft).toBeNull(); expect((await repo.load()).works[0].segments[0].text).toBe('保存期间新输入的内容'); expect((await repo.load()).recovery).toBeNull();
+  });
 });

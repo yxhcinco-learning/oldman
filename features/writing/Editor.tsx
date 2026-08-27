@@ -29,7 +29,7 @@ export function Editor({ draft, update, onSave, onBack, onDemo, onMore, saveStat
       <input className="title-input" maxLength={120} value={draft.title} onChange={e => update({ ...draft, title: e.target.value })} placeholder="输入标题" aria-label="文章标题" />
       {draft.inputMode === 'text' ? <textarea ref={textarea} className="full-text-editor" value={draft.textDraft} maxLength={1_000_000} onChange={e => update({ ...draft, textDraft: e.target.value })} placeholder="从想说的一句话开始" aria-label="文章正文" inputMode="text" /> : <div className="story-content">
         {!draft.segments.length && <div className="empty-writing"><p>从想说的一句话开始</p></div>}
-        {draft.segments.map((s, i) => <button className="story-paragraph" key={s.id} type="button" aria-label={`编辑第 ${i + 1} 段`} onClick={() => update({ ...draft, segmentEdit: { ...s } })}><span>{String(i + 1).padStart(2, '0')}</span><p>{s.text}</p></button>)}
+        {draft.segments.map((s, i) => <div key={s.id}><button className="story-paragraph" type="button" aria-label={`编辑第 ${i + 1} 段`} onClick={() => update({ ...draft, segmentEdit: { ...s } })}><span>{String(i + 1).padStart(2, '0')}</span><p>{s.text}</p></button></div>)}
       </div>}
     </div>
     <div className="save-row"><span role="status">{saveStatus === 'saving' ? '保存中…' : saveStatus === 'saved' ? '已保存到本机' : saveStatus === 'error' ? '尚未保存，请先备份' : '内容仅保存在本机'}</span><button type="button" onClick={onMore} aria-label="导出与更多操作">•••</button></div>
