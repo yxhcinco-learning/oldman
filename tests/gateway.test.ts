@@ -32,6 +32,13 @@ it('reports unavailable configuration without revealing credentials', async () =
   const response = await s.app.inject('/api/speech/status'); expect(response.json()).toEqual({ configured: false, provider: '腾讯云', maxSeconds: 300 });
   await expect(s.open()).rejects.toThrow(); expect(s.connect).not.toHaveBeenCalled();
 });
+it('reports configured status without contacting Tencent or exposing the identity', async () => {
+  const s = await setup();
+  const response = await s.app.inject('/api/speech/status');
+  expect(response.json()).toEqual({ configured: true, provider: '腾讯云', maxSeconds: 300 });
+  expect(response.body).not.toContain(credentials.secretId); expect(response.body).not.toContain(credentials.secretKey);
+  expect(s.connect).not.toHaveBeenCalled();
+});
 it('rejects foreign origins before connecting upstream', async () => {
   const s = await setup();
   expect((await s.app.inject({ url: '/api/speech/status', headers: { origin: 'https://other.example' } })).statusCode).toBe(403);

@@ -1,36 +1,39 @@
 # 腾讯云实时语音：本地接入指引
 
-代码已准备好，但没有读取或创建您的凭据，也没有产生真实识别调用。以下由您在自己的控制台/本机完成；不要把 SecretKey 发到聊天中。
+本机已支持复用腾讯云部署工具配置过的凭据。真实联调状态见 docs/ACCEPTANCE.md；无需重复创建或提供 SecretKey，也不要把密钥发到聊天中。
 
 ## 1. 检查服务与额度
 
 您的截图显示“中国大陆实时流量：已开通”。在控制台将用量/资源包筛选到 **实时语音识别**，不要把“录音文件识别”额度当成本项目额度。确认有效期、可用时长和后付费开关。
 
-首期用普通话基础模型 `16k_zh`，不启用大模型版、角色分离或情绪识别。免费额度和规则会变化，以控制台为准。若不希望超额扣费，先确认后付费关闭；不要为了试用直接购买或打开后付费。[官方计费说明](https://cloud.tencent.cn/document/product/1093/35686)
+首期用普通话基础模型 `16k_zh`，不启用大模型版、角色分离或情绪识别。免费额度和规则会变化，以控制台为准；程序不自动充值、购买资源包或修改后付费设置。[官方计费说明](https://cloud.tencent.cn/document/product/1093/35686)
 
-建议首轮几段 10–20 秒、总计不超过 2 分钟的非敏感文字。请明确认可这个测试额度，再开始真实联调。
+用户已授权本项目正常开发中的少量真实语音联调，不再按次询问额度。使用几段 10–20 秒的非敏感测试语音，不做批量压测。日常单元/流程测试和 CI 仍完全不调用真实 ASR。
 
 ## 2. 准备受限凭据
 
-建议在访问管理 CAM 创建专用子用户，只授予 ASR 所需权限，不用主账号全权限密钥。API 操作和控制台权限可能不同，按当前账号的授权列表确认实时识别操作；被拒绝时不要直接扩大为管理员权限。[ASR 访问管理](https://cloud.tencent.com/document/product/1093/48421)、[实时识别授权参考](https://intl.cloud.tencent.com/zh/document/product/1118/43350)
+本机已用 `codex-cvm` 子用户，并由用户添加 `asr:RealtimeRecognition` 操作权限；该操作的资源写为 `*`。不需要新建用户、重复生成密钥或开启控制台登录。正式运行建议改用只含 ASR 权限的独立身份，不把服务器/DNS 管理身份用于产品运行。[ASR 访问管理](https://cloud.tencent.com/document/product/1093/48421)、[实时识别授权参考](https://cloud.tencent.com/document/product/1093/48422)
 
-在 API 密钥管理获取 AppID、SecretId、SecretKey。临时凭据另填 Token，注意到期。只保存在本机服务端环境文件，不进前端、截图、仓库或 PR。[官方实时接口](https://cloud.tencent.com/document/product/1093/48982)
+AppID 使用所属主账号的 AppID，不是账号 UIN 或微信小程序 AppID；SecretId/SecretKey 使用子用户现有密钥。`TENCENT_ASR_TOKEN` 仅用于 STS 临时凭据，长期子用户密钥留空即可。[官方实时接口](https://cloud.tencent.com/document/product/1093/48982)
 
 ## 3. 填入本机环境文件
 
-在正式工程复制 `.env.example` 为 `.env.local`，使用本地编辑器填入：
+已验证的本机配置保存到 Git 忽略的 `.env.local`。当前使用 Windows User 中已有的 `TENCENTCLOUD_SECRET_ID` / `TENCENTCLOUD_SECRET_KEY`，启动网关时重新读取，不要求桌面应用已继承这些环境变量。文件只包含非秘密配置：
 
 ```dotenv
+ASR_CREDENTIAL_SOURCE=windows-user
 TENCENT_ASR_APP_ID=你的数字AppID
-TENCENT_ASR_SECRET_ID=你的SecretId
-TENCENT_ASR_SECRET_KEY=你的SecretKey
+TENCENT_ASR_SECRET_ID=
+TENCENT_ASR_SECRET_KEY=
 TENCENT_ASR_TOKEN=
 ASR_ALLOWED_ORIGIN=http://localhost:3001
 ASR_MAX_CONNECTIONS=2
-ALLOW_PAID_SPEECH_TEST=0
+ALLOW_PAID_SPEECH_TEST=1
 ```
 
-该文件被 Git 忽略；不要添加 `NEXT_PUBLIC_` / `VITE_` 前缀。`ALLOW_PAID_SPEECH_TEST` 只控制预检脚本，不是云端费用封顶开关；配置凭据后在页面录音就可能使用额度。
+其他电脑或独立运行身份使用 `ASR_CREDENTIAL_SOURCE=project`（默认），通过服务端环境变量提供完整 ASR 密钥对，临时凭据同时提供 Token。两个来源互斥：不会混用 SecretId/SecretKey/Token，选定来源缺失时明确失败，不静默换成共享身份。Windows 读取有超时，异常不回显密钥。
+
+不要添加 `NEXT_PUBLIC_` / `VITE_` 前缀。`ALLOW_PAID_SPEECH_TEST` 只控制命令行音频联调，不是云端费用封顶开关；配置凭据后在页面主动录音就可能使用额度。
 
 ## 4. 启动与确认
 
@@ -38,7 +41,15 @@ ALLOW_PAID_SPEECH_TEST=0
 
 访问 http://localhost:3001/api/speech/status 应看到 `configured: true`。这**只表示字段齐全**，不证明密钥有效、权限正确、额度充足或网络可达；接口从不返回凭据。
 
-认可额度后，在 `.env.local` 临时设 `ALLOW_PAID_SPEECH_TEST=1`，运行 `npm run test:speech:live` 按提示检查。命令本身不上传音频。再在页面长按：先同意音频处理说明，再长按处理浏览器权限，等待“正在听”后说话。
+运行 `npm run test:speech:live` 默认只检查本地配置，不上传音频，也不要求允许标记。真正的命令行联调需显式指定本地非敏感 PCM 文件：
+
+```powershell
+npm run test:speech:live -- --pcm outputs/测试音频.pcm --expect 非敏感测试句
+```
+
+音频必须为 16kHz、单声道、16 位 PCM，最多 30 秒。已设置允许标记后，工具通过 localhost:3001 的同源代理发送，保持与浏览器一致的 40ms 实时速率，校验最终结果，仅输出时长/字数/更新次数等指标，不记录转写全文。`--expect` 可省略；不把私人内容放在命令参数中。测试音频放在忽略目录，不提交。
+
+页面验收：先长按并同意音频处理说明，再长按处理浏览器权限，等待“正在听”后说话。
 
 授权弹窗期间松开会取消；即使稍后同意权限，也不会暗中录音。再次长按即可。
 
@@ -49,17 +60,19 @@ ALLOW_PAID_SPEECH_TEST=0
 - 完成进入正文，刷新仍存在；待确认转写也能恢复。
 - 拒绝授权、取消、断网、后台不会继续采音，已有文字可修正。
 - 记录日期、总时长、控制台消耗和错误类型，不记录密钥/签名 URL。
-- 测试后把预检开关改回 0；不使用时停网关，按需禁用/轮换凭据。
+- 本机允许标记可随用户授权保留；没有显式音频参数不发起识别，CI 不配置凭据。不使用时停止网关；共享凭据轮换需同时考虑部署工具，不能随意删除。
 
 ## 排查
 
 | 提示 | 检查 |
 |---|---|
-| 尚未配置 | 文件位置、三项字段、网关是否重启 |
+| 尚未配置 | AppID、凭据来源、选定来源是否有完整密钥、网关是否重启 |
 | 无法连接网关 | 3002 是否启动，3001 是否使用组合启动器 |
 | 来源不允许 | 地址是否严格为 `http://localhost:3001` |
 | 麦克风未获允许 | 浏览器权限与安全上下文；先在电脑 localhost 验证 |
 | 腾讯云未成功 | AppID、受限权限、Token、实时额度、流量地区与网络 |
 | 网络过慢/收尾超时 | 保留文字，分短段再试，不持续重复连接 |
+
+本地使用 Vinext 的 Node 开发运行时。Cloudflare 插件保留在构建链路，不在本地接管 WebSocket；避免其升级监听器与语音代理冲突。转发保持 Origin，不改写或关闭来源校验。
 
 单段最长 5 分钟、音频最多 10MB、默认 2 路连接。这是资源限制，不是费用承诺。原音只有内存缓冲，不持久保存。上线前仍需独立 HTTPS、服务端安全和真机验收方案。

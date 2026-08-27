@@ -29,9 +29,13 @@ CI 对 push/PR 运行 npm ci、check、build 和依赖审计；CI 不配置腾�
 - `npm run dev:web` / `npm run dev:speech`：诊断时分别启动，不和组合启动器重复运行。
 - `npm run check`：类型、Lint、测试、规范与边界校验。
 - `npm run build`：本地 Vinext 构建，不发布。
-- `npm run test:speech:live`：显式允许的联调预检；只读本地配置状态，不产生语音，也不算真实识别通过。后续手动录音见 SPEECH-SETUP。
+- `npm run test:speech:live`：无参数只读本地状态，不产生语音。显式 `-- --pcm 文件.pcm` 且本地允许标记开启时才做最多 30 秒的真实联调；可加 `--expect 非敏感测试句`。用户已授权少量正常开发测试，不再逐次询问费用；不自动购买/充值。详见 SPEECH-SETUP。
 
 默认仅绑定回环地址。不把开发服务暴露到局域网/互联网；手机真实麦克风和键盘在后续可信 HTTPS 环境验证。
+
+本机 `.env.local` 记录 AppID 与 `ASR_CREDENTIAL_SOURCE=windows-user`，密钥由网关启动时读取 Windows User 环境，不复制进工程。`TENCENT_ASR_TOKEN` 对长期密钥留空；更换凭据后重启网关即可。其他环境使用 `project` 来源。
+
+本地 Vinext 走 Node 运行时，构建才启用 Cloudflare 插件。`local-speech-proxy.test.ts` 使用真实 Vite 转发与假上游覆盖 WebSocket 全流程及外部 Origin 拒绝，不调用腾讯云。
 
 ## 数据与备份
 
