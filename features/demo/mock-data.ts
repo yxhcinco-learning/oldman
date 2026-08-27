@@ -1,9 +1,7 @@
+// Demonstration fixtures only. Never import this module into real writing/storage.
+import { articleText, type Segment } from '../../lib/domain/writing';
+export { articleText, countWords, splitDraft, type Segment } from '../../lib/domain/writing';
 export type CoverTone = 'amber' | 'sage' | 'blue' | 'rose';
-
-export interface Segment {
-  id: string;
-  text: string;
-}
 
 export interface Work {
   id: string;
@@ -96,22 +94,6 @@ export const CONTENT_TYPES = ['散文', '生活随笔', '诗歌', '口述故事'
 export const WRITING_STYLES = ['朴实真诚', '温暖叙事', '文学散文', '轻松幽默'];
 export const FORMAT_OPTIONS = ['自动分段', '修正标点', '添加小标题'];
 export const CUSTOM_PROMPTS = ['写得更温暖', '保留我的口吻', '不要太文绉绉'];
-
-export function articleText(segments: Segment[]) {
-  return segments.map((segment) => segment.text.trim()).filter(Boolean).join('\n\n');
-}
-
-export function countWords(segments: Segment[]) {
-  return segments.reduce((total, segment) => total + segment.text.replace(/\s/g, '').length, 0);
-}
-
-export function splitDraft(text: string): Segment[] {
-  return text
-    .split(/\n\s*\n|\n/)
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .map((part, index) => ({ id: `text-${Date.now()}-${index}`, text: part }));
-}
 
 export function buildChatIntro(segments: Segment[]): ChatMessage[] {
   const hasContent = segments.some((segment) => segment.text.trim());

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('http://localhost:3000'),
+  metadataBase: new URL('http://localhost:3001'),
   title: '岁月有声｜把想说的话，慢慢写成文章',
   description: '一款为长辈设计的温暖写作助手。',
   openGraph: {

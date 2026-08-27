@@ -14,7 +14,7 @@
 ## Capabilities
 
 ### New Capabilities
-- `project-foundation`: 规范、可回退基线、清理、开发检查和私有仓库交付。
+- `project-foundation`: 规范、可回退基线、清理、开发检查和用户指定 Public 仓库交付。
 - `local-writing`: 真实编辑、自动保存、恢复、回收站与版本化备份。
 - `speech-input`: 本地网关、真实采音、转写状态机和异常保护。
 - `isolated-ai-demo`: 保留聊天及优化模拟，与真实作品严格隔离。
