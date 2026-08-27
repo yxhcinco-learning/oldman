@@ -28,6 +28,13 @@ yarn-error.log*
 
 # local environment
 .env*
+!.env.example
+/backups/
+/test-results/
+*.wav
+*.pcm
+*.webm
+*.tsbuildinfo
 
 # deployment and generated files
 .vercel
