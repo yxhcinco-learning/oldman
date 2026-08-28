@@ -298,6 +298,17 @@ button.voice-side { cursor: pointer; }
 }
 
 /* Product additions use the approved paper, green and orange tokens. */
+/* Approved editor presentation: shared text metrics without segment decoration. */
+.writing-canvas { display: flex; flex-direction: column; }
+.writing-body { --writing-placeholder: #aba99f; margin: 0; white-space: pre-wrap; overflow-wrap: break-word; scrollbar-width: none; }
+.writing-body::-webkit-scrollbar { display: none; }
+.writing-body::placeholder, .writing-placeholder { color: var(--writing-placeholder); opacity: 1; }
+.writing-preview { flex-shrink: 0; }
+.writing-placeholder { margin: 0; font: inherit; }
+.writing-paragraph { display: block; width: 100%; margin: 0; padding: 0; border: 0; border-radius: 0; color: inherit; background: transparent; font: inherit; text-align: inherit; white-space: inherit; overflow-wrap: inherit; cursor: pointer; }
+/* A real text block preserves leading spaces that native button labels trim. */
+.writing-paragraph > span { display: block; }
+.writing-paragraph + .writing-paragraph { margin-top: 1.85em; }
 .loading-state { padding: 64px 24px; color: var(--muted); font-size: 18px; }
 .empty-library { padding: 40px 8px; text-align: center; color: var(--muted); }
 .empty-library p { margin-bottom: 10px; font-family: "STSong", serif; font-size: 21px; }

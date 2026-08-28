@@ -4,6 +4,8 @@ import { BackIcon } from '../../components/Icons';
 import { articleText, effectiveSegments, completeSegment, completeVoice, type Draft, type InputMode } from '../../lib/domain/writing';
 import { VoicePanel } from '../speech/VoicePanel';
 
+const BODY_PLACEHOLDER = '在这里输入想写的话……';
+
 export function Editor({ draft, update, onSave, onBack, onDemo, saveStatus }: {
   draft: Draft; update: (draft: Draft) => void; onSave: () => void; onBack: () => void;
   onDemo: (entry: 'chat' | 'optimize') => void; saveStatus: string;
@@ -26,11 +28,11 @@ export function Editor({ draft, update, onSave, onBack, onDemo, saveStatus }: {
   return <>
     <header className="topbar editor-topbar"><button className="icon-button" type="button" aria-label="返回作品" onClick={onBack}><BackIcon /></button><div><strong>开始写作</strong></div><button className="text-button save-text" type="button" aria-describedby="save-status" onClick={onSave}>{saveStatus === 'saving' ? '保存中' : saveStatus === 'error' ? '重试' : '保存'}</button></header>
     <span id="save-status" className="visually-hidden" role="status">{saveStatus === 'saving' ? '保存中…' : saveStatus === 'saved' ? '已保存到本机' : saveStatus === 'error' ? '尚未保存，请先备份' : '内容仅保存在本机'}</span>
-    <div className={`editor-scroll ${draft.inputMode === 'text' ? 'text-mode' : ''}`}>
+    <div className="editor-scroll writing-canvas">
       <input className="title-input" maxLength={120} value={draft.title} onChange={e => update({ ...draft, title: e.target.value })} placeholder="输入标题" aria-label="文章标题" />
-      {draft.inputMode === 'text' ? <textarea ref={textarea} className="full-text-editor" value={draft.textDraft} maxLength={1_000_000} onChange={e => update({ ...draft, textDraft: e.target.value })} placeholder="在这里输入想写的话……" aria-label="文章正文" inputMode="text" autoCapitalize="sentences" /> : <div className="story-content">
-        {!draft.segments.length && <div className="empty-writing"><p>从想说的一句话开始</p></div>}
-        {draft.segments.map((s, i) => <div key={s.id}><button className="story-paragraph" type="button" aria-label={`编辑第 ${i + 1} 段`} onClick={() => update({ ...draft, segmentEdit: { ...s } })}><span>{String(i + 1).padStart(2, '0')}</span><p>{s.text}</p></button></div>)}
+      {draft.inputMode === 'text' ? <textarea ref={textarea} className="full-text-editor writing-body" value={draft.textDraft} maxLength={1_000_000} onChange={e => update({ ...draft, textDraft: e.target.value })} placeholder={BODY_PLACEHOLDER} aria-label="文章正文" inputMode="text" autoCapitalize="sentences" /> : <div className="full-text-editor writing-body writing-preview" role="group" aria-label="文章正文">
+        {!draft.segments.length && <p className="writing-placeholder">{BODY_PLACEHOLDER}</p>}
+        {draft.segments.map((s, i) => <button key={s.id} className="writing-paragraph" type="button" aria-label={`编辑第 ${i + 1} 段`} onClick={() => update({ ...draft, segmentEdit: { ...s } })}><span>{s.text}</span></button>)}
       </div>}
     </div>
     <footer className={`editor-dock ${draft.inputMode}`}><div className="creation-controls" aria-label="创作方式与工具"><div className="mode-tabs" role="tablist" aria-label="输入方式">
