@@ -2,10 +2,8 @@
 
 ## Purpose
 
-规定正式产品全面采用 Echoes 设计时的视觉一致性、真实功能保留、语音稳定布局、AI副本隔离及响应式可访问行为，以现行 DESIGN-SYSTEM.md 为视觉依据。
-
+规定正式产品采用 Echoes 设计时的视觉一致性、真实功能保留、语音稳定布局、文章 AI 确认写回与历史预览隔离及响应式可访问行为，以现行 DESIGN-SYSTEM.md 为视觉依据。
 ## Requirements
-
 ### Requirement: Adopt the approved visual system
 正式产品 SHALL 全面采用已确认的 Echoes 视觉，现行 `DESIGN-SYSTEM.md` MUST 记录色板、排版、组件、真实状态、响应式及可访问性规则；旧设计仅作历史参考。
 
@@ -14,7 +12,7 @@
 - **THEN** 使用统一暖白纸面、森林绿、赭色、衬线标题、无衬线正文、SVG图标与圆角；不存在混用旧主题的弹层
 
 ### Requirement: Preserve real product capabilities
-视觉迁移 MUST 保留原生文字输入、真实作品时间与字数、本机保存/恢复、删除恢复和导出备份，不导入预览业务状态或示例数据，不修改存储/语音协议。
+视觉迁移 MUST 保留原生文字输入、真实作品时间与字数、本机保存/恢复、删除恢复和导出备份，不导入预览业务状态或示例数据，不修改语音协议。已确认的文章 AI 会话升级 MAY 事务新增存储，但 MUST 保留已有正文、草稿和旧备份导入能力。
 
 #### Scenario: Existing and empty libraries
 - **WHEN** 首次打开空库或打开已保存的作品
@@ -36,11 +34,15 @@
 - **THEN** 文本区可滚动、状态可读，按钮不被推走；已有转写仍可修改、清空或完成
 
 ### Requirement: Keep AI isolation visible
-聊天和优化 SHALL 保留现有副本模拟行为及清楚的模拟标识，所有完成、应用、配图和撤销 MUST 不修改真实作品。
+正式聊天与优化 SHALL 使用真实文章助手并清楚区分生成中、待采用、已采用、失败与未开放能力；只有明确确认的候选或恢复版本 MUST 写入正文。历史模拟源码和独立预览仍须隔离，不能作为真实结果或写回来源。
 
 #### Scenario: Exit after changing the copy
-- **WHEN** 用户完成聊天或应用/撤销优化后退出
-- **THEN** 回到原真实编辑状态，存储记录未改变；新的视觉不会暗示模拟结果已保存
+- **WHEN** 用户在历史模拟源码或独立预览中修改副本后退出
+- **THEN** 真实作品未改变；正式产品入口不再导向该模拟树
+
+#### Scenario: New optimization menu
+- **WHEN** 用户打开正式文章优化
+- **THEN** Echoes 风格呈现常规优化主入口、润色文笔/精简内容/扩写内容/添加配图及小文文字入口；后三项待开放，真实结果可预览、确认、撤销和追问
 
 ### Requirement: Responsive and accessible delivery
 界面 SHALL 支持360、390、430手机宽度及桌面800px最大画布、键盘焦点和减少动画；主要操作至少56px，非键盘控件目标至少48px。

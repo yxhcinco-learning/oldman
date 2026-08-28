@@ -27,7 +27,7 @@
 - **THEN** 两种模式重新显示统一的空白提示，提示不作为正文保存
 
 ### Requirement: Retain editing and recovery
-系统 SHALL 保留原生文字输入、可访问的单段编辑、待确认语音和本机自动保存/恢复；本次 MUST 不修改数据库版本、备份格式或用户已有记录。
+系统 SHALL 保留原生文字输入、可访问的单段编辑、待确认语音和本机自动保存/恢复；文章 AI 会话升级 SHALL 采用事务添加存储并兼容旧备份，不丢弃用户已有记录。
 
 #### Scenario: Edit a paragraph without visible numbering
 - **WHEN** 用户点击语音模式正文中的一段，或用键盘激活该段
@@ -42,7 +42,7 @@
 - **THEN** 保留内存正文和原错误提示/重试/导出入口，不把失败显示为保存成功
 
 ### Requirement: Keep speech and layout boundaries
-底部四个工具 SHALL 采用新设计的图标和短标签、保留完整可访问名称，麦克风保持固定网格；展示迁移 MUST 不改变语音录制/取消/待确认状态、AI模拟隔离和本机访问边界。
+底部四个工具 SHALL 采用新设计的图标和短标签、保留完整可访问名称，麦克风保持固定网格；文章 AI 接入 MUST 不改变语音录制/取消/待确认状态和本机访问边界，未确认 AI 结果与正文分离。
 
 #### Scenario: Pending or cancelled recording
 - **WHEN** 语音仍待确认或用户取消本次录音
