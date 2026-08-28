@@ -18,4 +18,4 @@
 
 ## 交付
 
-唯一正式源码位于 D:/vibe_code/oldman 根目录，原 V2 完整平铺迁入，V1 已清空；远程为用户指定且允许 Public 的 oldman 仓库。已停用本地 GPT Sites 发布接入，不修改远端站点。仅 localhost:3001 开发验收，真实手机录音与键盘在后续 HTTPS 环境验收。
+唯一正式源码位于 D:/vibe_code/oldman 根目录，项目统一称“岁月有声”或“正式版”；远程为用户指定且允许 Public 的 oldman 仓库。已停用本地 GPT Sites 发布接入，不修改远端站点。仅 localhost:3001 开发验收，真实手机录音与键盘在后续 HTTPS 环境验收。

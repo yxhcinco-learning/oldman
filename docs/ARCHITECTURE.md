@@ -36,4 +36,4 @@ AudioWorklet 重采样至 16kHz PCM16；同源 WebSocket 代理至 127.0.0.1:300
 
 ## 回退
 
-demo-approved-v2 为无持久化 Demo 基线。正式 Git 历史随项目迁入 D:/vibe_code/oldman；V1 和额外旧版 bundle 已按用户要求清理，不再保留退役副本。回退前导出 JSON，代码回退不等于数据库降级。
+Git 提交 `28fd5e4` 为无持久化的历史设计基线。正式 Git 历史保存在 D:/vibe_code/oldman；原型源码和额外 bundle 已按用户要求清理，不再保留退役副本。回退前导出 JSON，代码回退不等于数据库降级。

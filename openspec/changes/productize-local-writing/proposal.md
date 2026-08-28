@@ -4,13 +4,14 @@
 
 ## What Changes
 
-- 冻结 V2 基线，建立 Git、OpenSpec、开发文档、CI 和回归测试。
+- 冻结已验收设计基线，建立 Git、OpenSpec、开发文档、CI 和回归测试。
 - 拆分业务、存储、录音与演示模块；清理模拟键盘和无用源码。
 - **BREAKING** 真实作品列表不再预填示例；保存改为 IndexedDB 自动保存、恢复和备份。
 - 接入本地腾讯云实时语音网关，支持取消、失败和最终结果收尾。
 - 保留全部 AI 演示，但只在副本中修改，退出不影响真实作品。
 - 不改变整体视觉风格，不接真实生成式 AI，不上线、不做账号或云端作品。
 - 按用户追加要求将正式工程平铺迁到 oldman 根目录，移除本地 Sites 发布接入与专用依赖；保留 Vinext、现有 UI 和腾讯云语音，不操作远端站点。
+- 统一项目文档、规范、测试描述与归档文件名的正式版称谓，历史设计基线以固定提交定位，不改动真实协议或 Git 历史。
 
 ## Capabilities
 
@@ -25,4 +26,4 @@
 
 ## Impact
 
-涉及 V2 的页面、样式、模型、测试和开发脚本；新增 IndexedDB 和 Node/Fastify 网关依赖。腾讯云凭据仅由环境变量提供；真实联调、GitHub 权限和真机验收独立记录。用户补充：V2 为正式版，使用 yxhcinco-learning/oldman 仓库；正式工程平铺迁至 D:/vibe_code/oldman，原 Demo 和多余备份不保留。移除本地 Sites/Worker 发布配置和依赖，已有线上站点不修改。
+涉及正式工程的页面、样式、模型、测试和开发脚本；新增 IndexedDB 和 Node/Fastify 网关依赖。腾讯云凭据仅由环境变量提供；真实联调、GitHub 权限和真机验收独立记录。工程位于 D:/vibe_code/oldman，使用 yxhcinco-learning/oldman 仓库；原型源码和多余备份不保留。移除本地 Sites/Worker 发布配置和依赖，已有线上站点不修改。

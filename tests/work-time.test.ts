@@ -10,7 +10,7 @@ it.each([
   [new Date(2026, 6, 25, 10, 1), '7月25日 10:01'],
   [new Date(2025, 7, 27, 10, 1), '2025年8月27日 10:01'],
   [new Date(2026, 7, 28, 10, 1), '8月28日 10:01'],
-])('formats real local dates using the V2 presentation (%s)', (date, expected) => {
+])('formats real local dates using the approved presentation (%s)', (date, expected) => {
   expect(formatTime(date.toISOString(), now)).toBe(expected);
 });
 it('uses calendar yesterday across month/year boundaries and rejects invalid dates safely', () => {

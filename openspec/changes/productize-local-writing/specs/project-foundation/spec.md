@@ -1,37 +1,44 @@
 ## ADDED Requirements
 
-### Requirement: Approved V2 interface fidelity
-工程 SHALL 以 demo-approved-v2 为界面回归基准；除已批准的真实状态和数据能力外，不新增功能或常驻入口，不因产品化改变原卡片、编辑器及语音区域的布局。
+### Requirement: Approved interface fidelity
+工程 SHALL 以已验收设计基线（Git 提交 28fd5e4）为界面回归基准；除已批准的真实状态和数据能力外，不新增功能或常驻入口，不因产品化改变原卡片、编辑器及语音区域的布局。
 
 #### Scenario: Open the real work library
 - **WHEN** 用户查看真实作品首页
-- **THEN** 卡片沿用 V2 的内边距、标题和右对齐时间/继续写，不展示卡片更多按钮或下方回收站、体验 AI 演示快捷入口；时间按真实本地日期显示，状态不虚构完成进度
+- **THEN** 卡片沿用已验收的内边距、标题和右对齐时间/继续写，不展示卡片更多按钮或下方回收站、体验 AI 演示快捷入口；时间按真实本地日期显示，状态不虚构完成进度
 
 #### Scenario: Access approved data tools
-- **WHEN** 用户打开 V2 原有的首页更多入口
+- **WHEN** 用户打开首页现有的更多入口
 - **THEN** 可以备份、恢复、管理及回收作品；关闭后首页结构不改变，既有作品数据不删除
 
 #### Scenario: Write or enter a demo
 - **WHEN** 用户编辑正文、单段或进入聊天/优化演示
-- **THEN** 编辑器不增加保存工具行，保存状态复用原控件与反馈；单段提示和字数沿用 V2，演示仅保留必要隔离标识，不影响真实内容
+- **THEN** 编辑器不增加保存工具行，保存状态复用原控件与反馈；单段提示和字数沿用已验收设计，演示仅保留必要隔离标识，不影响真实内容
 
 ### Requirement: Reversible scoped development
-工程 SHALL 保留 demo-approved-v2 基线及其后正式版本，遵循 AGENTS 和 OpenSpec，源码不包含缓存、密钥、原音或私密正文。按用户确认将正式 V2 平铺迁至 D:/vibe_code/oldman，后续仅在该根目录开发。
+工程 SHALL 保留已验收基线（Git 提交 28fd5e4）及其后正式版本，遵循 AGENTS 和 OpenSpec，源码不包含缓存、密钥、原音或私密正文；仅在 D:/vibe_code/oldman 正式工程根目录开发。
 
 #### Scenario: Cleanup and verification
 - **WHEN** 清理或重构 Demo
 - **THEN** 每个验证小阶段主动本地提交；原 Demo 经核对且用户明确确认后清理，线上站点不改变
 
 ### Requirement: Single canonical project root
-正式工程 SHALL 直接位于 D:/vibe_code/oldman 根目录，不嵌套 V2 子目录、不混合 V1 文件，不保留第二个活动工程目录。
+正式工程 SHALL 直接位于 D:/vibe_code/oldman 根目录，不嵌套另一套工程、不混合已淘汰的原型文件，不保留第二个活动工程目录。
 
-#### Scenario: Replace the retired V1 checkout
-- **WHEN** 按用户确认迁移正式 V2
-- **THEN** 确认 V1 无独有配置、未提交改动或本地用户数据后，按用户明确要求直接删除 V1 内容及多余旧版备份，不另存退役目录；完整迁入 V2 的源码、Git 历史、隐藏配置和本地文件，校验完成后移除空的旧 V2 目录，不递归删除当前工作区根目录
+#### Scenario: Replace a retired prototype checkout
+- **WHEN** 按用户确认将正式工程迁至工作区根目录
+- **THEN** 确认原型工程无独有配置、未提交改动或本地用户数据后，按用户明确要求清理原型内容及多余备份，不另存退役副本；完整保留正式工程的源码、Git 历史、隐藏配置和本地文件，校验完成后清理空的迁移源目录，不递归删除当前工作区根目录
 
 #### Scenario: Restart from the canonical root
 - **WHEN** 在 D:/vibe_code/oldman 启动服务
-- **THEN** AGENTS、OpenSpec、依赖及 .env.local 均位于此根目录，文档命令不再引导至旧 V2 路径；仍使用 localhost:3001，不清空或迁移浏览器作品库，不发布线上站点
+- **THEN** AGENTS、OpenSpec、依赖及 .env.local 均位于此根目录，文档命令只指向正式工程路径；仍使用 localhost:3001，不清空或迁移浏览器作品库，不发布线上站点
+
+### Requirement: Consistent product naming
+项目文件 SHALL 统一使用“岁月有声”“正式版”或“当前工程”，不再用历史原型的版本代称区分活动项目；现行规范、归档文件名和测试描述保持一致。
+
+#### Scenario: Review documentation and references
+- **WHEN** 维护 README、AGENTS、设计规范、OpenSpec、归档材料或测试描述
+- **THEN** 使用统一产品称谓，设计基线通过固定提交定位；不重写 Git 历史或标签，不误改外部接口路径、数据库格式版本及依赖校验值
 
 ### Requirement: Honest local delivery
 工程 SHALL 固定 localhost:3001，并提供类型、Lint、单元、流程、构建和规范检查，外部验收不得自动宣称通过。

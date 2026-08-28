@@ -65,7 +65,7 @@ it('copies real body and restores a work from the recycle bin', async () => {
   expect(screen.getByRole('button', { name: /夏日有感.*继续写/ })).toBeInTheDocument();
 });
 
-it('keeps only the approved V2 home affordances and card hierarchy', async () => {
+it('keeps only the approved home affordances and card hierarchy', async () => {
   const repository = repo(); const { container } = render(<ProductApp repository={repository} />); await startWriting();
   fireEvent.click(await screen.findByRole('button', { name: '保存' })); await screen.findByRole('heading', { name: '我的作品' });
   const recent = screen.getByRole('region', { name: '最近写下' });

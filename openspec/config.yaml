@@ -1,11 +1,11 @@
 schema: spec-driven
 context: |
-  岁月有声：适老 H5 写作工具。正式 V2 已平铺迁入 D:/vibe_code/oldman 根目录，UI 不重设计；V1 已清空。
+  岁月有声：适老 H5 写作工具。唯一正式工程位于 D:/vibe_code/oldman 根目录，UI 不重设计。
   React 19 / TypeScript / Vinext / npm；本机 IndexedDB；Node/Fastify 腾讯云实时语音网关。
   真实写作和 AI 演示使用独立状态；无账号、无云端作品、无发布。
   用户已停用 GPT Sites，本地工程不保留 Sites/Cloudflare 发布接入，不重新初始化站点或操作旧线上站点。
   先读 AGENTS.md、docs/PRODUCT.md、docs/ARCHITECTURE.md、DESIGN-SYSTEM.md。
-  中文规范与文案，英文代码标识。基于 demo-approved-v2 可回退。
+  中文规范与文案，英文代码标识。项目统一使用正式版称谓，设计基线通过 Git 提交 28fd5e4 定位。
   用户指定 yxhcinco-learning/oldman Public 仓库；每个通过检查的小阶段自动本地提交。
 rules:
   proposal:
