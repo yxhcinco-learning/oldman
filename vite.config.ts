@@ -9,7 +9,10 @@ export default defineConfig({
   css: { postcss: { plugins: [tailwindcss()] } },
   server: {
     host: 'localhost', port: 3001, strictPort: true,
-    proxy: { '/api/speech': { target: 'http://127.0.0.1:3002', ws: true, changeOrigin: true } },
+    proxy: {
+      '/api/speech': { target: 'http://127.0.0.1:3002', ws: true, changeOrigin: true },
+      '/api/ai': { target: 'http://127.0.0.1:3002', changeOrigin: true },
+    },
     ...(isCodexSeatbeltSandbox ? { watch: { useFsEvents: false, usePolling: true } } : {}),
   },
   plugins: [vinext()],

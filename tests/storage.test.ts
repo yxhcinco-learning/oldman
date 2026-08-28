@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { openDB } from 'idb';
 import { IndexedWorkRepository, DraftWriter, ConflictError, type WorkRepository } from '../lib/storage/repository';
 import { emptyDraft, completeSegment, completeVoice, effectiveSegments, type Draft } from '../lib/domain/writing';
-import { makeBackup, parseBackup } from '../lib/storage/backup';
+import { makeBackup, parseBackup, parseBackupBundle } from '../lib/storage/backup';
+import { newSession } from '../lib/domain/article-ai';
 import { Workspace } from '../features/writing/workspace';
 
 const repositories: IndexedWorkRepository[] = [];
@@ -48,10 +49,10 @@ describe('IndexedDB works and recovery', () => {
     expect((await repo.load()).recovery).not.toBeNull(); await repo.clearRecovery(draft.id); expect((await repo.load()).recovery).toBeNull();
   });
   it('does not delete a database from a newer version', async () => {
-    const name = crypto.randomUUID(); const db = await openDB(name, 2, { upgrade(db) { db.createObjectStore('future'); } });
+    const name = crypto.randomUUID(); const db = await openDB(name, 3, { upgrade(db) { db.createObjectStore('future'); } });
     await db.put('future', 'important', 'data'); db.close();
     const repo = new IndexedWorkRepository(name); await expect(repo.load()).rejects.toBeTruthy();
-    const verify = await openDB(name, 2); expect(await verify.get('future', 'data')).toBe('important'); verify.close();
+    const verify = await openDB(name, 3); expect(await verify.get('future', 'data')).toBe('important'); verify.close();
   });
 });
 
@@ -66,7 +67,7 @@ describe('portable backups', () => {
   });
   it('rejects invalid or future backups without changing stored works', async () => {
     const repo = repository(); await repo.save(writing(), 0); const before = await repo.load();
-    for (const raw of ['{broken', makeBackup(before.works).replace('"schemaVersion": 1', '"schemaVersion": 99'), '{"app":"other"}']) {
+    for (const raw of ['{broken', makeBackup(before.works).replace('"schemaVersion": 2', '"schemaVersion": 99'), '{"app":"other"}']) {
       await expect(repo.importBackup(raw)).rejects.toBeTruthy(); expect(await repo.load()).toEqual(before);
     }
   });
@@ -78,6 +79,39 @@ describe('portable backups', () => {
     const repo = repository(); await repo.save(writing(), 0); const raw = JSON.parse(makeBackup((await repo.load()).works));
     raw.works.push({ ...raw.works[0], id: 'mismatch' }); await expect(repo.importBackup(JSON.stringify(raw))).rejects.toBeTruthy();
     expect((await repo.load()).works).toHaveLength(1);
+  });
+  it('upgrades v1 without changing works or recovery and accepts v1 backups', async () => {
+    const name = crypto.randomUUID(); const source = repository(); const draft = writing('旧版正文'); const work = await source.save(draft, 0);
+    const old = await openDB(name, 1, { upgrade(db) { db.createObjectStore('works', { keyPath: 'id' }); db.createObjectStore('recovery'); } });
+    await old.put('works', work); await old.put('recovery', { draft, revision: 1 }, 'active'); old.close();
+    const upgraded = new IndexedWorkRepository(name); repositories.push(upgraded);
+    expect(await upgraded.load()).toEqual({ works: [work], recovery: { draft, revision: 1 }, sessions: [] });
+    const v1 = { ...JSON.parse(makeBackup([work!])), schemaVersion: 1 }; delete v1.sessions;
+    expect(await upgraded.importBackup(JSON.stringify(v1))).toBe(1);
+    expect((await upgraded.load()).works.find(w => w.id === work!.id)).toEqual(work);
+  });
+  it('restores session versions and references as an independent copy and retains recycle history', async () => {
+    const repo = repository(); const draft = writing('有历史的原文'); const session = newSession(draft);
+    session.turns.push({ id: 'answer', createdAt: new Date().toISOString(), action: 'question', prompt: '旧内容呢', inputVersionId: session.versions[0].id,
+      status: 'answered', result: { answer: '请看这个版本。', citedVersionIds: [session.versions[0].id] } });
+    await repo.save(draft, 0, session);
+    await repo.setDeleted(draft.id, true, 1); await repo.setDeleted(draft.id, false, 2);
+    const before = await repo.load(); expect(before.sessions).toEqual([session]);
+    const backup = makeBackup(before.works, null, before.sessions); expect(parseBackupBundle(backup).sessions).toEqual([session]);
+    await repo.importBackup(backup);
+    const restored = await repo.load(); const copy = restored.sessions.find(s => s.workId !== draft.id)!;
+    expect(copy.versions[0].id).not.toBe(session.versions[0].id);
+    expect(copy.turns[0].inputVersionId).toBe(copy.versions[0].id);
+    expect(copy.turns[0].result?.citedVersionIds).toEqual([copy.versions[0].id]);
+    expect(restored.works.find(w => w.id === draft.id)).toEqual(before.works[0]);
+    const invalid = JSON.parse(backup); invalid.sessions[0].turns[0].inputVersionId = 'missing';
+    await expect(repo.importBackup(JSON.stringify(invalid))).rejects.toThrow();
+    expect(await repo.load()).toEqual(restored);
+  });
+  it('rejects a conflicting session write atomically with its candidate body', async () => {
+    const repo = repository(); const draft = writing('原文'); const session = newSession(draft); await repo.save(draft, 0, session);
+    await expect(repo.save({ ...draft, textDraft: '不应写入' }, 0, { ...session, turns: [] })).rejects.toBeInstanceOf(ConflictError);
+    expect((await repo.load()).sessions).toEqual([session]); expect((await repo.load()).works[0].draft.textDraft).toBe('原文');
   });
 });
 

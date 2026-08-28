@@ -5,33 +5,39 @@ import { makeBackup, MAX_BACKUP_BYTES } from '../../lib/storage/backup';
 import { articleText, effectiveSegments, formatTime, type Work, type Draft } from '../../lib/domain/writing';
 import { download, exportText } from '../../lib/domain/download';
 import { Dialog } from '../../components/Dialog';
-import { DemoApp } from '../demo/DemoApp';
+import { ArticleAssistant } from '../ai/ArticleAssistant';
+import { ArticleAiController, type AiTransport } from '../ai/session';
 import { WorksHome } from './WorksHome';
 import { Editor } from './Editor';
 import { Icon } from '../../components/Icons';
 
 type Menu = 'library' | 'works' | 'trash' | Work | null;
-export function ProductApp({ repository }: { repository?: WorkRepository }) {
+export function ProductApp({ repository, aiTransport }: { repository?: WorkRepository; aiTransport?: AiTransport }) {
   const [workspace] = useState(() => new Workspace(repository ?? new IndexedWorkRepository()));
   const state = useSyncExternalStore(workspace.subscribe, workspace.getSnapshot, workspace.getSnapshot);
-  const [demo, setDemo] = useState<{ source: Draft; entry: 'chat' | 'optimize' } | null>(null);
+  const [assistant] = useState(() => new ArticleAiController(workspace, aiTransport));
+  const [aiEntry, setAiEntry] = useState<'chat' | 'optimize' | null>(null);
   const [menu, setMenu] = useState<Menu>(null);
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const file = useRef<HTMLInputElement>(null);
-  useEffect(() => { void workspace.initialize(); }, [workspace]);
+  useEffect(() => { void workspace.initialize(); return () => { workspace.dispose(); void assistant.cancel(); }; }, [workspace, assistant]);
+  useEffect(() => {
+    const checkpoint = () => { if (document.visibilityState === 'hidden') void workspace.checkpoint(); };
+    document.addEventListener('visibilitychange', checkpoint);
+    return () => document.removeEventListener('visibilitychange', checkpoint);
+  }, [workspace]);
   useEffect(() => { if (notice) { const timer = setTimeout(() => setNotice(''), 3500); return () => clearTimeout(timer); } }, [notice]);
-  const backup = () => { download('岁月有声-备份.json', makeBackup(state.works, state.draft), 'application/json'); setNotice('已发起备份下载，请妥善保管文件'); };
+  const backup = () => { download('岁月有声-备份.json', makeBackup(state.works, state.draft, state.sessions), 'application/json'); setNotice('已发起备份下载，请妥善保管文件'); };
   const finish = async () => { if (busy) return; setBusy(true); const ok = await workspace.finish(); setBusy(false); if (ok) setNotice('内容已保存到本机'); };
   const copy = async (draft: Draft) => {
     try { await navigator.clipboard.writeText(articleText(effectiveSegments(draft))); setNotice('正文已复制'); }
     catch { setNotice('浏览器未允许复制，请使用导出 TXT'); }
   };
-  const openDemo = (entry: 'chat' | 'optimize') => { if (state.draft) setDemo({ source: structuredClone(state.draft), entry }); };
+  const openAssistant = (entry: 'chat' | 'optimize') => { if (state.draft) { void workspace.checkpoint(); setAiEntry(entry); } };
   const menuWorks = state.works.filter(work => Boolean(work.deletedAt) === (menu === 'trash'));
-  if (demo) return <DemoApp source={demo.source} entry={demo.entry} onExit={() => setDemo(null)} />;
   return <main className="stage"><section className={`phone-shell ${state.draft ? 'app-view editor-screen' : 'home-screen'}`} aria-label="岁月有声写作应用">
-    {state.loading ? <div className="loading-state" role="status">正在打开本机作品…</div> : state.draft ? <Editor draft={state.draft} update={draft => { void workspace.update(draft); }} onSave={() => void finish()} onBack={() => void finish()} onDemo={openDemo} saveStatus={state.saveStatus} /> :
+    {state.loading ? <div className="loading-state" role="status">正在打开本机作品…</div> : state.draft ? <Editor draft={state.draft} update={draft => { void workspace.update(draft); }} onSave={() => void finish()} onBack={() => void finish()} onAssistant={openAssistant} saveStatus={state.saveStatus} /> :
       <WorksHome works={state.works} onNew={() => void workspace.newWork()} onOpen={work => void workspace.open(work)} onMenu={() => setMenu('library')} />}
     {state.error && <div className="storage-error" role="alert"><p>{state.error}</p><div>{state.draft && <button type="button" onClick={() => void workspace.update(state.draft!)}>重试保存</button>}<button type="button" onClick={backup}>导出当前备份</button></div></div>}
     {notice && <div className={`toast ${state.draft ? state.draft.segmentEdit ? 'segment' : `editor ${state.draft.inputMode}` : 'home'}`} role="status">{notice}</div>}
@@ -47,6 +53,7 @@ export function ProductApp({ repository }: { repository?: WorkRepository }) {
       catch (error) { setNotice(error instanceof Error ? error.message : '导入失败，原作品未改变'); }
       finally { setBusy(false); }
     }} />
+    {aiEntry && state.draft && <ArticleAssistant entry={aiEntry} workspace={workspace} controller={assistant} onBackup={backup} onClose={() => { void assistant.cancel(); setAiEntry(null); }} />}
     {menu && <Dialog title={typeof menu === 'object' ? menu.title : menu === 'library' ? '作品与备份' : menu === 'trash' ? '回收站' : '管理作品'} onClose={() => setMenu(null)}
       onBack={menu === 'library' ? undefined : () => setMenu(typeof menu === 'object' ? menu.deletedAt ? 'trash' : 'works' : 'library')}>
       <div className="menu-actions">

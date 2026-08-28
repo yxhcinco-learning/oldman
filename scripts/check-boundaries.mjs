@@ -16,7 +16,8 @@ async function scan(dir) {
       const imported = resolve(dirname(path), match[1]).replaceAll('\\', '/');
       if (['lib/storage', 'server', 'features/speech', 'features/writing'].some(area => imported.startsWith(resolve(area).replaceAll('\\', '/') + '/'))) report(`演示不能调用真实业务: ${path}`);
     }
-    if ((dir.startsWith('app') || dir.startsWith('features')) && /process\.env\.TENCENT|TENCENT_ASR_SECRET_KEY/.test(source)) report(`客户端出现服务端凭据引用: ${path}`);
+    if ((dir.startsWith('app') || dir.startsWith('features') || dir.startsWith('lib')) && /process\.env\.(?:TENCENT|DEEPSEEK)|TENCENT_ASR_SECRET_KEY|DEEPSEEK_API_KEY/.test(source)) report(`客户端出现服务端凭据引用: ${path}`);
+    if ((dir.startsWith('app') || dir.startsWith('features') || dir.startsWith('lib')) && /from\s+['"][^'"]*server\//.test(source)) report(`客户端导入服务端模块: ${path}`);
     if (!dir.startsWith('features/demo') && /from\s+['"][^'"]*mock-data/.test(source)) report(`真实业务依赖演示数据: ${path}`);
   }
 }

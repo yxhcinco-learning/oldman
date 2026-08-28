@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { BackIcon, Icon } from './Icons';
 
-export function Dialog({ title, children, onClose, onBack }: { title: string; children: ReactNode; onClose: () => void; onBack?: () => void }) {
+export function Dialog({ title, children, onClose, onBack, className = '' }: { title: string; children: ReactNode; onClose: () => void; onBack?: () => void; className?: string }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -10,7 +10,7 @@ export function Dialog({ title, children, onClose, onBack }: { title: string; ch
     return () => { el?.close(); previous?.focus(); };
   }, []);
   useEffect(() => { ref.current?.querySelector<HTMLButtonElement>('.sheet-header button')?.focus(); }, [title]);
-  return <dialog ref={ref} className="product-dialog" aria-label={title} onCancel={e => { e.preventDefault(); onClose(); }}>
+  return <dialog ref={ref} className={`product-dialog ${className}`} aria-label={title} onCancel={e => { e.preventDefault(); onClose(); }}>
     <div className="sheet-handle" aria-hidden="true" />
     <header className="sheet-header">{onBack && <button className="icon-button" type="button" onClick={onBack} aria-label="返回上一级"><BackIcon /></button>}<div className="dialog-heading"><small>岁月有声</small><h2>{title}</h2></div><button className="icon-button" type="button" onClick={onClose} aria-label="关闭"><Icon name="close" /></button></header>
     {children}

@@ -22,6 +22,10 @@
 - **WHEN** 上游失败、输出被截断、结果为空或格式无效
 - **THEN** 提供明确错误和显式重试入口，原文不变，不回退模拟文本
 
+#### Scenario: Unchanged candidate
+- **WHEN** 返回的候选与本轮原文完全一致
+- **THEN** 程序显示保留原文、未产生正文修改，不采用模型声称已修改的说明
+
 ### Requirement: Safe application and restoration
 应用和恢复 SHALL 检查当前作品和正文基准并通过本机事务保存；旧响应、过期候选和多标签冲突 MUST 不覆盖较新的内容。
 

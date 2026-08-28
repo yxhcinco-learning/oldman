@@ -3,13 +3,16 @@ import websocket from '@fastify/websocket';
 import WebSocket from 'ws';
 import { signedAsrUrl, parseTencentResult, type Credentials } from './tencent';
 import { TranscriptAccumulator, type SpeechEvent } from '../features/speech/protocol';
+import { registerArticleAi, type AiGatewayOptions } from './article-ai';
 
 export interface GatewayOptions {
   credentials?: Credentials; origin: string; maxConnections?: number; maxDurationMs?: number; maxBytes?: number;
   connect?: (url: string) => WebSocket;
+  ai?: Omit<AiGatewayOptions, 'origin'>;
 }
 export async function createGateway(options: GatewayOptions) {
   const app = Fastify({ logger: false, bodyLimit: 64 * 1024 });
+  registerArticleAi(app, { ...options.ai, origin: options.origin });
   const active = new Set<WebSocket>();
   await app.register(websocket, { options: { maxPayload: 64 * 1024 } });
   app.get('/api/speech/status', async (request, reply) => {

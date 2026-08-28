@@ -1,12 +1,13 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { ProductApp } from '../features/writing/ProductApp';
 import { IndexedWorkRepository } from '../lib/storage/repository';
 import { makeBackup } from '../lib/storage/backup';
+import type { AiRequest } from '../features/ai/protocol';
 
 const repos: IndexedWorkRepository[] = [];
 const repo = () => { const r = new IndexedWorkRepository(crypto.randomUUID()); repos.push(r); return r; };
-afterEach(async () => { for (const r of repos.splice(0)) await r.close(); });
+afterEach(async () => { localStorage.clear(); for (const r of repos.splice(0)) await r.close(); });
 async function startWriting() {
   fireEvent.click(await screen.findByRole('button', { name: /开始写作/ }));
   fireEvent.change(await screen.findByLabelText('文章标题'), { target: { value: '夏日有感' } });
@@ -31,22 +32,34 @@ it('writes, edits a segment, saves, reopens and restores from IndexedDB', async 
   view.unmount(); render(<ProductApp repository={repository} />); fireEvent.click(await screen.findByRole('button', { name: /夏日有感.*继续写/ }));
   expect(await screen.findByText('我修改了这一段。')).toBeInTheDocument();
 });
-it('keeps real writing unchanged after custom optimization and undo in demo', async () => {
-  const repository = repo(); render(<ProductApp repository={repository} />); await startWriting();
+it('previews a real optimization before applying and persists an undo as history', async () => {
+  const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId, result: { answer: '调整标点。', body: '窗前的雨，\n落进了风里。\n\n我想把这一刻写下来。', citedVersionIds: [] } }));
+  const repository = repo(); render(<ProductApp repository={repository} aiTransport={transport} />); await startWriting();
   const before = (await repository.load()).works[0]; fireEvent.click(screen.getByRole('button', { name: '文章优化' }));
-  expect(screen.getByText('演示模式 · 不影响作品')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: /其他要求/ })); fireEvent.change(screen.getByLabelText('自定义优化要求'), { target: { value: '写成一首诗，保留原意' } });
-  fireEvent.click(screen.getByRole('button', { name: '让小文试着改改' })); fireEvent.click(screen.getByRole('button', { name: '应用优化' }));
-  fireEvent.click(screen.getByRole('button', { name: '撤销' })); fireEvent.click(screen.getByRole('button', { name: '退出演示' }));
+  expect(screen.queryByText('演示模式 · 不影响作品')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /^常规优化/ })); expect(transport).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: '同意并继续' }));
+  expect(await screen.findByRole('region', { name: '优化后全文' })).toHaveTextContent('窗前的雨，');
+  expect((await repository.load()).works[0].draft.textDraft).toBe(before.draft.textDraft);
+  fireEvent.click(screen.getByRole('button', { name: '对照原文' })); expect(screen.getByRole('region', { name: '优化前原文' })).toHaveTextContent('窗前的雨');
+  fireEvent.click(screen.getByRole('button', { name: '应用优化' })); await screen.findByText('已应用优化并保存到本机。');
+  expect((await repository.load()).works[0].draft.textDraft).toContain('窗前的雨，');
+  fireEvent.click(screen.getByRole('button', { name: '撤销这次优化' })); await screen.findByText('已恢复并保存，其他历史版本仍然保留。');
+  fireEvent.click(screen.getByRole('button', { name: '关闭' }));
   expect(screen.getByLabelText('文章正文')).toHaveValue(before.draft.textDraft);
-  expect((await repository.load()).works[0]).toEqual(before);
+  expect((await repository.load()).sessions[0].versions.at(-1)?.source).toBe('restore');
 });
-it('preserves chat mock flow but never writes its answers into real works', async () => {
-  const repository = repo(); render(<ProductApp repository={repository} />); await startWriting(); const before = (await repository.load()).works[0];
-  fireEvent.click(screen.getByRole('button', { name: '聊天引导' })); const hold = screen.getByRole('button', { name: '按住说话' });
-  vi.useFakeTimers(); fireEvent.keyDown(hold, { key: 'Enter' }); await act(() => vi.advanceTimersByTimeAsync(1200)); fireEvent.keyUp(hold, { key: 'Enter' }); await act(() => vi.advanceTimersByTimeAsync(1000)); vi.useRealTimers();
-  fireEvent.click(screen.getByRole('button', { name: '完成' })); expect(screen.getByText(/已把.*聊天内容整理进正文/)).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: '退出演示' })); expect((await repository.load()).works[0]).toEqual(before);
+it('answers in the article conversation and exposes an actual cited version without modifying the body', async () => {
+  localStorage.setItem('suiyue-article-ai-consent-v1', 'yes');
+  const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId, result: { answer: '原文仍在这个版本中。', citedVersionIds: [request.current.id] } }));
+  const repository = repo(); const view = render(<ProductApp repository={repository} aiTransport={transport} />); await startWriting(); const before = (await repository.load()).works[0];
+  fireEvent.click(screen.getByRole('button', { name: '聊天引导' })); fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '我原来写的内容呢？' } });
+  fireEvent.click(screen.getByRole('button', { name: '发送问题' })); await screen.findByText('原文仍在这个版本中。');
+  fireEvent.click(screen.getByRole('button', { name: '查看引用版本 1' })); expect(screen.getByRole('region', { name: '历史版本正文' })).toHaveTextContent('窗前的雨');
+  expect((await repository.load()).works[0].draft.textDraft).toEqual(before.draft.textDraft);
+  view.unmount(); render(<ProductApp repository={repository} aiTransport={transport} />);
+  fireEvent.click(await screen.findByRole('button', { name: '聊天引导' })); expect(await screen.findByText('原文仍在这个版本中。')).toBeInTheDocument();
+  expect(transport).toHaveBeenCalledOnce();
 });
 it('recovers an unfinished edit after remount', async () => {
   const repository = repo(); const view = render(<ProductApp repository={repository} />); await startWriting();
@@ -164,10 +177,11 @@ it('does not hide a failed work-management operation behind the modal', async ()
   expect(screen.getByRole('button', { name: /夏日有感.*继续写/ })).toBeInTheDocument();
   expect((await repository.load()).works[0].deletedAt).toBeNull();
 });
-it('can undo an illustration in the isolated demo', async () => {
-  const repository = repo(); render(<ProductApp repository={repository} />); await startWriting(); const before = (await repository.load()).works[0];
-  fireEvent.click(screen.getByRole('button', { name: '文章优化' })); fireEvent.click(screen.getByRole('button', { name: /AI 配图/ }));
-  fireEvent.click(screen.getByRole('button', { name: /北去的列车/ })); fireEvent.click(screen.getByRole('button', { name: '应用优化' }));
-  expect(screen.getByRole('figure', { name: '文章配图：北去的列车' })).toBeInTheDocument(); fireEvent.click(screen.getByRole('button', { name: '撤销' }));
-  expect(screen.queryByRole('figure', { name: '文章配图：北去的列车' })).not.toBeInTheDocument(); fireEvent.click(screen.getByRole('button', { name: '退出演示' })); expect((await repository.load()).works[0]).toEqual(before);
+it('shows the new categories and keeps unsupported tools visibly unavailable', async () => {
+  const transport = vi.fn(); render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting();
+  const opener = screen.getByRole('button', { name: '文章优化' }); opener.focus(); fireEvent.click(opener);
+  expect(screen.getByRole('button', { name: /^润色文笔/ })).toBeEnabled();
+  for (const name of ['精简内容', '扩写内容', '添加配图']) expect(screen.getByRole('button', { name: new RegExp(name) })).toBeDisabled();
+  expect(screen.queryByRole('button', { name: /内容类型|文风调整|格式整理/ })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: '关闭' })); expect(opener).toHaveFocus(); expect(transport).not.toHaveBeenCalled();
 });

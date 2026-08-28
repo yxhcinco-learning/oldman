@@ -7,9 +7,9 @@ import { VoicePanel } from '../speech/VoicePanel';
 
 const BODY_PLACEHOLDER = '从想说的一句话开始……';
 
-export function Editor({ draft, update, onSave, onBack, onDemo, saveStatus }: {
+export function Editor({ draft, update, onSave, onBack, onAssistant, saveStatus }: {
   draft: Draft; update: (draft: Draft) => void; onSave: () => void; onBack: () => void;
-  onDemo: (entry: 'chat' | 'optimize') => void; saveStatus: string;
+  onAssistant: (entry: 'chat' | 'optimize') => void; saveStatus: string;
 }) {
   const textarea = useRef<HTMLTextAreaElement>(null);
   const draftRef = useRef(draft);
@@ -36,7 +36,7 @@ export function Editor({ draft, update, onSave, onBack, onDemo, saveStatus }: {
         {draft.segments.map((s, i) => <button key={s.id} className="writing-paragraph" type="button" aria-label={`编辑第 ${i + 1} 段`} onClick={() => update({ ...draft, segmentEdit: { ...s } })}><span>{s.text}</span></button>)}
       </div>}
     </div>
-    <footer className={`editor-dock ${draft.inputMode}`}><WritingToolbar mode={draft.inputMode} onMode={setMode} onChat={() => onDemo('chat')} onOptimize={() => onDemo('optimize')} />
+    <footer className={`editor-dock ${draft.inputMode}`}><WritingToolbar mode={draft.inputMode} onMode={setMode} onChat={() => onAssistant('chat')} onOptimize={() => onAssistant('optimize')} />
     {draft.inputMode === 'voice' && <VoicePanel pending={draft.pendingVoice}
       onPending={text => update({ ...draftRef.current, pendingVoice: text })}
       onEdit={() => update({ ...draft, segmentEdit: { id: 'pending', text: draft.pendingVoice } })}
