@@ -1,8 +1,11 @@
 # isolated-design-preview Specification
 
 ## Purpose
-TBD - created by archiving change preview-echoes-design. Update Purpose after archive.
+
+约定基于原版交互制作独立设计预览的范围、视觉一致性、模拟行为和本地交付边界。用于评审新设计，不替换正式应用或宣告正式设计验收。
+
 ## Requirements
+
 ### Requirement: Independent design preview
 原型 SHALL 独立于正式应用，使用原版 mock 和内存状态，MUST 不导入真实存储、语音或服务端配置。
 
@@ -34,4 +37,3 @@ TBD - created by archiving change preview-echoes-design. Update Purpose after ar
 #### Scenario: Port or route is unavailable
 - **WHEN** 端口被占用或请求未提供的资源路径
 - **THEN** 明确启动失败或返回404，不自动切换端口、不开放目录读取或绑定外部地址
-
