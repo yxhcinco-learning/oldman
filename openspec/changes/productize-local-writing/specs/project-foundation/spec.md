@@ -16,11 +16,22 @@
 - **THEN** 编辑器不增加保存工具行，保存状态复用原控件与反馈；单段提示和字数沿用 V2，演示仅保留必要隔离标识，不影响真实内容
 
 ### Requirement: Reversible scoped development
-工程 SHALL 保留 demo-approved-v2 基线，仅修改 V2，遵循 AGENTS 和 OpenSpec，源码不包含缓存、密钥、原音或私密正文。
+工程 SHALL 保留 demo-approved-v2 基线及其后正式版本，遵循 AGENTS 和 OpenSpec，源码不包含缓存、密钥、原音或私密正文。按用户确认将正式 V2 平铺迁至 D:/vibe_code/oldman，后续仅在该根目录开发。
 
 #### Scenario: Cleanup and verification
 - **WHEN** 清理或重构 Demo
 - **THEN** 每个验证小阶段主动本地提交；原 Demo 仅在备份验证后清理，线上站点不改变
+
+### Requirement: Single canonical project root
+正式工程 SHALL 直接位于 D:/vibe_code/oldman 根目录，不嵌套 V2 子目录、不混合 V1 文件，不保留第二个活动工程目录。
+
+#### Scenario: Replace the retired V1 checkout
+- **WHEN** 按用户确认迁移正式 V2
+- **THEN** 先验证两边回退备份，再将 V1 内容移到项目外的退役备份，完整迁入 V2 的源码、Git 历史、隐藏配置和本地文件；校验完成后移除空的旧 V2 目录，不递归删除当前工作区根目录
+
+#### Scenario: Restart from the canonical root
+- **WHEN** 在 D:/vibe_code/oldman 启动服务
+- **THEN** AGENTS、OpenSpec、依赖及 .env.local 均位于此根目录，文档命令不再引导至旧 V2 路径；仍使用 localhost:3001，不清空或迁移浏览器作品库，不发布线上站点
 
 ### Requirement: Honest local delivery
 工程 SHALL 固定 localhost:3001，并提供类型、Lint、单元、流程、构建和规范检查，外部验收不得自动宣称通过。
