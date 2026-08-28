@@ -18,7 +18,7 @@
 - 麦克风锚点固定，文本独立滚动、通常显示 3–4 行，不得推走按钮。
 - 手机系统键盘、桌面实体键盘，不保留模拟键盘。
 
-上述正文与空白提示统一为 2026-08-28 用户明确批准的增量变更，见 [unify-editor-input-presentation](openspec/changes/unify-editor-input-presentation/proposal.md)。只替代正式编辑器原段落装饰和空白提示规则，其他基础样式、单段编辑与 AI 模拟界面沿用原基线。
+上述正文与空白提示统一为 2026-08-28 用户明确批准的增量变更，现行行为见 [输入展示规范](openspec/specs/editor-presentation/spec.md)，历史提案见 [unify-editor-input-presentation](openspec/changes/archive/2026-08-28-unify-editor-input-presentation/proposal.md)。只替代正式编辑器原段落装饰和空白提示规则，其他基础样式、单段编辑与 AI 模拟界面沿用原基线。
 
 ## 新增真实状态
 

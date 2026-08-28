@@ -13,7 +13,11 @@ npx openspec instructions apply --change productize-local-writing
 npm run spec:check
 ```
 
-增量流程：需求 → proposal/specs/design/tasks → 确认 → 实现/测试 → 验收 → archive。新增或改变行为先更新规范；纯排版、错字等不改变行为的文档修正无需新建变更，问答和审查默认只读。已确认范围内正常实现和内部类型调整不重复请求确认，越界或高风险操作遵循 AGENTS。尚有真实联调或真机验收待办时，不提前归档。AGENTS 只保留长期规则；阶段决策、授权与完成状态记录在对应 OpenSpec 变更和验收记录中。
+增量流程：需求 → proposal/specs/design/tasks → 确认 → 实现/测试 → 验收 → archive。新增或改变行为先更新规范；纯排版、错字等不改变行为的文档修正无需新建变更，问答和审查默认只读。已确认范围内正常实现和内部类型调整不重复请求确认，越界或高风险操作遵循 AGENTS。AGENTS 只保留长期规则；阶段决策、授权与完成状态记录在对应 OpenSpec 变更和验收记录中。
+
+change 范围内任务完成、验收证据齐全后，自行同步增量规范到 `openspec/specs`，再归档并修复相关文档链接，无需再次请求确认。归档前核对 artifacts、任务、验收记录与规范差异；CLI 的 artifacts 完整不代表任务已验收。使用 `npx openspec archive <change-id> --yes` 执行正常同步与归档，不用跳过校验或跳过规范同步来掩盖未完成项。归档后运行 `npm run spec:check`、检查引用及差异，再按本地提交约定交付。
+
+变更范围内仍有真实联调、真机验收或其他任务未完成时，保留活跃并说明原因，不强行归档或擅自移出范围。其他 change 或明确的非目标不阻塞已完成变更的归档，其未验证状态仍需如实记录。
 
 ## Git 与自动本地提交
 

@@ -48,6 +48,14 @@
 - **WHEN** 确认仓库可见性或某阶段完成情况
 - **THEN** 更新对应变更或验收记录，不把该阶段结论添加为 AGENTS 的长期规则；提交、推送前仍检查敏感信息
 
+#### Scenario: Archive a completed change autonomously
+- **WHEN** 一个 change 的范围内任务完成，相关验收证据齐全且检查通过
+- **THEN** 自行将增量规范同步至 openspec/specs 并归档，无需再次确认；修复文档引用、验证规范并按约定本地提交，不自动推送或发布
+
+#### Scenario: Keep an incomplete change active
+- **WHEN** change 范围内仍有未完成任务或缺少相应验收证据
+- **THEN** 保持活跃并说明原因，不把 artifacts 完整当作验收通过，不通过跳过校验或擅自移出任务来强行归档；其他 change 的待办或明确的非目标不阻塞本变更
+
 #### Scenario: Find the applicable source of truth
 - **WHEN** 开始处理一个请求
 - **THEN** 按范围查阅产品状态、OpenSpec 行为、设计或架构及开发说明；遇到冲突先澄清，AGENTS 不复制历史称谓、机器路径和 AI 模拟实现细节
