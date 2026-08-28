@@ -110,7 +110,7 @@ The design style is a blend of **Minimalism** and **Tactile Modernism**. It avoi
 
 ## Colors
 
-The palette is rooted in nature and heritage. 
+The palette is rooted in nature and heritage.
 - **Primary (Forest Green):** Used for key actions, brand identity, and structural elements. It conveys stability and growth.
 - **Secondary (Ochre/Sienna):** Used for accents, highlights, and status indicators. It provides a warm, nostalgic contrast.
 - **Background (Parchment):** A warm, off-white/beige base that reduces eye strain and mimics high-quality paper.
@@ -120,19 +120,19 @@ Functional colors (Success/Error) should be desaturated to fit the earthy tone o
 
 ## Typography
 
-This design system uses a dual-font approach to balance literary tradition with digital clarity. 
+This design system uses a dual-font approach to balance literary tradition with digital clarity.
 
 **Noto Serif** is used for all display headings and title cards. It provides the "voice" of the author, lending authority and a timeless, book-like quality to the content.
 
-**Manrope** is used for body text, interface labels, and inputs. Its clean, geometric construction ensures maximum legibility during long-form writing or reading sessions. 
+**Manrope** is used for body text, interface labels, and inputs. Its clean, geometric construction ensures maximum legibility during long-form writing or reading sessions.
 
 Line heights are intentionally generous (1.5x - 1.6x) to create a relaxed reading rhythm and prevent visual crowding.
 
 ## Layout & Spacing
 
-The layout follows a **fluid grid** model with restricted maximum widths for content blocks to ensure optimal line lengths for reading. 
+The layout follows a **fluid grid** model with restricted maximum widths for content blocks to ensure optimal line lengths for reading.
 
-- **Mobile:** Single column with 20px - 24px side margins. 
+- **Mobile:** Single column with 20px - 24px side margins.
 - **Desktop:** Centered content containers (max-width 800px for writing/reading) to maintain focus.
 
 Spacing is used to group related thoughts. Large vertical gaps (32px+) are encouraged between different sections or "chapters" of the UI to allow the design to breathe. Gutters should be consistent to maintain a clean vertical rhythm.
