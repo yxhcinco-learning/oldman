@@ -53,7 +53,7 @@
 
 #### Scenario: Batch or uncertain-cost verification
 - **WHEN** 计划大批量自动化测试、压测、长时间循环，或调用费用较高、难以估算
-- **THEN** 在真实调用前确认预算和上限，不进行无上限调用或重试；常规回归与 CI 使用 mock，CI 不配置付费服务凭据
+- **THEN** 在真实调用前确认预算和上限，不进行无上限调用或重试；常规回归与 CI 不调用计费外部服务且 CI 不配置其凭据，其他业务逻辑按需使用真实实现或测试替身
 
 #### Scenario: Persist verified local startup settings
 - **WHEN** 真实 ASR 联调成功

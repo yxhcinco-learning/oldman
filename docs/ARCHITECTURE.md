@@ -5,7 +5,7 @@
 - app：页面入口、全局样式和元数据。
 - features/writing：编辑器、作品列表、编辑恢复与操作状态。
 - features/speech：长按控制、音频采集与语音事件。
-- features/demo：AI 演示，只接收深副本和退出回调。
+- features/demo：待接入 AI 功能的当前模拟实现，只接收深副本和退出回调；目录名是既有技术标识，不代表项目定位。
 - lib/domain：Work、Draft、Segment 与纯函数。
 - lib/storage：WorkRepository、IndexedDB、版本化备份。
 - server：仅回环地址的 Fastify WebSocket ASR 网关。
@@ -30,9 +30,11 @@ AudioWorklet 重采样至 16kHz PCM16；同源 WebSocket 代理至 127.0.0.1:300
 
 `server/credentials.ts` 显式选择 `project` 或 `windows-user`。后者在服务端用固定、隐藏且有超时的 PowerShell 子进程读取 User 环境，秘密只在内存传递，不写项目或日志。只读取选定来源，不混用密钥对和临时 Token；缺失保持网关未配置。用户已授权的本机 `.env.local` 只保存 AppID、来源和其他非秘密参数。
 
-## ADR-004 演示隔离
+## ADR-004 AI 模拟交互的当前隔离实现
 
-独立组件树内初始化副本，不引用存储或真实语音。完成/优化/撤销只作用于副本，关闭组件即销毁。
+聊天引导、文章优化等功能尚未接入真实 AI。当前独立组件树内初始化副本，不引用存储或真实语音；完成/优化/撤销只作用于副本，关闭组件即销毁。真实业务不依赖模拟数据，具体导入边界由 `scripts/check-boundaries.mjs` 检查。
+
+这些约束描述当前实现，不作为 AGENTS 的长期协作规则。本次不改动模块名、界面现有提示或数据写入方式；后续接入真实 AI 时，应先确认行为及数据边界，再更新本决策、对应 OpenSpec 和测试。
 
 ## 回退
 

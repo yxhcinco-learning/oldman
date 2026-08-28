@@ -1,3 +1,7 @@
+## Scope
+
+本能力记录待接入 AI 的聊天、文章优化和配图等功能的当前模拟实现，不将项目定位为 Demo。`isolated-ai-demo` 是既有规范标识；本次文档调整不改动模块名、页面现有提示、mock 交互或作品隔离方式。后续真实 AI 的接入与数据写回方案另行确认，再更新本规范与测试，不把当前实现固化为 AGENTS 的长期规则。
+
 ## ADDED Requirements
 
 ### Requirement: Preserve mock interactions in a sandbox
