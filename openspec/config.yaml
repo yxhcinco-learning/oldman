@@ -6,7 +6,8 @@ context: |
   用户已停用 GPT Sites，本地工程不保留 Sites/Cloudflare 发布接入，不重新初始化站点或操作旧线上站点。
   先读 AGENTS.md、docs/PRODUCT.md、docs/ARCHITECTURE.md、DESIGN-SYSTEM.md。
   中文规范与文案，英文代码标识。项目统一使用正式版称谓，设计基线通过 Git 提交 28fd5e4 定位。
-  用户指定 yxhcinco-learning/oldman Public 仓库；每个通过检查的小阶段自动本地提交。
+  日常在 main 开发，不强制功能分支或 PR；每个通过检查的小阶段自动本地提交，不自动推送或合并。
+  AGENTS 只保留长期规则，阶段结论写入验收记录或对应变更。付费调用按 AGENTS 的成本与规模规则判断。
 rules:
   proposal:
     - 明确真实功能、模拟功能、非目标与数据边界。

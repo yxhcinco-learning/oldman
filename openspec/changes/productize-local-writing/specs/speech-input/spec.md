@@ -47,9 +47,13 @@
 ### Requirement: Bounded explicit live verification
 联调工具 SHALL 默认只检查本地状态；只有显式提供测试音频且本地允许标记开启时才连接真实 ASR，单次限制 30 秒并按实时速率发送。不记录转写正文、原音或签名，不把网关配置成功等同于真实识别通过。
 
-#### Scenario: Routine development after user approval
-- **WHEN** 用户已授权本项目正常开发中的少量语音联调
-- **THEN** 不再逐次询问费用，仅作少量非敏感测试，不自动充值、购买资源包或修改计费设置；CI 和普通自动测试不调用付费服务
+#### Scenario: Small cost-assessed live verification
+- **WHEN** 简单估算费用、次数与总时长后，真实联调必要且低成本、规模可控
+- **THEN** 可按需通过独立显式入口进行少量非敏感测试，无需逐次确认；限制次数、时长及重试，不自动充值、购买资源包或修改计费设置
+
+#### Scenario: Batch or uncertain-cost verification
+- **WHEN** 计划大批量自动化测试、压测、长时间循环，或调用费用较高、难以估算
+- **THEN** 在真实调用前确认预算和上限，不进行无上限调用或重试；常规回归与 CI 使用 mock，CI 不配置付费服务凭据
 
 #### Scenario: Persist verified local startup settings
 - **WHEN** 真实 ASR 联调成功

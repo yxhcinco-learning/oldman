@@ -13,15 +13,17 @@ npx openspec instructions apply --change productize-local-writing
 npm run spec:check
 ```
 
-增量流程：需求 → proposal/specs/design/tasks → 确认 → 实现/测试 → 验收 → archive。当前一期已获用户批准；新需求先更新规范。尚有真实语音、真机验收时，不提前归档。
+增量流程：需求 → proposal/specs/design/tasks → 确认 → 实现/测试 → 验收 → archive。新需求先更新规范，尚有真实联调或真机验收待办时，不提前归档。AGENTS 只保留长期规则；阶段决策、授权与完成状态记录在对应 OpenSpec 变更和验收记录中。
 
 ## Git 与自动本地提交
 
-`main` 为集成基线，功能分支 `codex/<change-id>`，PR 关联 OpenSpec；历史标签不移动。
+日常直接在 `main` 开发，不强制创建功能分支或 PR；仍通过 OpenSpec 记录变更与验收，历史标签不移动。
 
 每完成一个可检查的小阶段，先运行相应检查，再明确暂存本任务文件并本地提交。禁止把他人的临时修改、密钥或产物打包提交；失败不伪造“已验收”提交。没有新变化不生成空提交。自动本地提交不代表自动推送、合并或部署。
 
-CI 对 push/PR 运行 npm ci、check、build 和依赖审计；CI 不配置腾讯云密钥。分支保护若因权限不可用，记录差异，不购买服务绕过。
+CI 对 push 和可选 PR 运行 npm ci、check、build 和依赖审计；CI 不配置付费服务凭据，不以创建 PR 作为验收前提。
+
+付费调用遵循 [AGENTS 的费用规则](../AGENTS.md#付费服务使用)：简单估算后可按需做低成本、小规模真实联调；批量、压测或高成本、费用不确定的调用先确认预算和上限。常规回归使用 mock，真实结果单独记录。
 
 ## 命令与端口
 
@@ -31,7 +33,7 @@ CI 对 push/PR 运行 npm ci、check、build 和依赖审计；CI 不配置腾�
 - `npm run dev:web` / `npm run dev:speech`：诊断时分别启动，不和组合启动器重复运行。
 - `npm run check`：类型、Lint、测试、规范与边界校验。
 - `npm run build`：本地 Vinext 构建，不发布。
-- `npm run test:speech:live`：无参数只读本地状态，不产生语音。显式 `-- --pcm 文件.pcm` 且本地允许标记开启时才做最多 30 秒的真实联调；可加 `--expect 非敏感测试句`。用户已授权少量正常开发测试，不再逐次询问费用；不自动购买/充值。详见 SPEECH-SETUP。
+- `npm run test:speech:live`：无参数只读本地状态，不产生语音。显式 `-- --pcm 文件.pcm` 且本地允许标记开启时才做最多 30 秒的真实联调；可加 `--expect 非敏感测试句`。按上述费用规则判断是否执行；不自动购买/充值。详见 SPEECH-SETUP。
 
 默认仅绑定回环地址。不把开发服务暴露到局域网/互联网；手机真实麦克风和键盘在后续可信 HTTPS 环境验证。
 

@@ -33,6 +33,17 @@
 - **WHEN** 在 D:/vibe_code/oldman 启动服务
 - **THEN** AGENTS、OpenSpec、依赖及 .env.local 均位于此根目录，文档命令只指向正式工程路径；仍使用 localhost:3001，不清空或迁移浏览器作品库，不发布线上站点
 
+### Requirement: Durable development guidance
+工程 SHALL 在 AGENTS 中只维护长期开发规则，将阶段结论、授权记录及完成状态保留在对应变更或验收记录；日常直接在 main 开发，不强制创建功能分支或 PR。
+
+#### Scenario: Complete a checked change
+- **WHEN** 一个小阶段通过相应检查
+- **THEN** 明确暂存本任务文件并自动本地提交，以 OpenSpec 和检查证据记录变更，不要求先创建分支或 PR，不自动推送或合并
+
+#### Scenario: Record a phase-specific decision
+- **WHEN** 确认仓库可见性或某阶段完成情况
+- **THEN** 更新对应变更或验收记录，不把该阶段结论添加为 AGENTS 的长期规则；提交、推送前仍检查敏感信息
+
 ### Requirement: Consistent product naming
 项目文件 SHALL 统一使用“岁月有声”“正式版”或“当前工程”，不再用历史原型的版本代称区分活动项目；现行规范、归档文件名和测试描述保持一致。
 
