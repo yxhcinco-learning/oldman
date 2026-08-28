@@ -20,14 +20,14 @@
 
 #### Scenario: Cleanup and verification
 - **WHEN** 清理或重构 Demo
-- **THEN** 每个验证小阶段主动本地提交；原 Demo 仅在备份验证后清理，线上站点不改变
+- **THEN** 每个验证小阶段主动本地提交；原 Demo 经核对且用户明确确认后清理，线上站点不改变
 
 ### Requirement: Single canonical project root
 正式工程 SHALL 直接位于 D:/vibe_code/oldman 根目录，不嵌套 V2 子目录、不混合 V1 文件，不保留第二个活动工程目录。
 
 #### Scenario: Replace the retired V1 checkout
 - **WHEN** 按用户确认迁移正式 V2
-- **THEN** 先验证两边回退备份，再将 V1 内容移到项目外的退役备份，完整迁入 V2 的源码、Git 历史、隐藏配置和本地文件；校验完成后移除空的旧 V2 目录，不递归删除当前工作区根目录
+- **THEN** 确认 V1 无独有配置、未提交改动或本地用户数据后，按用户明确要求直接删除 V1 内容及多余旧版备份，不另存退役目录；完整迁入 V2 的源码、Git 历史、隐藏配置和本地文件，校验完成后移除空的旧 V2 目录，不递归删除当前工作区根目录
 
 #### Scenario: Restart from the canonical root
 - **WHEN** 在 D:/vibe_code/oldman 启动服务

@@ -57,7 +57,7 @@
 
 随后用户指出产品化新增结构导致视觉偏差，已按 V2 重新审视并修正；界面一致性以 [UI-BASELINE-REVIEW.md](UI-BASELINE-REVIEW.md) 的本轮核对为准，不以“底层 CSS 未改动”代替布局验收。
 
-## 本地 Git 与原版回退
+## 本地 Git 与目录清理
 
 - `28fd5e4`：已验收 V2 基线，标签 `demo-approved-v2`。
 - `83903ed`：OpenSpec/文档基础。
@@ -65,13 +65,13 @@
 - `d2ac5a2`：边界修复、45 项回归和安全依赖更新。
 - 后续交接修订也自动本地提交，最新状态以 `git log` 为准。
 
-原 `oldman` 工作区检查为干净。完整历史已备份到：
+2026-08-28 用户要求正式 V2 整体平铺到当前 `D:\vibe_code\oldman` 根目录，并明确要求删除无用 V1、不保留额外旧版备份。V1 检查为干净，无独有本地配置或文件型用户数据。
 
-`D:\vibe_code\oldman-design-v2\backups\oldman-original-20260827.bundle`
+此前已验证的 V1 Git bundle 和本次迁移准备的临时 V1/V2 bundle 已按要求删除，没有外移 V1 文件；正式 V2 的 `.git`、基线标签和 `.env.local` 保留。额外备份不再可用。
 
-`git bundle verify` 通过；SHA256：`0C7098729C1049E8AD0FDA002C7067F221E10A2705D8BCAA23D1ADDFEB884A55`。
+**实际迁移未完成**：执行环境拦截旧版内容/目录删除，V1 仍位于 oldman、完整正式版仍位于 oldman-design-v2，空备份目录也仍在。没有绕过限制或混合文件；服务恢复从 V2 启动，浏览器 origin 和作品库未改变。具体状态见 [CLEANUP.md](CLEANUP.md)，OpenSpec 4.5/4.7 保持未完成。未触碰旧线上站点。
 
-bundle 仅本地保存，不入仓库。当前任务仍绑定原 `oldman` 根目录，因此**尚未删除原目录**；切换任务工作区到 V2 后才能安全完成最终移除。没有触碰旧线上站点。
+受阻后在现有 V2 目录重新运行：`npm run check`（83 项测试）及 `npm run build` 均通过，首页 HTTP 200、语音状态 `configured:true`。迁移清单逐文件校验确认，除本轮规范/记录修改外，已跟踪文件和 `.env.local` 哈希未变；正式 Git refs 保持完整。此记录只证明原位服务与工程完整，不冒充新目录验收。
 
 ## 未完成的外部项
 
