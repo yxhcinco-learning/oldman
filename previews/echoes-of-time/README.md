@@ -1,6 +1,6 @@
 # Echoes of Time · 独立设计预览
 
-基于找回的原版界面，按用户提供的 [DESIGN.md](DESIGN.md) 重做全部页面。用于看效果与讨论，不替换正式应用、不代表正式设计已经验收。
+基于找回的原版界面，按用户提供的 [DESIGN.md](DESIGN.md) 重做全部页面。用户已确认视觉方向，正式落地由 `adopt-echoes-product-design` 管理，唯一现行设计规范为 [DESIGN-SYSTEM.md](../../DESIGN-SYSTEM.md)。本目录仍是独立mock对照，不替代正式应用或使用正式数据。
 
 ## 运行
 

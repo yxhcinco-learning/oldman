@@ -1,5 +1,7 @@
 # 正式编辑器输入展示统一 · 2026-08-28
 
+历史验收记录：以下字体、颜色、尺寸是当时的基线；用户随后批准 Echoes 设计，当前视觉以 [DESIGN-SYSTEM.md](../DESIGN-SYSTEM.md) 为准，内容保真与恢复要求仍然有效。
+
 变更：[unify-editor-input-presentation（已归档）](../openspec/changes/archive/2026-08-28-unify-editor-input-presentation/proposal.md)，现行行为见 [输入展示规范](../openspec/specs/editor-presentation/spec.md)。按用户提供的四张截图，以文字输入模式为基准；在迁入的正式工程中重新探索与实施，不使用退役原型。
 
 ## 实际改动
