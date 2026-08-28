@@ -1,6 +1,6 @@
 # 岁月有声 · Echoes of Time 设计规范
 
-本文件是正式产品唯一有效的视觉规范。2026-08-28 用户确认预览并要求全面应用，视觉来源为 `7bdd75c` 的 `previews/echoes-of-time`（后续同轮修订含等高配图与焦点细节）。旧 `28fd5e4` 和此前输入展示记录只作背景，不再约束当前色板与尺寸。行为见 [OpenSpec](openspec/specs/)，本次落地为 `adopt-echoes-product-design`。
+本文件是正式产品唯一有效的视觉规范。2026-08-28 用户确认预览并要求全面应用，视觉来源为 `7bdd75c` 的 `previews/echoes-of-time`（后续同轮修订含等高配图与焦点细节）。旧 `28fd5e4` 和此前输入展示记录只作背景，不再约束当前色板与尺寸。行为见 [OpenSpec](openspec/specs/)，落地变更见 [归档记录](openspec/changes/archive/2026-08-28-adopt-echoes-product-design/)，执行证据见 [设计验收](docs/ECHOES-DESIGN-REVIEW.md)。
 
 ## 1. 气质与范围
 
