@@ -57,6 +57,12 @@ CI 对 push 和可选 PR 运行 npm ci、check、build 和依赖审计；CI 不�
 
 本机 `.env.local` 记录 AppID 与 `ASR_CREDENTIAL_SOURCE=windows-user`，密钥由网关启动时读取 Windows User 环境，不复制进工程。`TENCENT_ASR_TOKEN` 对长期密钥留空；更换凭据后重启网关即可。其他环境使用 `project` 来源。
 
+### 文章 AI 接入配置（待实现）
+
+用户已选定 DeepSeek V4 Flash。项目根目录已有 `.env.local`，在 `DEEPSEEK_API_KEY=` 后填写自己的 Key 即可；不要发到聊天或写入 Git。接口地址预填 `DEEPSEEK_BASE_URL=https://api.deepseek.com`，模型预填 `DEEPSEEK_MODEL=deepseek-v4-flash`；[DeepSeek 官方文档](https://api-docs.deepseek.com/)说明该模型标识指向最新 Flash 版本。其他环境可从 `.env.example` 获取空白模板，勿覆盖既有语音配置。
+
+2026-08-28 本阶段仅准备配置项，服务端调用、文章优化与会话功能尚未接通；填写 Key 不会自动启用功能，也未产生真实 AI 调用。后续接入时仅由服务端读取上述变量，不使用 `NEXT_PUBLIC_` / `VITE_` 前缀，不把凭据、正文或会话写入日志。现有本地启动器已加载 `.env.local`，接入完成后修改配置需重启本地服务。
+
 开发和构建均保留 Vinext 本地 Node 链路，已删除 GPT Sites 发布配置、专用插件和依赖；不需要 Sites 登录或 Cloudflare 绑定。`local-project.test.ts` 覆盖开发/构建配置及依赖清理，`local-speech-proxy.test.ts` 使用真实 Vite 转发与假上游覆盖 WebSocket 全流程及外部 Origin 拒绝，不调用腾讯云。
 
 ## 数据与备份
