@@ -14,9 +14,9 @@
 
 沿用 React 19 / TypeScript / Vinext / npm。本次不迁移框架；Vinext beta 稳定性在公开发布前另行评估。固定运行时并提交锁文件。
 
-本地使用 Vinext Node 开发运行时，Cloudflare 插件仅保留在构建（Worker 产物）链路。本地无 D1/R2 绑定；实测 Cloudflare 开发插件的无差别 WebSocket 升级监听器会截断语音代理，不修改依赖、不改写 Origin、不改变用户访问地址来绕过。
+开发和构建均使用现有 Vinext 本地 Node 链路。2026-08-28 用户停用 GPT Sites，已移除 Sites/Cloudflare Vite 插件、Worker 类型、Wrangler 直接依赖及 D1/R2 占位配置，不迁移 React/Vinext 框架。之前 Cloudflare 开发插件的无差别 WebSocket 升级监听器曾截断语音代理；保留相关回归，不改写 Origin 或用户访问地址。
 
-审计后在相同工具链内更新安全修复版本：Next 16.3.3、React/RSC 19.2.8、Vinext beta.8、Vite 8.2.2 及兼容的 Cloudflare 开发依赖。实际以 package-lock.json 为准；不能仅用 `--omit=dev` 掩盖参与开发/构建的依赖风险。
+审计后在相同工具链内更新安全修复版本：Next 16.3.3、React/RSC 19.2.8、Vinext beta.8、Vite 8.2.2。移除发布专用依赖时未升级剩余包；实际以 package-lock.json 为准，不能仅用 `--omit=dev` 掩盖参与开发/构建的依赖风险。
 
 ## ADR-002 本地事务
 
@@ -36,4 +36,4 @@ AudioWorklet 重采样至 16kHz PCM16；同源 WebSocket 代理至 127.0.0.1:300
 
 ## 回退
 
-demo-approved-v2 为无持久化 Demo 基线。回退前导出 JSON，代码回退不等于数据库降级。原版 Git 历史在清理前另存 bundle 并验证。
+demo-approved-v2 为无持久化 Demo 基线。正式 Git 历史随项目迁入 D:/vibe_code/oldman；V1 和额外旧版 bundle 已按用户要求清理，不再保留退役副本。回退前导出 JSON，代码回退不等于数据库降级。

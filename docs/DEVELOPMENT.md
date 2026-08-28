@@ -25,6 +25,8 @@ CI 对 push/PR 运行 npm ci、check、build 和依赖审计；CI 不配置腾�
 
 ## 命令与端口
 
+本机所有命令在 `D:\vibe_code\oldman` 根目录执行，AGENTS、OpenSpec、package.json 和 `.env.local` 均在该目录。脚本使用相对路径，CI 不依赖本机盘符。
+
 - `npm run dev`：前端 3001 + 网关 3002；Ctrl+C 退出。端口占用时检查原进程，不随意杀其他服务。
 - `npm run dev:web` / `npm run dev:speech`：诊断时分别启动，不和组合启动器重复运行。
 - `npm run check`：类型、Lint、测试、规范与边界校验。
@@ -35,7 +37,7 @@ CI 对 push/PR 运行 npm ci、check、build 和依赖审计；CI 不配置腾�
 
 本机 `.env.local` 记录 AppID 与 `ASR_CREDENTIAL_SOURCE=windows-user`，密钥由网关启动时读取 Windows User 环境，不复制进工程。`TENCENT_ASR_TOKEN` 对长期密钥留空；更换凭据后重启网关即可。其他环境使用 `project` 来源。
 
-本地 Vinext 走 Node 运行时，构建才启用 Cloudflare 插件。`local-speech-proxy.test.ts` 使用真实 Vite 转发与假上游覆盖 WebSocket 全流程及外部 Origin 拒绝，不调用腾讯云。
+开发和构建均保留 Vinext 本地 Node 链路，已删除 GPT Sites 发布配置、专用插件和依赖；不需要 Sites 登录或 Cloudflare 绑定。`local-project.test.ts` 覆盖开发/构建配置及依赖清理，`local-speech-proxy.test.ts` 使用真实 Vite 转发与假上游覆盖 WebSocket 全流程及外部 Origin 拒绝，不调用腾讯云。
 
 ## 数据与备份
 

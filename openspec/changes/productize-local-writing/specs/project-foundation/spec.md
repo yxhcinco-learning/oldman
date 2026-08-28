@@ -43,3 +43,14 @@
 #### Scenario: Missing external access
 - **WHEN** 缺少 GitHub 权限或腾讯云凭据
 - **THEN** 保留可交付的本地实现并将对应远程任务标记待办
+
+### Requirement: No retired hosting integration
+工程 SHALL 按用户确认移除本地 GPT Sites 发布接入及其专用依赖，保留 React、TypeScript、npm、Vinext 与现有本地语音链路；不自动修改、删除或发布远端站点。
+
+#### Scenario: Run without Sites
+- **WHEN** 在正式根目录安装依赖并启动开发或执行构建
+- **THEN** 不需要 `.openai/hosting.json`、Sites 登录或 Cloudflare Worker 插件，不注入 D1/R2 占位绑定；仍使用 localhost:3001 和本机语音网关，现有 UI 与浏览器作品库不改变
+
+#### Scenario: Remove unused publishing dependencies
+- **WHEN** 清理 Sites 接入
+- **THEN** 移除 Sites Vite 插件、Cloudflare Vite 插件、Worker 类型及 Wrangler 直接依赖，同步 npm 锁文件；自动检查验证开发/构建配置和语音代理，无真实 ASR 调用

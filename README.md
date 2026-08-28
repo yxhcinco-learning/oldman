@@ -1,6 +1,6 @@
 # 岁月有声 · H5
 
-帮助长辈把想说的话写下来。V2 是正式产品工程，沿用已验收的纸本设计。
+帮助长辈把想说的话写下来。正式 V2 已平铺迁入本仓库根目录 `D:\vibe_code\oldman`，沿用已验收的纸本设计；不再使用另一份 V2 工程目录。
 
 真实功能：文字和单段编辑、本机自动保存与恢复、回收站、复制正文、TXT 导出、JSON 备份恢复。腾讯云语音网关已完成本机真实链路联调；手机麦克风和键盘兼容性仍待真机验收。
 
@@ -11,7 +11,7 @@
 使用 Node **24.14.1**（见 `.nvmrc`）和 npm，首次运行：
 
 ```powershell
-Set-Location D:\vibe_code\oldman-design-v2
+Set-Location D:\vibe_code\oldman
 npm ci
 npm run dev
 ```
@@ -22,13 +22,13 @@ npm run dev
 
 当前本机已保存 `.env.local` 并复用 Windows User 中已有腾讯云密钥，不需要再次填写密钥。该文件不入仓库；其他电脑按 `.env.example` 配置。长期子用户密钥不需要 `TENCENT_ASR_TOKEN`。
 
-本期仅本地验收；**未部署新站点，不使用旧 chatgpt.site 页面保存正式作品**。
+本期仅本地验收；**已移除 GPT Sites 发布配置和专用依赖，未操作旧线上站点，不使用旧 chatgpt.site 页面保存正式作品**。开发与构建均使用现有 Vinext 本地链路，不需要 Sites 登录或 Cloudflare 配置。
 
 ## 开发入口
 
 - [产品边界](docs/PRODUCT.md)、[设计规范](DESIGN-SYSTEM.md)、[架构与决策](docs/ARCHITECTURE.md)
 - [AI 开发约定](AGENTS.md)、[开发与验收](docs/DEVELOPMENT.md)
-- [隐私与数据边界](docs/PRIVACY.md)、[清理与回退](docs/CLEANUP.md)
+- [隐私与数据边界](docs/PRIVACY.md)、[工程迁移与清理](docs/CLEANUP.md)
 - [本地验收与待办记录](docs/ACCEPTANCE.md)
 - 当前 OpenSpec 变更：`productize-local-writing`
 
