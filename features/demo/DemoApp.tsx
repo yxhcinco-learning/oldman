@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  useCallback,
   useEffect,
   useReducer,
   useRef,
@@ -24,14 +25,8 @@ import {
 import { type Draft, effectiveSegments } from '../../lib/domain/writing';
 import { reducer, initialState, type AppState, type RecordingContext, type InputMode } from './demo-state';
 import { MemoryIllustration, OptimizationSheet } from './OptimizationSheet';
-
-function BackIcon() {
-  return <span className="back-icon" aria-hidden="true">‹</span>;
-}
-
-function MicIcon() {
-  return <span className="mic-glyph" aria-hidden="true"><i /></span>;
-}
+import { BackIcon, Icon, MicIcon } from '../../components/Icons';
+import { VoiceIdle, WritingToolbar } from '../../components/WritingControls';
 
 function Waveform({ compact = false }: { compact?: boolean }) {
   return (
@@ -93,15 +88,6 @@ export function DemoApp({ source, entry, onExit }: { source: Draft; entry: 'chat
     liveTranscriptRef.current.scrollTop = liveTranscriptRef.current.scrollHeight;
   }, [state.liveVoice, state.recordingContext]);
 
-  useEffect(() => {
-    if (!state.optimizeSheet) return;
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') dispatch({ type: 'patch', patch: { optimizeSheet: null } });
-    };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [state.optimizeSheet]);
-
   useEffect(() => () => {
     if (holdTimer.current) clearTimeout(holdTimer.current);
     if (transcriptTimer.current) clearInterval(transcriptTimer.current);
@@ -110,9 +96,9 @@ export function DemoApp({ source, entry, onExit }: { source: Draft; entry: 'chat
     if (toastTimer.current) clearTimeout(toastTimer.current);
   }, []);
 
-  function patch(next: Partial<AppState>) {
+  const patch = useCallback((next: Partial<AppState>) => {
     dispatch({ type: 'patch', patch: next });
-  }
+  }, []);
 
   function showToast(message: string) {
     patch({ toast: message });
@@ -329,7 +315,7 @@ export function DemoApp({ source, entry, onExit }: { source: Draft; entry: 'chat
 
   function applyOptimization() {
     if (state.optimizeChoice.startsWith('配图：')) {
-      patch({ previousSegments: state.segments, previousIllustration: state.illustration, illustration: state.optimizeChoice.replace('配图：', ''), optimizeSheet: null, toast: '配图已经放进文章里了' });
+      patch({ previousSegments: state.segments, previousIllustration: state.illustration, illustration: state.optimizeChoice.replace('配图：', ''), inputMode: 'voice', optimizeSheet: null, toast: '配图已经放进文章里了' });
       return;
     }
     const source = state.segments;
@@ -366,11 +352,11 @@ export function DemoApp({ source, entry, onExit }: { source: Draft; entry: 'chat
           <div className="demo-banner"><span>演示模式 · 不影响作品</span><button type="button" onClick={onExit}>退出演示</button></div>
           <header className="topbar">
             <button className="icon-button" type="button" aria-label="返回文章" onClick={() => patch({ screen: 'editor' })}><BackIcon /></button>
-            <div><strong>编辑这一段</strong><small>可以修改错字和标点</small></div>
+            <div><strong>编辑这一段</strong></div>
             <span className="topbar-spacer" />
           </header>
           <div className="segment-editor-wrap">
-            <span className="quote-mark" aria-hidden="true">“</span>
+            <div className="segment-note"><Icon name="pen" /><span>让这段话，更像您想说的。</span></div>
             <textarea
               autoFocus
               className="segment-editor"
@@ -403,28 +389,28 @@ export function DemoApp({ source, entry, onExit }: { source: Draft; entry: 'chat
           <div className="demo-banner"><span>演示模式 · 不影响作品</span><button type="button" onClick={onExit}>退出演示</button></div>
           <header className="topbar chat-topbar">
             <button className="icon-button" type="button" aria-label="返回文章" onClick={() => patch({ screen: 'editor', voiceState: 'idle' })}><BackIcon /></button>
-            <div><strong>和小文聊一聊</strong><small><i /> 正在陪您创作</small></div>
+            <div><strong>和小文聊一聊</strong><small><i /> 陪您慢慢写</small></div>
             <button className="text-button" type="button" onClick={finishChat}>完成</button>
           </header>
 
           <div className="chat-scroll" ref={chatScrollRef}>
-            <div className="chat-day">今天</div>
+            <div className="chat-day"><span />从一句话开始<span /></div>
             {state.messages.map((message) => (
               <div className={`message-row ${message.role}`} key={message.id}>
-                {message.role === 'assistant' && <span className="assistant-avatar" aria-hidden="true">文</span>}
+                {message.role === 'assistant' && <span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span>}
                 <div className="message-bubble">{message.text}</div>
               </div>
             ))}
             {state.aiTyping && (
               <div className="message-row assistant">
-                <span className="assistant-avatar" aria-hidden="true">文</span>
+                <span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span>
                 <div className="message-bubble typing"><i /><i /><i /></div>
               </div>
             )}
           </div>
 
           <footer className="chat-dock">
-            <p>像发微信语音一样，按住下面的按钮说话</p>
+            <p>像聊天一样，说一句就好。</p>
             <button
               className="hold-to-talk"
               type="button"
@@ -434,7 +420,7 @@ export function DemoApp({ source, entry, onExit }: { source: Draft; entry: 'chat
               onKeyDown={(event) => handleHoldKeyDown('chat', event)}
               onKeyUp={handleHoldKeyUp}
               onContextMenu={(event) => event.preventDefault()}
-            >按住说话</button>
+            ><MicIcon />按住说话</button>
           </footer>
 
           {state.recordingContext === 'chat' && (
@@ -463,7 +449,7 @@ export function DemoApp({ source, entry, onExit }: { source: Draft; entry: 'chat
           <button className="text-button save-text" type="button" onClick={saveWork}>结束演示</button>
         </header>
 
-        <div className={`editor-scroll ${state.inputMode === 'text' ? 'text-mode' : ''}`}>
+        <div className="editor-scroll writing-canvas">
           <input
             className="title-input"
             value={state.title}
@@ -475,26 +461,23 @@ export function DemoApp({ source, entry, onExit }: { source: Draft; entry: 'chat
           {state.inputMode === 'text' ? (
             <textarea
               ref={textEditorRef}
-              className="full-text-editor"
+              className="full-text-editor writing-body"
               value={state.textDraft}
               onChange={(event) => patch({ textDraft: event.target.value })}
-              placeholder="在这里输入想写的话……"
+              placeholder="从想说的一句话开始……"
               aria-label="文章正文"
               inputMode="text"
               autoCapitalize="sentences"
             />
           ) : (
-            <div className="story-content">
+            <div className="full-text-editor writing-body writing-preview" role="group" aria-label="文章正文">
               {!state.segments.length && (
-                <div className="empty-writing">
-                  <p>从想说的一句话开始</p>
-                </div>
+                <p className="writing-placeholder">从想说的一句话开始……</p>
               )}
               {state.segments.map((segment, index) => (
-                <div key={segment.id}>
-                  <button className="story-paragraph" type="button" onClick={() => openSegment(segment)}>
-                    <span>{String(index + 1).padStart(2, '0')}</span>
-                    <p>{segment.text}</p>
+                <div className="writing-piece" key={segment.id}>
+                  <button className="writing-paragraph" type="button" aria-label={`编辑第 ${index + 1} 段`} onClick={() => openSegment(segment)}>
+                    <span>{segment.text}</span>
                   </button>
                   {index === 0 && state.illustration && <MemoryIllustration kind={state.illustration} />}
                 </div>
@@ -504,28 +487,19 @@ export function DemoApp({ source, entry, onExit }: { source: Draft; entry: 'chat
         </div>
 
         {state.previousSegments && (
-          <div className="undo-bar"><span>已按“{state.optimizeChoice || '您的要求'}”优化</span><button type="button" onClick={undoOptimization}>撤销</button></div>
+          <div className="undo-bar"><span><Icon name="check" />{state.optimizeChoice.startsWith('配图：') ? '已添加文章配图' : '已应用优化'}</span><button type="button" onClick={undoOptimization}><Icon name="undo" />撤销</button></div>
         )}
 
         <footer className={`editor-dock ${state.inputMode}`}>
-          <div className="creation-controls" aria-label="创作方式与工具">
-            <div className="mode-tabs" role="tablist" aria-label="输入方式">
-              <button className={state.inputMode === 'voice' ? 'active' : ''} type="button" role="tab" aria-selected={state.inputMode === 'voice'} onClick={() => changeMode('voice')}>语音输入</button>
-              <button className={state.inputMode === 'text' ? 'active' : ''} type="button" role="tab" aria-selected={state.inputMode === 'text'} onClick={() => changeMode('text')}>文字输入</button>
-            </div>
-            <div className="editor-actions" aria-label="写作辅助">
-              <button type="button" onClick={openChat}>聊天引导</button>
-              <button type="button" onClick={openOptimization}>文章优化</button>
-            </div>
-          </div>
+          <WritingToolbar mode={state.inputMode} onMode={changeMode} onChat={openChat} onOptimize={openOptimization} disabled={state.voiceState === 'recording'} />
 
           {state.inputMode === 'voice' && (
             <div className={`voice-panel ${state.voiceState}`}>
-              <div className="voice-stage">
-                {state.voiceState === 'idle' && <p className="voice-tip">按住麦克风，把想说的话慢慢讲出来</p>}
+              <div className="transcript-stage">
+                {state.voiceState === 'idle' && <VoiceIdle />}
                 {state.voiceState === 'recording' && (
                   <div className="live-transcript">
-                    <div><Waveform compact /><span>{state.recordingElapsed} 秒</span></div>
+                    <div className="transcript-meta"><Waveform compact /><span>正在聆听 · {state.recordingElapsed} 秒</span></div>
                     <p ref={liveTranscriptRef}>{recordingCopy}<i /></p>
                   </div>
                 )}
@@ -534,7 +508,7 @@ export function DemoApp({ source, entry, onExit }: { source: Draft; entry: 'chat
                     const temporary: Segment = { id: 'pending', text: state.pendingVoice };
                     patch({ screen: 'segment-edit', editSegmentId: 'pending', editText: temporary.text });
                   }}>
-                    <p>{state.pendingVoice}</p>
+                    <span className="transcript-meta"><span><Icon name="check" />已转成文字</span><Icon name="pen" /></span><p>{state.pendingVoice}</p>
                   </button>
                 )}
               </div>
@@ -560,6 +534,7 @@ export function DemoApp({ source, entry, onExit }: { source: Draft; entry: 'chat
                   }}>完成</button>
                 ) : <span className="voice-side" />}
               </div>
+              <small className="continue-hint">{state.voiceState === 'recording' ? '松开，结束这一段' : state.voiceState === 'review' ? '还想补充？可以继续按住说' : '按住说话'}</small>
             </div>
           )}
         </footer>

@@ -5,7 +5,7 @@ import { ProductApp } from '../features/writing/ProductApp';
 import { emptyDraft, articleText, type Draft, type Segment } from '../lib/domain/writing';
 import { IndexedWorkRepository } from '../lib/storage/repository';
 
-const placeholder = '在这里输入想写的话……';
+const placeholder = '从想说的一句话开始……';
 const repositories: IndexedWorkRepository[] = [];
 const repository = () => {
   const result = new IndexedWorkRepository(crypto.randomUUID());

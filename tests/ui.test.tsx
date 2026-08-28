@@ -14,6 +14,14 @@ async function startWriting() {
   fireEvent.change(screen.getByLabelText('文章正文'), { target: { value: '窗前的雨\n落进了风里\n\n我想把这一刻写下来。' } });
   await screen.findByText('已保存到本机');
 }
+it('starts with an empty local library and never inserts preview examples', async () => {
+  const repository = repo(); const { container } = render(<ProductApp repository={repository} />);
+  await screen.findByRole('heading', { name: '我的作品' });
+  expect(screen.getByText('0 篇作品')).toBeVisible();
+  expect(screen.getByText('写下的内容会保存在这台设备上')).toBeVisible();
+  expect(container.querySelector('.work-card')).toBeNull();
+  expect((await repository.load()).works).toHaveLength(0);
+});
 it('writes, edits a segment, saves, reopens and restores from IndexedDB', async () => {
   const repository = repo(); const view = render(<ProductApp repository={repository} />); await startWriting();
   fireEvent.click(screen.getByRole('tab', { name: '语音输入' })); fireEvent.click(screen.getByRole('button', { name: '编辑第 1 段' }));
@@ -72,13 +80,13 @@ it('keeps only the approved home affordances and card hierarchy', async () => {
   const card = within(recent).getByRole('button', { name: /夏日有感.*继续写/ });
   expect(within(recent).getAllByRole('button')).toEqual([card]);
   expect(card.parentElement).toHaveClass('work-list');
-  expect(card.querySelector('.work-topline small')).toHaveTextContent('已保存');
+  expect(card.querySelector('.work-bottom small')).toHaveTextContent('已保存');
   expect(card.querySelector('time')).toHaveTextContent('刚刚');
   expect(card.querySelector('.work-bottom i')).toHaveTextContent('继续写');
   expect(container.querySelector('.work-menu, .work-row, .library-links')).toBeNull();
   expect(screen.queryByRole('button', { name: '回收站' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /体验 AI 演示/ })).not.toBeInTheDocument();
-  expect(screen.getByText('不知道写什么？先说一句就好', { exact: false })).toBeInTheDocument();
+  expect(screen.getByText('不必想好开头，从想说的开始。', { exact: false })).toBeInTheDocument();
 });
 
 it('keeps writing tools directly below the editor without an added save row', async () => {
@@ -86,11 +94,11 @@ it('keeps writing tools directly below the editor without an added save row', as
   expect(container.querySelector('.save-row')).toBeNull();
   expect(container.querySelector('.editor-scroll')?.nextElementSibling).toHaveClass('editor-dock');
   expect(screen.queryByRole('button', { name: '导出与更多操作' })).not.toBeInTheDocument();
-  expect(screen.getByLabelText('文章正文')).toHaveAttribute('placeholder', '在这里输入想写的话……');
+  expect(screen.getByLabelText('文章正文')).toHaveAttribute('placeholder', '从想说的一句话开始……');
   expect(screen.getByRole('button', { name: '保存' })).toHaveAccessibleDescription('已保存到本机');
   fireEvent.click(screen.getByRole('tab', { name: '语音输入' }));
   fireEvent.click(screen.getByRole('button', { name: '编辑第 1 段' }));
-  expect(screen.getByText('可以修改错字和标点')).toBeInTheDocument();
+  expect(screen.getByText('让这段话，更像您想说的。')).toBeInTheDocument();
   expect(container.querySelector('.segment-editor-wrap > p')).toHaveTextContent('9 字');
   expect(screen.queryByText('修改会自动保存在本机')).not.toBeInTheDocument();
 });

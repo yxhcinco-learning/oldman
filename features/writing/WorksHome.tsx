@@ -1,4 +1,5 @@
-import { MicIcon } from '../../components/Icons';
+import { Icon, MicIcon } from '../../components/Icons';
+import { LetterDrawing, StoryDrawing } from '../../components/Visuals';
 import { countWords, formatTime, type Work } from '../../lib/domain/writing';
 
 export function WorksHome({ works, onNew, onOpen, onMenu }: {
@@ -6,23 +7,24 @@ export function WorksHome({ works, onNew, onOpen, onMenu }: {
   onMenu: () => void;
 }) {
   const visible = works.filter(w => !w.deletedAt);
+  // Decorative, stable covers; they do not infer content or persist a new field.
+  const cover = (id: string) => ['bike', 'home', 'train'][[...id].reduce((sum, char) => sum + char.codePointAt(0)!, 0) % 3];
   return <>
     <div className="home-scroll">
-      <header className="home-header"><div><p className="eyebrow">岁月有声</p><h1>我的作品</h1><p className="subtitle">想说的，慢慢写下来</p></div>
-        <button className="round-button" type="button" aria-label="作品与备份选项" onClick={onMenu}>•••</button></header>
-      <div className="memory-strip" aria-hidden="true"><span>春</span><i /><span>夏</span><i /><span>秋</span><i /><span>冬</span></div>
+      <div className="brand-row"><span className="brand"><Icon name="leaf" /><b>岁月有声</b></span><button className="round-button" type="button" aria-label="作品与备份选项" onClick={onMenu}><Icon name="more" /></button></div>
+      <header className="home-header"><div className="home-intro"><p className="eyebrow">日子慢慢过，文字慢慢写</p><h1>我的作品<span aria-hidden="true">。</span></h1><p className="subtitle">把生活，留在字里行间。</p></div><LetterDrawing /></header>
       <section className="works-section" aria-labelledby="recent-title">
-        <div className="section-heading"><h2 id="recent-title">最近写下</h2><span>共 {visible.length} 篇</span></div>
-        <div className="work-list">{visible.map((work, index) => (
+        <div className="section-heading"><h2 id="recent-title">最近写下</h2><span>{visible.length} 篇作品</span></div>
+        <div className="work-list">{visible.map(work => (
           <button className="work-card" key={work.id} type="button" onClick={() => onOpen(work)}>
-            <span className={`work-cover ${['amber', 'sage', 'blue', 'rose'][index % 4]}`} aria-hidden="true"><b>{work.title.slice(0, 1)}</b><small>岁月手记</small></span>
-            <span className="work-copy"><span className="work-topline"><small>已保存</small><time dateTime={work.updatedAt}>{formatTime(work.updatedAt)}</time></span>
-              <strong>{work.title}</strong><span className="work-bottom"><span>{countWords(work.segments).toLocaleString()} 字</span><i>继续写</i></span></span>
+            <span className="work-cover" aria-hidden="true"><StoryDrawing kind={cover(work.id)} /><b>{[...work.title][0]}</b></span>
+            <span className="work-copy"><strong>{work.title}</strong><span className="work-topline"><time dateTime={work.updatedAt}>{formatTime(work.updatedAt)}</time><i aria-hidden="true">·</i><span>{countWords(work.segments).toLocaleString()} 字</span></span>
+              <span className="work-bottom"><small className="complete">已保存</small><i>继续写 <Icon name="arrow" /></i></span></span>
           </button>
         ))}</div>
         {!visible.length && <div className="empty-library"><p>从想说的一句话开始</p><span>写下的内容会保存在这台设备上</span></div>}
       </section>
     </div>
-    <footer className="create-dock"><div className="dock-hint"><span aria-hidden="true">✦</span> 不知道写什么？先说一句就好</div><button className="create-button" type="button" onClick={onNew}><MicIcon /><span><strong>开始写作</strong><small>按住说话，也可以打字</small></span><b aria-hidden="true">›</b></button></footer>
+    <footer className="create-dock"><div className="dock-hint">不必想好开头，从想说的开始。</div><button className="create-button" type="button" onClick={onNew}><MicIcon /><span><strong>开始写作</strong></span><Icon name="arrow" /></button></footer>
   </>;
 }

@@ -1,5 +1,7 @@
+import { useEffect, useRef } from 'react';
 import { CONTENT_TYPES, CUSTOM_PROMPTS, FORMAT_OPTIONS, WRITING_STYLES, optimizedSegments } from './mock-data';
 import { type AppState } from './demo-state';
+import { Icon, StoryDrawing } from '../../components/Visuals';
 export function MemoryIllustration({ kind }: { kind: string }) {
   const labels: Record<string, [string, string]> = {
     train: ['北去的列车', '一九六八'],
@@ -9,7 +11,7 @@ export function MemoryIllustration({ kind }: { kind: string }) {
   const [title, note] = labels[kind] ?? labels.train;
   return (
     <figure className={`memory-art ${kind}`} aria-label={`文章配图：${title}`}>
-      <div className="sun" /><div className="horizon" /><div className="art-shape" />
+      <StoryDrawing kind={kind} />
       <figcaption><strong>{title}</strong><small>{note}</small></figcaption>
     </figure>
   );
@@ -24,6 +26,22 @@ export function OptimizationSheet({
   patch: (next: Partial<AppState>) => void;
   apply: () => void;
 }) {
+  const panel = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    const trap = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); patch({ optimizeSheet: null }); }
+      if (event.key !== 'Tab') return;
+      const elements = Array.from(panel.current?.querySelectorAll<HTMLElement>('*') ?? []).filter(element => element.tabIndex >= 0 && !element.hasAttribute('disabled'));
+      const first = elements[0]; const last = elements.at(-1);
+      if (!first) return;
+      if (event.shiftKey && (document.activeElement === first || !elements.includes(document.activeElement as HTMLElement))) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || !elements.includes(document.activeElement as HTMLElement))) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', trap);
+    return () => { document.removeEventListener('keydown', trap); if (previous?.isConnected) previous.focus({ preventScroll: true }); };
+  }, [patch]);
+  useEffect(() => { panel.current?.querySelector<HTMLElement>('#sheet-title')?.focus({ preventScroll: true }); }, [state.optimizeSheet]);
   const close = () => patch({ optimizeSheet: null });
   const choose = (choice: string) => patch({ optimizeChoice: choice, optimizeSheet: 'result' });
   const sheetTitles: Record<string, string> = {
@@ -35,23 +53,23 @@ export function OptimizationSheet({
     <div className="sheet-backdrop" role="presentation" onPointerDown={(event) => {
       if (event.target === event.currentTarget) close();
     }}>
-      <section className="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
-        <div className="sheet-handle" />
+      <section ref={panel} className="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+        <div className="sheet-handle" aria-hidden="true" />
         <header className="sheet-header">
-          <div><small>文章优化</small><h2 id="sheet-title">{sheetTitles[state.optimizeSheet ?? 'menu']}</h2></div>
+          <div><small><Icon name="spark" />小文的写作工具</small><h2 id="sheet-title" tabIndex={-1}>{sheetTitles[state.optimizeSheet ?? 'menu']}</h2></div>
           <div className="sheet-header-actions">
-            {state.optimizeSheet !== 'menu' && <button type="button" aria-label="返回优化选项" onClick={() => patch({ optimizeSheet: 'menu' })}>‹</button>}
-            <button type="button" aria-label="关闭" onClick={close}>×</button>
+            {state.optimizeSheet !== 'menu' && <button type="button" aria-label="返回优化选项" onClick={() => patch({ optimizeSheet: 'menu' })}><Icon name="back" /></button>}
+            <button type="button" aria-label="关闭" onClick={close}><Icon name="close" /></button>
           </div>
         </header>
 
         {state.optimizeSheet === 'menu' && (
           <div className="optimize-menu">
-            <button type="button" onClick={() => patch({ optimizeSheet: 'content' })}><span>文</span><b>内容类型</b><small>散文、诗歌等</small></button>
-            <button type="button" onClick={() => patch({ optimizeSheet: 'style' })}><span>风</span><b>文风调整</b><small>保持您的口吻</small></button>
-            <button type="button" onClick={() => patch({ optimizeSheet: 'format' })}><span>序</span><b>格式整理</b><small>分段与标点</small></button>
-            <button type="button" onClick={() => patch({ optimizeSheet: 'image' })}><span>景</span><b>AI 配图</b><small>选择故事画面</small></button>
-            <button className="wide" type="button" onClick={() => patch({ optimizeSheet: 'custom' })}><span>✦</span><b>其他要求</b><small>直接告诉小文怎么改</small></button>
+            <button type="button" onClick={() => patch({ optimizeSheet: 'content' })}><span><Icon name="book" /></span><b>内容类型</b><small>找到适合的表达</small></button>
+            <button type="button" onClick={() => patch({ optimizeSheet: 'style' })}><span><Icon name="pen" /></span><b>文风调整</b><small>让文字更有您的味道</small></button>
+            <button type="button" onClick={() => patch({ optimizeSheet: 'format' })}><span><Icon name="format" /></span><b>格式整理</b><small>分段、标点，井井有条</small></button>
+            <button type="button" onClick={() => patch({ optimizeSheet: 'image' })}><span><Icon name="image" /></span><b>AI 配图</b><small>为文字添一幅画</small></button>
+            <button className="wide" type="button" onClick={() => patch({ optimizeSheet: 'custom' })}><span><Icon name="spark" /></span><b>其他要求</b><small>想怎么改，直接告诉小文</small><Icon name="chevron" /></button>
           </div>
         )}
 
@@ -77,7 +95,7 @@ export function OptimizationSheet({
 
         {state.optimizeSheet === 'result' && (
           <div className="optimization-result">
-            <span className="choice-chip">按“{state.optimizeChoice.replace('配图：', '')}”优化</span>
+            <span className="choice-chip"><Icon name="spark" />{state.optimizeChoice.startsWith('配图：') ? '为文章添一幅画' : `按“${state.optimizeChoice}”优化`}</span>
             {state.optimizeChoice.startsWith('配图：') ? (
               <MemoryIllustration kind={state.optimizeChoice.replace('配图：', '')} />
             ) : (
@@ -86,8 +104,8 @@ export function OptimizationSheet({
               </div>
             )}
             <ul>
-              <li>保留了原来的内容和口吻</li>
-              <li>{state.optimizeChoice.startsWith('配图：') ? '配图会放在第一段后面' : state.optimizeChoice === '诗歌' ? '重排了诗句、节奏和留白' : '调整了分段、标点和语句节奏'}</li>
+              <li><Icon name="check" />保留了原来的内容和口吻</li>
+              <li><Icon name="check" />{state.optimizeChoice.startsWith('配图：') ? '配图会放在第一段后面' : state.optimizeChoice === '诗歌' ? '重排了诗句、节奏和留白' : '调整了分段、标点和语句节奏'}</li>
             </ul>
             <div className="result-actions"><button type="button" onClick={close}>先不修改</button><button className="primary-button" type="button" onClick={apply}>应用优化</button></div>
           </div>
@@ -98,11 +116,16 @@ export function OptimizationSheet({
 }
 
 function OptionList({ options, selected, onChoose }: { options: string[]; selected: string; onChoose: (option: string) => void }) {
+  const descriptions: Record<string, string> = {
+    '散文': '让画面与心情自然流淌', '生活随笔': '记下生活里的一点感受', '诗歌': '用诗句留下想说的话', '口述故事': '像聊天一样，娓娓道来',
+    '朴实真诚': '不必修饰，真心就很动人', '温暖叙事': '把细节写得亲切、柔软', '文学散文': '多一点画面感与韵味', '轻松幽默': '轻轻松松，也带一点笑意',
+    '自动分段': '在合适的地方停一停', '修正标点': '让句子读起来更顺畅', '添加小标题': '为每一段找到一个小主题',
+  };
   return (
     <div className="option-list">
-      {options.map((option, index) => (
-        <button className={selected === option ? 'selected' : ''} key={option} type="button" aria-pressed={selected === option} onClick={() => onChoose(option)}>
-          <span>{['一', '二', '三', '四'][index]}</span><b>{option}</b><i aria-hidden="true">›</i>
+      {options.map((option) => (
+        <button className={selected === option ? 'selected' : ''} key={option} type="button" aria-label={option} aria-pressed={selected === option} onClick={() => onChoose(option)}>
+          <span className="option-copy"><b>{option}</b><small>{descriptions[option]}</small></span><Icon name={selected === option ? 'check' : 'chevron'} />
         </button>
       ))}
     </div>

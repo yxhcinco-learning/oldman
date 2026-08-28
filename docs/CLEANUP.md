@@ -1,6 +1,6 @@
 # 文件清理与工程迁移
 
-正式工程位于 `D:\vibe_code\oldman` 根目录，这是唯一开发入口，AGENTS、OpenSpec、Git、源码及 `.env.local` 均在根目录。原型源码和空迁移源目录已清理，不再维护双工程或版本代称。已验收设计基线通过 Git 提交 `28fd5e4` 定位，现有 UI 不重做。
+正式工程位于 `D:\vibe_code\oldman` 根目录，这是唯一开发入口，AGENTS、OpenSpec、Git、源码及 `.env.local` 均在根目录。原型源码和空迁移源目录已清理，不再维护双正式工程。`28fd5e4` 仅作历史设计来源；用户随后批准 Echoes 全面落地，当前视觉以 [设计规范](../DESIGN-SYSTEM.md) 为准。`previews/echoes-of-time` 是保留的独立设计对照，不参与正式运行时。
 
 ## 已完成的源码整理
 

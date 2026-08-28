@@ -1,10 +1,11 @@
 import { useLayoutEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
-import { BackIcon } from '../../components/Icons';
+import { BackIcon, Icon } from '../../components/Icons';
+import { WritingToolbar } from '../../components/WritingControls';
 import { articleText, effectiveSegments, completeSegment, completeVoice, type Draft, type InputMode } from '../../lib/domain/writing';
 import { VoicePanel } from '../speech/VoicePanel';
 
-const BODY_PLACEHOLDER = '在这里输入想写的话……';
+const BODY_PLACEHOLDER = '从想说的一句话开始……';
 
 export function Editor({ draft, update, onSave, onBack, onDemo, saveStatus }: {
   draft: Draft; update: (draft: Draft) => void; onSave: () => void; onBack: () => void;
@@ -21,8 +22,8 @@ export function Editor({ draft, update, onSave, onBack, onDemo, saveStatus }: {
     if (mode === 'text') textarea.current?.focus({ preventScroll: true });
   };
   if (draft.segmentEdit) return <>
-    <header className="topbar"><button className="icon-button" type="button" aria-label="返回文章" onClick={() => update(completeSegment(draft))}><BackIcon /></button><div><strong>编辑这一段</strong><small>可以修改错字和标点</small></div><span className="topbar-spacer" /></header>
-    <div className="segment-editor-wrap"><span className="quote-mark" aria-hidden="true">“</span><textarea autoFocus className="segment-editor" aria-label="段落内容" maxLength={1_000_000} value={draft.segmentEdit.text} onChange={e => update({ ...draft, segmentEdit: { ...draft.segmentEdit!, text: e.target.value } })} /><p>{[...draft.segmentEdit.text.replace(/\s/g, '')].length} 字</p></div>
+    <header className="topbar"><button className="icon-button" type="button" aria-label="返回文章" onClick={() => update(completeSegment(draft))}><BackIcon /></button><div><strong>编辑这一段</strong></div><span className="topbar-spacer" /></header>
+    <div className="segment-editor-wrap"><div className="segment-note"><Icon name="pen" /><span>让这段话，更像您想说的。</span></div><textarea autoFocus className="segment-editor" aria-label="段落内容" maxLength={1_000_000} value={draft.segmentEdit.text} onChange={e => update({ ...draft, segmentEdit: { ...draft.segmentEdit!, text: e.target.value } })} /><p>{[...draft.segmentEdit.text.replace(/\s/g, '')].length} 字</p></div>
     <footer className="simple-footer"><button className="primary-button" type="button" onClick={() => update(completeSegment(draft))}>完成修改</button></footer>
   </>;
   return <>
@@ -35,11 +36,7 @@ export function Editor({ draft, update, onSave, onBack, onDemo, saveStatus }: {
         {draft.segments.map((s, i) => <button key={s.id} className="writing-paragraph" type="button" aria-label={`编辑第 ${i + 1} 段`} onClick={() => update({ ...draft, segmentEdit: { ...s } })}><span>{s.text}</span></button>)}
       </div>}
     </div>
-    <footer className={`editor-dock ${draft.inputMode}`}><div className="creation-controls" aria-label="创作方式与工具"><div className="mode-tabs" role="tablist" aria-label="输入方式">
-      <button className={draft.inputMode === 'voice' ? 'active' : ''} type="button" role="tab" aria-selected={draft.inputMode === 'voice'} onClick={() => setMode('voice')}>语音输入</button>
-      <button className={draft.inputMode === 'text' ? 'active' : ''} type="button" role="tab" aria-selected={draft.inputMode === 'text'} onClick={() => setMode('text')}>文字输入</button></div>
-      <div className="editor-actions" aria-label="写作辅助"><button type="button" onClick={() => onDemo('chat')}>聊天引导</button><button type="button" onClick={() => onDemo('optimize')}>文章优化</button></div>
-    </div>
+    <footer className={`editor-dock ${draft.inputMode}`}><WritingToolbar mode={draft.inputMode} onMode={setMode} onChat={() => onDemo('chat')} onOptimize={() => onDemo('optimize')} />
     {draft.inputMode === 'voice' && <VoicePanel pending={draft.pendingVoice}
       onPending={text => update({ ...draftRef.current, pendingVoice: text })}
       onEdit={() => update({ ...draft, segmentEdit: { id: 'pending', text: draft.pendingVoice } })}

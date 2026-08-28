@@ -1,2 +1,4 @@
-export function BackIcon() { return <span className="back-icon" aria-hidden="true">‹</span>; }
-export function MicIcon() { return <span className="mic-glyph" aria-hidden="true"><i /></span>; }
+import { Icon } from './Visuals';
+export { Icon } from './Visuals';
+export function BackIcon() { return <Icon name="back" />; }
+export function MicIcon() { return <Icon name="mic" className="mic-glyph" />; }

@@ -8,6 +8,7 @@ import { Dialog } from '../../components/Dialog';
 import { DemoApp } from '../demo/DemoApp';
 import { WorksHome } from './WorksHome';
 import { Editor } from './Editor';
+import { Icon } from '../../components/Icons';
 
 type Menu = 'library' | 'works' | 'trash' | Work | null;
 export function ProductApp({ repository }: { repository?: WorkRepository }) {
@@ -50,10 +51,10 @@ export function ProductApp({ repository }: { repository?: WorkRepository }) {
       onBack={menu === 'library' ? undefined : () => setMenu(typeof menu === 'object' ? menu.deletedAt ? 'trash' : 'works' : 'library')}>
       <div className="menu-actions">
         {menu === 'library' ? <>
-          <button type="button" onClick={() => setMenu('works')}>管理作品</button>
-          <button type="button" onClick={() => setMenu('trash')}>回收站</button>
-          <button type="button" onClick={() => { backup(); setMenu(null); }}>导出全部备份</button>
-          <button type="button" disabled={busy} onClick={() => file.current?.click()}>从备份恢复副本</button>
+          <button type="button" aria-label="管理作品" onClick={() => setMenu('works')}><Icon name="book" /><span>管理作品<small>导出、复制或移入回收站</small></span><Icon name="chevron" /></button>
+          <button type="button" aria-label="回收站" onClick={() => setMenu('trash')}><Icon name="undo" /><span>回收站<small>恢复误删的作品</small></span><Icon name="chevron" /></button>
+          <button type="button" aria-label="导出全部备份" onClick={() => { backup(); setMenu(null); }}><Icon name="arrow" /><span>导出全部备份<small>保存为 JSON 文件</small></span><Icon name="chevron" /></button>
+          <button type="button" aria-label="从备份恢复副本" disabled={busy} onClick={() => file.current?.click()}><Icon name="check" /><span>从备份恢复副本<small>不会覆盖现有作品</small></span><Icon name="chevron" /></button>
           <p>作品只在当前浏览器中。清理浏览器数据可能丢失，请定期备份。</p>
         </> : typeof menu === 'object' ? <>
           <button type="button" onClick={() => { exportText(menu.draft); setMenu(null); }}>导出 TXT</button>
