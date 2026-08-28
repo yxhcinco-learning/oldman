@@ -183,5 +183,6 @@ it('shows the new categories and keeps unsupported tools visibly unavailable', a
   expect(screen.getByRole('button', { name: /^润色文笔/ })).toBeEnabled();
   for (const name of ['精简内容', '扩写内容', '添加配图']) expect(screen.getByRole('button', { name: new RegExp(name) })).toBeDisabled();
   expect(screen.queryByRole('button', { name: /内容类型|文风调整|格式整理/ })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: '关闭' })); expect(opener).toHaveFocus(); expect(transport).not.toHaveBeenCalled();
+  fireEvent.keyDown(screen.getByRole('button', { name: '关闭' }), { key: 'Escape' });
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); expect(opener).toHaveFocus(); expect(transport).not.toHaveBeenCalled();
 });
