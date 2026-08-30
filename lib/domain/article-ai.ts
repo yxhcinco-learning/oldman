@@ -30,7 +30,7 @@ function isNonChangeClause(clause: string) {
 }
 export function actualChangeSummary(answer: string): string {
   const clauses = answer.match(/[^；;。\n]+[；;。\n]?/g) ?? [answer];
-  const kept = clauses.filter(clause => !isNonChangeClause(clause)).join('').trim();
+  const kept = clauses.filter(clause => !isNonChangeClause(clause)).join('').trim().replace(/[；;]+$/, '。');
   return kept || '已完成本轮整理，请对照原文查看具体变化。';
 }
 export function resultSummary(result: AiResult, originalBody: string): string {

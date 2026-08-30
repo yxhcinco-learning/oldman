@@ -74,7 +74,7 @@ it('filters explicit unchanged entries while preserving the candidate and real e
   const app = await gateway({ fetch: vi.fn(async () => response({ answer, body, citedVersionIds: [] })) });
   const result = await app.inject({ method: 'POST', url: '/api/ai/turn', headers: { origin }, payload: request });
   expect(result.statusCode).toBe(200);
-  expect(result.json().result).toMatchObject({ body, answer: '补充了逗号；' });
+  expect(result.json().result).toMatchObject({ body, answer: '补充了逗号。' });
 });
 it('uses an explicit conversational instruction to return a full candidate while keeping questions read only', async () => {
   const call = vi.fn(async () => response({ answer: '删除了第二段。', body: '周末我去了公园。', citedVersionIds: [] }));
