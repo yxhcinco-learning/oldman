@@ -93,7 +93,7 @@ export class Workspace {
     const version = session?.versions.find(v => v.id === versionId);
     if (!draft || !session || !version) return false;
     if (draft.segmentEdit || draft.pendingVoice.trim() || !sameDocument(documentOf(draft), expected)) {
-      this.patch({ error: '正文已发生变化，请重新查看历史版本后再恢复。' }); return false;
+      this.patch({ error: '正文已发生变化，请重新查看修改记录后再恢复。' }); return false;
     }
     const next = { ...draft, title: version.title, textDraft: version.body, segments: splitDraft(version.body, draft.segments) };
     return this.commitArticle(next, { ...session, versions: [...session.versions, newVersion(next, 'restore')] });
