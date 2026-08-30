@@ -37,4 +37,4 @@
 - 本轮没有启动 AI、语音或真实麦克风，不重复消耗付费服务，也不把本机浏览器结果冒充真机结果。
 - 最小高度360×640仍允许优化菜单纵向滚动；本次删除旧入口收回其占用空间，不改变工具卡片内容或高度。
 
-本变更5项任务完成，增量规范见 [move-optimization-record-to-header](../openspec/changes/move-optimization-record-to-header/)。本轮没有推送、部署或发布。
+本变更5项任务完成，增量规范归档至 [2026-08-30-move-optimization-record-to-header](../openspec/changes/archive/2026-08-30-move-optimization-record-to-header/)。本轮没有推送、部署或发布。
