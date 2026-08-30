@@ -26,11 +26,12 @@
 
 ### 部署版本与拓扑
 
-- 应用 release 来自提交 `9377412111c92ae588c7fd8caf4a02599e5f42c5`，本地归档 281 个成员、1,717,990 字节，SHA-256 `697fa85a74af77dfd8dc02d5b467d1132eafe09d30fc85b11254600b6921e40f`；远端三份上传文件哈希逐项一致，归档无绝对路径、`..`、符号/硬链接、秘密、node_modules、缓存或音频。
+- 当前应用 release 来自提交 `8205fd030fcd81b02c902182bdc937ff75855ae6`，本地归档 265 个成员、1,712,547 字节，SHA-256 `67f5bed6fc10d4442d5cde88bd418ba89ac7949790fd52c30d9f0df216121994`；远端上传文件哈希一致，归档无绝对路径、`..`、符号/硬链接、`.codex`、秘密、node_modules、缓存或音频。远端 staging 副本在完成校验和解包后删除，本地 Git 忽略归档保留。
 - Lighthouse `lhins-pg6lbxtx` / `ap-guangzhou-3`，4 核 4 GiB、根盘使用 27%；DNSPod A 记录 `2384307236` 指向 `43.136.85.81`、TTL 600。未修改根域、www、time、tct 或其他项目。
-- `/opt/suiyue-yousheng/releases/9377412-20260830-1330` 为活动 release；`suiyue-web.service` 在 `127.0.0.1:3011`，`suiyue-gateway.service` 在 `127.0.0.1:3012`，均 enabled/active、专用无登录用户、`Restart=on-failure`、SIGTERM 和 systemd 沙箱。服务器其他 Node 服务和端口未停止或复用。
+- `/opt/suiyue-yousheng/releases/8205fd0-20260830-1350` 为活动 release，`previous` 保留 `/opt/suiyue-yousheng/releases/9377412-20260830-1330`；`suiyue-web.service` 在 `127.0.0.1:3011`，`suiyue-gateway.service` 在 `127.0.0.1:3012`，均 enabled/active、专用无登录用户、`Restart=on-failure`、SIGTERM 和 systemd 沙箱。服务器其他 Node 服务和端口未停止或复用。
 - Nginx 仅在既有公网 80/443 接入：HTTP 308；HTTPS Basic Auth；`/` → 3011，AI/status/health/语音 → 3012，WSS 保留 Origin/Upgrade；Cloud firewall 仍只有 80、443、既有 22 和 ICMP，应用只监听回环。
 - Linux 固定 `ASR_CREDENTIAL_SOURCE=project`、`ASR_ALLOWED_ORIGIN=https://suiyue.maicong.chat`。DeepSeek 与腾讯云完整凭据从 `/etc/suiyue-yousheng/runtime.env`（0600 root:root）读取；认证文件为 0640 root:www-data。两份上传区明文源安装后已精确擦除，release 与客户端不含秘密。
+- 本地阶段提交为 `d24f770`（部署 OpenSpec）、`9377412`（运行与部署骨架）和 `8205fd0`（首轮线上证据及代理收口）；均只提交本任务文件，未 push、merge 或改写历史。最终证据文档提交由本节完成后另行记录在 Git 历史与交付报告中。
 
 ### 实际检查
 
@@ -49,7 +50,7 @@
 
 ### 回滚
 
-release 切换和回滚脚本只接受 `/opt/suiyue-yousheng/releases/*` 的已解析路径；当前是首次 release，没有旧版本可实际切回。激活失败脚本会恢复 `previous`，首次失败则停止两个服务；手工回滚使用 `deploy/server/rollback.sh <verified-release>`。首次部署撤回时停止/禁用两个岁月有声 unit、恢复该站点部署前 Nginx 状态并在 `nginx -t` 后 reload；保留 release、root-only 环境、证书和 DNS 供恢复，不删除浏览器数据或其他项目。后续部署第二个 release 后必须实际往返切换并记录健康，才把自动回滚验收标记完成。
+release 切换和回滚脚本只接受 `/opt/suiyue-yousheng/releases/*` 的已解析路径；激活失败脚本会恢复 `previous`，首次失败则停止两个服务。已从 `8205fd0-20260830-1350` 实际切回 `9377412-20260830-1330`，确认两个 unit active、回环健康和完整非计费公网 smoke 通过，再前滚到 `8205fd0-20260830-1350` 并复验同样通过；当前/previous 链接分别指向新/旧 release。手工回滚使用 `bash /opt/suiyue-yousheng/current/deploy/server/rollback.sh <verified-release>`。首次部署完全撤回时停止/禁用两个岁月有声 unit、恢复该站点部署前 Nginx 状态并在 `nginx -t` 后 reload；保留 release、root-only 环境、证书和 DNS 供恢复，不删除浏览器数据或其他项目。
 
 ## 已完成
 
