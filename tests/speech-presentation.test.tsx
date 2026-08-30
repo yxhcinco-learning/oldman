@@ -1,19 +1,24 @@
 import { useState } from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { SpeechState } from '../features/speech/session';
 import { VoiceDictationButton } from '../features/speech/VoiceDictationButton';
 import { VoicePanel } from '../features/speech/VoicePanel';
 
 // Presentation-only events: no capture, sockets or paid recognition are used.
-const bridge = vi.hoisted(() => ({ emit: undefined as undefined | ((state: SpeechState) => void) }));
+const bridge = vi.hoisted(() => ({
+  emit: undefined as undefined | ((state: SpeechState) => void),
+  start: vi.fn(),
+  stop: vi.fn(),
+  cancel: vi.fn(),
+}));
 vi.mock('../features/speech/session', () => ({
   SpeechSession: class {
     state = { phase: 'idle', text: '', elapsed: 0, level: 0, message: '' } as SpeechState;
     constructor(onChange: (state: SpeechState) => void) { bridge.emit = state => { this.state = state; onChange(state); }; }
-    start() {}
-    stop() {}
-    cancel() {}
+    start() { bridge.start(); }
+    stop() { bridge.stop(); }
+    cancel() { bridge.cancel(); }
   },
 }));
 function Harness() {
@@ -24,6 +29,7 @@ function emit(next: Partial<SpeechState>) {
   act(() => bridge.emit?.({ phase: 'idle', text: '', elapsed: 0, level: 0, message: '', ...next }));
 }
 
+beforeEach(() => { bridge.start.mockClear(); bridge.stop.mockClear(); bridge.cancel.mockClear(); });
 afterEach(() => { localStorage.clear(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 it('retains the same microphone and stage through all real recognition phases', () => {
@@ -87,4 +93,59 @@ it('appends dictated words to the editable AI prompt and restores the prefix whe
   expect(screen.getByLabelText('小文要求')).toHaveValue('保留原来的要求。再简短一些。');
   fireEvent.keyDown(document, { key: 'Escape' });
   expect(screen.getByLabelText('小文要求')).toHaveValue('保留原来的要求。');
+});
+
+it('keeps the compact dictation button held through preparation and ignores pointer blur', async () => {
+  vi.useFakeTimers();
+  localStorage.setItem('suiyue-voice-consent-v1', 'yes');
+  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: vi.fn() } });
+  vi.stubGlobal('AudioContext', class {});
+  render(<VoiceDictationButton value="" onChange={() => {}} />);
+  const hold = screen.getByRole('button', { name: '按住说话输入要求' });
+  Object.assign(hold, { setPointerCapture: vi.fn(), hasPointerCapture: vi.fn(() => true), releasePointerCapture: vi.fn() });
+
+  fireEvent.pointerDown(hold, { pointerId: 7, pointerType: 'touch', button: 0 });
+  expect(hold).toHaveClass('holding');
+  expect(hold).toHaveTextContent('请继续按住');
+  await act(() => vi.advanceTimersByTimeAsync(180));
+  expect(bridge.start).toHaveBeenCalledOnce();
+
+  emit({ phase: 'permission', message: '正在准备麦克风…' });
+  fireEvent.blur(hold);
+  expect(hold).toHaveClass('holding');
+  expect(hold).toHaveTextContent('请继续按住');
+  expect(bridge.stop).not.toHaveBeenCalled();
+
+  emit({ phase: 'connecting', message: '正在连接识别服务…' });
+  expect(hold).toHaveClass('holding');
+  emit({ phase: 'recording' });
+  expect(hold).toHaveTextContent('松开结束');
+
+  fireEvent.pointerUp(hold, { pointerId: 7, pointerType: 'touch', button: 0 });
+  expect(hold).not.toHaveClass('holding');
+  expect(bridge.stop).toHaveBeenCalledOnce();
+  emit({ phase: 'finishing', message: '正在确认最后几个字…' });
+  expect(hold).toHaveTextContent('正在确认');
+});
+
+it('ends keyboard holds on blur and cancels pointer holds only on pointer cancel', async () => {
+  vi.useFakeTimers();
+  localStorage.setItem('suiyue-voice-consent-v1', 'yes');
+  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: vi.fn() } });
+  vi.stubGlobal('AudioContext', class {});
+  render(<VoiceDictationButton value="" onChange={() => {}} />);
+  const hold = screen.getByRole('button', { name: '按住说话输入要求' });
+  Object.assign(hold, { setPointerCapture: vi.fn(), hasPointerCapture: vi.fn(() => false), releasePointerCapture: vi.fn() });
+
+  fireEvent.keyDown(hold, { key: 'Enter' });
+  await act(() => vi.advanceTimersByTimeAsync(180));
+  fireEvent.blur(hold);
+  expect(bridge.stop).toHaveBeenCalledOnce();
+  expect(hold).not.toHaveClass('holding');
+
+  fireEvent.pointerDown(hold, { pointerId: 9, pointerType: 'touch', button: 0 });
+  await act(() => vi.advanceTimersByTimeAsync(180));
+  fireEvent.pointerCancel(hold, { pointerId: 9, pointerType: 'touch' });
+  expect(bridge.cancel).toHaveBeenCalledOnce();
+  expect(hold).not.toHaveClass('holding');
 });

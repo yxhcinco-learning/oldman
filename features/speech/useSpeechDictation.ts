@@ -16,6 +16,7 @@ function rememberVoiceConsent() {
 
 export function useSpeechDictation(value: string, onChange: (text: string) => void) {
   const [speech, setSpeech] = useState<SpeechState>({ phase: 'idle', text: '', elapsed: 0, level: 0, message: '' });
+  const [holding, setHolding] = useState(false);
   const [consent, setConsent] = useState(hasVoiceConsent);
   const [askConsent, setAskConsent] = useState(false);
   const [tip, setTip] = useState('');
@@ -24,6 +25,7 @@ export function useSpeechDictation(value: string, onChange: (text: string) => vo
   const prefix = useRef('');
   const lastText = useRef('');
   const holdRef = useRef<HoldGesture | null>(null);
+  const holdSource = useRef<'pointer' | 'keyboard' | null>(null);
 
   useEffect(() => {
     let disposed = false;
@@ -49,9 +51,10 @@ export function useSpeechDictation(value: string, onChange: (text: string) => vo
       if (active && !disposed) current.current.onChange(prefix.current);
     }, () => setTip('请按住麦克风，再开始说话'));
     holdRef.current = hold;
-    const hidden = () => { if (document.hidden) void session.stop(); };
-    const leave = () => { session.cancel(); };
-    const escape = (event: globalThis.KeyboardEvent) => { if (event.key === 'Escape') hold.cancel(); };
+    const resetHolding = () => { holdSource.current = null; setHolding(false); };
+    const hidden = () => { if (document.hidden) { resetHolding(); hold.release(); } };
+    const leave = () => { resetHolding(); hold.cancel(); };
+    const escape = (event: globalThis.KeyboardEvent) => { if (event.key === 'Escape') { resetHolding(); hold.cancel(); } };
     document.addEventListener('visibilitychange', hidden);
     document.addEventListener('keydown', escape);
     window.addEventListener('pagehide', leave);
@@ -70,6 +73,7 @@ export function useSpeechDictation(value: string, onChange: (text: string) => vo
     speech,
     tip,
     active,
+    holding,
     recording: speech.phase === 'recording',
     askConsent,
     dismissConsent: () => setAskConsent(false),
@@ -82,26 +86,44 @@ export function useSpeechDictation(value: string, onChange: (text: string) => vo
     clearTip: () => setTip(''),
     holdProps: {
       onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
-        if (event.button !== 0) return;
+        if (event.button !== 0 || holdSource.current) return;
+        holdSource.current = 'pointer';
+        setHolding(true);
         event.currentTarget.setPointerCapture(event.pointerId);
         holdRef.current?.press();
       },
       onPointerUp: (event: PointerEvent<HTMLButtonElement>) => {
+        if (holdSource.current !== 'pointer') return;
+        holdSource.current = null;
+        setHolding(false);
         holdRef.current?.release();
         if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
       },
-      onPointerCancel: () => holdRef.current?.cancel(),
-      onLostPointerCapture: () => holdRef.current?.release(),
-      onBlur: () => holdRef.current?.release(),
+      onPointerCancel: () => {
+        if (holdSource.current !== 'pointer') return;
+        holdSource.current = null;
+        setHolding(false);
+        holdRef.current?.cancel();
+      },
+      onBlur: () => {
+        if (holdSource.current !== 'keyboard') return;
+        holdSource.current = null;
+        setHolding(false);
+        holdRef.current?.release();
+      },
       onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => {
-        if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) {
+        if ((event.key === ' ' || event.key === 'Enter') && !event.repeat && !holdSource.current) {
           event.preventDefault();
+          holdSource.current = 'keyboard';
+          setHolding(true);
           holdRef.current?.press();
         }
       },
       onKeyUp: (event: KeyboardEvent<HTMLButtonElement>) => {
-        if (event.key === ' ' || event.key === 'Enter') {
+        if ((event.key === ' ' || event.key === 'Enter') && holdSource.current === 'keyboard') {
           event.preventDefault();
+          holdSource.current = null;
+          setHolding(false);
           holdRef.current?.release();
         }
       },

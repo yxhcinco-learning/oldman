@@ -339,7 +339,7 @@ svg { display: block; }
 .ai-voice-controls > * { pointer-events: auto; }
 .ai-voice-status { flex: 1; min-width: 0; color: var(--muted); font-size: 13px; line-height: 20px; }
 .ai-voice-controls button { display: flex; align-items: center; justify-content: center; gap: 6px; flex-shrink: 0; min-height: 48px; padding: 8px 14px; border-radius: 24px; color: var(--forest); background: var(--tint); font-size: 15px; line-height: 22px; touch-action: none; }
-.ai-voice-controls button.recording { color: var(--white); background: var(--sienna); }
+.ai-voice-controls button.holding { color: var(--white); background: var(--sienna); }
 .ai-voice-controls .icon { width: 20px; height: 20px; }
 .ai-note { font-size: 14px; line-height: 22px; color: var(--muted); }
 .ai-composer-actions { display: grid; grid-template-columns: 1fr; }
