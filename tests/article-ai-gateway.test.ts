@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, expect, it, vi } from 'vitest';
 import { createGateway } from '../server/gateway';
-import { loadAiConfiguration, type AiGatewayOptions } from '../server/article-ai';
+import { loadAiConfiguration, systemPrompt, type AiGatewayOptions } from '../server/article-ai';
 import { emptyDraft } from '../lib/domain/writing';
 import { newSession } from '../lib/domain/article-ai';
 import { buildAiRequest } from '../features/ai/protocol';
@@ -15,6 +15,23 @@ const response = (content: unknown = { answer: '整理了标点。', body: '周�
 async function gateway(options: Partial<AiGatewayOptions> = {}) {
   const app = await createGateway({ origin, ai: { configuration, fetch: vi.fn(async () => response()), ...options } }); gateways.push(app); return app;
 }
+it('turns unnecessary spoken phrasing into natural written expression without weakening content boundaries', () => {
+  const regular = systemPrompt('regular');
+  expect(regular).toContain('处理强度不能只停留在标点和分段');
+  expect(regular).toContain('可以替换必要措辞、合并重复表达和调整句式');
+  expect(regular).toContain('不要因为“保留口吻”而原样保留明显口语赘词');
+  expect(regular).toContain('那时候，我不觉得苦，只觉得很新鲜');
+  expect(regular).toContain('有意义的方言、直接引语、情感和语气');
+  expect(regular).toContain('不得自行补写缺失的事件、因果或背景');
+  expect(regular).toContain('不得把含义不清的口头残句补成确定事件');
+  expect(regular).toContain('原文只有“我”时不得改成“我们”');
+  expect(regular).toContain('坐了3天3夜的火车');
+  expect(regular).toContain('不要写成“火车上住了3天3夜”');
+  expect(regular).toContain('不擅自删掉承载事实、观点、程度、情感或语气作用的内容');
+  const polish = systemPrompt('polish');
+  expect(polish).toContain('润色文笔：重点改善用词搭配');
+  expect(polish).not.toContain('原样保留明显口语赘词');
+});
 it('uses only the official configured service and never includes secrets in client status or results', async () => {
   const call = vi.fn(async () => response()); const app = await gateway({ fetch: call });
   const status = await app.inject({ method: 'GET', url: '/api/ai/status' }); expect(status.json().configured).toBe(true); expect(status.body).not.toContain(configuration.apiKey);
