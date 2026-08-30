@@ -284,7 +284,13 @@ it('shows the new categories and returns an optimization conversation to its men
   expect(screen.queryByRole('button', { name: /内容类型|文风调整|格式整理/ })).not.toBeInTheDocument();
   expect(screen.queryByLabelText('问问小文')).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: '查看对话记录' })).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: '修改记录' })).toBeInTheDocument();
+  const history = screen.getByRole('button', { name: '查看修改记录' });
+  expect(history.closest('.sheet-header-actions')).toBeInTheDocument();
+  expect(document.querySelector('.ai-record-entry')).toBeNull();
+  fireEvent.click(history);
+  expect(screen.getByRole('dialog', { name: '修改记录' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: '返回上一级' }));
+  expect(screen.getByRole('dialog', { name: '文章优化' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: '进入小文会话并输入需求' }));
   expect(screen.getByLabelText('问问小文')).toHaveFocus();
   fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '还没发送的调整要求' } });
@@ -339,7 +345,7 @@ it('keeps copy failures persistent while ordinary assistant notices are transien
   const repository = repo(); render(<ProductApp repository={repository} />); await startWriting();
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } });
   fireEvent.click(screen.getByRole('button', { name: '文章优化' }));
-  fireEvent.click(screen.getByRole('button', { name: '修改记录' }));
+  fireEvent.click(screen.getByRole('button', { name: '查看修改记录' }));
   fireEvent.click(screen.getByRole('button', { name: /手动编辑/ }));
   fireEvent.click(screen.getByRole('button', { name: '复制这份正文' }));
   const warning = await screen.findByRole('alert');
@@ -372,7 +378,7 @@ it('uses concise elder-friendly wording in modification records and hides empty 
   fireEvent.change(screen.getByLabelText('段落内容'), { target: { value: '雨落在窗前。' } });
   fireEvent.click(screen.getByRole('button', { name: '完成修改' }));
   fireEvent.click(screen.getByRole('button', { name: '文章优化' }));
-  fireEvent.click(screen.getByRole('button', { name: '修改记录' }));
+  fireEvent.click(screen.getByRole('button', { name: '查看修改记录' }));
   expect(screen.getByRole('dialog', { name: '修改记录' })).toBeInTheDocument();
   expect(screen.getByText('修改会自动留下记录。以前已经丢失的内容无法找回。')).toBeInTheDocument();
   const record = screen.getByRole('button', { name: /手动编辑/ });

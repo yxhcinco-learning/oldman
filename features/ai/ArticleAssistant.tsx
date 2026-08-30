@@ -121,7 +121,7 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
     <div className="ai-composer-actions"><button type="button" className="primary-button" disabled={busy || voiceActive || !prompt.trim()} onClick={() => request('chat', prompt)}><Icon name="spark" />发送</button></div>
   </form>;
 
-  return <Dialog className={`article-ai-dialog ai-page-${page}`} title={titles[page]} onClose={close} headerActions={page === 'chat' ? <button type="button" onClick={() => { setFeedback(null); setPage('history'); }} aria-label="查看修改记录"><Icon name="book" /></button> : undefined} onBack={page === 'menu' ? undefined : () => {
+  return <Dialog className={`article-ai-dialog ai-page-${page}`} title={titles[page]} onClose={close} headerActions={page === 'menu' || page === 'chat' ? <button type="button" onClick={() => { setFeedback(null); setPage('history'); }} aria-label="查看修改记录"><Icon name="book" /></button> : undefined} onBack={page === 'menu' ? undefined : () => {
     setFeedback(null); setPage(page === 'preview' ? 'chat' : page === 'version' ? 'history' : 'menu');
   }}>
     <div className="article-assistant">
@@ -159,7 +159,6 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
         <button type="button" className="ai-chat-launcher" aria-label="进入小文会话并输入需求" onClick={() => openChat(true)}>
           <span>问问题，或告诉小文想怎样调整文章</span><strong>进入会话<Icon name="chevron" /></strong>
         </button>
-        <button type="button" className="ai-record-entry" onClick={() => setPage('history')}><span>修改记录</span><Icon name="chevron" /></button>
       </>}
 
       {page === 'preview' && turn?.result && base && <>
