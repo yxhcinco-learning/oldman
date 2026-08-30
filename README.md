@@ -4,7 +4,7 @@
 
 真实功能：文字和单段编辑、本机自动保存与恢复、回收站、复制正文、TXT 导出、JSON 备份恢复。腾讯云语音网关已完成本机真实链路联调；手机麦克风和键盘兼容性仍待真机验收。
 
-文章 AI 已接入 DeepSeek V4 Flash：常规优化、润色文笔、同篇文章的文字追问和对话式改文。小文输入区可明确选择“问小文”或“调整文章”；改文仍先预览全文、确认后应用，支持撤销和查看/恢复历史版本。精简、扩写和配图尚未开放。详见 [文章 AI 验收](docs/ARTICLE-AI-ACCEPTANCE.md)和[对话改文验收](docs/CONVERSATIONAL-REWRITE-ACCEPTANCE.md)。
+文章 AI 已接入 DeepSeek V4 Flash：常规优化、润色文笔、同篇文章的文字追问和对话式改文。快捷优化和文字需求都会进入同一文章会话；小文先给出修改说明，待应用/已应用/未采用作为独立状态保留，再由用户查看全文、确认应用或放弃。精简、扩写和配图尚未开放。详见 [文章 AI 验收](docs/ARTICLE-AI-ACCEPTANCE.md)、[对话改文验收](docs/CONVERSATIONAL-REWRITE-ACCEPTANCE.md)和[统一会话反馈验收](docs/AI-CONVERSATION-FEEDBACK-ACCEPTANCE.md)。
 
 ## 本地启动
 
