@@ -27,7 +27,7 @@
 - **THEN** HTTP 跳转至相同 HTTPS 域名，公网仅 80/443 可达，3011/3012 仍只在服务器回环监听
 
 ### Requirement: Proxy-layer temporary controls
-测试期访问控制 MUST 位于反向代理层，并对普通请求及 AI/语音入口提供简单按 IP 限流；应用现有 AI 并发、频率、超时和 ASR 连接/时长/字节限制 MUST 保留。产品代码不得为测试新增账号、邀请码、提示条、管理后台或复杂用户配额。
+测试期访问控制 MUST 位于反向代理层，并对普通请求及 AI/语音入口提供简单按 IP 限流；应用现有 AI 并发、频率、超时和 ASR 连接/时长/字节限制 MUST 保留。临时认证 SHALL 只创建有限的 `admin01`、`admin02` 类测试条目和各不相同的四位数字口令，明文只保存在本机受限私密交付文件中，服务器只保存 htpasswd 哈希。产品代码不得为测试新增正式账号、邀请码、提示条、管理后台或复杂用户配额。
 
 #### Scenario: Request bursts exceed a bound
 - **WHEN** 单一来源短时间超过代理或应用现有限制
@@ -36,6 +36,14 @@
 #### Scenario: Rotate temporary access
 - **WHEN** 测试凭据疑似泄露或体验人员发生变化
 - **THEN** 管理者可只轮换服务器认证文件并验证 Nginx，无需发布新前端、迁移 IndexedDB 或修改产品代码
+
+#### Scenario: Interrupted native authentication
+- **WHEN** 移动浏览器显示 Basic Auth 对话框时切到后台复制凭据并把本次挑战作为取消返回 401
+- **THEN** 401 页面不显示或记录凭据，提供可读的“重新登录”入口再次访问受保护首页并重新触发标准挑战；取消不会绕过认证、自动循环刷新或调用应用和外部服务
+
+#### Scenario: Validate simplified test entries
+- **WHEN** 部署者轮换为有限的易输入测试条目
+- **THEN** 每个预期账号分别通过 HTTPS 认证，无效账号或口令仍返回 401；验证输出和验收记录不得包含四位数字明文
 
 ### Requirement: Server-only secrets and safe operations logs
 Linux 网关 MUST 使用 `ASR_CREDENTIAL_SOURCE=project` 从 root-only 服务端环境文件加载同一批次的腾讯云 ASR 凭据，并从同一文件加载 DeepSeek Key；秘密不得进入 Git、客户端、构建镜像、release、命令输出或日志。操作日志 MUST 只记录 requestId、action、status、durationMs、可用的 tokens 和固定 errorCategory，不得记录正文、会话、音频、Key、Cookie、Authorization、签名 URL 或上游私密响应。
