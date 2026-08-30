@@ -359,10 +359,12 @@ svg { display: block; }
 .ai-page-chat .article-assistant { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
 .ai-page-chat .ai-inline-actions, .ai-page-chat .ai-composer { flex-shrink: 0; }
 .ai-conversation { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px 0 0; }
+.ai-assistant-message { min-width: 0; max-width: calc(100% - 42px); }
+.ai-assistant-message .message-bubble { max-width: 100%; }
 .ai-conversation .message-bubble { padding: 14px 16px; }
 .ai-conversation .message-bubble p { margin: 0; }
 .ai-conversation .message-bubble button { padding: 8px 12px; margin: 8px 8px 0 0; background: var(--tint); border-radius: 12px; font-size: 16px; line-height: 26px; color: var(--forest); }
-.ai-turn-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding-top: 10px; margin-top: 12px; border-top: 1px solid var(--line); font-size: 13px; line-height: 20px; color: var(--muted); }
+.ai-turn-meta { display: flex; align-items: center; justify-content: flex-start; flex-wrap: wrap; gap: 8px; margin: 6px 8px 0; font-size: 13px; line-height: 20px; color: var(--muted); }
 .ai-turn-state { display: inline-flex; align-items: center; min-height: 28px; padding: 4px 10px; border-radius: 14px; color: var(--forest); background: var(--tint); font-size: 13px; line-height: 20px; }
 .ai-turn-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .ai-empty { padding: 16px; color: var(--forest-soft); font-size: 18px; line-height: 30px; }

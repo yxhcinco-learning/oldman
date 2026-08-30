@@ -43,7 +43,8 @@ it('previews a real optimization before applying and persists an undo as history
   expect(await screen.findByText('调整标点。')).toBeInTheDocument();
   expect(screen.getByText('常规优化')).toBeInTheDocument();
   expect(screen.getByText('小文的修改说明')).toBeInTheDocument();
-  expect(screen.getByText('待应用')).toBeInTheDocument();
+  const pendingState = screen.getByText('待应用');
+  expect(pendingState).toBeInTheDocument(); expect(pendingState.closest('.message-bubble')).toBeNull();
   expect(screen.queryByRole('region', { name: '优化后全文' })).not.toBeInTheDocument();
   expect((await repository.load()).works[0].draft.textDraft).toBe(before.draft.textDraft);
   fireEvent.click(screen.getByRole('button', { name: '查看优化结果' }));
@@ -120,6 +121,18 @@ it('keeps the modification explanation when a candidate is not adopted', async (
   expect(await screen.findByText('调整了第一段的语序和节奏。')).toBeInTheDocument();
   expect(screen.getByText('未采用')).toBeInTheDocument();
   expect((await repository.load()).works[0].draft.textDraft).toBe(before);
+});
+it('shows unchanged output as having no body change outside the assistant bubble', async () => {
+  localStorage.setItem('suiyue-article-ai-consent-v1', 'yes');
+  const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId,
+    result: { answer: '没有需要修改的内容。', body: request.current.body, citedVersionIds: [] } }));
+  render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting();
+  fireEvent.click(screen.getByRole('button', { name: '文章优化' }));
+  fireEvent.click(screen.getByRole('button', { name: /^常规优化/ }));
+  expect(await screen.findByText('本次保留原文，未产生正文修改。')).toBeInTheDocument();
+  const unchanged = screen.getByText('无正文变化');
+  expect(unchanged.closest('.message-bubble')).toBeNull();
+  expect(screen.queryByText('待应用')).not.toBeInTheDocument();
 });
 it('runs polish from its shortcut inside the conversation', async () => {
   localStorage.setItem('suiyue-article-ai-consent-v1', 'yes');

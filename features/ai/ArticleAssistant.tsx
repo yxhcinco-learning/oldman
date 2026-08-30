@@ -18,6 +18,9 @@ function turnPromptLabel(turn: AiTurn) {
   if (turn.action === 'polish') return '润色全文';
   return ACTION_LABELS[turn.action];
 }
+function turnStateLabel(turn: AiTurn, baseBody?: string) {
+  return turn.result?.body !== undefined && baseBody !== undefined && turn.result.body === baseBody ? '无正文变化' : TURN_LABELS[turn.status];
+}
 
 export function ArticleAssistant({ entry, workspace, controller, onClose, onBackup }: {
   entry: 'chat' | 'optimize'; workspace: Workspace; controller: ArticleAiController; onClose: () => void; onBackup: () => void;
@@ -138,7 +141,7 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
       </>}
 
       {page === 'preview' && turn?.result && base && <>
-        <div className="ai-inline-actions"><span className="choice-chip">{ACTION_LABELS[turn.action]} · {TURN_LABELS[turn.status]}</span>
+        <div className="ai-inline-actions"><span className="choice-chip">{ACTION_LABELS[turn.action]} · {turnStateLabel(turn, base.body)}</span>
           <button type="button" aria-pressed={original} onClick={() => setOriginal(!original)}>{original ? '查看优化结果' : '对照原文'}</button></div>
         <div className="ai-summary"><strong>小文的修改说明</strong><p>{resultSummary(turn.result, base.body)}</p></div>
         <div className="ai-full-text" role="region" aria-label={original ? turn.action === 'rewrite' ? '调整前原文' : '优化前原文' : turn.action === 'rewrite' ? '调整后全文' : '优化后全文'}>{original ? base.body : turn.result.body}</div>
@@ -158,16 +161,15 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
           {!session?.turns.length && <p className="ai-empty">我会结合这篇文章和已保存的修改记录回答。您可以问：“这次改了哪里？”</p>}
           {session?.turns.map(item => <div key={item.id} className="ai-turn">
             <div className="message-row user"><div className="message-bubble">{turnPromptLabel(item)}</div></div>
-            <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="message-bubble">
-              {item.result && <strong className="ai-answer-label">{item.result.body ? '小文的修改说明' : '小文的回答'}</strong>}
-              <p>{item.result ? resultSummary(item.result, session?.versions.find(v => v.id === item.inputVersionId)?.body ?? '') : item.error || '正在处理，请稍候…'}</p>
-              {Boolean(item.omittedRecords) && <p className="ai-note">本次使用当前全文与相关记录，部分较早记录未发送；全部记录仍可在本机查看。</p>}
-              <div className="ai-turn-meta"><span className="ai-turn-state">{TURN_LABELS[item.status]}</span><time>{timeLabel(item.createdAt)}</time></div>
-              {item.result?.body && <div className="ai-turn-actions"><button type="button" onClick={() => showTurn(item.id)}>查看{item.action === 'rewrite' ? '调整' : '优化'}结果</button>
-              {item.status === 'applied' && <button type="button" disabled={busy} onClick={() => undo(item)}>撤销这次{item.action === 'rewrite' ? '调整' : '优化'}</button>}</div>}
-              {item.result?.citedVersionIds.map((id, i) => <button type="button" key={id} onClick={() => showVersion(id)}>查看引用版本 {i + 1}</button>)}
-              {['failed', 'cancelled'].includes(item.status) && <button type="button" disabled={busy} onClick={() => request(item.action, ['question', 'rewrite'].includes(item.action) ? item.prompt : '')}>重新{item.action === 'question' ? '提问' : item.action === 'rewrite' ? '调整' : '生成'}</button>}
-            </div></div>
+            <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="ai-assistant-message"><div className="message-bubble">
+                {item.result && <strong className="ai-answer-label">{item.result.body ? '小文的修改说明' : '小文的回答'}</strong>}
+                <p>{item.result ? resultSummary(item.result, session?.versions.find(v => v.id === item.inputVersionId)?.body ?? '') : item.error || '正在处理，请稍候…'}</p>
+                {Boolean(item.omittedRecords) && <p className="ai-note">本次使用当前全文与相关记录，部分较早记录未发送；全部记录仍可在本机查看。</p>}
+                {item.result?.body && <div className="ai-turn-actions"><button type="button" onClick={() => showTurn(item.id)}>查看{item.action === 'rewrite' ? '调整' : '优化'}结果</button>
+                {item.status === 'applied' && <button type="button" disabled={busy} onClick={() => undo(item)}>撤销这次{item.action === 'rewrite' ? '调整' : '优化'}</button>}</div>}
+                {item.result?.citedVersionIds.map((id, i) => <button type="button" key={id} onClick={() => showVersion(id)}>查看引用版本 {i + 1}</button>)}
+                {['failed', 'cancelled'].includes(item.status) && <button type="button" disabled={busy} onClick={() => request(item.action, ['question', 'rewrite'].includes(item.action) ? item.prompt : '')}>重新{item.action === 'question' ? '提问' : item.action === 'rewrite' ? '调整' : '生成'}</button>}
+              </div><div className="ai-turn-meta"><span className="ai-turn-state">{turnStateLabel(item, session?.versions.find(v => v.id === item.inputVersionId)?.body)}</span><time>{timeLabel(item.createdAt)}</time></div></div></div>
           </div>)}
         </div>
         {compose()}
