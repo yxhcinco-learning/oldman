@@ -27,7 +27,7 @@
 - [x] 5.3 Run at most one non-sensitive public sample each for regular optimization, polish and text question, plus at most one short synthesized ASR sample when available; record calls and failures honestly
 - [ ] 5.4 Complete real Safari/iOS and Android Chrome microphone, keyboard, background and network-switch checks on physical devices
 - [x] 5.5 Replace the single long test credential with finite `admin01`/`admin02`-style entries using distinct four-digit codes, update the private handoff file and verify every entry plus an invalid credential without exposing secrets
-- [ ] 5.6 Add a no-cache proxy-level 401 recovery page that preserves the Basic challenge, retries at most once on foreground return, keeps an explicit accessible retry action, and verify public success/reject behavior without exposing credentials
+- [x] 5.6 Add a no-cache proxy-level 401 recovery page that preserves the Basic challenge, retries at most once on foreground return, keeps an explicit accessible retry action, and verify public success/reject behavior without exposing credentials
 
 ## 6. Delivery evidence
 

@@ -25,7 +25,7 @@
 
 ## 线上版本
 
-- 提交 `9337361fd67a328d4307e9a408c4ffed73321657` 已部署为 `/opt/suiyue-yousheng/releases/9337361fd67a`，`previous` 保留 `/opt/suiyue-yousheng/releases/8205fd0-20260830-1350`；前端与网关服务、回环健康检查均正常。
+- 移动写作提交 `9337361fd67a328d4307e9a408c4ffed73321657` 已包含在当前 `/opt/suiyue-yousheng/releases/063c2396b8ab` 中，`previous` 保留首次部署该功能的 `/opt/suiyue-yousheng/releases/9337361fd67a`；前端与网关服务、回环健康检查均正常。
 - 公开 HTTPS 首页和 `/api/health` 在有效认证下均为 200；首页引用的 7 个构建资源均为 200，资源内容包含本轮 Visual Viewport、语音展开入口和小文输入框标记。该检查证明线上静态版本已切换，不替代真机交互验收。
 
 ## 未替代的真机验收

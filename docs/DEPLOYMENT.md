@@ -20,7 +20,7 @@
 4. 运行 `bash deploy/server/prepare-host.sh <release>`，只建立隔离账户/目录和 HTTP/ACME 配置。DNS 生效后使用现有 Certbot Nginx 账户为固定域名签发证书。
 5. 通过不回显内容的本地脚本把完整 DeepSeek/腾讯云项目凭据和临时 Basic Auth 文件分别上传到 staging；TAT 只移动已知路径、设置 root 所有权与 0600/0640 权限，不在命令参数、输出或历史中出现明文。
 6. 运行 `bash deploy/server/activate-release.sh <release>`。脚本在新目录执行锁文件安装和生产构建，安装/启用两个 systemd unit，切换 `current`，重启并检查 3011 首页和 3012 `/api/health`；失败时恢复上一个链接。
-7. 运行 `bash deploy/server/enable-https.sh`；脚本要求证书和认证文件存在，`nginx -t` 成功后才 reload。
+7. 运行 `bash deploy/server/enable-https.sh`；脚本要求证书和认证文件存在，将 root-owned 静态认证恢复页安装到 `/var/www/suiyue-yousheng`，并在 `nginx -t` 成功后才 reload。
 
 不在构建阶段加载秘密。不要将密码、环境文件内容、签名 URL 或用户材料放进 TAT 命令；TAT 历史可能保留命令和输出。
 
@@ -28,7 +28,9 @@
 
 测试期只建立有限的 `admin01`、`admin02` 类账号，每个账号使用不同的四位数字口令。明文只保存到本机 Git 忽略、ACL 仅当前 Windows 用户可读写的 `.env.deploy-access`，不得写入聊天、Git、TAT 命令、日志或验收文档；用户从本机读取后通过自己的私密渠道发给同事。四位数字安全性较弱，仅适用于当前少量同事的临时测试，现有 HTTPS、Nginx 按 IP 限流及应用侧限流保持不变。
 
-轮换时在本机为每个有限账号生成互不相同的新四位数字和 htpasswd 文件，按同一 SFTP 流程替换服务器 `/etc/nginx/suiyue-yousheng.htpasswd`，保持 `0640 root:www-data`，再运行 `nginx -t && systemctl reload nginx`。不需要重新构建应用，也不会影响 IndexedDB。产品不为临时测试增加登录页、Cookie 会话或专门的 401 页面；易记凭据避免首次输入时切后台复制，若主动取消浏览器原生认证框，刷新页面即可按标准 Basic Auth 流程重新触发认证。
+轮换时在本机为每个有限账号生成互不相同的新四位数字和 htpasswd 文件，按同一 SFTP 流程替换服务器 `/etc/nginx/suiyue-yousheng.htpasswd`，保持 `0640 root:www-data`，再运行 `nginx -t && systemctl reload nginx`。不需要重新构建应用，也不会影响 IndexedDB。
+
+移动浏览器在原生认证框期间切后台，可能把认证当作取消。前端页面路径的 401 因此由 Nginx 内部位置返回最小恢复页：响应仍为 401、保留 `WWW-Authenticate`、设置 `Cache-Control: no-store`，页面回到前台时至多自动重新请求一次，并保留至少 48px 的“重新登录”按钮。恢复页不包含账号密码输入，不读取或保存凭据，也不引入 Cookie 会话、产品账号或数据库；API/WebSocket 未认证仍使用原 401 拒绝响应。
 
 ## 健康、日志与证书
 
@@ -39,7 +41,7 @@
 
 ## 验收与费用
 
-公网依次验证无认证 401、有效认证首页、HTTPS/证书/静态资源/安全头、两个 status、WebSocket Upgrade、文字新建保存刷新、JSON 备份、AI 成功与失败、服务重启。浏览器尺寸覆盖 360×640、390×844、430×932 和桌面，并检查焦点与横向溢出。
+公网依次验证无认证 401 仍带认证挑战和无缓存恢复页、有效认证首页、内部恢复地址不可直接访问、API 未认证不返回恢复页、HTTPS/证书/静态资源/安全头、两个 status、WebSocket Upgrade、文字新建保存刷新、JSON 备份、AI 成功与失败、服务重启。浏览器尺寸覆盖 360×640、390×844、430×932 和桌面，并检查焦点与横向溢出。
 
 DeepSeek 的常规优化、润色和文字追问各最多一次非敏感短样本；不测试精简、扩写、配图。ASR 只有在准备了短的非敏感 PCM 时最多一次真实合成音频；状态成功或 WebSocket Upgrade 不等于真实转写。遇鉴权、余额或网络错误停止重复调用，不自动充值或购买。真实 iOS/安卓麦克风、系统键盘、后台和网络切换必须由持有设备的用户另行记录。
 

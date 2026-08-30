@@ -2,6 +2,8 @@
 
 当前视觉已按用户确认更新为 Echoes of Time；最新设计验收见 [Echoes落地记录](ECHOES-DESIGN-REVIEW.md)。下方旧尺寸和字体测量保留为历史证据，不作为当前设计规则。
 
+2026-08-30 根据 Android Chrome 真机截图修复 Basic Auth 切后台后落到 Nginx 裸 401：代理层增加无缓存的最小恢复页，回前台至多自动重试一次，并提供 52px“重新登录”按钮；不读取或保存凭据，不增加 Cookie 会话或产品账号。193 项完整检查、生产构建、本地 390×640 浏览器点击和公网 401/200/安全头/隔离路径验证通过；真实手机回前台结果仍由用户复验。
+
 2026-08-30 修正移动写作与小文布局：修改说明不再列“未变/同句改同句”，编辑器按 Visual Viewport 保持页头与底部工具可达，正文语音恢复收起/展开，优化菜单紧凑化，小文输入框在52–148px内自适应并与语音/发送同排。192项完整检查、构建、四尺寸浏览器及420px键盘高度模拟见 [移动写作与小文布局验收](MOBILE-WRITING-ASSISTANT-ACCEPTANCE.md)；提交 `9337361fd67a328d4307e9a408c4ffed73321657` 已部署到受控公网，物理设备结果仍按证据补充。
 
 2026-08-30 将文章优化首页的“修改记录”同步移入页头48px图标操作，删除会话入口下方整行按钮；记录页进入/返回和本机历史保持。186 项检查、构建及 360/390/430px 浏览器回归见 [修改记录页头统一验收](AI-RECORD-HEADER-ACCEPTANCE.md)，未调用 DeepSeek、腾讯云或真实麦克风。
@@ -30,21 +32,21 @@
 
 ## 受控公网临时测试部署（2026-08-30）
 
-本节覆盖用户新授权的少量同事临时体验，不改变上方产品化阶段的历史结论。入口为 `https://suiyue.maicong.chat`，现有单一长凭据已替换为有限的 `admin01`、`admin02` 类账号及各自不同的四位数字口令。明文只保存在本机 Git 忽略且 ACL 仅当前 Windows 用户可读写的 `.env.deploy-access`，未写入 Git、聊天、TAT 命令、服务器日志或本节。用户接受临时测试安全性较弱，不为此增加登录页、Cookie 会话或专门的 401 页面；HTTPS、Nginx 按 IP 限流和应用限流保持，易记凭据避免首次输入时切后台复制，主动取消原生认证框后刷新可重新触发标准认证。轮换只替换 `/etc/nginx/suiyue-yousheng.htpasswd` 并 reload Nginx。
+本节覆盖用户新授权的少量同事临时体验，不改变上方产品化阶段的历史结论。入口为 `https://suiyue.maicong.chat`，现有单一长凭据已替换为有限的 `admin01`、`admin02` 类账号及各自不同的四位数字口令。明文只保存在本机 Git 忽略且 ACL 仅当前 Windows 用户可读写的 `.env.deploy-access`，未写入 Git、聊天、TAT 命令、服务器日志或本节。用户接受临时测试安全性较弱；HTTPS、Nginx 按 IP 限流和应用限流保持。根据随后提供的真机证据，Nginx 增加不读取凭据的静态 401 恢复页，但仍不增加 Cookie 会话、产品账号或数据库。轮换只替换 `/etc/nginx/suiyue-yousheng.htpasswd` 并 reload Nginx。
 
 ### 部署版本与拓扑
 
-- 当前应用 release 来自提交 `9337361fd67a328d4307e9a408c4ffed73321657`，本地归档 321 个成员、1,753,899 字节，SHA-256 `ad33be464ac6a34b720a15790358019a730b8b9e63db2cd63b44e5e9aa23923a`；远端上传文件哈希一致，归档成员路径及秘密、node_modules、缓存和用户材料检查通过。远端 staging 副本在完成校验和解包后删除，本地临时归档在部署核验后删除。
+- 当前应用 release 来自提交 `063c2396b8abb28789a6c093b831d13c67487a91`，本地归档 312 个成员、1,748,952 字节，SHA-256 `5669070114d2ee27a0bc886c93b4a830d89bad16b2eb0c72ab4dd6cbb8d4af2c`；远端上传文件哈希一致，归档没有绝对/遍历路径、链接、`.codex`、秘密、node_modules、缓存或用户材料，并包含认证恢复页。远端 staging 副本在完成校验和解包后删除，本地临时归档在部署核验后删除。
 - Lighthouse `lhins-pg6lbxtx` / `ap-guangzhou-3`，4 核 4 GiB、根盘使用 27%；DNSPod A 记录 `2384307236` 指向 `43.136.85.81`、TTL 600。未修改根域、www、time、tct 或其他项目。
-- `/opt/suiyue-yousheng/releases/9337361fd67a` 为活动 release，`previous` 保留 `/opt/suiyue-yousheng/releases/8205fd0-20260830-1350`；`suiyue-web.service` 在 `127.0.0.1:3011`，`suiyue-gateway.service` 在 `127.0.0.1:3012`，均 enabled/active、专用无登录用户、`Restart=on-failure`、SIGTERM 和 systemd 沙箱。服务器其他 Node 服务和端口未停止或复用。
-- Nginx 仅在既有公网 80/443 接入：HTTP 308；HTTPS Basic Auth；`/` → 3011，AI/status/health/语音 → 3012，WSS 保留 Origin/Upgrade；Cloud firewall 仍只有 80、443、既有 22 和 ICMP，应用只监听回环。
+- `/opt/suiyue-yousheng/releases/063c2396b8ab` 为活动 release，`previous` 保留 `/opt/suiyue-yousheng/releases/9337361fd67a`；`suiyue-web.service` 在 `127.0.0.1:3011`，`suiyue-gateway.service` 在 `127.0.0.1:3012`，均 enabled/active、专用无登录用户、`Restart=on-failure`、SIGTERM 和 systemd 沙箱。服务器其他 Node 服务和端口未停止或复用。
+- Nginx 仅在既有公网 80/443 接入：HTTP 308；HTTPS Basic Auth；`/` → 3011，AI/status/health/语音 → 3012，WSS 保留 Origin/Upgrade；前端 401 通过内部位置读取 root-owned 静态恢复页。Cloud firewall 仍只有 80、443、既有 22 和 ICMP，应用只监听回环。
 - Linux 固定 `ASR_CREDENTIAL_SOURCE=project`、`ASR_ALLOWED_ORIGIN=https://suiyue.maicong.chat`。DeepSeek 与腾讯云完整凭据从 `/etc/suiyue-yousheng/runtime.env`（0600 root:root）读取；认证文件为 0640 root:www-data。两份上传区明文源安装后已精确擦除，release 与客户端不含秘密。
-- 本轮移动写作增量提交为 `7fe52ac`（OpenSpec）、`5ad2ea5`（实现）、`5fa7057`（说明标点回归）和 `9337361`（本地验收记录）；部署阶段未 push、切换分支或改写历史。
+- 本轮认证恢复提交为 `b22a297`（OpenSpec）和 `063c239`（实现与测试）；移动写作功能提交仍包含在 release 中。部署阶段未 push、切换分支或改写历史。
 
 ### 实际检查
 
-- 本地代码阶段：`npm run check` 通过 22 个文件 192 项测试，含类型、Lint、OpenSpec、模块/敏感边界；`npm run build` 通过。服务器锁文件安装 667 个包并再次完成 Vinext/Vite 生产构建；本轮没有升级依赖。
-- 公网协议：无认证首页/API 为 401，无效账号或口令为 401，两个预期测试账号分别为 200；有效认证首页 200，HTTP 308，7 个页面构建资源均为 200；`/api/health` 为 `ok`，AI 与语音 status 均 `configured:true`。线上资源包含本轮 Visual Viewport、语音展开和自适应小文输入标记；HSTS、nosniff、DENY frame、no-referrer、`microphone=(self)` 和限定 self/固定 HTTPS/WSS 的 CSP 存在。
+- 本地代码阶段：`npm run check` 通过 22 个文件 193 项测试，含类型、Lint、OpenSpec、模块/敏感边界；`npm run build` 通过。服务器锁文件安装 667 个包并再次完成 Vinext/Vite 生产构建；本轮没有升级依赖。
+- 公网协议：无认证首页为 401，仍带 `WWW-Authenticate`，响应正文为新恢复页并带 `Cache-Control: no-store`、HSTS 和 CSP；内部恢复地址直接访问为 404，未认证 `/api/health` 仍为 401 且不返回恢复页。有效认证首页为 200；两个预期测试账号分别为 200，无效账号或口令为 401。原有静态资源、AI/语音 status、WSS、安全头和限流边界不变。
 - 拒绝路径：外部 Origin 403，无效 AI body 400；WSS 无认证/外部 Origin 分别 401/403；5 个无效突发请求结果为 403、429、429、429、429，未连接上游。Nginx access log 关闭，限流返回 429。
 - 真实上游严格限量：公网腾讯 ASR 1 次，9.13 秒非敏感合成 PCM，33 字、17 次转写更新、见到 final 并正常结束；没有用户原音。DeepSeek 3 次：常规优化 input/output 762/64 tokens、润色 757/41、文字追问 842/31，均 200；前两项返回候选、追问只返回回答。没有重试、批量、压测、充值、购买或其他付费调用。
 - 运行运维：systemd unit 实机 verify；停止网关后端口消失，再启动并重启前端后 PID 更新、健康恢复。20 条结构化网关事件字段白名单通过，动作覆盖 health、status、speech 和三类 AI，3 条含 token；扫描未出现 Authorization、Cookie、SecretId/Key、API Key、body、prompt 或 audio。Nginx 日志按现有 daily/14/compress 轮转，journal 有 unit 级速率限制。
@@ -52,13 +54,13 @@
 
 ### 浏览器、数据与未完成项
 
-受控生产构建在隔离本机 Origin `http://127.0.0.1:3099` 完成空库、新建非敏感文字、保存返回、刷新后 1 篇/32 字恢复，以及 JSON v2 下载（2,002 字节、1 篇、0 会话）；下载文件保留在用户 Downloads，未上传服务器。360×640、390×844、430×932 和 1280×900 的根/body scrollWidth 均等于 viewport，标题焦点位于可见区。公网 Basic Auth 401、两组有效凭据 200、无效凭据 401 与页面资源由非浏览器真实 HTTPS 客户端验证；受浏览器安全确认规则限制，本轮没有把四位数字口令输入浏览器，因此**不把本机 IndexedDB 结果冒充公网 Origin 内的交互式保存/刷新/备份验收**。
+受控生产构建在隔离本机 Origin `http://127.0.0.1:3099` 完成空库、新建非敏感文字、保存返回、刷新后 1 篇/32 字恢复，以及 JSON v2 下载（2,002 字节、1 篇、0 会话）；下载文件保留在用户 Downloads，未上传服务器。360×640、390×844、430×932 和 1280×900 的根/body scrollWidth 均等于 viewport，标题焦点位于可见区。新增恢复页在本地 390×640 真实浏览器中无横向溢出，按钮高 52px，自动请求只发生一次，显式点击会生成新的同源请求且控制台无警告/错误。公网 Basic Auth 401、两组有效凭据 200、无效凭据 401 与页面资源由非浏览器真实 HTTPS 客户端验证；受浏览器安全确认规则限制，本轮没有把四位数字口令输入自动化浏览器，因此**不把本机 IndexedDB 结果冒充公网 Origin 内的交互式保存/刷新/备份验收，也不把本地可见性模拟冒充用户 Android 真机回前台结果**。
 
 真实 iOS Safari、安卓 Chrome 麦克风、系统键盘遮挡、安全区、后台和网络切换仍未执行；9.13 秒合成音频及桌面尺寸不替代。公网首次访问仍是该 Origin 的空 IndexedDB，localhost/其他域名、协议、端口或设备内容不会自动出现或上传；需要时只能由用户显式 JSON 备份/恢复副本。
 
 ### 回滚
 
-release 切换和回滚脚本只接受 `/opt/suiyue-yousheng/releases/*` 的已解析路径；激活失败脚本会恢复 `previous`，首次失败则停止两个服务。历史回滚演练已从 `8205fd0-20260830-1350` 实际切回 `9377412-20260830-1330` 并完成前滚验证；本轮成功激活后，current/previous 分别指向 `9337361fd67a` 与 `8205fd0-20260830-1350`。手工回滚使用 `bash /opt/suiyue-yousheng/current/deploy/server/rollback.sh <verified-release>`。首次部署完全撤回时停止/禁用两个岁月有声 unit、恢复该站点部署前 Nginx 状态并在 `nginx -t` 后 reload；保留 release、root-only 环境、证书和 DNS 供恢复，不删除浏览器数据或其他项目。
+release 切换和回滚脚本只接受 `/opt/suiyue-yousheng/releases/*` 的已解析路径；激活失败脚本会恢复 `previous`，首次失败则停止两个服务。本轮成功激活后，current/previous 分别指向 `063c2396b8ab` 与 `9337361fd67a`；旧 Nginx 配置另保存在 `/etc/nginx/sites-available/suiyue-yousheng.conf.pre-auth-retry-20260830-164033`。手工回滚应用使用 `rollback.sh`，代理恢复则复制该备份或从上一 release 重新运行 `enable-https.sh`，两者都必须先通过 `nginx -t`。首次部署完全撤回时停止/禁用两个岁月有声 unit、恢复该站点部署前 Nginx 状态并在 `nginx -t` 后 reload；保留 release、root-only 环境、证书和 DNS 供恢复，不删除浏览器数据或其他项目。
 
 ## 2026-08-27 阶段已完成（历史记录）
 
