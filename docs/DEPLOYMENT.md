@@ -18,7 +18,7 @@
 2. 用 `git archive` 从该提交生成单一压缩包；检查成员不得有绝对路径、`..`、`.git`、`.env.local`、密钥、node_modules、缓存、测试音频或用户数据，记录 SHA-256。
 3. 通过专用 SFTP-only 账户上传；在 TAT 的 root 通道验证远端 SHA-256 后，先列成员再解压到新的 `/opt/suiyue-yousheng/releases/<version>`。不得覆盖现有 release。
 4. 运行 `bash deploy/server/prepare-host.sh <release>`，只建立隔离账户/目录和 HTTP/ACME 配置。DNS 生效后使用现有 Certbot Nginx 账户为固定域名签发证书。
-5. 通过不回显内容的本地脚本把完整 DeepSeek/腾讯云项目凭据和随机 Basic Auth 文件分别上传到 staging；TAT 只移动已知路径、设置 root 所有权与 0600/0640 权限，不在命令参数、输出或历史中出现明文。
+5. 通过不回显内容的本地脚本把完整 DeepSeek/腾讯云项目凭据和临时 Basic Auth 文件分别上传到 staging；TAT 只移动已知路径、设置 root 所有权与 0600/0640 权限，不在命令参数、输出或历史中出现明文。
 6. 运行 `bash deploy/server/activate-release.sh <release>`。脚本在新目录执行锁文件安装和生产构建，安装/启用两个 systemd unit，切换 `current`，重启并检查 3011 首页和 3012 `/api/health`；失败时恢复上一个链接。
 7. 运行 `bash deploy/server/enable-https.sh`；脚本要求证书和认证文件存在，`nginx -t` 成功后才 reload。
 
@@ -26,9 +26,9 @@
 
 ## 访问凭据与轮换
 
-测试用户名固定为 `suiyue-test`，密码使用系统 CSPRNG 生成且不写入聊天、Git、日志或验收文档。部署者将明文只保存到本机 Git 忽略的受限交付文件，用户从本机读取后通过自己的私密渠道发给同事。
+测试期只建立有限的 `admin01`、`admin02` 类账号，每个账号使用不同的四位数字口令。明文只保存到本机 Git 忽略、ACL 仅当前 Windows 用户可读写的 `.env.deploy-access`，不得写入聊天、Git、TAT 命令、日志或验收文档；用户从本机读取后通过自己的私密渠道发给同事。四位数字安全性较弱，仅适用于当前少量同事的临时测试，现有 HTTPS、Nginx 按 IP 限流及应用侧限流保持不变。
 
-轮换时在本机生成新的随机密码和 htpasswd 文件，按同一 SFTP 流程替换服务器 `/etc/nginx/suiyue-yousheng.htpasswd`，保持 `0640 root:www-data`，再运行 `nginx -t && systemctl reload nginx`。不需要重新构建应用，也不会影响 IndexedDB。
+轮换时在本机为每个有限账号生成互不相同的新四位数字和 htpasswd 文件，按同一 SFTP 流程替换服务器 `/etc/nginx/suiyue-yousheng.htpasswd`，保持 `0640 root:www-data`，再运行 `nginx -t && systemctl reload nginx`。不需要重新构建应用，也不会影响 IndexedDB。产品不为临时测试增加登录页、Cookie 会话或专门的 401 页面；易记凭据避免首次输入时切后台复制，若主动取消浏览器原生认证框，刷新页面即可按标准 Basic Auth 流程重新触发认证。
 
 ## 健康、日志与证书
 
