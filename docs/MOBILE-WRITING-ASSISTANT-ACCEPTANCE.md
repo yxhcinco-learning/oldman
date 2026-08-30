@@ -35,6 +35,14 @@
 - 纠偏提交 `4cd7cb08a87555dd7f60685dcadeaf290d752c71` 已部署到 `/opt/suiyue-yousheng/releases/4cd7cb0`，`previous` 为 `/opt/suiyue-yousheng/releases/063c2396b8ab`；前端与网关服务、回环首页/健康检查及 Nginx 配置均正常。
 - 活动 `dist/client` 产物包含“收起语音输入”“问小文，或提要求”“问小文，或提出修改要求”，不包含旧“展开语音输入”。公开 HTTPS 无认证入口继续返回带 `WWW-Authenticate`、`Cache-Control: no-store` 和“重新登录”按钮的401。该检查证明线上构建已切换，不替代受 Basic Auth 保护的真机交互验收。
 
+## 标题、聊天与点按语音复核（2026-08-30）
+
+- 标题聚焦新增独立回归：从含待确认语音的展开舞台点击标题后，“文字”页签选中，标题仍持有焦点，正文输入框不抢焦点；切回语音后待确认文字、取消/完成状态及正文均保持。全文输入聚焦阴影明确为 `none`，语音左侧控制组改为居中。
+- 编辑器“聊天”点击后只显示约3秒“聊天功能暂未开放”，不打开小文 Dialog、不调用传输层且入口焦点保持；从“优化 → 进入会话”仍可进入小文。小文语音按钮改为点按开始、活动中再次点按取消采集，`SpeechSession.cancel()` 被调用，已显示识别文字保留；Escape 仍恢复本轮前缀。
+- 完整 `npm run check` 通过：22个测试文件、195项测试、类型、Lint、OpenSpec严格校验和模块边界均通过；`npm run build` 和服务器生产构建通过。
+- 本地真实浏览器覆盖360×640、390×844、430×932和1280×900：四尺寸根页面无横向溢出，页头/底部工具可见；390×844下标题点击后焦点仍为“文章标题”、语音麦克风消失、正文 `box-shadow: none`，聊天不打开 Dialog。小文空输入为52px，按钮可访问名称为“点按开始语音输入要求”，控制台无警告或错误。未接受麦克风权限、未调用腾讯云或DeepSeek。
+- 提交 `2dafc85` 已构建并切换到 `/opt/suiyue-yousheng/releases/2dafc85`，回滚版本为 `/opt/suiyue-yousheng/releases/4cd7cb0`；`suiyue-web`、`suiyue-gateway`、回环首页与 `/api/health` 均正常。活动产物包含“聊天功能暂未开放”“点按开始语音输入要求”，不包含旧“小文按住说话输入要求”。受控公网 `https://suiyue.maicong.chat` 的无认证入口返回401、`WWW-Authenticate`、`Cache-Control: no-store` 和恢复按钮；该证据不冒充受保护页面内的真机点击。
+
 ## 未替代的真机验收
 
 自动 Visual Viewport 事件只能证明布局按输入指标更新，不能替代物理设备。iOS Safari、Android Chrome 的系统键盘、浏览器工具栏收缩、切后台返回和真实麦克风仍保持待验；没有证据前不标记完成，也不强行归档 change。
