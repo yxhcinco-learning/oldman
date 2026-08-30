@@ -54,12 +54,33 @@ it('answers in the article conversation and exposes an actual cited version with
   const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId, result: { answer: '原文仍在这个版本中。', citedVersionIds: [request.current.id] } }));
   const repository = repo(); const view = render(<ProductApp repository={repository} aiTransport={transport} />); await startWriting(); const before = (await repository.load()).works[0];
   fireEvent.click(screen.getByRole('button', { name: '聊天引导' })); fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '我原来写的内容呢？' } });
-  fireEvent.click(screen.getByRole('button', { name: '发送问题' })); await screen.findByText('原文仍在这个版本中。');
+  fireEvent.click(screen.getByRole('button', { name: '问小文' })); await screen.findByText('原文仍在这个版本中。');
   fireEvent.click(screen.getByRole('button', { name: '查看引用版本 1' })); expect(screen.getByRole('region', { name: '历史版本正文' })).toHaveTextContent('窗前的雨');
   expect((await repository.load()).works[0].draft.textDraft).toEqual(before.draft.textDraft);
   view.unmount(); render(<ProductApp repository={repository} aiTransport={transport} />);
   fireEvent.click(await screen.findByRole('button', { name: '聊天引导' })); expect(await screen.findByText('原文仍在这个版本中。')).toBeInTheDocument();
   expect(transport).toHaveBeenCalledOnce();
+});
+it('turns an explicit conversational request into a preview and applies it only after confirmation', async () => {
+  localStorage.setItem('suiyue-article-ai-consent-v1', 'yes');
+  const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId, result: request.action === 'rewrite'
+    ? { answer: '只让第一段更温暖。', body: request.current.body.replace('窗前的雨', '窗前温柔的雨'), citedVersionIds: [] }
+    : { answer: '这是只读回答。', citedVersionIds: [request.current.id] } }));
+  const repository = repo(); render(<ProductApp repository={repository} aiTransport={transport} />); await startWriting();
+  const before = (await repository.load()).works[0].draft.textDraft;
+  fireEvent.click(screen.getByRole('button', { name: '聊天引导' }));
+  fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '只把第一段写得更温暖，其他不变' } });
+  expect(screen.getByRole('button', { name: '问小文' })).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: '调整文章' }));
+  expect(await screen.findByRole('region', { name: '调整后全文' })).toHaveTextContent('窗前温柔的雨');
+  expect((await repository.load()).works[0].draft.textDraft).toBe(before);
+  expect(transport.mock.calls[0][0]).toMatchObject({ action: 'rewrite', prompt: '只把第一段写得更温暖，其他不变' });
+  fireEvent.click(screen.getByRole('button', { name: '应用调整' })); await screen.findByText('已应用调整并保存到本机。');
+  expect((await repository.load()).works[0].draft.textDraft).toContain('窗前温柔的雨');
+  expect((await repository.load()).sessions[0].versions.at(-1)?.source).toBe('rewrite');
+  fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '刚才改了哪里？' } });
+  fireEvent.click(screen.getByRole('button', { name: '问小文' })); await screen.findByText('这是只读回答。');
+  expect(transport.mock.calls[1][0].action).toBe('question');
 });
 it('recovers an unfinished edit after remount', async () => {
   const repository = repo(); const view = render(<ProductApp repository={repository} />); await startWriting();

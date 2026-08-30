@@ -30,7 +30,8 @@ it('uses only the official configured service and never includes secrets in clie
 it('rejects missing or foreign origins, empty input and model overrides before calling upstream', async () => {
   const call = vi.fn(async () => response()); const app = await gateway({ fetch: call });
   for (const headers of [{}, { origin: 'https://foreign.example' }]) expect((await app.inject({ method: 'POST', url: '/api/ai/turn', headers, payload: payload() })).statusCode).toBe(403);
-  for (const body of [{ ...payload(), model: 'other' }, { ...payload(), current: { ...payload().current, body: ' ' } }]) {
+  for (const body of [{ ...payload(), model: 'other' }, { ...payload(), current: { ...payload().current, body: ' ' } },
+    { ...payload(), action: 'rewrite', prompt: ' ' }]) {
     expect((await app.inject({ method: 'POST', url: '/api/ai/turn', headers: { origin }, payload: body })).statusCode).toBe(400);
   }
   expect(call).not.toHaveBeenCalled();
@@ -41,11 +42,23 @@ it('leaves speech status available when AI is not configured', async () => {
   expect((await app.inject('/api/speech/status')).statusCode).toBe(200);
 });
 it('does not repeat a claimed edit when the candidate equals the current article', async () => {
-  const request = { ...payload(), action: 'polish' as const };
+  const request = { ...payload(), action: 'rewrite' as const, prompt: '让第一句更自然' };
   const app = await gateway({ fetch: vi.fn(async () => response({ answer: '已经修改了错别字。', body: request.current.body, citedVersionIds: [] })) });
   const result = await app.inject({ method: 'POST', url: '/api/ai/turn', headers: { origin }, payload: request });
   expect(result.statusCode).toBe(200);
   expect(result.json().result).toMatchObject({ body: request.current.body, answer: '本次保留原文，未产生正文修改。' });
+});
+it('uses an explicit conversational instruction to return a full candidate while keeping questions read only', async () => {
+  const call = vi.fn(async () => response({ answer: '删除了第二段。', body: '周末我去了公园。', citedVersionIds: [] }));
+  const app = await gateway({ fetch: call });
+  const request = buildAiRequest(newSession({ ...emptyDraft(), inputMode: 'text', textDraft: '周末我去了公园。\n\n第二段。' }),
+    'rewrite', '删除第二段，其余保持不变', crypto.randomUUID());
+  const result = await app.inject({ method: 'POST', url: '/api/ai/turn', headers: { origin }, payload: request });
+  expect(result.statusCode).toBe(200); expect(result.json().result.body).toBe('周末我去了公园。');
+  const body = JSON.parse((call.mock.calls as unknown as [string, RequestInit][])[0][1].body as string);
+  expect(body.messages[0].content).toContain('prompt 是用户明确选择“调整文章”');
+  expect(body.messages[0].content).toContain('不得改 title');
+  expect(JSON.parse(body.messages[1].content)).toMatchObject({ action: 'rewrite', prompt: '删除第二段，其余保持不变' });
 });
 it.each([401, 402, 429, 500])('sanitizes upstream HTTP %s errors without retrying', async code => {
   const call = vi.fn(async () => new Response('secret-and-private-body', { status: code })); const app = await gateway({ fetch: call });

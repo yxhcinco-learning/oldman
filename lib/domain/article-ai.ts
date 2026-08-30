@@ -2,16 +2,16 @@ import { z } from 'zod';
 import { articleText, newId, type Draft } from './writing';
 
 const id = z.string().min(1).max(128);
-export const aiActionSchema = z.enum(['regular', 'polish', 'question']);
+export const aiActionSchema = z.enum(['regular', 'polish', 'question', 'rewrite']);
 export type AiAction = z.infer<typeof aiActionSchema>;
-export const ACTION_LABELS: Record<AiAction, string> = { regular: '常规优化', polish: '润色文笔', question: '文字追问' };
+export const ACTION_LABELS: Record<AiAction, string> = { regular: '常规优化', polish: '润色文笔', question: '文字追问', rewrite: '对话调整' };
 export const versionSchema = z.object({
-  id, createdAt: z.iso.datetime(), source: z.enum(['baseline', 'manual', 'regular', 'polish', 'restore']),
+  id, createdAt: z.iso.datetime(), source: z.enum(['baseline', 'manual', 'regular', 'polish', 'rewrite', 'restore']),
   title: z.string().max(120), body: z.string().max(1_000_000),
 }).strict();
 export type ArticleVersion = z.infer<typeof versionSchema>;
 export const VERSION_LABELS: Record<ArticleVersion['source'], string> = {
-  baseline: '开始记录', manual: '手动编辑', regular: '常规优化', polish: '润色文笔', restore: '恢复版本',
+  baseline: '开始记录', manual: '手动编辑', regular: '常规优化', polish: '润色文笔', rewrite: '对话调整', restore: '恢复版本',
 };
 export const aiResultSchema = z.object({
   answer: z.string().trim().min(1).max(8000), body: z.string().min(1).max(20000).optional(),

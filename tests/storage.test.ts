@@ -94,6 +94,8 @@ describe('portable backups', () => {
     const repo = repository(); const draft = writing('有历史的原文'); const session = newSession(draft);
     session.turns.push({ id: 'answer', createdAt: new Date().toISOString(), action: 'question', prompt: '旧内容呢', inputVersionId: session.versions[0].id,
       status: 'answered', result: { answer: '请看这个版本。', citedVersionIds: [session.versions[0].id] } });
+    session.turns.push({ id: 'rewrite', createdAt: new Date().toISOString(), action: 'rewrite', prompt: '让开头更简洁', inputVersionId: session.versions[0].id,
+      status: 'dismissed', result: { answer: '调整了开头。', body: '更简洁的原文', citedVersionIds: [] } });
     await repo.save(draft, 0, session);
     await repo.setDeleted(draft.id, true, 1); await repo.setDeleted(draft.id, false, 2);
     const before = await repo.load(); expect(before.sessions).toEqual([session]);
@@ -103,6 +105,7 @@ describe('portable backups', () => {
     expect(copy.versions[0].id).not.toBe(session.versions[0].id);
     expect(copy.turns[0].inputVersionId).toBe(copy.versions[0].id);
     expect(copy.turns[0].result?.citedVersionIds).toEqual([copy.versions[0].id]);
+    expect(copy.turns[1]).toMatchObject({ action: 'rewrite', prompt: '让开头更简洁', status: 'dismissed' });
     expect(restored.works.find(w => w.id === draft.id)).toEqual(before.works[0]);
     const invalid = JSON.parse(backup); invalid.sessions[0].turns[0].inputVersionId = 'missing';
     await expect(repo.importBackup(JSON.stringify(invalid))).rejects.toThrow();

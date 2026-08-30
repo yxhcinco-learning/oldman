@@ -10,7 +10,7 @@ export const aiRequestSchema = z.object({
   versions: z.array(versionSchema).max(32), turns: z.array(turnSchema).max(16),
   omittedRecords: z.number().int().nonnegative(),
 }).strict().superRefine((value, ctx) => {
-  if (!value.current.body.trim() || value.action === 'question' && !value.prompt.trim()) ctx.addIssue({ code: 'custom', message: '请输入正文或问题' });
+  if (!value.current.body.trim() || ['question', 'rewrite'].includes(value.action) && !value.prompt.trim()) ctx.addIssue({ code: 'custom', message: '请输入正文、问题或调整要求' });
   const ids = [value.current.id, ...value.versions.map(v => v.id)];
   if (new Set(ids).size !== ids.length) ctx.addIssue({ code: 'custom', message: '重复版本' });
   if (JSON.stringify(value).length > MAX_CONTEXT_CHARS) ctx.addIssue({ code: 'custom', message: '上下文过长' });
