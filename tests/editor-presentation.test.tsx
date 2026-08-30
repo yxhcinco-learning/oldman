@@ -24,6 +24,27 @@ function voiceDraft(segments: Segment[], pendingVoice = ''): Draft {
   return { ...emptyDraft(), segments, textDraft: articleText(segments), pendingVoice };
 }
 
+type PointCaretDocument = {
+  caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+  caretRangeFromPoint?: (x: number, y: number) => Range | null;
+};
+function stubPointCaretApis({ position, range }: {
+  position?: PointCaretDocument['caretPositionFromPoint'];
+  range?: PointCaretDocument['caretRangeFromPoint'];
+}) {
+  const pointDocument = document as unknown as PointCaretDocument;
+  const positionDescriptor = Object.getOwnPropertyDescriptor(document, 'caretPositionFromPoint');
+  const rangeDescriptor = Object.getOwnPropertyDescriptor(document, 'caretRangeFromPoint');
+  Object.defineProperty(document, 'caretPositionFromPoint', { configurable: true, value: position });
+  Object.defineProperty(document, 'caretRangeFromPoint', { configurable: true, value: range });
+  return () => {
+    if (positionDescriptor) Object.defineProperty(document, 'caretPositionFromPoint', positionDescriptor);
+    else delete pointDocument.caretPositionFromPoint;
+    if (rangeDescriptor) Object.defineProperty(document, 'caretRangeFromPoint', rangeDescriptor);
+    else delete pointDocument.caretRangeFromPoint;
+  };
+}
+
 it('shares empty title/body copy and presentation classes across modes without list decoration', async () => {
   const { repo, container } = await openDraft(emptyDraft());
   const title = screen.getByLabelText('文章标题');
@@ -72,6 +93,61 @@ it.each([
   await screen.findByText('已保存到本机');
   expect((await repo.load()).recovery?.draft.segments).toEqual(segments);
   expect((await repo.load()).recovery?.draft.textDraft).toBe(draft.textDraft);
+});
+
+it('places the collapsed text caret at the second tap through the standard point API', async () => {
+  const segments = [{ id: 'first', text: '前🙂后\n换行' }, { id: 'second', text: '第二段文字' }];
+  const draft = voiceDraft(segments);
+  const { repo } = await openDraft(draft);
+  const preview = screen.getByRole('group', { name: '文章正文' });
+  const secondText = preview.querySelectorAll('.writing-paragraph span')[1].firstChild!;
+  const position = vi.fn(() => ({ offsetNode: secondText, offset: 3 }));
+  const restore = stubPointCaretApis({ position });
+  try {
+    fireEvent.click(preview, { clientX: 12, clientY: 18 });
+    fireEvent.click(preview, { clientX: 48, clientY: 52 });
+    const body = screen.getByRole<HTMLTextAreaElement>('textbox', { name: '文章正文' });
+    const expected = segments[0].text.length + 2 + 3;
+    expect(position).toHaveBeenCalledWith(48, 52);
+    expect(body).toHaveFocus();
+    expect(body.selectionStart).toBe(expected);
+    expect(body.selectionEnd).toBe(expected);
+    expect(body).toHaveValue(draft.textDraft);
+  } finally { restore(); }
+  await screen.findByText('已保存到本机');
+  expect((await repo.load()).recovery?.draft.textDraft).toBe(draft.textDraft);
+});
+
+it('uses the WebKit point API and falls back to the article end outside a paragraph', async () => {
+  const segments = [{ id: 'first', text: '第一段' }, { id: 'second', text: '结尾段落' }];
+  const draft = voiceDraft(segments);
+  const { unmount } = await openDraft(draft);
+  let preview = screen.getByRole('group', { name: '文章正文' });
+  const secondText = preview.querySelectorAll('.writing-paragraph span')[1].firstChild!;
+  const webkitRange = document.createRange();
+  webkitRange.setStart(secondText, 2);
+  const range = vi.fn(() => webkitRange);
+  let restore = stubPointCaretApis({ range });
+  try {
+    fireEvent.click(preview);
+    fireEvent.click(preview, { clientX: 40, clientY: 44 });
+    const body = screen.getByRole<HTMLTextAreaElement>('textbox', { name: '文章正文' });
+    expect(range).toHaveBeenCalledWith(40, 44);
+    expect(body.selectionStart).toBe(segments[0].text.length + 2 + 2);
+    expect(body.selectionEnd).toBe(body.selectionStart);
+  } finally { restore(); }
+
+  unmount();
+  await openDraft(draft);
+  preview = screen.getByRole('group', { name: '文章正文' });
+  restore = stubPointCaretApis({ position: () => ({ offsetNode: preview, offset: 0 }) });
+  try {
+    fireEvent.click(preview);
+    fireEvent.click(preview);
+    const body = screen.getByRole<HTMLTextAreaElement>('textbox', { name: '文章正文' });
+    expect(body.selectionStart).toBe(draft.textDraft.length);
+    expect(body.selectionEnd).toBe(draft.textDraft.length);
+  } finally { restore(); }
 });
 
 it('edits ordinary article text on the current page and restores the placeholder after deleting it', async () => {

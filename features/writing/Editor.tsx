@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { flushSync } from 'react-dom';
 import { BackIcon, Icon } from '../../components/Icons';
 import { WritingToolbar } from '../../components/WritingControls';
@@ -9,6 +9,36 @@ const BODY_PLACEHOLDER = '从想说的一句话开始……';
 const OPTIMIZE_TIP_KEY = 'suiyue-optimize-tip-v1';
 const OPTIMIZE_TIP_LENGTH = 80;
 const optimizeBodyLength = (draft: Draft) => [...articleText(effectiveSegments(draft)).replace(/\s/g, '')].length;
+type PointCaretDocument = {
+  caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+  caretRangeFromPoint?: (x: number, y: number) => Range | null;
+};
+function textOffsetFromPoint(root: HTMLElement, segments: Draft['segments'], clientX: number, clientY: number) {
+  const fullLength = articleText(segments).length;
+  const pointDocument = root.ownerDocument as unknown as PointCaretDocument;
+  const position = pointDocument.caretPositionFromPoint?.(clientX, clientY);
+  const fallbackRange = position ? null : pointDocument.caretRangeFromPoint?.(clientX, clientY);
+  const offsetNode = position?.offsetNode ?? fallbackRange?.startContainer;
+  const offset = position?.offset ?? fallbackRange?.startOffset;
+  if (!offsetNode || offset === undefined) return fullLength;
+
+  const offsetElement = offsetNode.nodeType === 1 ? offsetNode as Element : offsetNode.parentElement;
+  const paragraph = offsetElement?.closest<HTMLElement>('.writing-paragraph');
+  if (!paragraph || !root.contains(paragraph)) return fullLength;
+  const segmentIndex = Number(paragraph.dataset.segmentIndex);
+  const segment = segments[segmentIndex];
+  if (!Number.isInteger(segmentIndex) || !segment) return fullLength;
+
+  try {
+    const range = root.ownerDocument.createRange();
+    range.setStart(paragraph, 0);
+    range.setEnd(offsetNode, offset);
+    const paragraphOffset = Math.min(range.toString().length, segment.text.length);
+    return segments.slice(0, segmentIndex).reduce((length, item) => length + item.text.length + 2, 0) + paragraphOffset;
+  } catch {
+    return fullLength;
+  }
+}
 function hasSeenOptimizeTip() {
   try { return localStorage.getItem(OPTIMIZE_TIP_KEY) === 'yes'; }
   catch { return false; }
@@ -72,22 +102,31 @@ export function Editor({ draft, update, onSave, onBack, onAssistant, saveStatus 
     focusAfterMigration.current = false;
     textarea.current?.focus({ preventScroll: true });
   }, [draft.inputMode, draft.segmentEdit]);
-  const setMode = (mode: InputMode, focusBody = true) => {
+  const focusTextBody = (caretOffset?: number) => {
+    const body = textarea.current;
+    if (!body) return;
+    const caret = caretOffset === undefined ? undefined : Math.max(0, Math.min(caretOffset, body.value.length));
+    if (caret !== undefined) body.setSelectionRange(caret, caret);
+    body.focus({ preventScroll: true });
+    if (caret !== undefined) body.setSelectionRange(caret, caret);
+  };
+  const setMode = (mode: InputMode, focusBody = true, caretOffset?: number) => {
     if (mode === draft.inputMode) {
-      if (mode === 'text' && focusBody) textarea.current?.focus();
+      if (mode === 'text' && focusBody) focusTextBody(caretOffset);
       else setVoiceCollapsed(false);
       return;
     }
     const segments = effectiveSegments(draft);
     flushSync(() => updateDraft({ ...draft, segments, textDraft: articleText(segments), inputMode: mode }));
     if (mode === 'voice') setVoiceCollapsed(false);
-    if (mode === 'text' && focusBody) textarea.current?.focus({ preventScroll: true });
+    if (mode === 'text' && focusBody) focusTextBody(caretOffset);
   };
-  const openFromBody = () => {
+  const openFromBody = (event: ReactMouseEvent<HTMLDivElement>) => {
     const now = performance.now();
     if (lastBodyTap.current > 0 && now - lastBodyTap.current <= 350) {
       lastBodyTap.current = 0;
-      setMode('text');
+      const caretOffset = textOffsetFromPoint(event.currentTarget, draft.segments, event.clientX, event.clientY);
+      setMode('text', true, caretOffset);
       return;
     }
     lastBodyTap.current = now;
@@ -107,7 +146,7 @@ export function Editor({ draft, update, onSave, onBack, onAssistant, saveStatus 
         onClick={openFromBody}
         onKeyDown={event => { if (voiceCollapsed && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setVoiceCollapsed(false); } }}>
         {!draft.segments.length && <p className="writing-placeholder">{BODY_PLACEHOLDER}</p>}
-        {draft.segments.map(s => <p key={s.id} className="writing-paragraph"><span>{s.text}</span></p>)}
+        {draft.segments.map((s, index) => <p key={s.id} className="writing-paragraph" data-segment-index={index}><span>{s.text}</span></p>)}
       </div>}
     </div>
     <footer className={`editor-dock ${draft.inputMode}${draft.inputMode === 'voice' && voiceCollapsed ? ' collapsed' : ''}`}><WritingToolbar mode={draft.inputMode} onMode={setMode} onChat={() => setChatUnavailable(true)}
