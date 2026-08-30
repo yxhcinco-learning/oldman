@@ -15,6 +15,10 @@ async function startWriting() {
   fireEvent.change(screen.getByLabelText('文章正文'), { target: { value: '窗前的雨\n落进了风里\n\n我想把这一刻写下来。' } });
   await screen.findByText('已保存到本机');
 }
+function openXiaoWen() {
+  fireEvent.click(screen.getByRole('button', { name: '文章优化' }));
+  fireEvent.click(screen.getByRole('button', { name: '进入小文会话并输入需求' }));
+}
 it('starts with an empty local library and never inserts preview examples', async () => {
   const repository = repo(); const { container } = render(<ProductApp repository={repository} />);
   await screen.findByRole('heading', { name: '我的作品' });
@@ -75,13 +79,13 @@ it('answers in the article conversation and exposes an actual cited version with
   localStorage.setItem('suiyue-article-ai-consent-v1', 'yes');
   const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId, result: { answer: '原文仍在这个版本中。', citedVersionIds: [request.current.id] } }));
   const repository = repo(); const view = render(<ProductApp repository={repository} aiTransport={transport} />); await startWriting(); const before = (await repository.load()).works[0];
-  fireEvent.click(screen.getByRole('button', { name: '聊天引导' })); fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '我原来写的内容呢？' } });
+  openXiaoWen(); fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '我原来写的内容呢？' } });
   fireEvent.click(screen.getByRole('button', { name: '发送' })); await screen.findByText('原文仍在这个版本中。');
   expect(transport.mock.calls[0][0].action).toBe('chat');
   fireEvent.click(screen.getByRole('button', { name: '查看引用记录 1' })); expect(screen.getByRole('region', { name: '修改记录正文' })).toHaveTextContent('窗前的雨');
   expect((await repository.load()).works[0].draft.textDraft).toEqual(before.draft.textDraft);
   view.unmount(); render(<ProductApp repository={repository} aiTransport={transport} />);
-  fireEvent.click(await screen.findByRole('button', { name: '聊天引导' })); expect(await screen.findByText('原文仍在这个版本中。')).toBeInTheDocument();
+  await screen.findByRole('button', { name: '文章优化' }); openXiaoWen(); expect(await screen.findByText('原文仍在这个版本中。')).toBeInTheDocument();
   expect(transport).toHaveBeenCalledOnce();
 });
 it('turns an explicit conversational request into a preview and applies it only after confirmation', async () => {
@@ -91,7 +95,7 @@ it('turns an explicit conversational request into a preview and applies it only 
     : { answer: '这是只读回答。', citedVersionIds: [request.current.id] } }));
   const repository = repo(); render(<ProductApp repository={repository} aiTransport={transport} />); await startWriting();
   const before = (await repository.load()).works[0].draft.textDraft;
-  fireEvent.click(screen.getByRole('button', { name: '聊天引导' }));
+  openXiaoWen();
   fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '只把第一段写得更温暖，其他不变' } });
   expect(screen.getByRole('button', { name: '发送' })).toBeEnabled();
   expect(screen.queryByRole('button', { name: /问小文|调整文章/ })).not.toBeInTheDocument();
@@ -350,7 +354,7 @@ it('hides the whole default speech stage and reopens it from single/double body 
 });
 it('uses a bounded autosizing conversation input beside voice and explicit send controls', async () => {
   render(<ProductApp repository={repo()} />); await startWriting();
-  fireEvent.click(screen.getByRole('button', { name: '聊天引导' }));
+  openXiaoWen();
   const input = screen.getByLabelText<HTMLTextAreaElement>('问问小文');
   expect(input.rows).toBe(1);
   expect(input.style.height).toBe('52px');
@@ -359,7 +363,7 @@ it('uses a bounded autosizing conversation input beside voice and explicit send 
   fireEvent.change(input, { target: { value: '请只调整第二段。'.repeat(30) } });
   expect(input.style.height).toBe('148px');
   expect(input.style.overflowY).toBe('auto');
-  expect(screen.getByRole('button', { name: '按住说话输入要求' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '点按开始语音输入要求' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '发送' })).toBeEnabled();
   fireEvent.change(input, { target: { value: '' } });
   expect(input.style.height).toBe('52px');
@@ -387,21 +391,16 @@ it('keeps an optimization request running when its conversation returns to the m
   fireEvent.click(screen.getByRole('button', { name: '进入小文会话并输入需求' }));
   expect(await screen.findByText('整理完成。')).toBeInTheDocument();
 });
-it('closes the assistant directly when the conversation starts from chat', async () => {
-  render(<ProductApp repository={repo()} />); await startWriting();
+it('reports toolbar chat as unavailable without opening XiaoWen or making a request', async () => {
+  const transport = vi.fn(); render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting();
+  vi.useFakeTimers();
   const opener = screen.getByRole('button', { name: '聊天引导' }); opener.focus(); fireEvent.click(opener);
-  expect(screen.getByRole('dialog', { name: '和小文聊一聊' })).toBeInTheDocument();
-  expect(screen.queryByText(/“问小文”只回答/)).not.toBeInTheDocument();
-  expect(screen.queryByText('这篇文章的对话')).not.toBeInTheDocument();
-  expect(screen.queryByText(/我会结合这篇文章/)).not.toBeInTheDocument();
-  const history = screen.getByRole('button', { name: '查看修改记录' });
-  expect(history.closest('.sheet-header-actions')).toBeInTheDocument();
-  expect(screen.queryByText('查看修改记录')).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: '按住说话输入要求' })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: '发送' })).toBeDisabled();
-  expect(screen.queryByRole('button', { name: /问小文|调整文章/ })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: '关闭' }));
-  expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); expect(opener).toHaveFocus();
+  expect(screen.getByText('聊天功能暂未开放')).toHaveAttribute('role', 'status');
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(opener).toHaveFocus();
+  expect(transport).not.toHaveBeenCalled();
+  await act(() => vi.advanceTimersByTimeAsync(3000));
+  expect(screen.queryByText('聊天功能暂未开放')).not.toBeInTheDocument();
 });
 it('keeps copy failures persistent while ordinary assistant notices are transient', async () => {
   const repository = repo(); render(<ProductApp repository={repository} />); await startWriting();

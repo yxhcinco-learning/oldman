@@ -112,6 +112,25 @@ it('keeps pending speech separate, clears it independently and appends it only o
   expect((await nextRepo.load()).recovery?.draft.pendingVoice).toBe('');
 });
 
+it('switches expanded voice mode to title editing without stealing focus or losing pending speech', async () => {
+  const initial = voiceDraft([{ id: 'first', text: '已经写好的正文。' }], '还没有确认的语音。');
+  const { repo } = await openDraft(initial);
+  const title = screen.getByLabelText('文章标题');
+  expect(screen.getByRole('button', { name: '修改待确认转写' })).toBeInTheDocument();
+
+  fireEvent.focus(title);
+
+  expect(screen.getByRole('tab', { name: '文字输入' })).toHaveAttribute('aria-selected', 'true');
+  expect(title).toHaveFocus();
+  expect(screen.getByRole('textbox', { name: '文章正文' })).not.toHaveFocus();
+  expect(screen.queryByRole('button', { name: '按住说话' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('tab', { name: '语音输入' }));
+  expect(screen.getByRole('button', { name: '修改待确认转写' })).toHaveTextContent('还没有确认的语音。');
+  expect(screen.queryByRole('button', { name: '收起语音输入' })).not.toBeInTheDocument();
+  await screen.findByText('已保存到本机');
+  expect((await repo.load()).recovery?.draft.pendingVoice).toBe('还没有确认的语音。');
+});
+
 it('migrates a recovered unfinished ordinary edit into the current-page text editor', async () => {
   const draft = voiceDraft([{ id: 'first', text: '原文' }, { id: 'second', text: '不变的第二段' }]);
   draft.segmentEdit = { id: 'first', text: '尚未完成的修改\n下一行' };

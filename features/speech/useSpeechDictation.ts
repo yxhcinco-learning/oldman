@@ -14,7 +14,7 @@ function rememberVoiceConsent() {
   catch { /* Keep consent for this mounted session. */ }
 }
 
-export function useSpeechDictation(value: string, onChange: (text: string) => void) {
+export function useSpeechDictation(value: string, onChange: (text: string) => void, interaction: 'hold' | 'tap' = 'hold') {
   const [speech, setSpeech] = useState<SpeechState>({ phase: 'idle', text: '', elapsed: 0, level: 0, message: '' });
   const [holding, setHolding] = useState(false);
   const [consent, setConsent] = useState(hasVoiceConsent);
@@ -26,6 +26,7 @@ export function useSpeechDictation(value: string, onChange: (text: string) => vo
   const lastText = useRef('');
   const holdRef = useRef<HoldGesture | null>(null);
   const holdSource = useRef<'pointer' | 'keyboard' | null>(null);
+  const tapToggleRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     let disposed = false;
@@ -37,7 +38,7 @@ export function useSpeechDictation(value: string, onChange: (text: string) => vo
         current.current.onChange(prefix.current + next.text);
       }
     });
-    const hold = new HoldGesture(() => {
+    const start = () => {
       if (!current.current.consent) { setAskConsent(true); return; }
       if (!navigator.mediaDevices?.getUserMedia || !window.AudioContext) { setTip('当前浏览器不支持录音，请使用文字输入'); return; }
       if (!['idle', 'error'].includes(session.state.phase)) return;
@@ -45,14 +46,20 @@ export function useSpeechDictation(value: string, onChange: (text: string) => vo
       lastText.current = '';
       setTip('');
       void session.start();
-    }, () => { void session.stop(); }, () => {
+    };
+    const cancel = (restorePrefix: boolean) => {
       const active = !['idle', 'error'].includes(session.state.phase);
       session.cancel();
-      if (active && !disposed) current.current.onChange(prefix.current);
-    }, () => setTip('请按住麦克风，再开始说话'));
+      if (active && restorePrefix && !disposed) current.current.onChange(prefix.current);
+    };
+    const hold = new HoldGesture(start, () => { void session.stop(); }, () => cancel(true), () => setTip('请按住麦克风，再开始说话'));
     holdRef.current = hold;
+    tapToggleRef.current = () => {
+      if (['idle', 'error'].includes(session.state.phase)) start();
+      else cancel(false);
+    };
     const resetHolding = () => { holdSource.current = null; setHolding(false); };
-    const hidden = () => { if (document.hidden) { resetHolding(); hold.release(); } };
+    const hidden = () => { if (document.hidden) { resetHolding(); if (interaction === 'tap') cancel(true); else hold.release(); } };
     const leave = () => { resetHolding(); hold.cancel(); };
     const escape = (event: globalThis.KeyboardEvent) => { if (event.key === 'Escape') { resetHolding(); hold.cancel(); } };
     document.addEventListener('visibilitychange', hidden);
@@ -62,11 +69,12 @@ export function useSpeechDictation(value: string, onChange: (text: string) => vo
       disposed = true;
       hold.cancel();
       holdRef.current = null;
+      tapToggleRef.current = () => {};
       document.removeEventListener('visibilitychange', hidden);
       document.removeEventListener('keydown', escape);
       window.removeEventListener('pagehide', leave);
     };
-  }, []);
+  }, [interaction]);
 
   const active = !['idle', 'error'].includes(speech.phase);
   return {
@@ -81,9 +89,12 @@ export function useSpeechDictation(value: string, onChange: (text: string) => vo
       setConsent(true);
       rememberVoiceConsent();
       setAskConsent(false);
-      setTip('已同意，请按住麦克风说话');
+      setTip(interaction === 'tap' ? '已同意，请点按麦克风开始说话' : '已同意，请按住麦克风说话');
     },
     clearTip: () => setTip(''),
+    tapProps: {
+      onClick: () => tapToggleRef.current(),
+    },
     holdProps: {
       onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
         if (event.button !== 0 || holdSource.current) return;

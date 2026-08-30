@@ -132,7 +132,8 @@ svg { display: block; }
 .writing-paragraph + .writing-paragraph, .writing-piece + .writing-piece { margin-top: 32px; }
 .writing-paragraph:hover { background: #153b2e03; }
 .writing-piece .memory-art { margin-top: 24px; white-space: normal; }
-.full-text-editor:focus-visible, .segment-editor:focus-visible { outline: none; box-shadow: inset 0 -1px 0 #41665738; }
+.full-text-editor:focus-visible { outline: none; box-shadow: none; }
+.segment-editor:focus-visible { outline: none; box-shadow: inset 0 -1px 0 #41665738; }
 .editor-dock { flex-shrink: 0; border-radius: 24px 24px 0 0; background: #f0f1ec; order: 3; }
 .editor-dock.text { padding-bottom: env(safe-area-inset-bottom); }
 .editor-dock.voice.collapsed { padding-bottom: env(safe-area-inset-bottom); }
@@ -172,7 +173,7 @@ svg { display: block; }
 .live-transcript p, .pending-transcript p { font-size: 18px; line-height: 30px; height: 90px; min-height: 90px; overflow-y: auto; overflow-wrap: anywhere; white-space: pre-wrap; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #bac7b9 transparent; }
 .live-transcript p > i { display: inline-block; height: 19px; width: 2px; margin-left: 5px; vertical-align: -3px; background: var(--sienna); animation: blink 1s infinite; }
 .voice-controls { display: grid; grid-template-columns: 1fr 84px 1fr; align-items: center; justify-items: center; }
-.voice-side-group { width: 100%; display: flex; align-items: center; justify-content: flex-start; gap: 2px; }
+.voice-side-group { width: 100%; display: flex; align-items: center; justify-content: center; gap: 2px; }
 .mic-button { width: 76px; height: 76px; display: grid; place-items: center; background: var(--forest); color: white; border-radius: 50%; border: 4px solid var(--white); box-shadow: 0 4px 20px #153b2e1a; position: relative; touch-action: none; user-select: none; -webkit-user-select: none; }
 .mic-button .icon { width: 30px; height: 30px; }
 .mic-button.pressed { background: var(--sienna); }
@@ -345,8 +346,8 @@ svg { display: block; }
 .ai-voice-controls { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-height: 48px; pointer-events: none; }
 .ai-voice-controls > * { pointer-events: auto; }
 .ai-voice-status { position: absolute; left: 12px; bottom: calc(100% + 6px); max-width: calc(100% - 24px); padding: 4px 8px; border-radius: 8px; color: var(--forest); background: #e8eee9f5; box-shadow: 0 2px 8px #153b2e0a; font-size: 13px; line-height: 20px; }
-.ai-voice-controls button { display: flex; align-items: center; justify-content: center; gap: 6px; flex-shrink: 0; width: 48px; min-height: 48px; padding: 0; border-radius: 24px; color: var(--forest); background: var(--tint); font-size: 15px; line-height: 22px; touch-action: none; }
-.ai-voice-controls button.holding { color: var(--white); background: var(--sienna); }
+.ai-voice-controls button { display: flex; align-items: center; justify-content: center; gap: 6px; flex-shrink: 0; width: 48px; min-height: 48px; padding: 0; border-radius: 24px; color: var(--forest); background: var(--tint); font-size: 15px; line-height: 22px; touch-action: manipulation; }
+.ai-voice-controls button.active { color: var(--white); background: var(--sienna); }
 .ai-voice-controls .icon { width: 20px; height: 20px; }
 .ai-voice-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .ai-note { font-size: 14px; line-height: 22px; color: var(--muted); }

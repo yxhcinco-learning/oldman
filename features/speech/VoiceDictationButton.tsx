@@ -9,18 +9,18 @@ export function VoiceDictationButton({ value, onChange, disabled = false, onActi
   disabled?: boolean;
   onActiveChange?: (active: boolean) => void;
 }) {
-  const dictation = useSpeechDictation(value, onChange);
+  const dictation = useSpeechDictation(value, onChange, 'tap');
   useEffect(() => {
     onActiveChange?.(dictation.active);
     return () => onActiveChange?.(false);
   }, [dictation.active, onActiveChange]);
-  const buttonText = dictation.recording ? '松开结束' : dictation.speech.phase === 'finishing' ? '正在确认' : dictation.holding ? '请继续按住' : dictation.active ? '请稍候' : '按住说话';
+  const buttonText = dictation.speech.phase === 'finishing' ? '正在确认' : dictation.active ? '取消' : '点按输入';
   const status = dictation.speech.message || dictation.tip || (dictation.active ? buttonText : '');
 
   return <>
     <div className="ai-voice-controls" data-phase={dictation.speech.phase}>
       {status && <span className="ai-voice-status" role="status">{status}</span>}
-      <button type="button" className={dictation.holding ? 'holding' : ''} aria-label={dictation.active ? `${buttonText}，输入要求` : '按住说话输入要求'} disabled={disabled} {...dictation.holdProps}>
+      <button type="button" className={dictation.active ? 'active' : ''} aria-label={dictation.active ? '取消语音输入要求' : '点按开始语音输入要求'} disabled={disabled} {...dictation.tapProps}>
         <Icon name="mic" /><span className="ai-voice-label">{buttonText}</span>
       </button>
     </div>

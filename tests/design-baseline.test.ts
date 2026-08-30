@@ -48,7 +48,9 @@ it('keeps body typography and paragraph spacing identical between real input mod
   expect(rule('.writing-paragraph > span')).toEqual({ display: 'block' });
   expect(rule('.writing-paragraph + .writing-paragraph, .writing-piece + .writing-piece')['margin-top']).toBe(rule('.full-text-editor')['line-height']);
   expect(rule('.writing-preview')).toMatchObject({ cursor: 'text', 'touch-action': 'manipulation' });
+  expect(rule('.full-text-editor:focus-visible')).toEqual({ outline: 'none', 'box-shadow': 'none' });
   expect(rule('.editor-dock.voice.collapsed')['padding-bottom']).toBe('env(safe-area-inset-bottom)');
+  expect(rule('.voice-side-group')['justify-content']).toBe('center');
 });
 
 it('keeps failures and simulation labels visible without displacing footer controls', () => {
@@ -61,7 +63,7 @@ it('keeps failures and simulation labels visible without displacing footer contr
 
 it('keeps AI input focus inside its border and uses a compact optimization hint', () => {
   expect(rule('.ai-composer textarea:focus-visible')).toMatchObject({ outline: '0', 'border-color': 'var(--forest-soft)', 'box-shadow': 'inset 0 0 0 1px var(--forest-soft)' });
-  expect(rule('.ai-voice-controls button')).toMatchObject({ 'min-height': '48px', 'touch-action': 'none' });
+  expect(rule('.ai-voice-controls button')).toMatchObject({ 'min-height': '48px', 'touch-action': 'manipulation' });
   expect(rule('.ai-composer textarea')).toMatchObject({ height: '52px', 'min-height': '52px', 'max-height': '148px', resize: 'none' });
   expect(rule('.ai-composer-row')).toMatchObject({ display: 'grid', 'grid-template-columns': 'minmax(0, 1fr)' + ' auto' });
   expect(css).not.toContain('.voice-panel-expand');

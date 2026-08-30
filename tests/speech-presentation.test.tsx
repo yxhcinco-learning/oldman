@@ -15,10 +15,11 @@ const bridge = vi.hoisted(() => ({
 vi.mock('../features/speech/session', () => ({
   SpeechSession: class {
     state = { phase: 'idle', text: '', elapsed: 0, level: 0, message: '' } as SpeechState;
-    constructor(onChange: (state: SpeechState) => void) { bridge.emit = state => { this.state = state; onChange(state); }; }
+    private onChange: (state: SpeechState) => void;
+    constructor(onChange: (state: SpeechState) => void) { this.onChange = onChange; bridge.emit = state => { this.state = state; onChange(state); }; }
     start() { bridge.start(); }
     stop() { bridge.stop(); }
-    cancel() { bridge.cancel(); }
+    cancel() { bridge.cancel(); this.state = { phase: 'idle', text: '', elapsed: 0, level: 0, message: '' }; this.onChange(this.state); }
   },
 }));
 function Harness() {
@@ -75,8 +76,7 @@ it('shows permission and connection failures without hiding the original control
   expect(screen.queryByRole('button', { name: '完成' })).not.toBeInTheDocument();
 });
 
-it('appends dictated words to the editable AI prompt and restores the prefix when cancelled', async () => {
-  vi.useFakeTimers();
+it('starts compact dictation on tap and keeps recognized words when tapped again to cancel capture', () => {
   localStorage.setItem('suiyue-voice-consent-v1', 'yes');
   Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: vi.fn() } });
   vi.stubGlobal('AudioContext', class {});
@@ -86,66 +86,54 @@ it('appends dictated words to the editable AI prompt and restores the prefix whe
       <VoiceDictationButton value={value} onChange={setValue} /></>;
   }
   render(<DictationHarness />);
-  const hold = screen.getByRole('button', { name: '按住说话输入要求' });
-  fireEvent.keyDown(hold, { key: 'Enter' });
-  await act(() => vi.advanceTimersByTimeAsync(180));
+  const toggle = screen.getByRole('button', { name: '点按开始语音输入要求' });
+  fireEvent.click(toggle);
+  expect(bridge.start).toHaveBeenCalledOnce();
   emit({ phase: 'recording', text: '再简短一些。' });
   expect(screen.getByLabelText('小文要求')).toHaveValue('保留原来的要求。再简短一些。');
-  fireEvent.keyDown(document, { key: 'Escape' });
-  expect(screen.getByLabelText('小文要求')).toHaveValue('保留原来的要求。');
+  expect(screen.getByRole('button', { name: '取消语音输入要求' })).toHaveClass('active');
+  fireEvent.click(screen.getByRole('button', { name: '取消语音输入要求' }));
+  expect(bridge.cancel).toHaveBeenCalledOnce();
+  expect(screen.getByLabelText('小文要求')).toHaveValue('保留原来的要求。再简短一些。');
+  expect(screen.getByRole('button', { name: '点按开始语音输入要求' })).not.toHaveClass('active');
 });
 
-it('keeps the compact dictation button held through preparation and ignores pointer blur', async () => {
-  vi.useFakeTimers();
+it('keeps tap dictation active through preparation and does not treat blur as completion', () => {
   localStorage.setItem('suiyue-voice-consent-v1', 'yes');
   Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: vi.fn() } });
   vi.stubGlobal('AudioContext', class {});
   render(<VoiceDictationButton value="" onChange={() => {}} />);
-  const hold = screen.getByRole('button', { name: '按住说话输入要求' });
-  Object.assign(hold, { setPointerCapture: vi.fn(), hasPointerCapture: vi.fn(() => true), releasePointerCapture: vi.fn() });
-
-  fireEvent.pointerDown(hold, { pointerId: 7, pointerType: 'touch', button: 0 });
-  expect(hold).toHaveClass('holding');
-  expect(hold).toHaveTextContent('请继续按住');
-  await act(() => vi.advanceTimersByTimeAsync(180));
+  const toggle = screen.getByRole('button', { name: '点按开始语音输入要求' });
+  fireEvent.click(toggle);
   expect(bridge.start).toHaveBeenCalledOnce();
 
   emit({ phase: 'permission', message: '正在准备麦克风…' });
-  fireEvent.blur(hold);
-  expect(hold).toHaveClass('holding');
-  expect(hold).toHaveTextContent('请继续按住');
+  fireEvent.blur(toggle);
+  expect(screen.getByRole('button', { name: '取消语音输入要求' })).toHaveClass('active');
   expect(bridge.stop).not.toHaveBeenCalled();
+  expect(bridge.cancel).not.toHaveBeenCalled();
 
   emit({ phase: 'connecting', message: '正在连接识别服务…' });
-  expect(hold).toHaveClass('holding');
+  expect(screen.getByRole('button', { name: '取消语音输入要求' })).toHaveClass('active');
   emit({ phase: 'recording' });
-  expect(hold).toHaveTextContent('松开结束');
-
-  fireEvent.pointerUp(hold, { pointerId: 7, pointerType: 'touch', button: 0 });
-  expect(hold).not.toHaveClass('holding');
-  expect(bridge.stop).toHaveBeenCalledOnce();
-  emit({ phase: 'finishing', message: '正在确认最后几个字…' });
-  expect(hold).toHaveTextContent('正在确认');
+  fireEvent.click(screen.getByRole('button', { name: '取消语音输入要求' }));
+  expect(bridge.cancel).toHaveBeenCalledOnce();
+  expect(bridge.stop).not.toHaveBeenCalled();
 });
 
-it('ends keyboard holds on blur and cancels pointer holds only on pointer cancel', async () => {
-  vi.useFakeTimers();
+it('restores the pre-dictation value when tap dictation is cancelled with Escape', () => {
   localStorage.setItem('suiyue-voice-consent-v1', 'yes');
   Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: vi.fn() } });
   vi.stubGlobal('AudioContext', class {});
-  render(<VoiceDictationButton value="" onChange={() => {}} />);
-  const hold = screen.getByRole('button', { name: '按住说话输入要求' });
-  Object.assign(hold, { setPointerCapture: vi.fn(), hasPointerCapture: vi.fn(() => false), releasePointerCapture: vi.fn() });
-
-  fireEvent.keyDown(hold, { key: 'Enter' });
-  await act(() => vi.advanceTimersByTimeAsync(180));
-  fireEvent.blur(hold);
-  expect(bridge.stop).toHaveBeenCalledOnce();
-  expect(hold).not.toHaveClass('holding');
-
-  fireEvent.pointerDown(hold, { pointerId: 9, pointerType: 'touch', button: 0 });
-  await act(() => vi.advanceTimersByTimeAsync(180));
-  fireEvent.pointerCancel(hold, { pointerId: 9, pointerType: 'touch' });
+  function DictationHarness() {
+    const [value, setValue] = useState('原有文字。');
+    return <><span>{value}</span><VoiceDictationButton value={value} onChange={setValue} /></>;
+  }
+  render(<DictationHarness />);
+  fireEvent.click(screen.getByRole('button', { name: '点按开始语音输入要求' }));
+  emit({ phase: 'recording', text: '临时识别。' });
+  expect(screen.getByText('原有文字。临时识别。')).toBeInTheDocument();
+  fireEvent.keyDown(document, { key: 'Escape' });
   expect(bridge.cancel).toHaveBeenCalledOnce();
-  expect(hold).not.toHaveClass('holding');
+  expect(screen.getByText('原有文字。')).toBeInTheDocument();
 });
