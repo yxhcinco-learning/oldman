@@ -32,6 +32,9 @@ it('protects the exact HTTPS origin while preserving same-origin API and WebSock
   expect(nginx).toContain('Permissions-Policy "microphone=(self)');
   expect(nginx).toContain("connect-src 'self' https://suiyue.maicong.chat wss://suiyue.maicong.chat");
   expect(nginx).toContain('access_log off;');
+  expect(nginx).toContain('error_log /var/log/nginx/suiyue-yousheng-error.log crit;');
+  expect(nginx).toContain('proxy_headers_hash_max_size 1024;');
+  expect(nginx).toContain('limit_req_status 429;');
 });
 
 it('contains no populated secret or product-layer temporary authentication', () => {

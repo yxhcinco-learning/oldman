@@ -20,6 +20,37 @@
 
 结论：本地核心实现、自动化检查与腾讯云真实语音链路联调通过；**不宣称手机麦克风、真实用户口音或公开上线已验收**。
 
+## 受控公网临时测试部署（2026-08-30）
+
+本节覆盖用户新授权的少量同事临时体验，不改变上方产品化阶段的历史结论。入口为 `https://suiyue.maicong.chat`，测试用户名 `suiyue-test`；32 位随机密码只保存在本机 Git 忽略且 ACL 仅当前 Windows 用户可读写的 `.env.deploy-access`，未写入 Git、聊天、TAT 命令、服务器日志或本节。用户从该文件读取后通过自己的私密渠道分发；轮换只替换 `/etc/nginx/suiyue-yousheng.htpasswd` 并 reload Nginx。
+
+### 部署版本与拓扑
+
+- 应用 release 来自提交 `9377412111c92ae588c7fd8caf4a02599e5f42c5`，本地归档 281 个成员、1,717,990 字节，SHA-256 `697fa85a74af77dfd8dc02d5b467d1132eafe09d30fc85b11254600b6921e40f`；远端三份上传文件哈希逐项一致，归档无绝对路径、`..`、符号/硬链接、秘密、node_modules、缓存或音频。
+- Lighthouse `lhins-pg6lbxtx` / `ap-guangzhou-3`，4 核 4 GiB、根盘使用 27%；DNSPod A 记录 `2384307236` 指向 `43.136.85.81`、TTL 600。未修改根域、www、time、tct 或其他项目。
+- `/opt/suiyue-yousheng/releases/9377412-20260830-1330` 为活动 release；`suiyue-web.service` 在 `127.0.0.1:3011`，`suiyue-gateway.service` 在 `127.0.0.1:3012`，均 enabled/active、专用无登录用户、`Restart=on-failure`、SIGTERM 和 systemd 沙箱。服务器其他 Node 服务和端口未停止或复用。
+- Nginx 仅在既有公网 80/443 接入：HTTP 308；HTTPS Basic Auth；`/` → 3011，AI/status/health/语音 → 3012，WSS 保留 Origin/Upgrade；Cloud firewall 仍只有 80、443、既有 22 和 ICMP，应用只监听回环。
+- Linux 固定 `ASR_CREDENTIAL_SOURCE=project`、`ASR_ALLOWED_ORIGIN=https://suiyue.maicong.chat`。DeepSeek 与腾讯云完整凭据从 `/etc/suiyue-yousheng/runtime.env`（0600 root:root）读取；认证文件为 0640 root:www-data。两份上传区明文源安装后已精确擦除，release 与客户端不含秘密。
+
+### 实际检查
+
+- 本地代码阶段：`npm run check` 通过 22 个文件 182 项测试，含类型、Lint、OpenSpec、模块/敏感边界；`npm run build` 通过。服务器锁文件安装 667 个包并再次完成 Vinext/Vite 生产构建；本轮没有升级依赖。
+- 公网协议：无认证首页/API 为 401；有效认证首页 200；HTTP 308；7 个页面静态资源均 200；`/api/health` 为 `ok`，AI 与语音 status 均 `configured:true`。HSTS、nosniff、DENY frame、no-referrer、`microphone=(self)` 和限定 self/固定 HTTPS/WSS 的 CSP 存在。
+- 拒绝路径：外部 Origin 403，无效 AI body 400；WSS 无认证/外部 Origin 分别 401/403；5 个无效突发请求结果为 403、429、429、429、429，未连接上游。Nginx access log 关闭，限流返回 429。
+- 真实上游严格限量：公网腾讯 ASR 1 次，9.13 秒非敏感合成 PCM，33 字、17 次转写更新、见到 final 并正常结束；没有用户原音。DeepSeek 3 次：常规优化 input/output 762/64 tokens、润色 757/41、文字追问 842/31，均 200；前两项返回候选、追问只返回回答。没有重试、批量、压测、充值、购买或其他付费调用。
+- 运行运维：systemd unit 实机 verify；停止网关后端口消失，再启动并重启前端后 PID 更新、健康恢复。20 条结构化网关事件字段白名单通过，动作覆盖 health、status、speech 和三类 AI，3 条含 token；扫描未出现 Authorization、Cookie、SecretId/Key、API Key、body、prompt 或 audio。Nginx 日志按现有 daily/14/compress 轮转，journal 有 unit 级速率限制。
+- TLS：Let's Encrypt ECDSA 证书有效至 2026-11-28；`certbot.timer` enabled/active。首次 dry-run 因 Certbot 随机等待超过 TAT 时限而中断，确认无残留进程后加 `--no-random-sleep-on-renew` 重跑，模拟续期成功；Nginx 和两个应用服务保持 active。
+
+### 浏览器、数据与未完成项
+
+受控生产构建在隔离本机 Origin `http://127.0.0.1:3099` 完成空库、新建非敏感文字、保存返回、刷新后 1 篇/32 字恢复，以及 JSON v2 下载（2,002 字节、1 篇、0 会话）；下载文件保留在用户 Downloads，未上传服务器。360×640、390×844、430×932 和 1280×900 的根/body scrollWidth 均等于 viewport，标题焦点位于可见区。公网 Basic Auth 401/有效凭据 200 与页面资源由非浏览器真实 HTTPS 客户端验证；受浏览器安全确认规则限制，本轮没有把新生成密码输入浏览器，因此**不把本机 IndexedDB 结果冒充公网 Origin 内的交互式保存/刷新/备份验收**。
+
+真实 iOS Safari、安卓 Chrome 麦克风、系统键盘遮挡、安全区、后台和网络切换仍未执行；9.13 秒合成音频及桌面尺寸不替代。公网首次访问仍是该 Origin 的空 IndexedDB，localhost/其他域名、协议、端口或设备内容不会自动出现或上传；需要时只能由用户显式 JSON 备份/恢复副本。
+
+### 回滚
+
+release 切换和回滚脚本只接受 `/opt/suiyue-yousheng/releases/*` 的已解析路径；当前是首次 release，没有旧版本可实际切回。激活失败脚本会恢复 `previous`，首次失败则停止两个服务；手工回滚使用 `deploy/server/rollback.sh <verified-release>`。首次部署撤回时停止/禁用两个岁月有声 unit、恢复该站点部署前 Nginx 状态并在 `nginx -t` 后 reload；保留 release、root-only 环境、证书和 DNS 供恢复，不删除浏览器数据或其他项目。后续部署第二个 release 后必须实际往返切换并记录健康，才把自动回滚验收标记完成。
+
 ## 已完成
 
 - OpenSpec 1.2.0、AGENTS、产品/设计/架构/隐私/开发文档、CI 模板和敏感文件边界检查。
