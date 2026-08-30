@@ -28,4 +28,4 @@
 - [x] 5.1 Update the formal design/product/architecture wording and record acceptance evidence for the five user-reported issues
 - [x] 5.2 Run `npm run check`, `npm run build` and browser regression at 360×640, 390×844, 430×932 and 1280×900, including simulated Visual Viewport keyboard changes
 - [ ] 5.3 Record real iOS Safari and Android Chrome keyboard, browser-toolbar and background-return results on physical devices; keep the change active if unavailable
-- [ ] 5.4 Run the complete check/build and browser regression for the corrected speech/body/menu/composer interactions, deploy the fixed release and record public evidence without claiming unavailable physical-device gestures
+- [x] 5.4 Run the complete check/build and browser regression for the corrected speech/body/menu/composer interactions, deploy the fixed release and record public evidence without claiming unavailable physical-device gestures
