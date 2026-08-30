@@ -38,4 +38,4 @@
 - [x] 5.4 Run the complete check/build and browser regression for the corrected speech/body/menu/composer interactions, deploy the fixed release and record public evidence without claiming unavailable physical-device gestures
 - [x] 5.5 Run complete checks, build and browser regression for title keyboard handling, chat reservation, tap dictation and control alignment; deploy and record public evidence without claiming unavailable physical-device gestures
 - [x] 5.6 Run complete checks, build and browser regression for point-preserving text entry; deploy and record evidence without claiming unavailable physical-device keyboard results
-- [ ] 5.7 Run complete checks, build and browser regression for long-press and pending-edit caret entry; deploy and record evidence without claiming unavailable physical-device gesture results
+- [x] 5.7 Run complete checks, build and browser regression for long-press and pending-edit caret entry; deploy and record evidence without claiming unavailable physical-device gesture results

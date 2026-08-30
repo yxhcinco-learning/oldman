@@ -52,3 +52,10 @@
 ## 未替代的真机验收
 
 自动 Visual Viewport 事件只能证明布局按输入指标更新，不能替代物理设备。iOS Safari、Android Chrome 的系统键盘、浏览器工具栏收缩、切后台返回和真实麦克风仍保持待验；没有证据前不标记完成，也不强行归档 change。
+
+## 长按与待确认点位补充验收（2026-08-30）
+
+- 正文预览增加触屏/触控笔长按：原地按住599ms仍不切换，600ms切到当前页文字输入；超过10px移动或提前抬起会清理计时。组件测试确认 pointer down/move 与原生 contextmenu 均未被取消，contextmenu 可复用按下坐标进入文字态；没有调用 `preventDefault`、显式 pointer capture 或禁用系统滚动。由于切换会替换旧预览 DOM，自动化不声称系统选词浮层能在切换后继续保留。
+- 待确认转写把真实文字与状态提示分开标记，点击坐标通过共享标准/WebKit光标兼容层换成段内 UTF-16 偏移；独立编辑 textarea 聚焦后设置相等 selection，提示、图标或无法定位时只回退到转写末尾。回归验证点击偏移5后编辑页 selection 为 `5/5`，正文与待确认文字均未改变。
+- 完整 `npm run check` 通过：22个测试文件、200项测试、类型、Lint、OpenSpec严格校验和模块边界均通过；`npm run build` 和服务器生产构建通过。实际浏览器再次验证第二段双击仍为 `58/58`，四种尺寸页头/工具栏完整且无横向溢出，控制台无警告或错误。桌面浏览器控制接口不能等价制造 Android/iOS 系统长按浮层，也没有待确认语音夹具，因此长按与待确认点位的真机手感仍保持待验。
+- 提交 `6292c50` 已切换到 `/opt/suiyue-yousheng/releases/6292c50`，`previous` 为 `/opt/suiyue-yousheng/releases/b0a263d`；两个服务、3011首页、3012健康检查及Nginx配置均正常，活动产物包含 `pending-transcript-text` 与 `caretRangeFromPoint`。公网无认证恢复页继续返回带挑战和 `no-store` 的401。本轮未调用真实麦克风、腾讯ASR或DeepSeek。
