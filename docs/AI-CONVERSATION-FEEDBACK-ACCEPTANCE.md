@@ -45,3 +45,5 @@
 - 本次验证信息路由、持久状态和视觉层级，不评价新的模型生成质量，因此没有追加付费调用。
 - `answer` 仍由模型生成，可能概括得不够精确；本次保证它不会被候选状态覆盖，不提供程序计算的段落级 diff 或逐字高亮。
 - 未部署、未做手机真机键盘验收；原 `productize-local-writing` 的远端、真机和目录清理待办保持活跃。
+
+本变更 7 项任务完成，3 条修改要求已同步到正式规范，并归档至 [2026-08-30-unify-ai-feedback-in-conversation](../openspec/changes/archive/2026-08-30-unify-ai-feedback-in-conversation/)。本轮没有推送、合并或发布。
