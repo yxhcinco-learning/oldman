@@ -263,7 +263,7 @@ it('does not hide a failed work-management operation behind the modal', async ()
   expect(screen.getByRole('button', { name: /夏日有感.*继续写/ })).toBeInTheDocument();
   expect((await repository.load()).works[0].deletedAt).toBeNull();
 });
-it('shows the new categories and keeps unsupported tools visibly unavailable', async () => {
+it('shows the new categories and returns an optimization conversation to its menu before closing', async () => {
   const transport = vi.fn(); render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting();
   const opener = screen.getByRole('button', { name: '文章优化' }); opener.focus(); fireEvent.click(opener);
   expect(screen.getByRole('button', { name: /^润色文笔/ })).toBeEnabled();
@@ -272,7 +272,42 @@ it('shows the new categories and keeps unsupported tools visibly unavailable', a
   expect(screen.queryByLabelText('问问小文')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: '进入小文会话并输入需求' }));
   expect(screen.getByLabelText('问问小文')).toHaveFocus();
+  fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '还没发送的调整要求' } });
+  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+  expect(screen.getByRole('dialog', { name: '文章优化' })).toBeInTheDocument();
+  expect(screen.queryByLabelText('问问小文')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: '进入小文会话并输入需求' }));
+  expect(screen.getByLabelText('问问小文')).toHaveValue('还没发送的调整要求');
   fireEvent.click(screen.getByRole('button', { name: '返回上一级' }));
-  fireEvent.keyDown(screen.getByRole('button', { name: '关闭' }), { key: 'Escape' });
+  fireEvent.click(screen.getByRole('button', { name: '关闭' }));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); expect(opener).toHaveFocus(); expect(transport).not.toHaveBeenCalled();
+});
+it('keeps an optimization request running when its conversation returns to the menu', async () => {
+  localStorage.setItem('suiyue-article-ai-consent-v1', 'yes');
+  let continueRequest = () => {};
+  let requestSignal: AbortSignal | undefined;
+  const transport = vi.fn(async (request: AiRequest, signal: AbortSignal) => {
+    requestSignal = signal;
+    await new Promise<void>(resolve => { continueRequest = resolve; });
+    return { requestId: request.requestId, result: { answer: '整理完成。', body: `${request.current.body}\n`, citedVersionIds: [] } };
+  });
+  render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting();
+  fireEvent.click(screen.getByRole('button', { name: '文章优化' }));
+  fireEvent.click(screen.getByRole('button', { name: /^常规优化/ }));
+  await waitFor(() => expect(transport).toHaveBeenCalledOnce());
+  fireEvent.click(screen.getByRole('button', { name: '关闭' }));
+  expect(screen.getByRole('dialog', { name: '文章优化' })).toBeInTheDocument();
+  expect(screen.getByText('小文正在阅读和整理，请稍候…')).toBeInTheDocument();
+  expect(requestSignal?.aborted).toBe(false);
+  continueRequest();
+  await waitFor(() => expect(screen.queryByText('小文正在阅读和整理，请稍候…')).not.toBeInTheDocument());
+  fireEvent.click(screen.getByRole('button', { name: '查看对话记录' }));
+  expect(await screen.findByText('整理完成。')).toBeInTheDocument();
+});
+it('closes the assistant directly when the conversation starts from chat', async () => {
+  render(<ProductApp repository={repo()} />); await startWriting();
+  const opener = screen.getByRole('button', { name: '聊天引导' }); opener.focus(); fireEvent.click(opener);
+  expect(screen.getByRole('dialog', { name: '和小文聊一聊' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: '关闭' }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); expect(opener).toHaveFocus();
 });

@@ -88,6 +88,15 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
     if (sameDocument(after, documentOf(draft))) void restore(before, after);
     else { showVersion(before.id); setFeedback('应用后又有修改，请先核对历史版本；恢复会替换当前全文。'); }
   };
+  const close = () => {
+    if (saving) return;
+    if (entry === 'optimize' && page !== 'menu') {
+      setFeedback('');
+      setPage('menu');
+      return;
+    }
+    onClose();
+  };
   const compose = () => <form className="ai-composer" onSubmit={event => event.preventDefault()}>
     <label className="visually-hidden" htmlFor="article-ai-question">问问小文</label>
     <textarea ref={promptInput} id="article-ai-question" value={prompt} onChange={event => setPrompt(event.target.value)} disabled={busy} maxLength={2000}
@@ -99,7 +108,7 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
     <small>“问小文”只回答；“调整文章”会先生成完整预览，确认后才修改正文。</small>
   </form>;
 
-  return <Dialog className={`article-ai-dialog ai-page-${page}`} title={titles[page]} onClose={() => { if (!saving) onClose(); }} onBack={page === 'menu' ? undefined : () => {
+  return <Dialog className={`article-ai-dialog ai-page-${page}`} title={titles[page]} onClose={close} onBack={page === 'menu' ? undefined : () => {
     setFeedback(''); setPage(page === 'preview' ? 'chat' : page === 'version' ? 'history' : 'menu');
   }}>
     <div className="article-assistant">
