@@ -1,6 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { ProductApp } from '../features/writing/ProductApp';
 import { emptyDraft, articleText, type Draft, type Segment } from '../lib/domain/writing';
 import { IndexedWorkRepository } from '../lib/storage/repository';
@@ -52,36 +51,38 @@ it.each([
   ['单段', [{ id: 'first', text: '我年轻的时候在钢厂。' }]],
   ['多段和换行', [{ id: 'first', text: '窗前的雨\n落进了风里' }, { id: 'second', text: '  两个空格\t保留。' }]],
   ['长文', [{ id: 'first', text: '这是一段用于检查正文换行的文字。'.repeat(100) }, { id: 'second', text: 'https://example.test/' + 'a'.repeat(160) }]],
-])('renders %s as undecorated text while keeping contents, IDs and paragraph editing', async (_name, segments) => {
+])('renders %s as undecorated text and opens current-page editing on a double click', async (_name, segments) => {
   const draft = voiceDraft(segments);
   const { repo, container } = await openDraft(draft);
   const preview = screen.getByRole('group', { name: '文章正文' });
-  const buttons = within(preview).getAllByRole('button');
-  expect(buttons).toHaveLength(segments.length);
-  buttons.forEach((button, index) => {
-    expect(button.textContent).toBe(segments[index].text);
-    expect(button).toHaveClass('writing-paragraph');
-    expect(button).toHaveAccessibleName(`编辑第 ${index + 1} 段`);
-    expect(button.children).toHaveLength(1);
-    expect(button.firstElementChild?.textContent).toBe(segments[index].text);
+  const paragraphs = preview.querySelectorAll('.writing-paragraph');
+  expect(paragraphs).toHaveLength(segments.length);
+  paragraphs.forEach((paragraph, index) => {
+    expect(paragraph.textContent).toBe(segments[index].text);
+    expect(paragraph.children).toHaveLength(1);
+    expect(paragraph.firstElementChild?.textContent).toBe(segments[index].text);
   });
+  expect(within(preview).queryByRole('button')).not.toBeInTheDocument();
   expect(container.querySelector('.story-content, .story-paragraph')).toBeNull();
-  fireEvent.click(screen.getByRole('tab', { name: '文字输入' }));
+  fireEvent.click(preview);
+  fireEvent.click(preview);
   expect(screen.getByLabelText('文章正文')).toHaveValue(draft.textDraft);
+  expect(screen.getByLabelText('文章正文')).toHaveFocus();
   fireEvent.click(screen.getByRole('tab', { name: '语音输入' }));
   await screen.findByText('已保存到本机');
   expect((await repo.load()).recovery?.draft.segments).toEqual(segments);
   expect((await repo.load()).recovery?.draft.textDraft).toBe(draft.textDraft);
 });
 
-it('keeps native keyboard activation and restores the common placeholder after deleting the last paragraph', async () => {
+it('edits ordinary article text on the current page and restores the placeholder after deleting it', async () => {
   const { repo } = await openDraft(voiceDraft([{ id: 'first', text: '最后一段' }]));
-  const user = userEvent.setup();
-  screen.getByRole('button', { name: '编辑第 1 段' }).focus();
-  await user.keyboard('{Enter}');
-  expect(screen.getByLabelText('段落内容')).toHaveFocus();
-  fireEvent.change(screen.getByLabelText('段落内容'), { target: { value: '' } });
-  fireEvent.click(screen.getByRole('button', { name: '完成修改' }));
+  const preview = screen.getByRole('group', { name: '文章正文' });
+  fireEvent.click(preview);
+  fireEvent.click(preview);
+  const body = screen.getByRole('textbox', { name: '文章正文' });
+  expect(body).toHaveFocus();
+  fireEvent.change(body, { target: { value: '' } });
+  fireEvent.click(screen.getByRole('tab', { name: '语音输入' }));
   expect(within(screen.getByRole('group', { name: '文章正文' })).getByText(placeholder)).toBeVisible();
   fireEvent.click(screen.getByRole('tab', { name: '文字输入' }));
   expect(screen.getByLabelText('文章正文')).toHaveValue('');
@@ -94,7 +95,7 @@ it('keeps pending speech separate, clears it independently and appends it only o
   const initial = voiceDraft([{ id: 'first', text: '已确认的正文。' }], '待确认语音。');
   const { repo, rerender } = await openDraft(initial);
   expect(within(screen.getByRole('group', { name: '文章正文' })).queryByText('待确认语音。')).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: '清空' }));
+  fireEvent.click(screen.getByRole('button', { name: '取消' }));
   await screen.findByText('已保存到本机');
   expect((await repo.load()).recovery?.draft.segments).toEqual(initial.segments);
   expect(screen.queryByRole('button', { name: '修改待确认转写' })).not.toBeInTheDocument();
@@ -104,25 +105,23 @@ it('keeps pending speech separate, clears it independently and appends it only o
   rerender(<ProductApp key="pending-voice" repository={nextRepo} />);
   await screen.findByRole('button', { name: '修改待确认转写' });
   fireEvent.click(screen.getByRole('button', { name: '完成' }));
-  expect(screen.getByRole('button', { name: '编辑第 2 段' })).toHaveTextContent('待确认语音。');
+  expect(within(screen.getByRole('group', { name: '文章正文' })).getByText('待确认语音。')).toBeVisible();
   fireEvent.click(screen.getByRole('tab', { name: '文字输入' }));
   expect(screen.getByLabelText('文章正文')).toHaveValue('已确认的正文。\n\n待确认语音。');
   await screen.findByText('已保存到本机');
   expect((await nextRepo.load()).recovery?.draft.pendingVoice).toBe('');
 });
 
-it('restores the uniform preview after completing a recovered unfinished edit', async () => {
+it('migrates a recovered unfinished ordinary edit into the current-page text editor', async () => {
   const draft = voiceDraft([{ id: 'first', text: '原文' }, { id: 'second', text: '不变的第二段' }]);
   draft.segmentEdit = { id: 'first', text: '尚未完成的修改\n下一行' };
   const repo = repository();
   await repo.save(draft, 0);
   render(<ProductApp repository={repo} />);
-  expect(await screen.findByLabelText('段落内容')).toHaveValue(draft.segmentEdit.text);
-  fireEvent.click(screen.getByRole('button', { name: '完成修改' }));
-  const preview = screen.getByRole('group', { name: '文章正文' });
-  expect(preview).toHaveClass('writing-body');
-  expect(within(preview).getByRole('button', { name: '编辑第 1 段' }).textContent).toBe(draft.segmentEdit.text);
-  expect(within(preview).getByRole('button', { name: '编辑第 2 段' }).textContent).toBe('不变的第二段');
+  const body = await screen.findByRole('textbox', { name: '文章正文' });
+  expect(body).toHaveValue(`${draft.segmentEdit.text}\n\n不变的第二段`);
+  expect(body).toHaveFocus();
+  expect(screen.queryByLabelText('段落内容')).not.toBeInTheDocument();
   await waitFor(async () => expect((await repo.load()).recovery?.draft.segmentEdit).toBeNull());
 });
 

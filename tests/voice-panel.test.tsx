@@ -15,17 +15,21 @@ it('requires informed consent, and missing service never requests a microphone',
   fireEvent.keyDown(hold, { key: 'Enter' }); await act(() => vi.advanceTimersByTimeAsync(180)); fireEvent.keyUp(hold, { key: 'Enter' });
   expect(screen.getByText(/尚未配置腾讯云凭据/)).toBeInTheDocument(); expect(getUserMedia).not.toHaveBeenCalled(); expect(onPending).not.toHaveBeenCalled();
 });
-it('keeps pending review editable and clear/complete actions independent', () => {
+it('keeps pending review editable and cancel/complete actions independent', () => {
   const pending = vi.fn(), edit = vi.fn(), done = vi.fn(); render(<VoicePanel pending="待确认内容" onPending={pending} onEdit={edit} onDone={done} />);
   fireEvent.click(screen.getByRole('button', { name: '修改待确认转写' })); expect(edit).toHaveBeenCalledOnce();
   fireEvent.click(screen.getByRole('button', { name: '完成' })); expect(done).toHaveBeenCalledOnce();
-  fireEvent.click(screen.getByRole('button', { name: '清空' })); expect(pending).toHaveBeenCalledWith('');
+  fireEvent.click(screen.getByRole('button', { name: '取消' })); expect(pending).toHaveBeenCalledWith('');
 });
-it('offers a presentation-only collapse without clearing pending text', () => {
+it('shows collapse only in the empty idle state and gives pending text its two review actions', () => {
   const pending = vi.fn(), collapse = vi.fn();
-  render(<VoicePanel pending="仍待确认" onPending={pending} onEdit={() => {}} onDone={() => {}} onCollapse={collapse} />);
+  const view = render(<VoicePanel pending="" onPending={pending} onEdit={() => {}} onDone={() => {}} onCollapse={collapse} />);
   fireEvent.click(screen.getByRole('button', { name: '收起语音输入' }));
   expect(collapse).toHaveBeenCalledOnce();
   expect(pending).not.toHaveBeenCalled();
+  view.rerender(<VoicePanel pending="仍待确认" onPending={pending} onEdit={() => {}} onDone={() => {}} onCollapse={collapse} />);
+  expect(screen.queryByRole('button', { name: '收起语音输入' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '取消' })).toBeVisible();
+  expect(screen.getByRole('button', { name: '完成' })).toBeVisible();
   expect(screen.getByText('仍待确认')).toBeInTheDocument();
 });

@@ -23,14 +23,16 @@ it('starts with an empty local library and never inserts preview examples', asyn
   expect(container.querySelector('.work-card')).toBeNull();
   expect((await repository.load()).works).toHaveLength(0);
 });
-it('writes, edits a segment, saves, reopens and restores from IndexedDB', async () => {
+it('writes, edits the body on the current page, saves, reopens and restores from IndexedDB', async () => {
   const repository = repo(); const view = render(<ProductApp repository={repository} />); await startWriting();
-  fireEvent.click(screen.getByRole('tab', { name: '语音输入' })); fireEvent.click(screen.getByRole('button', { name: '编辑第 1 段' }));
-  fireEvent.change(screen.getByLabelText('段落内容'), { target: { value: '我修改了这一段。' } });
-  fireEvent.click(screen.getByRole('button', { name: '完成修改' })); fireEvent.click(await screen.findByRole('button', { name: '保存' }));
+  fireEvent.click(screen.getByRole('tab', { name: '语音输入' }));
+  fireEvent.click(screen.getByRole('group', { name: '文章正文' }));
+  fireEvent.click(screen.getByRole('group', { name: '文章正文' }));
+  fireEvent.change(screen.getByRole('textbox', { name: '文章正文' }), { target: { value: '我修改了这一段。\n\n我想把这一刻写下来。' } });
+  fireEvent.click(await screen.findByRole('button', { name: '保存' }));
   await screen.findByRole('heading', { name: '我的作品' }); expect((await repository.load()).works[0].segments[0].text).toBe('我修改了这一段。');
   view.unmount(); render(<ProductApp repository={repository} />); fireEvent.click(await screen.findByRole('button', { name: /夏日有感.*继续写/ }));
-  expect(await screen.findByText('我修改了这一段。')).toBeInTheDocument();
+  expect(await screen.findByRole('textbox', { name: '文章正文' })).toHaveValue('我修改了这一段。\n\n我想把这一刻写下来。');
 });
 it('previews a real optimization before applying and persists an undo as history', async () => {
   const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId, result: { answer: '调整标点。', body: '窗前的雨，\n落进了风里。\n\n我想把这一刻写下来。', citedVersionIds: [] } }));
@@ -160,12 +162,12 @@ it('runs polish from its shortcut inside the conversation', async () => {
   expect(screen.getByRole('button', { name: '查看优化结果' })).toBeInTheDocument();
   expect(transport.mock.calls[0][0]).toMatchObject({ action: 'polish', prompt: '' });
 });
-it('recovers an unfinished edit after remount', async () => {
+it('recovers unfinished current-page body editing after remount', async () => {
   const repository = repo(); const view = render(<ProductApp repository={repository} />); await startWriting();
-  fireEvent.click(screen.getByRole('tab', { name: '语音输入' })); fireEvent.click(screen.getByRole('button', { name: '编辑第 1 段' }));
-  fireEvent.change(screen.getByLabelText('段落内容'), { target: { value: '还没点完成的修改' } });
-  await waitFor(async () => expect((await repository.load()).recovery?.draft.segmentEdit?.text).toBe('还没点完成的修改'));
-  view.unmount(); render(<ProductApp repository={repository} />); expect(await screen.findByLabelText('段落内容')).toHaveValue('还没点完成的修改');
+  fireEvent.change(screen.getByRole('textbox', { name: '文章正文' }), { target: { value: '还没保存的当前页修改' } });
+  await waitFor(async () => expect((await repository.load()).recovery?.draft.textDraft).toBe('还没保存的当前页修改'));
+  view.unmount(); render(<ProductApp repository={repository} />);
+  expect(await screen.findByRole('textbox', { name: '文章正文' })).toHaveValue('还没保存的当前页修改');
 });
 it('copies real body and restores a work from the recycle bin', async () => {
   const repository = repo(); render(<ProductApp repository={repository} />); await startWriting();
@@ -209,9 +211,10 @@ it('keeps writing tools directly below the editor without an added save row', as
   expect(screen.getByLabelText('文章正文')).toHaveAttribute('placeholder', '从想说的一句话开始……');
   expect(screen.getByRole('button', { name: '保存' })).toHaveAccessibleDescription('已保存到本机');
   fireEvent.click(screen.getByRole('tab', { name: '语音输入' }));
-  fireEvent.click(screen.getByRole('button', { name: '编辑第 1 段' }));
-  expect(screen.getByText('让这段话，更像您想说的。')).toBeInTheDocument();
-  expect(container.querySelector('.segment-editor-wrap > p')).toHaveTextContent('9 字');
+  fireEvent.click(screen.getByRole('group', { name: '文章正文' }));
+  fireEvent.click(screen.getByRole('group', { name: '文章正文' }));
+  expect(screen.getByRole('textbox', { name: '文章正文' })).toHaveFocus();
+  expect(container.querySelector('.segment-editor-wrap')).toBeNull();
   expect(screen.queryByText('修改会自动保存在本机')).not.toBeInTheDocument();
 });
 
@@ -282,7 +285,7 @@ it('shows the new categories and returns an optimization conversation to its men
   expect(screen.getByRole('button', { name: /^润色文笔/ })).toBeEnabled();
   for (const name of ['精简内容', '扩写内容', '添加配图']) expect(screen.getByRole('button', { name: new RegExp(name) })).toBeDisabled();
   expect(screen.queryByRole('button', { name: /内容类型|文风调整|格式整理/ })).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: '进入小文会话并输入需求' })).toHaveTextContent('问问题，或告诉小文想怎样调整文章');
+  expect(screen.getByRole('button', { name: '进入小文会话并输入需求' })).toHaveTextContent('问小文，或提出修改要求');
   expect(screen.queryByLabelText('问问小文')).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: '查看对话记录' })).not.toBeInTheDocument();
   const history = screen.getByRole('button', { name: '查看修改记录' });
@@ -328,14 +331,21 @@ it('sizes the application to Visual Viewport changes so editor chrome remains in
     else delete (window as unknown as { visualViewport?: VisualViewport }).visualViewport;
   }
 });
-it('collapses and reopens the default speech stage without changing the article', async () => {
+it('hides the whole default speech stage and reopens it from single/double body taps', async () => {
   const repository = repo(); render(<ProductApp repository={repository} />); await startWriting();
   const before = (await repository.load()).works[0].draft.textDraft;
   fireEvent.click(screen.getByRole('tab', { name: '语音输入' }));
   fireEvent.click(screen.getByRole('button', { name: '收起语音输入' }));
   expect(screen.queryByRole('button', { name: '按住说话' })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: '展开语音输入' }));
+  expect(screen.queryByText('展开语音输入')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('group', { name: '文章正文' }));
   expect(screen.getByRole('button', { name: '按住说话' })).toBeInTheDocument();
+  expect(screen.getByRole('tab', { name: '语音输入' })).toHaveAttribute('aria-selected', 'true');
+  fireEvent.click(screen.getByRole('button', { name: '收起语音输入' }));
+  fireEvent.click(screen.getByRole('group', { name: '文章正文' }));
+  fireEvent.click(screen.getByRole('group', { name: '文章正文' }));
+  expect(screen.getByRole('textbox', { name: '文章正文' })).toHaveFocus();
+  expect(screen.getByRole('tab', { name: '文字输入' })).toHaveAttribute('aria-selected', 'true');
   expect((await repository.load()).works[0].draft.textDraft).toBe(before);
 });
 it('uses a bounded autosizing conversation input beside voice and explicit send controls', async () => {
@@ -344,12 +354,16 @@ it('uses a bounded autosizing conversation input beside voice and explicit send 
   const input = screen.getByLabelText<HTMLTextAreaElement>('问问小文');
   expect(input.rows).toBe(1);
   expect(input.style.height).toBe('52px');
+  expect(input).toHaveAttribute('placeholder', '问小文，或提要求');
   Object.defineProperty(input, 'scrollHeight', { configurable: true, value: 220 });
   fireEvent.change(input, { target: { value: '请只调整第二段。'.repeat(30) } });
   expect(input.style.height).toBe('148px');
   expect(input.style.overflowY).toBe('auto');
   expect(screen.getByRole('button', { name: '按住说话输入要求' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '发送' })).toBeEnabled();
+  fireEvent.change(input, { target: { value: '' } });
+  expect(input.style.height).toBe('52px');
+  expect(input.style.overflowY).toBe('hidden');
 });
 it('keeps an optimization request running when its conversation returns to the menu', async () => {
   localStorage.setItem('suiyue-article-ai-consent-v1', 'yes');
@@ -421,10 +435,7 @@ it('shows a one-time quiet optimization hint without moving typing focus', async
 });
 it('uses concise elder-friendly wording in modification records and hides empty entries', async () => {
   render(<ProductApp repository={repo()} />); await startWriting();
-  fireEvent.click(screen.getByRole('tab', { name: '语音输入' }));
-  fireEvent.click(screen.getByRole('button', { name: '编辑第 1 段' }));
-  fireEvent.change(screen.getByLabelText('段落内容'), { target: { value: '雨落在窗前。' } });
-  fireEvent.click(screen.getByRole('button', { name: '完成修改' }));
+  fireEvent.change(screen.getByRole('textbox', { name: '文章正文' }), { target: { value: '雨落在窗前。' } });
   fireEvent.click(screen.getByRole('button', { name: '文章优化' }));
   fireEvent.click(screen.getByRole('button', { name: '查看修改记录' }));
   expect(screen.getByRole('dialog', { name: '修改记录' })).toBeInTheDocument();

@@ -65,6 +65,11 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
   useLayoutEffect(() => {
     const input = promptInput.current;
     if (page !== 'chat' || !input) return;
+    if (!prompt) {
+      input.style.height = '52px';
+      input.style.overflowY = 'hidden';
+      return;
+    }
     input.style.height = 'auto';
     const measured = input.scrollHeight || 52;
     input.style.height = `${Math.min(Math.max(measured, 52), 148)}px`;
@@ -123,7 +128,7 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
   const compose = () => <form className="ai-composer" onSubmit={event => event.preventDefault()}>
     <label className="visually-hidden" htmlFor="article-ai-question">问问小文</label>
     <div className="ai-composer-row"><textarea ref={promptInput} id="article-ai-question" value={prompt} onChange={event => setPrompt(event.target.value)} disabled={busy || voiceActive} maxLength={2000}
-      rows={1} placeholder="问问题，或告诉小文怎样调整" />
+      rows={1} placeholder="问小文，或提要求" />
       <div className="ai-composer-actions"><VoiceDictationButton value={prompt} onChange={text => setPrompt(text.slice(0, 2000))} disabled={busy} onActiveChange={setVoiceActive} />
         <button type="button" className="primary-button ai-send" disabled={busy || voiceActive || !prompt.trim()} onClick={() => request('chat', prompt)}><Icon name="spark" />发送</button></div>
     </div>
@@ -165,7 +170,7 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
           <button type="button" disabled><Icon name="image" /><b>添加配图</b><small>稍后开放</small></button>
         </div>
         <button type="button" className="ai-chat-launcher" aria-label="进入小文会话并输入需求" onClick={() => openChat(true)}>
-          <span>问问题，或告诉小文想怎样调整文章</span><strong>进入会话<Icon name="chevron" /></strong>
+          <span>问小文，或提出修改要求</span><strong>进入会话<Icon name="chevron" /></strong>
         </button>
       </>}
 

@@ -20,6 +20,9 @@ export function Editor({ draft, update, onSave, onBack, onAssistant, saveStatus 
 }) {
   const textarea = useRef<HTMLTextAreaElement>(null);
   const draftRef = useRef(draft);
+  const migratedEdit = useRef('');
+  const focusAfterMigration = useRef(false);
+  const lastBodyTap = useRef(0);
   const [voiceCollapsed, setVoiceCollapsed] = useState(false);
   const [showOptimizeTip, setShowOptimizeTip] = useState(() => !hasSeenOptimizeTip() && optimizeBodyLength(draft) >= OPTIMIZE_TIP_LENGTH);
   const optimizeTipHandled = useRef(showOptimizeTip || hasSeenOptimizeTip());
@@ -46,6 +49,22 @@ export function Editor({ draft, update, onSave, onBack, onAssistant, saveStatus 
     }
     update(next);
   };
+  useEffect(() => {
+    const edit = draft.segmentEdit;
+    if (!edit || edit.id === 'pending') { migratedEdit.current = ''; return; }
+    const signature = `${edit.id}\u0000${edit.text}`;
+    if (migratedEdit.current === signature) return;
+    migratedEdit.current = signature;
+    focusAfterMigration.current = true;
+    const completed = completeSegment(draft);
+    const segments = effectiveSegments(completed);
+    update({ ...completed, segments, textDraft: articleText(segments), inputMode: 'text' });
+  }, [draft, update]);
+  useEffect(() => {
+    if (!focusAfterMigration.current || draft.inputMode !== 'text' || draft.segmentEdit) return;
+    focusAfterMigration.current = false;
+    textarea.current?.focus({ preventScroll: true });
+  }, [draft.inputMode, draft.segmentEdit]);
   const setMode = (mode: InputMode) => {
     if (mode === draft.inputMode) {
       if (mode === 'text') textarea.current?.focus();
@@ -57,8 +76,18 @@ export function Editor({ draft, update, onSave, onBack, onAssistant, saveStatus 
     if (mode === 'voice') setVoiceCollapsed(false);
     if (mode === 'text') textarea.current?.focus({ preventScroll: true });
   };
-  if (draft.segmentEdit) return <>
-    <header className="topbar"><button className="icon-button" type="button" aria-label="返回文章" onClick={() => updateDraft(completeSegment(draft))}><BackIcon /></button><div><strong>编辑这一段</strong></div><span className="topbar-spacer" /></header>
+  const openFromBody = () => {
+    const now = performance.now();
+    if (lastBodyTap.current > 0 && now - lastBodyTap.current <= 350) {
+      lastBodyTap.current = 0;
+      setMode('text');
+      return;
+    }
+    lastBodyTap.current = now;
+    if (voiceCollapsed) setVoiceCollapsed(false);
+  };
+  if (draft.segmentEdit?.id === 'pending') return <>
+    <header className="topbar"><button className="icon-button" type="button" aria-label="返回文章" onClick={() => updateDraft(completeSegment(draft))}><BackIcon /></button><div><strong>修改语音文字</strong></div><span className="topbar-spacer" /></header>
     <div className="segment-editor-wrap"><div className="segment-note"><Icon name="pen" /><span>让这段话，更像您想说的。</span></div><textarea autoFocus className="segment-editor" aria-label="段落内容" maxLength={1_000_000} value={draft.segmentEdit.text} onChange={e => updateDraft({ ...draft, segmentEdit: { ...draft.segmentEdit!, text: e.target.value } })} /><p>{[...draft.segmentEdit.text.replace(/\s/g, '')].length} 字</p></div>
     <footer className="simple-footer"><button className="primary-button" type="button" onClick={() => updateDraft(completeSegment(draft))}>完成修改</button></footer>
   </>;
@@ -67,17 +96,19 @@ export function Editor({ draft, update, onSave, onBack, onAssistant, saveStatus 
     <span id="save-status" className="visually-hidden" role="status">{saveStatus === 'saving' ? '保存中…' : saveStatus === 'saved' ? '已保存到本机' : saveStatus === 'error' ? '尚未保存，请先备份' : '内容仅保存在本机'}</span>
     <div className="editor-scroll writing-canvas">
       <input className="title-input" maxLength={120} value={draft.title} onChange={e => updateDraft({ ...draft, title: e.target.value })} placeholder="输入标题" aria-label="文章标题" />
-      {draft.inputMode === 'text' ? <textarea ref={textarea} className="full-text-editor writing-body" value={draft.textDraft} maxLength={1_000_000} onChange={e => updateDraft({ ...draft, textDraft: e.target.value })} placeholder={BODY_PLACEHOLDER} aria-label="文章正文" inputMode="text" autoCapitalize="sentences" /> : <div className="full-text-editor writing-body writing-preview" role="group" aria-label="文章正文">
+      {draft.inputMode === 'text' ? <textarea ref={textarea} className="full-text-editor writing-body" value={draft.textDraft} maxLength={1_000_000} onChange={e => updateDraft({ ...draft, textDraft: e.target.value })} placeholder={BODY_PLACEHOLDER} aria-label="文章正文" inputMode="text" autoCapitalize="sentences" /> : <div className="full-text-editor writing-body writing-preview" role="group" aria-label="文章正文" tabIndex={0}
+        onClick={openFromBody}
+        onKeyDown={event => { if (voiceCollapsed && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setVoiceCollapsed(false); } }}>
         {!draft.segments.length && <p className="writing-placeholder">{BODY_PLACEHOLDER}</p>}
-        {draft.segments.map((s, i) => <button key={s.id} className="writing-paragraph" type="button" aria-label={`编辑第 ${i + 1} 段`} onClick={() => updateDraft({ ...draft, segmentEdit: { ...s } })}><span>{s.text}</span></button>)}
+        {draft.segments.map(s => <p key={s.id} className="writing-paragraph"><span>{s.text}</span></p>)}
       </div>}
     </div>
-    <footer className={`editor-dock ${draft.inputMode}`}><WritingToolbar mode={draft.inputMode} onMode={setMode} onChat={() => onAssistant('chat')}
+    <footer className={`editor-dock ${draft.inputMode}${draft.inputMode === 'voice' && voiceCollapsed ? ' collapsed' : ''}`}><WritingToolbar mode={draft.inputMode} onMode={setMode} onChat={() => onAssistant('chat')}
       onOptimize={() => { dismissOptimizeTip(); onAssistant('optimize'); }} showOptimizeTip={showOptimizeTip} />
-    {draft.inputMode === 'voice' && (voiceCollapsed ? <button type="button" className="voice-panel-expand" onClick={() => setVoiceCollapsed(false)}><Icon name="chevron" />展开语音输入</button> : <VoicePanel pending={draft.pendingVoice}
+    {draft.inputMode === 'voice' && !voiceCollapsed && <VoicePanel pending={draft.pendingVoice}
       onPending={text => updateDraft({ ...draftRef.current, pendingVoice: text })}
       onEdit={() => updateDraft({ ...draft, segmentEdit: { id: 'pending', text: draft.pendingVoice } })}
       onDone={() => updateDraft(completeVoice(draftRef.current))}
-      onCollapse={() => setVoiceCollapsed(true)} />)}</footer>
+      onCollapse={() => { lastBodyTap.current = 0; setVoiceCollapsed(true); }} />}</footer>
   </>;
 }

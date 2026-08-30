@@ -62,7 +62,7 @@ it('uses actual volume levels and preserves pending text when recognition fails'
   expect(screen.getByRole('status')).toHaveTextContent('连接中断，已收到的文字已保留');
   expect(screen.getByRole('button', { name: '修改待确认转写' })).toHaveTextContent('这一段已经识别到了。');
   expect(screen.getByRole('button', { name: '完成' })).toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: '清空' }));
+  fireEvent.click(screen.getByRole('button', { name: '取消' }));
   expect(screen.queryByText('这一段已经识别到了。')).not.toBeInTheDocument();
   expect(screen.getByRole('status')).toHaveTextContent('连接中断');
 });

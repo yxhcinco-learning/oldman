@@ -47,6 +47,8 @@ it('keeps body typography and paragraph spacing identical between real input mod
   expect(rule('.writing-paragraph')).toMatchObject({ display: 'block', width: '100%', padding: '0', margin: '0', border: '0', background: 'transparent', font: 'inherit', 'white-space': 'inherit', 'text-align': 'inherit', 'overflow-wrap': 'inherit' });
   expect(rule('.writing-paragraph > span')).toEqual({ display: 'block' });
   expect(rule('.writing-paragraph + .writing-paragraph, .writing-piece + .writing-piece')['margin-top']).toBe(rule('.full-text-editor')['line-height']);
+  expect(rule('.writing-preview')).toMatchObject({ cursor: 'text', 'touch-action': 'manipulation' });
+  expect(rule('.editor-dock.voice.collapsed')['padding-bottom']).toBe('env(safe-area-inset-bottom)');
 });
 
 it('keeps failures and simulation labels visible without displacing footer controls', () => {
@@ -62,8 +64,16 @@ it('keeps AI input focus inside its border and uses a compact optimization hint'
   expect(rule('.ai-voice-controls button')).toMatchObject({ 'min-height': '48px', 'touch-action': 'none' });
   expect(rule('.ai-composer textarea')).toMatchObject({ height: '52px', 'min-height': '52px', 'max-height': '148px', resize: 'none' });
   expect(rule('.ai-composer-row')).toMatchObject({ display: 'grid', 'grid-template-columns': 'minmax(0, 1fr)' + ' auto' });
-  expect(rule('.voice-panel-expand')['min-height']).toBe('48px');
+  expect(css).not.toContain('.voice-panel-expand');
   expect(rule('.optimize-tip')).toMatchObject({ position: 'absolute', width: 'min(250px, calc(100vw - 40px))', 'pointer-events': 'none' });
+});
+
+it('keeps the optimization menu compact enough for one screen without squeezing its choices', () => {
+  expect(rule('.ai-page-menu > .sheet-header')['margin-bottom']).toBe('18px');
+  expect(rule('.ai-page-menu .ai-regular')).toMatchObject({ gap: '5px', padding: '16px 18px' });
+  expect(rule('.ai-page-menu .ai-tool-grid')['gap']).toBe('12px');
+  expect(rule('.ai-page-menu .ai-tool-grid > button')).toMatchObject({ 'min-height': '82px', padding: '12px 14px', 'row-gap': '4px' });
+  expect(rule('.ai-page-menu .ai-chat-launcher')).toMatchObject({ 'min-height': '64px', 'margin-top': '16px' });
 });
 
 it('copies only pure SVG presentation assets and keeps the preview runtime outside production', () => {
