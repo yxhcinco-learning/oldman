@@ -53,6 +53,22 @@ it('keeps a conversational rewrite request and applies it as a distinct restorab
   const restored = parseBackupBundle(makeBackup(workspace.state.works, workspace.state.draft, workspace.state.sessions));
   expect(restored.sessions[0].turns[0].prompt).toBe('让第二段更温暖，第一段保持不变');
 });
+it('uses one chat action for both an answer and a confirmed rewrite candidate', async () => {
+  const { workspace, repo } = await setup('第一段\n\n第二段');
+  const call = vi.fn<AiTransport>(async request => ({ requestId: request.requestId, result: request.prompt.includes('哪里')
+    ? { answer: '第二段仍在当前正文中。', citedVersionIds: [request.current.id] }
+    : { answer: '只调整了第二段。', body: '第一段\n\n更温暖的第二段', citedVersionIds: [] } }));
+  const controller = new ArticleAiController(workspace, call);
+  const answerId = await controller.run('chat', '第二段在哪里？');
+  expect(workspace.getSession()!.turns.find(turn => turn.id === answerId)).toMatchObject({ action: 'chat', status: 'answered' });
+  expect(workspace.state.draft?.textDraft).toBe('第一段\n\n第二段');
+  const editId = await controller.run('chat', '让第二段更温暖');
+  expect(workspace.getSession()!.turns.find(turn => turn.id === editId)).toMatchObject({ action: 'chat', status: 'ready' });
+  expect(await workspace.applyTurn(editId!)).toBe(true);
+  expect(workspace.getSession()!.versions.at(-1)).toMatchObject({ source: 'rewrite', body: '第一段\n\n更温暖的第二段' });
+  expect((await repo.load()).sessions[0].turns.map(turn => turn.action)).toEqual(['chat', 'chat']);
+  expect(call).toHaveBeenCalledTimes(2);
+});
 it('refuses stale candidates and restore confirmations without overwriting later typing', async () => {
   const { workspace, controller, repo } = await setup(); const turn = await controller.run('rewrite', '只调整第二段');
   const baseline = workspace.getSession()!.versions[0];

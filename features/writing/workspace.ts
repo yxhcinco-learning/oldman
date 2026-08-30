@@ -82,7 +82,9 @@ export class Workspace {
       this.patch({ error: '正文已发生变化，请根据最新内容重新优化；旧结果仍可查看。' }); return false;
     }
     const next = { ...draft, segments: splitDraft(turn.result.body, draft.segments), textDraft: turn.result.body };
-    const version = newVersion(next, turn.action);
+    const source = turn.action === 'chat' ? 'rewrite' : turn.action;
+    if (source !== 'regular' && source !== 'polish' && source !== 'rewrite') return false;
+    const version = newVersion(next, source);
     return this.commitArticle(next, { ...session, versions: [...session.versions, version],
       turns: session.turns.map(t => t.id === turn.id ? { ...t, status: 'applied', appliedVersionId: version.id } : t) });
   }

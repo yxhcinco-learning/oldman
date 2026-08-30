@@ -2,9 +2,11 @@ import { z } from 'zod';
 import { articleText, newId, type Draft } from './writing';
 
 const id = z.string().min(1).max(128);
-export const aiActionSchema = z.enum(['regular', 'polish', 'question', 'rewrite']);
+export const aiActionSchema = z.enum(['regular', 'polish', 'question', 'rewrite', 'chat']);
 export type AiAction = z.infer<typeof aiActionSchema>;
-export const ACTION_LABELS: Record<AiAction, string> = { regular: '常规优化', polish: '润色文笔', question: '文字追问', rewrite: '对话调整' };
+export const ACTION_LABELS: Record<AiAction, string> = {
+  regular: '常规优化', polish: '润色文笔', question: '文字追问', rewrite: '对话调整', chat: '调整文章',
+};
 export const versionSchema = z.object({
   id, createdAt: z.iso.datetime(), source: z.enum(['baseline', 'manual', 'regular', 'polish', 'rewrite', 'restore']),
   title: z.string().max(120), body: z.string().max(1_000_000),
@@ -42,7 +44,9 @@ export const articleSessionSchema = z.object({
       ctx.addIssue({ code: 'custom', message: '无效的优化结果' });
     }
     if (turn.status === 'applied' && !turn.appliedVersionId) ctx.addIssue({ code: 'custom', message: '缺少应用版本' });
-    if (turn.status === 'answered' && (turn.action !== 'question' || !turn.result)) ctx.addIssue({ code: 'custom', message: '无效的追问结果' });
+    if (turn.status === 'answered' && (!['question', 'chat'].includes(turn.action) || !turn.result || Boolean(turn.result.body))) {
+      ctx.addIssue({ code: 'custom', message: '无效的追问结果' });
+    }
   }
 });
 export type ArticleSession = z.infer<typeof articleSessionSchema>;

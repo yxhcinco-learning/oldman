@@ -25,6 +25,7 @@ function turnPromptLabel(turn: AiTurn) {
 function turnStateLabel(turn: AiTurn, baseBody?: string) {
   return turn.result?.body !== undefined && baseBody !== undefined && turn.result.body === baseBody ? '无正文变化' : TURN_LABELS[turn.status];
 }
+function isConversationEdit(action: AiAction) { return action === 'rewrite' || action === 'chat'; }
 
 export function ArticleAssistant({ entry, workspace, controller, onClose, onBackup }: {
   entry: 'chat' | 'optimize'; workspace: Workspace; controller: ArticleAiController; onClose: () => void; onBackup: () => void;
@@ -58,7 +59,7 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
   const version = session?.versions.find(v => v.id === selectedId);
   const base = session?.versions.find(v => v.id === turn?.inputVersionId);
   const stale = Boolean(base && !sameDocument(base, documentOf(draft)));
-  const previewTitle = page === 'version' ? '查看记录' : turn?.action === 'rewrite' ? '看看调整后的全文' : '看看优化后的全文';
+  const previewTitle = page === 'version' ? '查看记录' : turn && isConversationEdit(turn.action) ? '看看调整后的全文' : '看看优化后的全文';
   const titles: Record<Page, string> = { menu: '文章优化', chat: '和小文聊一聊', preview: previewTitle, history: '修改记录', version: previewTitle, consent: '使用小文前，请您了解' };
   const showTurn = (id: string) => { setSelectedId(id); setOriginal(false); setFeedback(''); setPage('preview'); };
   const showVersion = (id: string) => { setSelectedId(id); restoreBase.current = documentOf(draft); setFeedback(''); setPage('version'); };
@@ -66,7 +67,7 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
   const run = async (action: AiAction, userPrompt: string) => {
     setFeedback(''); setPage('chat');
     const id = await controller.run(action, userPrompt);
-    if (id && ['question', 'rewrite'].includes(action)) setPrompt('');
+    if (id && ['question', 'rewrite', 'chat'].includes(action)) setPrompt('');
   };
   const request = (action: AiAction, question = '') => {
     if (!consent) { setPending({ action, prompt: question }); setPage('consent'); return; }
@@ -77,7 +78,7 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
     setSaving(true);
     const ok = await workspace.applyTurn(turn.id);
     setSaving(false);
-    if (ok) { setFeedback(`已应用${turn.action === 'rewrite' ? '调整' : '优化'}并保存到本机。`); setPage('chat'); }
+    if (ok) { setFeedback(`已应用${isConversationEdit(turn.action) ? '调整' : '优化'}并保存到本机。`); setPage('chat'); }
   };
   const restore = async (target: ArticleVersion, expected: { title: string; body: string }) => {
     if (busy) return;
@@ -106,10 +107,7 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
     <label className="visually-hidden" htmlFor="article-ai-question">问问小文</label>
     <textarea ref={promptInput} id="article-ai-question" value={prompt} onChange={event => setPrompt(event.target.value)} disabled={busy} maxLength={2000}
       rows={3} placeholder="问问题，或告诉小文想怎样调整文章" />
-    <div className="ai-composer-actions">
-      <button type="button" className="ai-ask-button" disabled={busy || !prompt.trim()} onClick={() => request('question', prompt)}>问小文</button>
-      <button type="button" className="primary-button" disabled={busy || !prompt.trim()} onClick={() => request('rewrite', prompt)}><Icon name="spark" />调整文章</button>
-    </div>
+    <div className="ai-composer-actions"><button type="button" className="primary-button" disabled={busy || !prompt.trim()} onClick={() => request('chat', prompt)}><Icon name="spark" />发送</button></div>
   </form>;
 
   return <Dialog className={`article-ai-dialog ai-page-${page}`} title={titles[page]} onClose={close} onBack={page === 'menu' ? undefined : () => {
@@ -150,22 +148,22 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
         <button type="button" className="ai-chat-launcher" aria-label="进入小文会话并输入需求" onClick={() => openChat(true)}>
           <span>问问题，或告诉小文想怎样调整文章</span><strong>进入会话<Icon name="chevron" /></strong>
         </button>
-        <div className="ai-inline-actions"><button type="button" onClick={() => openChat()}>查看对话记录</button><button type="button" onClick={() => setPage('history')}>查看修改记录</button></div>
+        <button type="button" className="ai-record-entry" onClick={() => setPage('history')}><span>修改记录</span><Icon name="chevron" /></button>
       </>}
 
       {page === 'preview' && turn?.result && base && <>
         <div className="ai-inline-actions"><span className="choice-chip">{ACTION_LABELS[turn.action]} · {turnStateLabel(turn, base.body)}</span>
           <button type="button" aria-pressed={original} onClick={() => setOriginal(!original)}>{original ? '查看优化结果' : '对照原文'}</button></div>
         <div className="ai-summary"><strong>小文的修改说明</strong><p>{resultSummary(turn.result, base.body)}</p></div>
-        <div className="ai-full-text" role="region" aria-label={original ? turn.action === 'rewrite' ? '调整前原文' : '优化前原文' : turn.action === 'rewrite' ? '调整后全文' : '优化后全文'}>{original ? base.body : turn.result.body}</div>
-        <p className="ai-note">{turn.action === 'rewrite' ? '请核对人物、动作和经历。' : '请核对事实与细节。'}</p>
-        {turn.status === 'ready' && stale && <p className="ai-error" role="alert">正文已发生变化。旧结果仅供查看，请根据最新正文重新{turn.action === 'rewrite' ? '调整' : '优化'}。</p>}
+        <div className="ai-full-text" role="region" aria-label={original ? isConversationEdit(turn.action) ? '调整前原文' : '优化前原文' : isConversationEdit(turn.action) ? '调整后全文' : '优化后全文'}>{original ? base.body : turn.result.body}</div>
+        <p className="ai-note">{isConversationEdit(turn.action) ? '请核对人物、动作和经历。' : '请核对事实与细节。'}</p>
+        {turn.status === 'ready' && stale && <p className="ai-error" role="alert">正文已发生变化。旧结果仅供查看，请根据最新正文重新{isConversationEdit(turn.action) ? '调整' : '优化'}。</p>}
         {turn.status === 'ready' && <div className="ai-result-actions"><button type="button" disabled={busy} onClick={async () => {
           setSaving(true); const ok = await workspace.updateSession(draft.id, current => ({ ...current, turns: current.turns.map(t => t.id === turn.id ? { ...t, status: 'dismissed' } : t) }));
           setSaving(false); if (ok) { setPage('chat'); setFeedback('未采用，正文未变。'); }
-        }}>先不修改</button><button type="button" className="primary-button" disabled={busy || stale || Boolean(draft.pendingVoice.trim()) || Boolean(draft.segmentEdit)} onClick={() => void apply()}>应用{turn.action === 'rewrite' ? '调整' : '优化'}</button></div>}
-        {turn.status === 'applied' && <button className="ai-secondary" type="button" disabled={busy} onClick={() => undo(turn)}>撤销这次{turn.action === 'rewrite' ? '调整' : '优化'}</button>}
-        {stale && turn.action !== 'question' && <button className="ai-secondary" type="button" disabled={busy} onClick={() => request(turn.action, turn.action === 'rewrite' ? turn.prompt : '')}>按最新正文重新{turn.action === 'rewrite' ? '调整' : '优化'}</button>}
+        }}>先不修改</button><button type="button" className="primary-button" disabled={busy || stale || Boolean(draft.pendingVoice.trim()) || Boolean(draft.segmentEdit)} onClick={() => void apply()}>应用{isConversationEdit(turn.action) ? '调整' : '优化'}</button></div>}
+        {turn.status === 'applied' && <button className="ai-secondary" type="button" disabled={busy} onClick={() => undo(turn)}>撤销这次{isConversationEdit(turn.action) ? '调整' : '优化'}</button>}
+        {stale && turn.action !== 'question' && <button className="ai-secondary" type="button" disabled={busy} onClick={() => request(turn.action, isConversationEdit(turn.action) ? turn.prompt : '')}>按最新正文重新{isConversationEdit(turn.action) ? '调整' : '优化'}</button>}
       </>}
 
       {page === 'chat' && <>
@@ -177,10 +175,10 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
                 {item.result && <strong className="ai-answer-label">{item.result.body ? '小文的修改说明' : '小文的回答'}</strong>}
                 <p>{item.result ? resultSummary(item.result, session?.versions.find(v => v.id === item.inputVersionId)?.body ?? '') : item.error || '正在处理…'}</p>
                 {Boolean(item.omittedRecords) && <p className="ai-note">较早记录未发送，仍保存在本机。</p>}
-                {item.result?.body && <div className="ai-turn-actions"><button type="button" onClick={() => showTurn(item.id)}>查看{item.action === 'rewrite' ? '调整' : '优化'}结果</button>
-                {item.status === 'applied' && <button type="button" disabled={busy} onClick={() => undo(item)}>撤销这次{item.action === 'rewrite' ? '调整' : '优化'}</button>}</div>}
+                {item.result?.body && <div className="ai-turn-actions"><button type="button" onClick={() => showTurn(item.id)}>查看{isConversationEdit(item.action) ? '调整' : '优化'}结果</button>
+                {item.status === 'applied' && <button type="button" disabled={busy} onClick={() => undo(item)}>撤销这次{isConversationEdit(item.action) ? '调整' : '优化'}</button>}</div>}
                 {item.result?.citedVersionIds.map((id, i) => <button type="button" key={id} onClick={() => showVersion(id)}>查看引用记录 {i + 1}</button>)}
-                {['failed', 'cancelled'].includes(item.status) && <button type="button" disabled={busy} onClick={() => request(item.action, ['question', 'rewrite'].includes(item.action) ? item.prompt : '')}>重新{item.action === 'question' ? '提问' : item.action === 'rewrite' ? '调整' : '生成'}</button>}
+                {['failed', 'cancelled'].includes(item.status) && <button type="button" disabled={busy} onClick={() => request(item.action, ['question', 'rewrite', 'chat'].includes(item.action) ? item.prompt : '')}>重新{item.action === 'question' ? '提问' : item.action === 'rewrite' ? '调整' : item.action === 'chat' ? '发送' : '生成'}</button>}
               </div><div className="ai-turn-meta"><span className="ai-turn-state">{turnStateLabel(item, session?.versions.find(v => v.id === item.inputVersionId)?.body)}</span><time>{timeLabel(item.createdAt)}</time></div></div></div>
           </div>)}
         </div>

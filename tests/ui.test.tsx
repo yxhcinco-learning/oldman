@@ -66,7 +66,8 @@ it('answers in the article conversation and exposes an actual cited version with
   const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId, result: { answer: '原文仍在这个版本中。', citedVersionIds: [request.current.id] } }));
   const repository = repo(); const view = render(<ProductApp repository={repository} aiTransport={transport} />); await startWriting(); const before = (await repository.load()).works[0];
   fireEvent.click(screen.getByRole('button', { name: '聊天引导' })); fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '我原来写的内容呢？' } });
-  fireEvent.click(screen.getByRole('button', { name: '问小文' })); await screen.findByText('原文仍在这个版本中。');
+  fireEvent.click(screen.getByRole('button', { name: '发送' })); await screen.findByText('原文仍在这个版本中。');
+  expect(transport.mock.calls[0][0].action).toBe('chat');
   fireEvent.click(screen.getByRole('button', { name: '查看引用记录 1' })); expect(screen.getByRole('region', { name: '修改记录正文' })).toHaveTextContent('窗前的雨');
   expect((await repository.load()).works[0].draft.textDraft).toEqual(before.draft.textDraft);
   view.unmount(); render(<ProductApp repository={repository} aiTransport={transport} />);
@@ -75,21 +76,22 @@ it('answers in the article conversation and exposes an actual cited version with
 });
 it('turns an explicit conversational request into a preview and applies it only after confirmation', async () => {
   localStorage.setItem('suiyue-article-ai-consent-v1', 'yes');
-  const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId, result: request.action === 'rewrite'
+  const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId, result: request.prompt.startsWith('只把第一段')
     ? { answer: '只让第一段更温暖。', body: request.current.body.replace('窗前的雨', '窗前温柔的雨'), citedVersionIds: [] }
     : { answer: '这是只读回答。', citedVersionIds: [request.current.id] } }));
   const repository = repo(); render(<ProductApp repository={repository} aiTransport={transport} />); await startWriting();
   const before = (await repository.load()).works[0].draft.textDraft;
   fireEvent.click(screen.getByRole('button', { name: '聊天引导' }));
   fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '只把第一段写得更温暖，其他不变' } });
-  expect(screen.getByRole('button', { name: '问小文' })).toBeEnabled();
-  fireEvent.click(screen.getByRole('button', { name: '调整文章' }));
+  expect(screen.getByRole('button', { name: '发送' })).toBeEnabled();
+  expect(screen.queryByRole('button', { name: /问小文|调整文章/ })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: '发送' }));
   expect(await screen.findByText('只让第一段更温暖。')).toBeInTheDocument();
   expect(screen.getByText('小文的修改说明')).toBeInTheDocument();
   expect(screen.getByText('待应用')).toBeInTheDocument();
   expect(screen.queryByRole('region', { name: '调整后全文' })).not.toBeInTheDocument();
   expect((await repository.load()).works[0].draft.textDraft).toBe(before);
-  expect(transport.mock.calls[0][0]).toMatchObject({ action: 'rewrite', prompt: '只把第一段写得更温暖，其他不变' });
+  expect(transport.mock.calls[0][0]).toMatchObject({ action: 'chat', prompt: '只把第一段写得更温暖，其他不变' });
   fireEvent.click(screen.getByRole('button', { name: '查看调整结果' }));
   expect(await screen.findByRole('region', { name: '调整后全文' })).toHaveTextContent('窗前温柔的雨');
   expect(screen.getByText('请核对人物、动作和经历。')).toBeInTheDocument();
@@ -102,8 +104,8 @@ it('turns an explicit conversational request into a preview and applies it only 
   expect((await repository.load()).works[0].draft.textDraft).toContain('窗前温柔的雨');
   expect((await repository.load()).sessions[0].versions.at(-1)?.source).toBe('rewrite');
   fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '刚才改了哪里？' } });
-  fireEvent.click(screen.getByRole('button', { name: '问小文' })); await screen.findByText('这是只读回答。');
-  expect(transport.mock.calls[1][0].action).toBe('question');
+  fireEvent.click(screen.getByRole('button', { name: '发送' })); await screen.findByText('这是只读回答。');
+  expect(transport.mock.calls[1][0].action).toBe('chat');
 });
 it('keeps the modification explanation when a candidate is not adopted', async () => {
   localStorage.setItem('suiyue-article-ai-consent-v1', 'yes');
@@ -114,7 +116,7 @@ it('keeps the modification explanation when a candidate is not adopted', async (
   fireEvent.click(screen.getByRole('button', { name: '文章优化' }));
   fireEvent.click(screen.getByRole('button', { name: '进入小文会话并输入需求' }));
   fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '调整第一段语序' } });
-  fireEvent.click(screen.getByRole('button', { name: '调整文章' }));
+  fireEvent.click(screen.getByRole('button', { name: '发送' }));
   expect(await screen.findByText('调整了第一段的语序和节奏。')).toBeInTheDocument();
   expect(screen.getByText('待应用')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: '查看调整结果' }));
@@ -273,6 +275,8 @@ it('shows the new categories and returns an optimization conversation to its men
   for (const name of ['精简内容', '扩写内容', '添加配图']) expect(screen.getByRole('button', { name: new RegExp(name) })).toBeDisabled();
   expect(screen.queryByRole('button', { name: /内容类型|文风调整|格式整理/ })).not.toBeInTheDocument();
   expect(screen.queryByLabelText('问问小文')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: '查看对话记录' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '修改记录' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: '进入小文会话并输入需求' }));
   expect(screen.getByLabelText('问问小文')).toHaveFocus();
   fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '还没发送的调整要求' } });
@@ -304,7 +308,7 @@ it('keeps an optimization request running when its conversation returns to the m
   expect(requestSignal?.aborted).toBe(false);
   continueRequest();
   await waitFor(() => expect(screen.queryByText('正在处理…')).not.toBeInTheDocument());
-  fireEvent.click(screen.getByRole('button', { name: '查看对话记录' }));
+  fireEvent.click(screen.getByRole('button', { name: '进入小文会话并输入需求' }));
   expect(await screen.findByText('整理完成。')).toBeInTheDocument();
 });
 it('closes the assistant directly when the conversation starts from chat', async () => {
@@ -315,6 +319,8 @@ it('closes the assistant directly when the conversation starts from chat', async
   expect(screen.queryByText('这篇文章的对话')).not.toBeInTheDocument();
   expect(screen.queryByText(/我会结合这篇文章/)).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: '查看修改记录' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '发送' })).toBeDisabled();
+  expect(screen.queryByRole('button', { name: /问小文|调整文章/ })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: '关闭' }));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); expect(opener).toHaveFocus();
 });
@@ -325,7 +331,7 @@ it('uses concise elder-friendly wording in modification records and hides empty 
   fireEvent.change(screen.getByLabelText('段落内容'), { target: { value: '雨落在窗前。' } });
   fireEvent.click(screen.getByRole('button', { name: '完成修改' }));
   fireEvent.click(screen.getByRole('button', { name: '文章优化' }));
-  fireEvent.click(screen.getByRole('button', { name: '查看修改记录' }));
+  fireEvent.click(screen.getByRole('button', { name: '修改记录' }));
   expect(screen.getByRole('dialog', { name: '修改记录' })).toBeInTheDocument();
   expect(screen.getByText('修改会自动留下记录。以前已经丢失的内容无法找回。')).toBeInTheDocument();
   const record = screen.getByRole('button', { name: /手动编辑/ });

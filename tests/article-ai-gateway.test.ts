@@ -63,6 +63,25 @@ it('uses an explicit conversational instruction to return a full candidate while
   expect(body.messages[0].content).toContain('answer 必须明确说明加入了哪类氛围');
   expect(JSON.parse(body.messages[1].content)).toMatchObject({ action: 'rewrite', prompt: '删除第二段，其余保持不变' });
 });
+it('lets one chat action answer questions or return a complete candidate without a classifier request', async () => {
+  const call = vi.fn<typeof fetch>()
+    .mockResolvedValueOnce(response({ answer: '第二段仍在正文中。', citedVersionIds: [] }))
+    .mockResolvedValueOnce(response({ answer: '删除了第二段。', body: '周末我去了公园。', citedVersionIds: [] }));
+  const app = await gateway({ fetch: call });
+  const session = newSession({ ...emptyDraft(), inputMode: 'text', textDraft: '周末我去了公园。\n\n第二段。' });
+  const question = buildAiRequest(session, 'chat', '第二段在哪里？', crypto.randomUUID());
+  const questionResult = await app.inject({ method: 'POST', url: '/api/ai/turn', headers: { origin }, payload: question });
+  expect(questionResult.statusCode).toBe(200); expect(questionResult.json().result.body).toBeUndefined();
+  const rewrite = buildAiRequest(session, 'chat', '删除第二段，其余保持不变', crypto.randomUUID());
+  const rewriteResult = await app.inject({ method: 'POST', url: '/api/ai/turn', headers: { origin }, payload: rewrite });
+  expect(rewriteResult.statusCode).toBe(200); expect(rewriteResult.json().result.body).toBe('周末我去了公园。');
+  expect(call).toHaveBeenCalledTimes(2);
+  const upstream = JSON.parse((call.mock.calls as unknown as [string, RequestInit][])[0][1].body as string);
+  expect(upstream.messages[0].content).toContain('只做一次判断和回复');
+  expect(upstream.messages[0].content).toContain('不得以“只能回答”');
+  expect(upstream.messages[0].content).toContain('answer 不展示内部 id');
+  expect(JSON.parse(upstream.messages[1].content)).toMatchObject({ action: 'chat', prompt: '第二段在哪里？' });
+});
 it.each([401, 402, 429, 500])('sanitizes upstream HTTP %s errors without retrying', async code => {
   const call = vi.fn(async () => new Response('secret-and-private-body', { status: code })); const app = await gateway({ fetch: call });
   const result = await app.inject({ method: 'POST', url: '/api/ai/turn', headers: { origin }, payload: payload() });
