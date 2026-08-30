@@ -27,10 +27,9 @@
 - [x] 5.3 Run at most one non-sensitive public sample each for regular optimization, polish and text question, plus at most one short synthesized ASR sample when available; record calls and failures honestly
 - [ ] 5.4 Complete real Safari/iOS and Android Chrome microphone, keyboard, background and network-switch checks on physical devices
 - [ ] 5.5 Replace the single long test credential with finite `admin01`/`admin02`-style entries using distinct four-digit codes, update the private handoff file and verify every entry plus an invalid credential without exposing secrets
-- [ ] 5.6 Add and deploy a non-cached friendly 401 retry response, then verify cancelling/interruption can manually retrigger the Basic Auth challenge without exposing credentials or bypassing protection
 
 ## 6. Delivery evidence
 
 - [x] 6.1 Record URL/access handoff, deployed commit, topology, verified functions, product deviations, cost/privacy limits, rollback and local commits in acceptance documentation
 - [x] 6.2 When all scoped tasks have evidence, sync the deployment spec and archive the change; otherwise keep it active with incomplete device items explicit
-- [ ] 6.3 Record the simplified credential rotation, 401 recovery behavior, security trade-off and remaining physical-device evidence without publishing plaintext codes
+- [ ] 6.3 Record the simplified credential rotation, standard refresh retry behavior, security trade-off and remaining physical-device evidence without publishing plaintext codes
