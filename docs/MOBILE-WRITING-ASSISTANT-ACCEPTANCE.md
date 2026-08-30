@@ -43,6 +43,12 @@
 - 本地真实浏览器覆盖360×640、390×844、430×932和1280×900：四尺寸根页面无横向溢出，页头/底部工具可见；390×844下标题点击后焦点仍为“文章标题”、语音麦克风消失、正文 `box-shadow: none`，聊天不打开 Dialog。小文空输入为52px，按钮可访问名称为“点按开始语音输入要求”，控制台无警告或错误。未接受麦克风权限、未调用腾讯云或DeepSeek。
 - 提交 `2dafc85` 已构建并切换到 `/opt/suiyue-yousheng/releases/2dafc85`，回滚版本为 `/opt/suiyue-yousheng/releases/4cd7cb0`；`suiyue-web`、`suiyue-gateway`、回环首页与 `/api/health` 均正常。活动产物包含“聊天功能暂未开放”“点按开始语音输入要求”，不包含旧“小文按住说话输入要求”。受控公网 `https://suiyue.maicong.chat` 的无认证入口返回401、`WWW-Authenticate`、`Cache-Control: no-store` 和恢复按钮；该证据不冒充受保护页面内的真机点击。
 
+## 双击光标定位补充验收（2026-08-30）
+
+- 快速第二次点击现在先从语音预览取得坐标光标，按段落序号、段内换行与段间 `\n\n` 映射到全文 textarea，并在聚焦前后设置相等的 `selectionStart` / `selectionEnd`。覆盖标准 `caretPositionFromPoint`、WebKit `caretRangeFromPoint`、emoji UTF-16偏移、跨段落分隔与正文空白回退；正文内容保持逐字一致。
+- 完整 `npm run check` 通过：22个测试文件、197项测试、类型、Lint、OpenSpec严格校验和模块边界均通过；`npm run build`通过。本地真实浏览器在第二段中部双击后，79字符全文获得焦点且 selection 为 `58/58`，其中前一段47字符、双换行2字符、第二段命中偏移9字符，证明光标没有跳到开头或文末，也没有选择整段。
+- 360×640、390×844、430×932和1280×900四尺寸中页头、底部工具栏均在根画布内且没有横向溢出，控制台无警告或错误。提交 `b0a263d` 已构建并切换到 `/opt/suiyue-yousheng/releases/b0a263d`，`previous` 为 `/opt/suiyue-yousheng/releases/2dafc85`；两个服务、3011首页、3012健康检查及Nginx配置均正常，活动产物包含 `caretPositionFromPoint` 与 `data-segment-index`。公网无认证恢复页继续返回带挑战和 `no-store` 的401。本轮未调用真实麦克风、腾讯ASR或DeepSeek；物理设备键盘与手指命中仍由用户复验。
+
 ## 未替代的真机验收
 
 自动 Visual Viewport 事件只能证明布局按输入指标更新，不能替代物理设备。iOS Safari、Android Chrome 的系统键盘、浏览器工具栏收缩、切后台返回和真实麦克风仍保持待验；没有证据前不标记完成，也不强行归档 change。

@@ -5,7 +5,7 @@
 - [x] 1.3 Add article assistant tests for compact complete menu, one-line-to-bounded autosizing input, voice-only fill and explicit send
 - [x] 1.4 Add corrective regression tests for mutually exclusive speech controls, fully hidden collapse, article single/double activation, inline normal editing, separate pending editing, comfortable menu spacing and empty composer height
 - [x] 1.5 Add regression coverage for title-triggered text mode without focus theft, the removed body focus line, unavailable toolbar chat, tap-toggle XiaoWen dictation and centered collapse controls
-- [ ] 1.6 Add regression coverage for standard and WebKit point-to-caret APIs, paragraph/newline offset mapping and blank-area fallback
+- [x] 1.6 Add regression coverage for standard and WebKit point-to-caret APIs, paragraph/newline offset mapping and blank-area fallback
 
 ## 2. Accurate AI feedback
 
@@ -18,7 +18,7 @@
 - [x] 3.2 Add default-visible speech collapse plus a compact expand control, preserving pending text and blocking collapse during active speech
 - [x] 3.3 Replace the compact expand control with body-driven reopen, make idle collapse and pending cancel/complete mutually exclusive, and remove the normal paragraph editor in favor of current-page text editing
 - [x] 3.4 Switch expanded voice mode to current-page text state when the title receives focus, preserve pending content, remove the body focus artifact and center the collapse control
-- [ ] 3.5 Transfer the second body tap position into a collapsed current-page text selection without changing article content
+- [x] 3.5 Transfer the second body tap position into a collapsed current-page text selection without changing article content
 
 ## 4. Compact article assistant
 
@@ -35,4 +35,4 @@
 - [ ] 5.3 Record real iOS Safari and Android Chrome keyboard, browser-toolbar and background-return results on physical devices; keep the change active if unavailable
 - [x] 5.4 Run the complete check/build and browser regression for the corrected speech/body/menu/composer interactions, deploy the fixed release and record public evidence without claiming unavailable physical-device gestures
 - [x] 5.5 Run complete checks, build and browser regression for title keyboard handling, chat reservation, tap dictation and control alignment; deploy and record public evidence without claiming unavailable physical-device gestures
-- [ ] 5.6 Run complete checks, build and browser regression for point-preserving text entry; deploy and record evidence without claiming unavailable physical-device keyboard results
+- [x] 5.6 Run complete checks, build and browser regression for point-preserving text entry; deploy and record evidence without claiming unavailable physical-device keyboard results
