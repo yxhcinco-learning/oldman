@@ -39,7 +39,11 @@
 
 #### Scenario: Validate simplified test entries
 - **WHEN** 部署者轮换为有限的易输入测试条目
-- **THEN** 每个预期账号分别通过 HTTPS 认证且首次输入无需切后台复制，无效账号或口令仍返回 401；主动取消后刷新可重新触发标准认证，验证输出和验收记录不得包含四位数字明文
+- **THEN** 每个预期账号分别通过 HTTPS 认证，无效账号或口令仍返回 401，验证输出和验收记录不得包含四位数字明文
+
+#### Scenario: Recover after mobile authentication is cancelled
+- **WHEN** 移动浏览器在原生 Basic Auth 对话框期间切到后台并把认证当作取消
+- **THEN** 401 响应保留认证挑战并显示同源、无缓存的最小恢复页；页面回到前台至多自动重试一次，用户也可通过至少 48px 的“重新登录”操作再次触发原生认证框，且页面不得读取、保存或传输凭据到产品应用
 
 ### Requirement: Server-only secrets and safe operations logs
 Linux 网关 MUST 使用 `ASR_CREDENTIAL_SOURCE=project` 从 root-only 服务端环境文件加载同一批次的腾讯云 ASR 凭据，并从同一文件加载 DeepSeek Key；秘密不得进入 Git、客户端、构建镜像、release、命令输出或日志。操作日志 MUST 只记录 requestId、action、status、durationMs、可用的 tokens 和固定 errorCategory，不得记录正文、会话、音频、Key、Cookie、Authorization、签名 URL 或上游私密响应。
