@@ -35,6 +35,25 @@ it('protects the exact HTTPS origin while preserving same-origin API and WebSock
   expect(nginx).toContain('error_log /var/log/nginx/suiyue-yousheng-error.log crit;');
   expect(nginx).toContain('proxy_headers_hash_max_size 1024;');
   expect(nginx).toContain('limit_req_status 429;');
+  expect(nginx).toContain('error_page 401 /__suiyue-auth-retry;');
+  expect(nginx).toContain('location = /__suiyue-auth-retry {');
+  expect(nginx).toContain('internal;');
+  expect(nginx).toContain('auth_basic off;');
+  expect(nginx).toContain('alias /var/www/suiyue-yousheng/auth-retry.html;');
+  expect(nginx).toContain('add_header Cache-Control "no-store" always;');
+});
+
+it('offers a credential-blind mobile authentication retry without looping', () => {
+  const page = read('deploy/nginx/auth-retry.html');
+  const installer = read('deploy/server/enable-https.sh');
+  expect(page).toContain('需要重新登录');
+  expect(page).toContain('id="retry"');
+  expect(page).toContain('min-height: 52px');
+  expect(page).toContain("document.visibilityState === 'visible'");
+  expect(page).toContain("url.searchParams.has('auth_retry')");
+  expect(page).toContain("url.searchParams.set('auth_retry'");
+  expect(page).not.toMatch(/<input|document\.cookie|localStorage/i);
+  expect(installer).toContain('install -m 0644 -o root -g root "$release_dir/deploy/nginx/auth-retry.html"');
 });
 
 it('contains no populated secret or product-layer temporary authentication', () => {
@@ -43,6 +62,7 @@ it('contains no populated secret or product-layer temporary authentication', () 
     'deploy/systemd/suiyue-web.service',
     'deploy/systemd/suiyue-gateway.service',
     'deploy/nginx/suiyue-yousheng.conf',
+    'deploy/nginx/auth-retry.html',
   ].map(read).join('\n');
   expect(files).not.toMatch(/(?:DEEPSEEK_API_KEY|TENCENT_ASR_SECRET_(?:ID|KEY))=[^\r\n]+/);
   expect(files).not.toMatch(/(?:password|passwd)\s*=/i);

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light" />
+    <title>重新登录｜岁月有声</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { min-height: 100%; margin: 0; }
+      body {
+        display: grid;
+        place-items: center;
+        padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
+        background: #f8f6f2;
+        color: #234b42;
+        font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+      }
+      main {
+        width: min(100%, 430px);
+        padding: 32px 24px;
+        border: 1px solid #d9e1dc;
+        border-radius: 24px;
+        background: #fff;
+        box-shadow: 0 16px 40px rgb(35 75 66 / 10%);
+        text-align: center;
+      }
+      h1 { margin: 0; font-size: 28px; line-height: 1.3; font-weight: 650; }
+      p { margin: 16px 0 24px; color: #60736d; font-size: 18px; line-height: 1.7; }
+      button {
+        width: 100%;
+        min-height: 52px;
+        border: 0;
+        border-radius: 18px;
+        background: #315f54;
+        color: #fff;
+        font: inherit;
+        font-size: 18px;
+        font-weight: 650;
+        cursor: pointer;
+      }
+      button:focus-visible { outline: 3px solid #d89855; outline-offset: 3px; }
+      small { display: block; margin-top: 16px; color: #87958f; font-size: 14px; line-height: 1.6; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>需要重新登录</h1>
+      <p>切换到其他应用时，浏览器关闭了登录窗口。返回后点一下即可继续。</p>
+      <button id="retry" type="button">重新登录</button>
+      <small>账号和密码仍由浏览器直接验证，本页面不会读取或保存。</small>
+    </main>
+    <script>
+      (() => {
+        let scheduled = false;
+        const retry = (force) => {
+          if (scheduled) return;
+          const url = new URL(window.location.href);
+          if (!force && url.searchParams.has('auth_retry')) return;
+          scheduled = true;
+          url.searchParams.set('auth_retry', Date.now().toString());
+          window.location.replace(url.pathname + url.search + url.hash);
+        };
+
+        document.getElementById('retry').addEventListener('click', () => retry(true));
+
+        if (!new URL(window.location.href).searchParams.has('auth_retry')) {
+          if (document.visibilityState === 'hidden') {
+            document.addEventListener('visibilitychange', () => {
+              if (document.visibilityState === 'visible') retry(false);
+            }, { once: true });
+          } else {
+            window.setTimeout(() => retry(false), 300);
+          }
+        }
+      })();
+    </script>
+  </body>
+</html>
