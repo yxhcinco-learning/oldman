@@ -3,6 +3,7 @@ import { Dialog } from '../../components/Dialog';
 import { Icon } from '../../components/Icons';
 import { ACTION_LABELS, VERSION_LABELS, documentOf, sameDocument, resultSummary, type AiAction, type AiTurn, type ArticleVersion } from '../../lib/domain/article-ai';
 import { Workspace } from '../writing/workspace';
+import { VoiceDictationButton } from '../speech/VoiceDictationButton';
 import { ArticleAiController } from './session';
 
 type Page = 'menu' | 'chat' | 'preview' | 'history' | 'version' | 'consent';
@@ -38,6 +39,7 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
   const [original, setOriginal] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [saving, setSaving] = useState(false);
+  const [voiceActive, setVoiceActive] = useState(false);
   const [consent, setConsent] = useState(hasConsent);
   const [pending, setPending] = useState<{ action: AiAction; prompt: string } | null>(null);
   const [historyCount, setHistoryCount] = useState(30);
@@ -105,9 +107,11 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
   };
   const compose = () => <form className="ai-composer" onSubmit={event => event.preventDefault()}>
     <label className="visually-hidden" htmlFor="article-ai-question">问问小文</label>
-    <textarea ref={promptInput} id="article-ai-question" value={prompt} onChange={event => setPrompt(event.target.value)} disabled={busy} maxLength={2000}
+    <div className="ai-prompt-field"><textarea ref={promptInput} id="article-ai-question" value={prompt} onChange={event => setPrompt(event.target.value)} disabled={busy || voiceActive} maxLength={2000}
       rows={3} placeholder="问问题，或告诉小文想怎样调整文章" />
-    <div className="ai-composer-actions"><button type="button" className="primary-button" disabled={busy || !prompt.trim()} onClick={() => request('chat', prompt)}><Icon name="spark" />发送</button></div>
+      <VoiceDictationButton value={prompt} onChange={text => setPrompt(text.slice(0, 2000))} disabled={busy} onActiveChange={setVoiceActive} />
+    </div>
+    <div className="ai-composer-actions"><button type="button" className="primary-button" disabled={busy || voiceActive || !prompt.trim()} onClick={() => request('chat', prompt)}><Icon name="spark" />发送</button></div>
   </form>;
 
   return <Dialog className={`article-ai-dialog ai-page-${page}`} title={titles[page]} onClose={close} onBack={page === 'menu' ? undefined : () => {

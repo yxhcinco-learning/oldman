@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { expect, it, vi } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import type { SpeechState } from '../features/speech/session';
+import { VoiceDictationButton } from '../features/speech/VoiceDictationButton';
 import { VoicePanel } from '../features/speech/VoicePanel';
 
 // Presentation-only events: no capture, sockets or paid recognition are used.
 const bridge = vi.hoisted(() => ({ emit: undefined as undefined | ((state: SpeechState) => void) }));
 vi.mock('../features/speech/session', () => ({
   SpeechSession: class {
-    state = { phase: 'idle', text: '', elapsed: 0, level: 0, message: '' };
-    constructor(onChange: (state: SpeechState) => void) { bridge.emit = onChange; }
+    state = { phase: 'idle', text: '', elapsed: 0, level: 0, message: '' } as SpeechState;
+    constructor(onChange: (state: SpeechState) => void) { bridge.emit = state => { this.state = state; onChange(state); }; }
     start() {}
     stop() {}
     cancel() {}
@@ -22,6 +23,8 @@ function Harness() {
 function emit(next: Partial<SpeechState>) {
   act(() => bridge.emit?.({ phase: 'idle', text: '', elapsed: 0, level: 0, message: '', ...next }));
 }
+
+afterEach(() => { localStorage.clear(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 it('retains the same microphone and stage through all real recognition phases', () => {
   const { container } = render(<Harness />);
@@ -64,4 +67,24 @@ it('shows permission and connection failures without hiding the original control
   expect(screen.getByRole('status')).toHaveTextContent('麦克风未获允许');
   expect(screen.getByRole('button', { name: '按住说话' })).toBeEnabled();
   expect(screen.queryByRole('button', { name: '完成' })).not.toBeInTheDocument();
+});
+
+it('appends dictated words to the editable AI prompt and restores the prefix when cancelled', async () => {
+  vi.useFakeTimers();
+  localStorage.setItem('suiyue-voice-consent-v1', 'yes');
+  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: vi.fn() } });
+  vi.stubGlobal('AudioContext', class {});
+  function DictationHarness() {
+    const [value, setValue] = useState('保留原来的要求。');
+    return <><textarea aria-label="小文要求" value={value} onChange={event => setValue(event.target.value)} />
+      <VoiceDictationButton value={value} onChange={setValue} /></>;
+  }
+  render(<DictationHarness />);
+  const hold = screen.getByRole('button', { name: '按住说话输入要求' });
+  fireEvent.keyDown(hold, { key: 'Enter' });
+  await act(() => vi.advanceTimersByTimeAsync(180));
+  emit({ phase: 'recording', text: '再简短一些。' });
+  expect(screen.getByLabelText('小文要求')).toHaveValue('保留原来的要求。再简短一些。');
+  fireEvent.keyDown(document, { key: 'Escape' });
+  expect(screen.getByLabelText('小文要求')).toHaveValue('保留原来的要求。');
 });

@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { VoicePanel } from '../features/speech/VoicePanel';
 
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+afterEach(() => { localStorage.clear(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 it('requires informed consent, and missing service never requests a microphone', async () => {
   vi.useFakeTimers(); const fetchStatus = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ configured: false }) });
   vi.stubGlobal('fetch', fetchStatus); vi.stubGlobal('AudioContext', class {});

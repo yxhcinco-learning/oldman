@@ -57,6 +57,12 @@ it('keeps failures and simulation labels visible without displacing footer contr
   expect(rule('.product-dialog')).toMatchObject({ 'max-height': '90dvh', 'overflow-y': 'auto', 'border-radius': '24px 24px 0 0' });
 });
 
+it('keeps AI input focus inside its border and uses a compact optimization hint', () => {
+  expect(rule('.ai-composer textarea:focus-visible')).toMatchObject({ outline: '0', 'border-color': 'var(--forest-soft)', 'box-shadow': 'inset 0 0 0 1px var(--forest-soft)' });
+  expect(rule('.ai-voice-controls button')).toMatchObject({ 'min-height': '48px', 'touch-action': 'none' });
+  expect(rule('.optimize-tip')).toMatchObject({ position: 'absolute', width: 'min(250px, calc(100vw - 40px))', 'pointer-events': 'none' });
+});
+
 it('copies only pure SVG presentation assets and keeps the preview runtime outside production', () => {
   expect(readFileSync('components/Visuals.tsx', 'utf8').replace(/\r\n/g, '\n')).toBe(readFileSync('previews/echoes-of-time/Visuals.tsx', 'utf8').replace(/\r\n/g, '\n'));
   for (const file of ['features/writing/ProductApp.tsx', 'features/writing/Editor.tsx', 'features/writing/WorksHome.tsx', 'features/speech/VoicePanel.tsx', 'components/WritingControls.tsx', 'components/Visuals.tsx']) {

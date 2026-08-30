@@ -1,10 +1,12 @@
 import { Icon } from './Icons';
 
-export function WritingToolbar({ mode, onMode, onChat, onOptimize, disabled = false }: {
+export function WritingToolbar({ mode, onMode, onChat, onOptimize, disabled = false, showOptimizeTip = false }: {
   mode: 'voice' | 'text'; onMode: (mode: 'voice' | 'text') => void;
   onChat: () => void; onOptimize: () => void; disabled?: boolean;
+  showOptimizeTip?: boolean;
 }) {
   return <div className="composer-toolbar" aria-label="创作方式与工具">
+    {showOptimizeTip && <aside className="optimize-tip" aria-label="优化提示" role="status"><Icon name="spark" /><p>写好后，点“优化”帮您整理文章。</p></aside>}
     <div className="mode-tabs" role="tablist" aria-label="输入方式">
       <button className={mode === 'voice' ? 'active' : ''} type="button" role="tab" aria-label="语音输入" aria-selected={mode === 'voice'} disabled={disabled} onClick={() => onMode('voice')}><Icon name="mic" />语音</button>
       <button className={mode === 'text' ? 'active' : ''} type="button" role="tab" aria-label="文字输入" aria-selected={mode === 'text'} disabled={disabled} onClick={() => onMode('text')}><Icon name="pen" />文字</button>

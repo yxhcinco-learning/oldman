@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { ProductApp } from '../features/writing/ProductApp';
 import { IndexedWorkRepository } from '../lib/storage/repository';
 import { makeBackup } from '../lib/storage/backup';
@@ -7,7 +7,7 @@ import type { AiRequest } from '../features/ai/protocol';
 
 const repos: IndexedWorkRepository[] = [];
 const repo = () => { const r = new IndexedWorkRepository(crypto.randomUUID()); repos.push(r); return r; };
-afterEach(async () => { localStorage.clear(); for (const r of repos.splice(0)) await r.close(); });
+afterEach(async () => { localStorage.clear(); vi.useRealTimers(); for (const r of repos.splice(0)) await r.close(); });
 async function startWriting() {
   fireEvent.click(await screen.findByRole('button', { name: /开始写作/ }));
   fireEvent.change(await screen.findByLabelText('文章标题'), { target: { value: '夏日有感' } });
@@ -319,10 +319,27 @@ it('closes the assistant directly when the conversation starts from chat', async
   expect(screen.queryByText('这篇文章的对话')).not.toBeInTheDocument();
   expect(screen.queryByText(/我会结合这篇文章/)).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: '查看修改记录' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '按住说话输入要求' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '发送' })).toBeDisabled();
   expect(screen.queryByRole('button', { name: /问小文|调整文章/ })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: '关闭' }));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); expect(opener).toHaveFocus();
+});
+it('shows a one-time quiet optimization hint without moving typing focus', async () => {
+  const view = render(<ProductApp repository={repo()} />); await startWriting();
+  vi.useFakeTimers();
+  const body = screen.getByLabelText('文章正文');
+  body.focus();
+  fireEvent.change(body, { target: { value: '这是一段已经写好的生活记录。'.repeat(8) } });
+  expect(screen.getByLabelText('优化提示')).toHaveTextContent('写好后，点“优化”帮您整理文章。');
+  expect(body).toHaveFocus();
+  expect(localStorage.getItem('suiyue-optimize-tip-v1')).toBe('yes');
+  await act(() => vi.advanceTimersByTimeAsync(6000));
+  expect(screen.queryByLabelText('优化提示')).not.toBeInTheDocument();
+  fireEvent.change(body, { target: { value: '这是一段已经写好的生活记录。'.repeat(9) } });
+  expect(screen.queryByLabelText('优化提示')).not.toBeInTheDocument();
+  view.unmount();
+  vi.useRealTimers();
 });
 it('uses concise elder-friendly wording in modification records and hides empty entries', async () => {
   render(<ProductApp repository={repo()} />); await startWriting();
