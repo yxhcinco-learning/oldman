@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { ProductApp } from '../features/writing/ProductApp';
 import { emptyDraft, articleText, type Draft, type Segment } from '../lib/domain/writing';
 import { IndexedWorkRepository } from '../lib/storage/repository';
@@ -147,6 +147,82 @@ it('uses the WebKit point API and falls back to the article end outside a paragr
     const body = screen.getByRole<HTMLTextAreaElement>('textbox', { name: '文章正文' });
     expect(body.selectionStart).toBe(draft.textDraft.length);
     expect(body.selectionEnd).toBe(draft.textDraft.length);
+  } finally { restore(); }
+});
+
+it('switches a stationary touch long-press at its point without cancelling native events', async () => {
+  const segments = [{ id: 'first', text: '长按这里进入文字输入' }];
+  await openDraft(voiceDraft(segments));
+  const preview = screen.getByRole('group', { name: '文章正文' });
+  const textNode = preview.querySelector('.writing-paragraph span')!.firstChild!;
+  const restore = stubPointCaretApis({ position: () => ({ offsetNode: textNode, offset: 4 }) });
+  vi.useFakeTimers();
+  try {
+    expect(fireEvent.pointerDown(preview, { pointerId: 7, pointerType: 'touch', isPrimary: true, button: 0, clientX: 44, clientY: 52 })).toBe(true);
+    await act(() => vi.advanceTimersByTimeAsync(599));
+    expect(screen.getByRole('group', { name: '文章正文' })).toBeInTheDocument();
+    await act(() => vi.advanceTimersByTimeAsync(1));
+    const body = screen.getByRole<HTMLTextAreaElement>('textbox', { name: '文章正文' });
+    expect(body).toHaveFocus();
+    expect(body.selectionStart).toBe(4);
+    expect(body.selectionEnd).toBe(4);
+    expect(body).toHaveValue(segments[0].text);
+  } finally {
+    restore();
+    vi.useRealTimers();
+  }
+});
+
+it('lets native touch context menus trigger the same entry and cancels a moved long-press', async () => {
+  const segments = [{ id: 'first', text: '移动时应该继续滚动' }];
+  const first = await openDraft(voiceDraft(segments));
+  let preview = screen.getByRole('group', { name: '文章正文' });
+  const textNode = preview.querySelector('.writing-paragraph span')!.firstChild!;
+  const restore = stubPointCaretApis({ position: () => ({ offsetNode: textNode, offset: 2 }) });
+  try {
+    expect(fireEvent.pointerDown(preview, { pointerId: 8, pointerType: 'touch', isPrimary: true, button: 0, clientX: 30, clientY: 36 })).toBe(true);
+    expect(fireEvent.contextMenu(preview, { clientX: 30, clientY: 36 })).toBe(true);
+    const body = screen.getByRole<HTMLTextAreaElement>('textbox', { name: '文章正文' });
+    expect(body.selectionStart).toBe(2);
+    expect(body.selectionEnd).toBe(2);
+
+    first.unmount();
+    await openDraft(voiceDraft(segments));
+    preview = screen.getByRole('group', { name: '文章正文' });
+    vi.useFakeTimers();
+    fireEvent.pointerDown(preview, { pointerId: 9, pointerType: 'touch', isPrimary: true, button: 0, clientX: 20, clientY: 24 });
+    expect(fireEvent.pointerMove(preview, { pointerId: 9, pointerType: 'touch', clientX: 35, clientY: 24 })).toBe(true);
+    await act(() => vi.advanceTimersByTimeAsync(700));
+    expect(screen.getByRole('group', { name: '文章正文' })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: '文章正文' })).not.toBeInTheDocument();
+
+    fireEvent.pointerDown(preview, { pointerId: 10, pointerType: 'touch', isPrimary: true, button: 0, clientX: 20, clientY: 24 });
+    await act(() => vi.advanceTimersByTimeAsync(599));
+    fireEvent.pointerUp(preview, { pointerId: 10, pointerType: 'touch', clientX: 20, clientY: 24 });
+    await act(() => vi.advanceTimersByTimeAsync(1));
+    expect(screen.getByRole('group', { name: '文章正文' })).toBeInTheDocument();
+  } finally {
+    restore();
+    vi.useRealTimers();
+  }
+});
+
+it('opens pending speech editing with a collapsed caret at the clicked transcript position', async () => {
+  const pending = '这段待确认文字需要修改';
+  await openDraft(voiceDraft([{ id: 'first', text: '已有正文' }], pending));
+  const editButton = screen.getByRole('button', { name: '修改待确认转写' });
+  const pendingText = editButton.querySelector('.pending-transcript-text');
+  expect(pendingText).not.toBeNull();
+  const textNode = pendingText!.firstChild!;
+  const restore = stubPointCaretApis({ position: () => ({ offsetNode: textNode, offset: 5 }) });
+  try {
+    fireEvent.click(editButton, { clientX: 62, clientY: 70 });
+    const editor = screen.getByRole<HTMLTextAreaElement>('textbox', { name: '段落内容' });
+    expect(editor).toHaveFocus();
+    expect(editor.selectionStart).toBe(5);
+    expect(editor.selectionEnd).toBe(5);
+    expect(editor).toHaveValue(pending);
+    expect(screen.queryByText('已有正文')).not.toBeInTheDocument();
   } finally { restore(); }
 });
 

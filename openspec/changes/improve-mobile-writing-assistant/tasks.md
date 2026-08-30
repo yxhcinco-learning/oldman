@@ -6,7 +6,7 @@
 - [x] 1.4 Add corrective regression tests for mutually exclusive speech controls, fully hidden collapse, article single/double activation, inline normal editing, separate pending editing, comfortable menu spacing and empty composer height
 - [x] 1.5 Add regression coverage for title-triggered text mode without focus theft, the removed body focus line, unavailable toolbar chat, tap-toggle XiaoWen dictation and centered collapse controls
 - [x] 1.6 Add regression coverage for standard and WebKit point-to-caret APIs, paragraph/newline offset mapping and blank-area fallback
-- [ ] 1.7 Add regression coverage for non-blocking touch long-press timing/movement cancellation and pending-speech click-to-caret mapping
+- [x] 1.7 Add regression coverage for non-blocking touch long-press timing/movement cancellation and pending-speech click-to-caret mapping
 
 ## 2. Accurate AI feedback
 
@@ -20,7 +20,7 @@
 - [x] 3.3 Replace the compact expand control with body-driven reopen, make idle collapse and pending cancel/complete mutually exclusive, and remove the normal paragraph editor in favor of current-page text editing
 - [x] 3.4 Switch expanded voice mode to current-page text state when the title receives focus, preserve pending content, remove the body focus artifact and center the collapse control
 - [x] 3.5 Transfer the second body tap position into a collapsed current-page text selection without changing article content
-- [ ] 3.6 Add touch/pen long-press current-page entry and preserve the clicked pending-speech offset in its separate editor
+- [x] 3.6 Add touch/pen long-press current-page entry and preserve the clicked pending-speech offset in its separate editor
 
 ## 4. Compact article assistant
 

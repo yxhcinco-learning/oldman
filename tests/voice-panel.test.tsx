@@ -17,7 +17,7 @@ it('requires informed consent, and missing service never requests a microphone',
 });
 it('keeps pending review editable and cancel/complete actions independent', () => {
   const pending = vi.fn(), edit = vi.fn(), done = vi.fn(); render(<VoicePanel pending="待确认内容" onPending={pending} onEdit={edit} onDone={done} />);
-  fireEvent.click(screen.getByRole('button', { name: '修改待确认转写' })); expect(edit).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByRole('button', { name: '修改待确认转写' })); expect(edit).toHaveBeenCalledWith('待确认内容'.length);
   fireEvent.click(screen.getByRole('button', { name: '完成' })); expect(done).toHaveBeenCalledOnce();
   fireEvent.click(screen.getByRole('button', { name: '取消' })); expect(pending).toHaveBeenCalledWith('');
 });
