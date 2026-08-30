@@ -58,6 +58,9 @@ it('uses an explicit conversational instruction to return a full candidate while
   const body = JSON.parse((call.mock.calls as unknown as [string, RequestInit][])[0][1].body as string);
   expect(body.messages[0].content).toContain('prompt 是用户明确选择“调整文章”');
   expect(body.messages[0].content).toContain('不得改 title');
+  expect(body.messages[0].content).toContain('不得改成“我们一起种下”');
+  expect(body.messages[0].content).toContain('可以加入不改变核心事实的合理文学性氛围表达');
+  expect(body.messages[0].content).toContain('answer 必须明确说明加入了哪类氛围');
   expect(JSON.parse(body.messages[1].content)).toMatchObject({ action: 'rewrite', prompt: '删除第二段，其余保持不变' });
 });
 it.each([401, 402, 429, 500])('sanitizes upstream HTTP %s errors without retrying', async code => {

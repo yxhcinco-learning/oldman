@@ -73,6 +73,7 @@ it('turns an explicit conversational request into a preview and applies it only 
   expect(screen.getByRole('button', { name: '问小文' })).toBeEnabled();
   fireEvent.click(screen.getByRole('button', { name: '调整文章' }));
   expect(await screen.findByRole('region', { name: '调整后全文' })).toHaveTextContent('窗前温柔的雨');
+  expect(screen.getByText(/文风调整会改变表达.*重点核对人物、动作和经历/)).toBeInTheDocument();
   expect((await repository.load()).works[0].draft.textDraft).toBe(before);
   expect(transport.mock.calls[0][0]).toMatchObject({ action: 'rewrite', prompt: '只把第一段写得更温暖，其他不变' });
   fireEvent.click(screen.getByRole('button', { name: '应用调整' })); await screen.findByText('已应用调整并保存到本机。');

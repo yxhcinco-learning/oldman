@@ -2,6 +2,8 @@
 
 当前视觉已按用户确认更新为 Echoes of Time；最新设计验收见 [Echoes落地记录](ECHOES-DESIGN-REVIEW.md)。下方旧尺寸和字体测量保留为历史证据，不作为当前设计规则。
 
+2026-08-30 增加显式“问小文 / 调整文章”对话改文，完整候选仍需确认。实现、158 项检查、四尺寸回归和一次真实 DeepSeek 反例见 [对话改文验收](CONVERSATIONAL-REWRITE-ACCEPTANCE.md)；模型加入了合理氛围，也擅增具体动作和共同经历，候选已放弃并按两类内容校正约束，不宣称自动事实保证。
+
 2026-08-28 后续文章 AI 已接入 DeepSeek V4 Flash，正式入口不再运行模拟副本。当前实现、154 项检查、四尺寸浏览器回归、七次以内真实联调及润色效果局限见 [文章 AI 验收](ARTICLE-AI-ACCEPTANCE.md)；下文“聊天/优化继续模拟”为产品化当时的历史记录。
 
 核心功能验收日期：2026-08-27；工程迁移与 Sites 清理复核：2026-08-28。唯一正式工程：`D:\vibe_code\oldman` 根目录。当前分支：`codex/productize-local-writing`。

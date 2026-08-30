@@ -128,7 +128,7 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
           <button type="button" aria-pressed={original} onClick={() => setOriginal(!original)}>{original ? '查看优化结果' : '对照原文'}</button></div>
         <p className="ai-summary">{resultSummary(turn.result, base.body)}</p>
         <div className="ai-full-text" role="region" aria-label={original ? turn.action === 'rewrite' ? '调整前原文' : '优化前原文' : turn.action === 'rewrite' ? '调整后全文' : '优化后全文'}>{original ? base.body : turn.result.body}</div>
-        <p className="ai-note">请核对事实与细节。确认后保存，{turn.action === 'rewrite' ? '调整' : '优化'}前的版本会保留。</p>
+        <p className="ai-note">{turn.action === 'rewrite' ? '文风调整会改变表达，也可能加入氛围性描写；请重点核对人物、动作和经历。' : '请核对事实与细节。'}确认后保存，{turn.action === 'rewrite' ? '调整' : '优化'}前的版本会保留。</p>
         {turn.status === 'ready' && stale && <p className="ai-error" role="alert">正文已发生变化。旧结果仅供查看，请根据最新正文重新{turn.action === 'rewrite' ? '调整' : '优化'}。</p>}
         {turn.status === 'ready' && <div className="ai-result-actions"><button type="button" disabled={busy} onClick={async () => {
           setSaving(true); const ok = await workspace.updateSession(draft.id, current => ({ ...current, turns: current.turns.map(t => t.id === turn.id ? { ...t, status: 'dismissed' } : t) }));
