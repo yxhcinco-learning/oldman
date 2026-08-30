@@ -40,3 +40,14 @@
 #### Scenario: Recover a legacy unfinished paragraph edit
 - **WHEN** 打开包含旧版普通段落未完成编辑恢复数据的作品
 - **THEN** 系统无损合入该编辑文字并进入当前页文字输入，不重新展示独立普通段落编辑页
+
+### Requirement: Stable title editing beside the speech stage
+标题 SHALL 与当前页正文使用同一文字编辑状态。若用户在语音模式聚焦标题，系统 MUST 在键盘出现前切换到文字态并隐藏语音舞台，同时 MUST 保持标题焦点、标题值、普通正文、待确认语音与恢复状态。全文输入框聚焦时 MUST NOT 显示无语义的底部横线；空闲语音收起按钮 MUST 在左侧控制位内居中，不得贴靠屏幕左缘。
+
+#### Scenario: Focus the title while voice mode is expanded
+- **WHEN** 用户在展开的语音模式点击标题并唤起系统键盘
+- **THEN** 编辑器切换到“文字”页签、语音舞台不再被键盘顶起显示，标题继续获得焦点且正文和待确认语音均保持；不会把焦点转移到全文输入框
+
+#### Scenario: Focus the current-page body or inspect idle speech controls
+- **WHEN** 用户聚焦当前页全文输入，或返回空闲展开的语音模式
+- **THEN** 全文输入区底部不出现额外横线，收起按钮在左侧控制位内居中且与麦克风及右侧操作保持平衡
