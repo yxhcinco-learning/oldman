@@ -7,6 +7,7 @@ import { VoiceDictationButton } from '../speech/VoiceDictationButton';
 import { ArticleAiController } from './session';
 
 type Page = 'menu' | 'chat' | 'preview' | 'history' | 'version' | 'consent';
+type Feedback = { message: string; kind: 'notice' | 'warning' };
 const CONSENT_KEY = 'suiyue-article-ai-consent-v1';
 const TURN_LABELS: Record<AiTurn['status'], string> = {
   running: '正在处理', ready: '待应用', applied: '已应用', dismissed: '未采用', answered: '已回答', failed: '未完成', cancelled: '已取消',
@@ -37,7 +38,7 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
   const [selectedId, setSelectedId] = useState('');
   const [prompt, setPrompt] = useState('');
   const [original, setOriginal] = useState(false);
-  const [feedback, setFeedback] = useState('');
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [saving, setSaving] = useState(false);
   const [voiceActive, setVoiceActive] = useState(false);
   const [consent, setConsent] = useState(hasConsent);
@@ -53,6 +54,12 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
   const lastTurn = session?.turns.at(-1);
   useEffect(() => { chatScroll.current?.scrollTo({ top: chatScroll.current.scrollHeight }); }, [page, lastTurn?.id, lastTurn?.status]);
   useEffect(() => {
+    if (feedback?.kind !== 'notice') return;
+    const current = feedback;
+    const timer = window.setTimeout(() => setFeedback(value => value === current ? null : value), 3000);
+    return () => window.clearTimeout(timer);
+  }, [feedback]);
+  useEffect(() => {
     if (page === 'chat' && focusPromptOnChat.current) { focusPromptOnChat.current = false; promptInput.current?.focus(); }
   }, [page]);
   const busy = ai.busy || saving;
@@ -63,11 +70,11 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
   const stale = Boolean(base && !sameDocument(base, documentOf(draft)));
   const previewTitle = page === 'version' ? '查看记录' : turn && isConversationEdit(turn.action) ? '看看调整后的全文' : '看看优化后的全文';
   const titles: Record<Page, string> = { menu: '文章优化', chat: '和小文聊一聊', preview: previewTitle, history: '修改记录', version: previewTitle, consent: '使用小文前，请您了解' };
-  const showTurn = (id: string) => { setSelectedId(id); setOriginal(false); setFeedback(''); setPage('preview'); };
-  const showVersion = (id: string) => { setSelectedId(id); restoreBase.current = documentOf(draft); setFeedback(''); setPage('version'); };
-  const openChat = (focusPrompt = false) => { focusPromptOnChat.current = focusPrompt; setFeedback(''); setPage('chat'); };
+  const showTurn = (id: string) => { setSelectedId(id); setOriginal(false); setFeedback(null); setPage('preview'); };
+  const showVersion = (id: string) => { setSelectedId(id); restoreBase.current = documentOf(draft); setFeedback(null); setPage('version'); };
+  const openChat = (focusPrompt = false) => { focusPromptOnChat.current = focusPrompt; setFeedback(null); setPage('chat'); };
   const run = async (action: AiAction, userPrompt: string) => {
-    setFeedback(''); setPage('chat');
+    setFeedback(null); setPage('chat');
     const id = await controller.run(action, userPrompt);
     if (id && ['question', 'rewrite', 'chat'].includes(action)) setPrompt('');
   };
@@ -80,26 +87,26 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
     setSaving(true);
     const ok = await workspace.applyTurn(turn.id);
     setSaving(false);
-    if (ok) { setFeedback(`已应用${isConversationEdit(turn.action) ? '调整' : '优化'}并保存到本机。`); setPage('chat'); }
+    if (ok) { setFeedback({ message: `已应用${isConversationEdit(turn.action) ? '调整' : '优化'}并保存到本机。`, kind: 'notice' }); setPage('chat'); }
   };
   const restore = async (target: ArticleVersion, expected: { title: string; body: string }) => {
     if (busy) return;
     setSaving(true);
     const ok = await workspace.restoreVersion(target.id, expected);
     setSaving(false);
-    if (ok) { setFeedback('已恢复并保存，其他修改记录仍保留。'); setPage('chat'); }
+    if (ok) { setFeedback({ message: '已恢复并保存，其他修改记录仍保留。', kind: 'notice' }); setPage('chat'); }
   };
   const undo = (item: AiTurn) => {
     const before = session?.versions.find(v => v.id === item.inputVersionId);
     const after = session?.versions.find(v => v.id === item.appliedVersionId);
     if (!before || !after) return;
     if (sameDocument(after, documentOf(draft))) void restore(before, after);
-    else { showVersion(before.id); setFeedback('应用后正文又有修改，请先核对记录。恢复会替换当前全文。'); }
+    else { showVersion(before.id); setFeedback({ message: '应用后正文又有修改，请先核对记录。恢复会替换当前全文。', kind: 'warning' }); }
   };
   const close = () => {
     if (saving) return;
     if (entry === 'optimize' && page !== 'menu') {
-      setFeedback('');
+      setFeedback(null);
       setPage('menu');
       return;
     }
@@ -114,15 +121,15 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
     <div className="ai-composer-actions"><button type="button" className="primary-button" disabled={busy || voiceActive || !prompt.trim()} onClick={() => request('chat', prompt)}><Icon name="spark" />发送</button></div>
   </form>;
 
-  return <Dialog className={`article-ai-dialog ai-page-${page}`} title={titles[page]} onClose={close} onBack={page === 'menu' ? undefined : () => {
-    setFeedback(''); setPage(page === 'preview' ? 'chat' : page === 'version' ? 'history' : 'menu');
+  return <Dialog className={`article-ai-dialog ai-page-${page}`} title={titles[page]} onClose={close} headerActions={page === 'chat' ? <button type="button" onClick={() => { setFeedback(null); setPage('history'); }} aria-label="查看修改记录"><Icon name="book" /></button> : undefined} onBack={page === 'menu' ? undefined : () => {
+    setFeedback(null); setPage(page === 'preview' ? 'chat' : page === 'version' ? 'history' : 'menu');
   }}>
     <div className="article-assistant">
       {state.error && <div className="ai-error" role="alert"><p>{state.error}</p><div className="ai-inline-actions">
         <button type="button" disabled={busy} onClick={() => void workspace.checkpoint()}>重试保存</button><button type="button" onClick={onBackup}>导出当前备份</button>
       </div></div>}
       {ai.error && <p className="ai-error" role="alert">{ai.error}</p>}
-      {feedback && <p className="ai-feedback" role="status">{feedback}</p>}
+      {feedback && (feedback.kind === 'notice' ? <p className="toast ai-assistant-toast" role="status">{feedback.message}</p> : <p className="ai-feedback" role="alert">{feedback.message}</p>)}
       {ai.busy && <div className="ai-progress" role="status"><span><Icon name="spark" />正在处理…</span><button type="button" onClick={() => void controller.cancel()}>取消请求</button></div>}
       {saving && <p role="status">正在保存…</p>}
 
@@ -164,14 +171,13 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
         {turn.status === 'ready' && stale && <p className="ai-error" role="alert">正文已发生变化。旧结果仅供查看，请根据最新正文重新{isConversationEdit(turn.action) ? '调整' : '优化'}。</p>}
         {turn.status === 'ready' && <div className="ai-result-actions"><button type="button" disabled={busy} onClick={async () => {
           setSaving(true); const ok = await workspace.updateSession(draft.id, current => ({ ...current, turns: current.turns.map(t => t.id === turn.id ? { ...t, status: 'dismissed' } : t) }));
-          setSaving(false); if (ok) { setPage('chat'); setFeedback('未采用，正文未变。'); }
+          setSaving(false); if (ok) { setPage('chat'); setFeedback({ message: '未采用，正文未变。', kind: 'notice' }); }
         }}>先不修改</button><button type="button" className="primary-button" disabled={busy || stale || Boolean(draft.pendingVoice.trim()) || Boolean(draft.segmentEdit)} onClick={() => void apply()}>应用{isConversationEdit(turn.action) ? '调整' : '优化'}</button></div>}
         {turn.status === 'applied' && <button className="ai-secondary" type="button" disabled={busy} onClick={() => undo(turn)}>撤销这次{isConversationEdit(turn.action) ? '调整' : '优化'}</button>}
         {stale && turn.action !== 'question' && <button className="ai-secondary" type="button" disabled={busy} onClick={() => request(turn.action, isConversationEdit(turn.action) ? turn.prompt : '')}>按最新正文重新{isConversationEdit(turn.action) ? '调整' : '优化'}</button>}
       </>}
 
       {page === 'chat' && <>
-        <div className="ai-inline-actions ai-chat-actions"><button type="button" onClick={() => setPage('history')}>查看修改记录</button></div>
         <div className="ai-conversation" ref={chatScroll} aria-label="文章对话记录">
           {session?.turns.map(item => <div key={item.id} className="ai-turn">
             <div className="message-row user"><div className="message-bubble">{turnPromptLabel(item)}</div></div>
@@ -179,8 +185,8 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
                 {item.result && <strong className="ai-answer-label">{item.result.body ? '小文的修改说明' : '小文的回答'}</strong>}
                 <p>{item.result ? resultSummary(item.result, session?.versions.find(v => v.id === item.inputVersionId)?.body ?? '') : item.error || '正在处理…'}</p>
                 {Boolean(item.omittedRecords) && <p className="ai-note">较早记录未发送，仍保存在本机。</p>}
-                {item.result?.body && <div className="ai-turn-actions"><button type="button" onClick={() => showTurn(item.id)}>查看{isConversationEdit(item.action) ? '调整' : '优化'}结果</button>
-                {item.status === 'applied' && <button type="button" disabled={busy} onClick={() => undo(item)}>撤销这次{isConversationEdit(item.action) ? '调整' : '优化'}</button>}</div>}
+                {item.result?.body && <div className="ai-turn-actions"><button className="ai-turn-primary" type="button" onClick={() => showTurn(item.id)}>查看{isConversationEdit(item.action) ? '调整' : '优化'}结果</button>
+                {item.status === 'applied' && <button className="ai-turn-undo" type="button" aria-label={`撤销这次${isConversationEdit(item.action) ? '调整' : '优化'}`} disabled={busy} onClick={() => undo(item)}><Icon name="undo" />撤销</button>}</div>}
                 {item.result?.citedVersionIds.map((id, i) => <button type="button" key={id} onClick={() => showVersion(id)}>查看引用记录 {i + 1}</button>)}
                 {['failed', 'cancelled'].includes(item.status) && <button type="button" disabled={busy} onClick={() => request(item.action, ['question', 'rewrite', 'chat'].includes(item.action) ? item.prompt : '')}>重新{item.action === 'question' ? '提问' : item.action === 'rewrite' ? '调整' : item.action === 'chat' ? '发送' : '生成'}</button>}
               </div><div className="ai-turn-meta"><span className="ai-turn-state">{turnStateLabel(item, session?.versions.find(v => v.id === item.inputVersionId)?.body)}</span><time>{timeLabel(item.createdAt)}</time></div></div></div>
@@ -203,8 +209,8 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
         <h3 className="ai-version-title">{version.title || '未命名作品'}</h3><div className="ai-full-text" role="region" aria-label="修改记录正文">{version.body || '（正文为空）'}</div>
         <p className="ai-note">恢复将替换当前标题和全文，当前内容会自动保留。</p>
         <div className="ai-result-actions"><button type="button" onClick={async () => {
-          try { await navigator.clipboard.writeText(version.body); setFeedback('已复制这份正文。'); }
-          catch { setFeedback('浏览器未允许复制，请选中上方文字手动复制。'); }
+          try { await navigator.clipboard.writeText(version.body); setFeedback({ message: '已复制这份正文。', kind: 'notice' }); }
+          catch { setFeedback({ message: '浏览器未允许复制，请选中上方文字手动复制。', kind: 'warning' }); }
         }}>复制这份正文</button><button type="button" className="primary-button" disabled={busy} onClick={() => { if (restoreBase.current) void restore(version, restoreBase.current); }}>恢复这份内容</button></div>
       </>}
     </div>

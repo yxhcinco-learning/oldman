@@ -6,10 +6,10 @@
 
 ## 2. Compact Conversation Feedback
 
-- [ ] 2.1 Add an accessible dialog header action slot and move the conversation modification-record entry into it
-- [ ] 2.2 Render ordinary action successes as auto-dismissing non-modal notices while keeping conflicts, risks and failures persistent
-- [ ] 2.3 Restyle candidate actions as one compact hierarchy with a primary result action and secondary undo action
-- [ ] 2.4 Update UI tests for header navigation, transient feedback, persistent risks and compact accessible action labels
+- [x] 2.1 Add an accessible dialog header action slot and move the conversation modification-record entry into it
+- [x] 2.2 Render ordinary action successes as auto-dismissing non-modal notices while keeping conflicts, risks and failures persistent
+- [x] 2.3 Restyle candidate actions as one compact hierarchy with a primary result action and secondary undo action
+- [x] 2.4 Update UI tests for header navigation, transient feedback, persistent risks and compact accessible action labels
 
 ## 3. Documentation and Verification
 

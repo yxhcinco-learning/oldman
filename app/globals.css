@@ -353,7 +353,6 @@ svg { display: block; }
 .ai-inline-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 .ai-inline-actions button, .ai-secondary { padding: 8px 12px; border-radius: 12px; color: var(--forest); font-size: 16px; line-height: 26px; }
 .ai-inline-actions .choice-chip { margin-bottom: 0; }
-.ai-chat-actions { justify-content: flex-end; }
 .ai-secondary { width: 100%; margin-top: 12px; min-height: 56px; background: var(--tint); }
 .ai-summary { margin: 16px 0; padding: 14px 16px; border-radius: 14px; color: var(--forest-soft); background: var(--tint); white-space: pre-wrap; }
 .ai-summary strong, .ai-answer-label { display: block; margin-bottom: 4px; font-size: 14px; line-height: 22px; color: var(--forest); }
@@ -371,7 +370,7 @@ svg { display: block; }
 .ai-consent p { margin-bottom: 16px; font-size: 18px; line-height: 30px; }
 .ai-page-chat { height: 90dvh; }
 .ai-page-chat .article-assistant { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-.ai-page-chat .ai-inline-actions, .ai-page-chat .ai-composer { flex-shrink: 0; }
+.ai-page-chat .ai-composer { flex-shrink: 0; }
 .ai-conversation { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px 0 0; }
 .ai-assistant-message { min-width: 0; max-width: calc(100% - 42px); }
 .ai-assistant-message .message-bubble { max-width: 100%; }
@@ -380,7 +379,12 @@ svg { display: block; }
 .ai-conversation .message-bubble button { padding: 8px 12px; margin: 8px 8px 0 0; background: var(--tint); border-radius: 12px; font-size: 16px; line-height: 26px; color: var(--forest); }
 .ai-turn-meta { display: flex; align-items: center; justify-content: flex-start; flex-wrap: wrap; gap: 8px; margin: 6px 8px 0; font-size: 13px; line-height: 20px; color: var(--muted); }
 .ai-turn-state { display: inline-flex; align-items: center; min-height: 28px; padding: 4px 10px; border-radius: 14px; color: var(--forest); background: var(--tint); font-size: 13px; line-height: 20px; }
-.ai-turn-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ai-turn-actions { display: flex; align-items: stretch; gap: 4px; margin-top: 8px; }
+.ai-conversation .message-bubble .ai-turn-actions button { min-height: 48px; margin: 0; padding: 8px 10px; }
+.ai-conversation .message-bubble .ai-turn-primary { flex: 1; min-width: 0; font-weight: 600; }
+.ai-conversation .message-bubble .ai-turn-undo { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; background: transparent; color: var(--muted); }
+.ai-turn-undo .icon { width: 18px; height: 18px; }
+.ai-assistant-toast { top: 84px; }
 .ai-empty { padding: 16px; color: var(--forest-soft); font-size: 18px; line-height: 30px; }
 .ai-version-list { display: grid; gap: 12px; margin-top: 16px; }
 .ai-version-list > button { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; background: var(--white); padding: 16px; border-radius: 16px; color: var(--forest); }
