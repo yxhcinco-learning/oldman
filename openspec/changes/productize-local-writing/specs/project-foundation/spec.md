@@ -38,11 +38,15 @@
 - **THEN** 以该检出的仓库根目录执行命令，不要求本机盘符或另建嵌套项目，脚本与规范引用保持可用
 
 ### Requirement: Durable development guidance
-工程 SHALL 在 AGENTS 中维护规范入口、工作流程、权限安全和验证交付规则，将产品状态、实现细节、阶段结论及完成状态保留在对应文档；日常直接在 main 开发，不强制创建功能分支或 PR。
+工程 SHALL 在 AGENTS 中维护规范入口、工作流程、权限安全和验证交付规则，将产品状态、实现细节、阶段结论及完成状态保留在对应文档；日常直接在 main 开发，不强制创建功能分支或 PR，未经用户明确允许不得执行分支操作。
 
 #### Scenario: Complete a checked change
 - **WHEN** 一个小阶段通过相应检查
 - **THEN** 明确暂存本任务文件并自动本地提交，以 OpenSpec 和检查证据记录变更，不要求先创建分支或 PR，不自动推送或合并
+
+#### Scenario: A branch operation appears useful
+- **WHEN** 代理认为创建、切换、重命名、合并或删除分支有助于任务
+- **THEN** 在执行前取得用户明确允许；任务开始时已位于非目标分支则先说明并确认
 
 #### Scenario: Record a phase-specific decision
 - **WHEN** 确认仓库可见性或某阶段完成情况

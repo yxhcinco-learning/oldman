@@ -13,6 +13,8 @@ npx openspec instructions apply --change productize-local-writing
 npm run spec:check
 ```
 
+这里的 `productize-local-writing` 是 OpenSpec change ID，不是 Git 分支名；其他任务应先用 `npx openspec list` 找到对应 change。
+
 增量流程：需求 → proposal/specs/design/tasks → 确认 → 实现/测试 → 验收 → archive。新增或改变行为先更新规范；纯排版、错字等不改变行为的文档修正无需新建变更，问答和审查默认只读。已确认范围内正常实现和内部类型调整不重复请求确认，越界或高风险操作遵循 AGENTS。AGENTS 只保留长期规则；阶段决策、授权与完成状态记录在对应 OpenSpec 变更和验收记录中。
 
 change 范围内任务完成、验收证据齐全后，自行同步增量规范到 `openspec/specs`，再归档并修复相关文档链接，无需再次请求确认。归档前核对 artifacts、任务、验收记录与规范差异；CLI 的 artifacts 完整不代表任务已验收。使用 `npx openspec archive <change-id> --yes` 执行正常同步与归档，不用跳过校验或跳过规范同步来掩盖未完成项。归档后运行 `npm run spec:check`、检查引用及差异，再按本地提交约定交付。
@@ -21,7 +23,7 @@ change 范围内任务完成、验收证据齐全后，自行同步增量规范�
 
 ## Git 与自动本地提交
 
-日常直接在 `main` 开发，不强制创建功能分支或 PR；仍通过 OpenSpec 记录变更与验收，历史标签不移动。
+日常直接在 `main` 开发，不强制创建功能分支或 PR；未经用户明确允许，不创建、切换、重命名、合并或删除分支。仍通过 OpenSpec 记录变更与验收，历史标签不移动。
 
 每完成一个可检查的小阶段，先运行相应检查，再明确暂存本任务文件并本地提交。禁止把他人的临时修改、密钥或产物打包提交；失败不伪造“已验收”提交。没有新变化不生成空提交。自动本地提交不代表自动推送、合并或部署。
 

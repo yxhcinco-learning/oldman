@@ -16,7 +16,7 @@
 
 2026-08-28 后续文章 AI 已接入 DeepSeek V4 Flash，正式入口不再运行模拟副本。当前实现、154 项检查、四尺寸浏览器回归、七次以内真实联调及润色效果局限见 [文章 AI 验收](ARTICLE-AI-ACCEPTANCE.md)；下文“聊天/优化继续模拟”为产品化当时的历史记录。
 
-核心功能验收日期：2026-08-27；工程迁移与 Sites 清理复核：2026-08-28。唯一正式工程：`D:\vibe_code\oldman` 根目录。当前分支：`codex/productize-local-writing`。
+核心功能验收日期：2026-08-27；工程迁移与 Sites 清理复核：2026-08-28。唯一正式工程：`D:\vibe_code\oldman` 根目录。当前唯一分支：`main`。
 
 结论：本地核心实现、自动化检查与腾讯云真实语音链路联调通过；**不宣称手机麦克风、真实用户口音或公开上线已验收**。
 
@@ -31,7 +31,7 @@
 - `/opt/suiyue-yousheng/releases/8205fd0-20260830-1350` 为活动 release，`previous` 保留 `/opt/suiyue-yousheng/releases/9377412-20260830-1330`；`suiyue-web.service` 在 `127.0.0.1:3011`，`suiyue-gateway.service` 在 `127.0.0.1:3012`，均 enabled/active、专用无登录用户、`Restart=on-failure`、SIGTERM 和 systemd 沙箱。服务器其他 Node 服务和端口未停止或复用。
 - Nginx 仅在既有公网 80/443 接入：HTTP 308；HTTPS Basic Auth；`/` → 3011，AI/status/health/语音 → 3012，WSS 保留 Origin/Upgrade；Cloud firewall 仍只有 80、443、既有 22 和 ICMP，应用只监听回环。
 - Linux 固定 `ASR_CREDENTIAL_SOURCE=project`、`ASR_ALLOWED_ORIGIN=https://suiyue.maicong.chat`。DeepSeek 与腾讯云完整凭据从 `/etc/suiyue-yousheng/runtime.env`（0600 root:root）读取；认证文件为 0640 root:www-data。两份上传区明文源安装后已精确擦除，release 与客户端不含秘密。
-- 本地阶段提交为 `d24f770`（部署 OpenSpec）、`9377412`（运行与部署骨架）和 `8205fd0`（首轮线上证据及代理收口）；均只提交本任务文件，未 push、merge 或改写历史。最终证据文档提交由本节完成后另行记录在 Git 历史与交付报告中。
+- 本地阶段提交为 `d24f770`（部署 OpenSpec）、`9377412`（运行与部署骨架）、`8205fd0`（首轮线上证据及代理收口）和 `fe81873`（回滚证据）；部署阶段均只提交本任务文件，未 push 或改写历史。
 
 ### 实际检查
 
@@ -52,7 +52,7 @@
 
 release 切换和回滚脚本只接受 `/opt/suiyue-yousheng/releases/*` 的已解析路径；激活失败脚本会恢复 `previous`，首次失败则停止两个服务。已从 `8205fd0-20260830-1350` 实际切回 `9377412-20260830-1330`，确认两个 unit active、回环健康和完整非计费公网 smoke 通过，再前滚到 `8205fd0-20260830-1350` 并复验同样通过；当前/previous 链接分别指向新/旧 release。手工回滚使用 `bash /opt/suiyue-yousheng/current/deploy/server/rollback.sh <verified-release>`。首次部署完全撤回时停止/禁用两个岁月有声 unit、恢复该站点部署前 Nginx 状态并在 `nginx -t` 后 reload；保留 release、root-only 环境、证书和 DNS 供恢复，不删除浏览器数据或其他项目。
 
-## 已完成
+## 2026-08-27 阶段已完成（历史记录）
 
 - OpenSpec 1.2.0、AGENTS、产品/设计/架构/隐私/开发文档、CI 模板和敏感文件边界检查。
 - 原内存 Demo 拆分为真实写作、存储、语音及独立 AI 演示模块。
@@ -60,7 +60,7 @@ release 切换和回滚脚本只接受 `/opt/suiyue-yousheng/releases/*` 的已�
 - 作品列表、真实字数/时间、回收站恢复、复制正文、TXT、版本化 JSON 副本导入。
 - AudioWorklet PCM 采集与腾讯云本地网关；Origin、连接/时长/音量限制及取消、迟到结果处理。
 - 聊天、类型/文风/格式/配图/自定义优化继续模拟；完成/应用/撤销/退出不改变真实作品。
-- 安全更新仍使用 npm/Vinext，没有框架迁移，没有部署或修改旧线上站点。
+- 当时的安全更新仍使用 npm/Vinext，没有框架迁移，也没有部署或修改旧线上站点；后续受控公网部署见本文件开头的 2026-08-30 记录。
 
 ## 自动检查证据
 
@@ -127,6 +127,8 @@ release 切换和回滚脚本只接受 `/opt/suiyue-yousheng/releases/*` 的已�
 
 项目文档、规范、归档文件名及测试描述已统一正式版称谓。设计基线用固定提交定位，不改写 Git 历史或标签；腾讯云接口路径、数据库格式版本和依赖校验值保持不变。
 
+2026-08-30 经用户确认，`main` 是 `codex/productize-local-writing` 的直接祖先且没有独立提交，因此将完整开发历史 fast-forward 到 `main`，再删除本地 `codex/productize-local-writing`；当前只保留 `main`。同名的 `productize-local-writing` 仍是未归档的 OpenSpec change ID，不是 Git 分支。此次没有推送或删除远端引用。
+
 术语清理复核：当前及归档文档、文件名已无历史版本代称，20 份 Markdown 的本地链接检查通过；86 项测试和构建再次通过。仅修改文档、归档名称和测试描述，没有改动 UI、业务逻辑、依赖或本地配置。
 
 协作规范复核（2026-08-28）：AGENTS 已取消强制分支/PR，费用规则改为小规模、低成本联调按需进行，批量或高成本、费用不确定的调用先确认预算；移除阶段性结论，保留敏感信息检查。开发指引与 OpenSpec 同步，类型、Lint、86 项测试、规范/边界检查及构建通过。本次仅修改文档，未调用付费接口、未更改界面、运行配置或 Git 分支。
@@ -143,15 +145,15 @@ release 切换和回滚脚本只接受 `/opt/suiyue-yousheng/releases/*` 的已�
 
 1. **GitHub 同步与推送**：origin 已指向用户指定且允许 Public 的 `yxhcinco-learning/oldman`。此前本机 Git 非交互推送返回无法取得登录凭据，远端交付及 CI 仍待验证；本次不重新尝试登录或推送。GitHub 应用连接不等于本机 Git 已登录。不索取聊天中的 token，不用网页上传另造一份不一致历史；按最新协作约定，不再要求功能分支或 PR。
 2. **页面人工语音体验**：本地真实腾讯云链路已通过，`.env.local` 已配置。请在 localhost:3001 同意麦克风后长按说话，体验真实设备采音和转写；该人工步骤不以命令行合成音频测试替代。
-3. **真机门禁**：Safari/安卓 Chrome 的麦克风、键盘、安全区、后台/断网仍待可信 HTTPS 环境；本轮不部署。
+3. **真机门禁**：受控 HTTPS 环境已经部署，但 Safari/安卓 Chrome 的麦克风、键盘、安全区、后台/断网仍待真实设备验收。
 
-后续交付按 `main` 工作流进行：先核对现有本地分支及远端差异，确认正式工程提交已完整收敛到 `main`，再在授权范围内推送并检查 CI。当前 `main` 仍指向历史基线，本次文档调整没有切换或合并分支，不以回退正式工程的方式切换到 main；不 force push，不以创建 PR 作为交付前提。
+后续交付按 `main` 工作流进行：本地正式工程提交已经完整收敛到唯一的 `main`；远端差异、推送和 CI 仍需在授权范围内另行验证。不 force push，不以创建 PR 作为交付前提，任何分支操作仍需用户明确允许。
 
-`productize-local-writing` 保留活跃，任务 4.3（GitHub main 同步、推送和 CI）、4.6（真机 HTTPS 验收）、4.9（残余目录清理）未完成前不归档；不影响其他已完成 change 独立归档。
+OpenSpec change `productize-local-writing` 保留活跃，任务 4.3（GitHub main 推送和 CI）、4.6（真机 HTTPS 验收）、4.9（残余目录清理）未完成前不归档；该名称不是 Git 分支，不影响其他已完成 change 独立归档。
 
 ## 变更归档复核（2026-08-28）
 
 - AGENTS 与开发说明已明确：范围内任务和相应验收完成后自行同步正式规范并归档，无需再次确认；未完成项保留活跃，不以 artifact 完整或任务打勾代替验收。
 - `unify-editor-input-presentation`：6 项任务及既有自动化/浏览器验收证据齐全，4 条要求已同步至 [正式输入展示规范](../openspec/specs/editor-presentation/spec.md)，变更移入 [归档目录](../openspec/changes/archive/2026-08-28-unify-editor-input-presentation/)。相关设计与验收链接同步更新。
-- `productize-local-writing`：上述 3 项继续待办。本地 main 仍指向历史基线；没有本次远端/CI 或真机验收的新证据；残余备份/配置目录和停用缓存仍存在。未为归档而推送、合并、部署、删除目录或变更任务范围。
+- OpenSpec change `productize-local-writing`：上述 3 项继续待办。本地 `main` 已包含完整开发历史，但没有远端推送/CI 或真机验收的新证据；残余备份/配置目录和停用缓存仍存在，未为归档而推送或变更任务范围。
 - 本轮仅变更文档与规范归档；OpenSpec 严格校验、模块边界、归档完整性和差异检查通过，26 份 Markdown 的 29 处本地链接有效。4 条正式要求与归档增量一致，原提案、设计、规范和元数据保留；不重新运行应用测试、构建、浏览器或计费语音联调，不将历史证据表述为本次重新执行。

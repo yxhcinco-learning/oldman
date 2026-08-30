@@ -24,7 +24,7 @@ npm run dev
 
 当前本机已保存 `.env.local` 并复用 Windows User 中已有腾讯云密钥；DeepSeek Key 也已配置且仅在服务端使用。该文件不入仓库；其他电脑按 `.env.example` 配置。长期子用户密钥不需要 `TENCENT_ASR_TOKEN`。
 
-本期仅本地验收；**已移除 GPT Sites 发布配置和专用依赖，未操作旧线上站点，不使用旧 chatgpt.site 页面保存正式作品**。开发与构建均使用现有 Vinext 本地链路，不需要 Sites 登录或 Cloudflare 配置。
+项目已移除 GPT Sites 发布配置和专用依赖，未操作旧线上站点，也不使用旧 chatgpt.site 页面保存正式作品。当前少量同事体验仅使用独立的腾讯云受控公网部署；本地开发与构建仍走 Vinext Node 链路，不需要 Sites 登录或 Cloudflare 配置。
 
 ## 开发入口
 
@@ -32,7 +32,7 @@ npm run dev
 - [AI 开发约定](AGENTS.md)、[开发与验收](docs/DEVELOPMENT.md)
 - [隐私与数据边界](docs/PRIVACY.md)、[工程迁移与清理](docs/CLEANUP.md)
 - [本地验收与待办记录](docs/ACCEPTANCE.md)
-- 当前 OpenSpec 变更：`productize-local-writing`
+- 当前 OpenSpec change ID：`productize-local-writing`、`deploy-controlled-public-test`（这是规范变更标识，不是 Git 分支名）
 
 ```powershell
 npm run check
@@ -48,4 +48,4 @@ npm audit --audit-level=high
 
 Git 提交 `28fd5e4` 是已验收设计的历史基线，回退代码前先导出数据。既有历史标签保持不变；Git 不保存浏览器作品。
 
-提交、推送前检查敏感信息；密钥、录音、用户备份和构建产物不得提交。每个通过检查的小阶段自动本地提交，推送与合并仍需在用户授权范围内执行。
+提交、推送前检查敏感信息；密钥、录音、用户备份和构建产物不得提交。每个通过检查的小阶段自动本地提交；创建、切换、重命名、合并、删除分支以及推送均需用户明确允许。
