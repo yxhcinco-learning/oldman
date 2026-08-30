@@ -1,12 +1,12 @@
 ## 1. Deployment foundation
 
-- [ ] 1.1 Add gateway health and content-safe structured operational logs with regression tests
-- [ ] 1.2 Add reviewed systemd, Nginx, release and rollback templates without secrets or product-layer temporary login
-- [ ] 1.3 Update environment, product, architecture, privacy and development documentation for the controlled public-test boundary
+- [x] 1.1 Add gateway health and content-safe structured operational logs with regression tests
+- [x] 1.2 Add reviewed systemd, Nginx, release and rollback templates without secrets or product-layer temporary login
+- [x] 1.3 Update environment, product, architecture, privacy and development documentation for the controlled public-test boundary
 
 ## 2. Local verification and release
 
-- [ ] 2.1 Run security/difference/OpenSpec checks plus the complete `npm run check` and `npm run build`
+- [x] 2.1 Run security/difference/OpenSpec checks plus the complete `npm run check` and `npm run build`
 - [ ] 2.2 Build a fixed-commit secret-free release archive, inspect members and record its local SHA-256
 
 ## 3. Existing-cloud preparation

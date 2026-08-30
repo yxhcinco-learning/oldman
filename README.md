@@ -18,6 +18,8 @@ npm run dev
 
 始终访问 **http://localhost:3001/**。即使终端显示 `127.0.0.1`，也不要切换地址——浏览器会把它当成另一份存储。启动器同时运行前端与 `127.0.0.1:3002` 语音/文章 AI 网关；端口占用会报错退出，不自动换端口。
 
+少量同事的临时公网体验使用独立的受控 HTTPS Origin，不复用 localhost 数据或 GPT Sites。部署、访问保护、秘密、验证和回滚边界见 [受控公网测试部署](docs/DEPLOYMENT.md)。
+
 没有服务凭据也可以使用写作、保存和备份；语音或 AI 未配置时明确提示，不生成模拟结果。语音见 [接入指引](docs/SPEECH-SETUP.md)；AI 在根目录 `.env.local` 填写 `DEEPSEEK_API_KEY` 并重启网关，地址及 `deepseek-v4-flash` 已在模板预填，见 [AI 配置](docs/DEVELOPMENT.md#文章-ai-接入配置)。
 
 当前本机已保存 `.env.local` 并复用 Windows User 中已有腾讯云密钥；DeepSeek Key 也已配置且仅在服务端使用。该文件不入仓库；其他电脑按 `.env.example` 配置。长期子用户密钥不需要 `TENCENT_ASR_TOKEN`。

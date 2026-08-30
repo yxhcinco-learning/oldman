@@ -1,0 +1,38 @@
+[Unit]
+Description=Suiyue Yousheng Vinext frontend
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60s
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=suiyue
+Group=suiyue
+WorkingDirectory=/opt/suiyue-yousheng/current
+Environment=NODE_ENV=production
+ExecStartPre=/usr/bin/test -f /opt/suiyue-yousheng/current/package.json
+ExecStart=/usr/bin/npm run start -- --port 3011 --hostname 127.0.0.1
+ExecStartPost=/bin/sh -c 'for n in 1 2 3 4 5 6 7 8 9 10; do /usr/bin/curl -fsS --max-time 2 http://127.0.0.1:3011/ >/dev/null && exit 0; sleep 1; done; exit 1'
+Restart=on-failure
+RestartSec=2s
+KillSignal=SIGTERM
+TimeoutStartSec=30s
+TimeoutStopSec=20s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=200
+
+[Install]
+WantedBy=multi-user.target

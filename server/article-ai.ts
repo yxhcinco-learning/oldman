@@ -1,9 +1,10 @@
 import type { FastifyInstance } from 'fastify';
 import { aiResultSchema, resultSummary } from '../lib/domain/article-ai';
 import { aiRequestSchema, type AiRequest, type AiResponse } from '../features/ai/protocol';
+import { defaultOperationLogger, operationDuration, type OperationLogger } from './operations';
 
 export interface AiConfiguration { apiKey: string; baseUrl: string; model: 'deepseek-v4-flash' }
-export interface AiGatewayOptions { configuration?: AiConfiguration; origin: string; fetch?: typeof fetch; timeoutMs?: number; maxConcurrent?: number; requestsPerMinute?: number }
+export interface AiGatewayOptions { configuration?: AiConfiguration; origin: string; fetch?: typeof fetch; timeoutMs?: number; maxConcurrent?: number; requestsPerMinute?: number; operations?: OperationLogger }
 export function loadAiConfiguration(env: Readonly<Record<string, string | undefined>> = process.env): AiConfiguration | undefined {
   const apiKey = env.DEEPSEEK_API_KEY?.trim();
   const baseUrl = env.DEEPSEEK_BASE_URL?.trim().replace(/\/$/, '') || 'https://api.deepseek.com';
@@ -37,10 +38,10 @@ export function systemPrompt(action: AiRequest['action']): string {
 只优化 current.body，返回完整正文 body（不是片段、差异或摘要），保留自然换行，段落之间用空行；原文已经合适时可保持不变。answer 必须比较本次 current.body 与输出 body，只说明本次实际差异；不能复述 turns 里上一轮已经完成的修改。如果没有差异，就明确说本次保留原文，不声称又修正了原文中不存在的错误。不声称已保存或保证事实完全正确。JSON 格式：{"answer":"修改说明","body":"完整正文","citedVersionIds":[]}。`;
 }
 class AiServiceError extends Error {
-  constructor(readonly status: number, message: string) { super(message); }
+  constructor(readonly status: number, readonly category: string, message: string) { super(message); }
 }
 async function readLimitedJson(response: Response): Promise<unknown> {
-  if (!response.body) throw new AiServiceError(502, 'AI 没有返回完整结果，请稍后重试。');
+  if (!response.body) throw new AiServiceError(502, 'upstream_empty', 'AI 没有返回完整结果，请稍后重试。');
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let text = '', size = 0;
@@ -49,7 +50,7 @@ async function readLimitedJson(response: Response): Promise<unknown> {
       const part = await reader.read();
       if (part.done) break;
       size += part.value.byteLength;
-      if (size > 256 * 1024) throw new AiServiceError(502, 'AI 返回内容过长，未应用任何修改。');
+      if (size > 256 * 1024) throw new AiServiceError(502, 'upstream_oversized', 'AI 返回内容过长，未应用任何修改。');
       text += decoder.decode(part.value, { stream: true });
     }
     text += decoder.decode();
@@ -73,17 +74,18 @@ export async function callDeepSeek(request: AiRequest, configuration: AiConfigur
   if (!response.ok) {
     await response.body?.cancel();
     const messages: Record<number, string> = { 401: 'DeepSeek Key 无效，请检查服务端配置。', 402: 'DeepSeek 额度不足，请检查账户余额。', 429: 'DeepSeek 当前请求较多，请稍后重试。' };
-    throw new AiServiceError(response.status === 429 ? 429 : 502, messages[response.status] ?? 'DeepSeek 暂时不可用，请稍后重试。');
+    const categories: Record<number, string> = { 401: 'upstream_auth', 402: 'upstream_balance', 429: 'upstream_rate_limit' };
+    throw new AiServiceError(response.status === 429 ? 429 : 502, categories[response.status] ?? 'upstream_http', messages[response.status] ?? 'DeepSeek 暂时不可用，请稍后重试。');
   }
   const raw = await readLimitedJson(response) as { choices?: { finish_reason?: string; message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } };
   const choice = raw?.choices?.[0];
-  if (choice?.finish_reason !== 'stop' || !choice.message?.content) throw new AiServiceError(502, 'AI 结果未完整生成，原文保持不变，请重试。');
+  if (choice?.finish_reason !== 'stop' || !choice.message?.content) throw new AiServiceError(502, 'upstream_incomplete', 'AI 结果未完整生成，原文保持不变，请重试。');
   const result = aiResultSchema.parse(JSON.parse(choice.message.content));
-  if (['regular', 'polish', 'rewrite'].includes(request.action) && !result.body?.trim()) throw new AiServiceError(502, 'AI 未返回完整正文，原文保持不变。');
+  if (['regular', 'polish', 'rewrite'].includes(request.action) && !result.body?.trim()) throw new AiServiceError(502, 'upstream_missing_body', 'AI 未返回完整正文，原文保持不变。');
   if (request.action === 'question') delete result.body;
   result.answer = resultSummary(result, request.current.body);
   const providedIds = new Set([request.current.id, ...request.versions.map(v => v.id)]);
-  if (result.citedVersionIds.some(id => !providedIds.has(id))) throw new AiServiceError(502, 'AI 引用的版本无法核对，请重新提问。');
+  if (result.citedVersionIds.some(id => !providedIds.has(id))) throw new AiServiceError(502, 'upstream_invalid_citation', 'AI 引用的版本无法核对，请重新提问。');
   const input = raw.usage?.prompt_tokens, output = raw.usage?.completion_tokens;
   return { requestId: request.requestId, result,
     ...(Number.isSafeInteger(input) && Number.isSafeInteger(output) && input! >= 0 && output! >= 0 ? { usage: { input: input!, output: output! } } : {}) };
@@ -92,17 +94,30 @@ export function registerArticleAi(app: FastifyInstance, options: AiGatewayOption
   const active = new Set<AbortController>();
   let recent: number[] = [];
   app.get('/api/ai/status', async (request, reply) => {
-    if (request.headers.origin && request.headers.origin !== options.origin) return reply.code(403).send({ configured: false });
+    const startedAt = performance.now();
+    const log = options.operations ?? defaultOperationLogger;
+    if (request.headers.origin && request.headers.origin !== options.origin) {
+      log({ requestId: request.id, action: 'ai.status', status: 403, durationMs: operationDuration(startedAt), errorCategory: 'origin_rejected' });
+      return reply.code(403).send({ configured: false });
+    }
+    log({ requestId: request.id, action: 'ai.status', status: 200, durationMs: operationDuration(startedAt) });
     return reply.header('Cache-Control', 'no-store').send({ configured: Boolean(options.configuration), provider: 'DeepSeek', model: 'deepseek-v4-flash' });
   });
   app.post('/api/ai/turn', { bodyLimit: 1024 * 1024 }, async (request, reply) => {
+    const startedAt = performance.now();
+    const log = options.operations ?? defaultOperationLogger;
+    let action = 'ai.turn';
+    const finish = (status: number, errorCategory?: string, tokens?: { input: number; output: number }) => {
+      log({ requestId: request.id, action, status, durationMs: operationDuration(startedAt), ...(tokens ? { tokens } : {}), ...(errorCategory ? { errorCategory } : {}) });
+    };
     reply.header('Cache-Control', 'no-store');
-    if (request.headers.origin !== options.origin) return reply.code(403).send({ error: '来源不允许。' });
-    if (!options.configuration) return reply.code(503).send({ error: '请先配置本地 DeepSeek 服务并重启网关。' });
+    if (request.headers.origin !== options.origin) { finish(403, 'origin_rejected'); return reply.code(403).send({ error: '来源不允许。' }); }
+    if (!options.configuration) { finish(503, 'not_configured'); return reply.code(503).send({ error: '请先配置本地 DeepSeek 服务并重启网关。' }); }
     const parsed = aiRequestSchema.safeParse(request.body);
-    if (!parsed.success) return reply.code(400).send({ error: '文章或上下文格式无效、内容过长，请检查后再试。' });
+    if (!parsed.success) { finish(400, 'invalid_request'); return reply.code(400).send({ error: '文章或上下文格式无效、内容过长，请检查后再试。' }); }
+    action = `ai.${parsed.data.action}`;
     const now = Date.now(); recent = recent.filter(time => now - time < 60000);
-    if (active.size >= (options.maxConcurrent ?? 2) || recent.length >= (options.requestsPerMinute ?? 20)) return reply.code(429).send({ error: '请求较多，请稍后再试。' });
+    if (active.size >= (options.maxConcurrent ?? 2) || recent.length >= (options.requestsPerMinute ?? 20)) { finish(429, 'rate_limited'); return reply.code(429).send({ error: '请求较多，请稍后再试。' }); }
     recent.push(now);
     const controller = new AbortController(); active.add(controller);
     const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 120000);
@@ -110,11 +125,13 @@ export function registerArticleAi(app: FastifyInstance, options: AiGatewayOption
     reply.raw.on('close', onClose);
     try {
       const result = await callDeepSeek(parsed.data, options.configuration, controller.signal, options.fetch);
-      if (controller.signal.aborted) return reply.code(504).send({ error: 'AI 请求已取消或超时，原文未改变。' });
+      if (controller.signal.aborted) { finish(504, 'cancelled_or_timeout'); return reply.code(504).send({ error: 'AI 请求已取消或超时，原文未改变。' }); }
+      finish(200, undefined, result.usage);
       return result;
     } catch (error) {
-      if (controller.signal.aborted) return reply.code(504).send({ error: 'AI 请求已取消或超时，原文未改变。' });
-      if (error instanceof AiServiceError) return reply.code(error.status).send({ error: error.message });
+      if (controller.signal.aborted) { finish(504, 'cancelled_or_timeout'); return reply.code(504).send({ error: 'AI 请求已取消或超时，原文未改变。' }); }
+      if (error instanceof AiServiceError) { finish(error.status, error.category); return reply.code(error.status).send({ error: error.message }); }
+      finish(502, 'upstream_invalid_response');
       return reply.code(502).send({ error: 'AI 连接或结果格式异常，原文未改变，请稍后重试。' });
     } finally { clearTimeout(timer); active.delete(controller); reply.raw.off('close', onClose); }
   });
