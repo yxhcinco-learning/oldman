@@ -31,7 +31,7 @@ AudioWorklet 重采样至 16kHz PCM16；同源 WebSocket 代理至 127.0.0.1:300
 
 `server/credentials.ts` 显式选择 `project` 或 `windows-user`。后者在服务端用固定、隐藏且有超时的 PowerShell 子进程读取 User 环境，秘密只在内存传递，不写项目或日志。只读取选定来源，不混用密钥对和临时 Token；缺失保持网关未配置。本机 `.env.local` 的语音部分只保存 AppID、来源和其他非秘密参数；DeepSeek 配置见 ADR-006。
 
-正文语音面板与文章会话听写共用 `useSpeechDictation`、`SpeechSession` 和 `HoldGesture`，以及同一浏览器内的语音知情授权标记。会话听写只把腾讯云识别结果追加到本地输入框，取消时恢复录音前输入，失败保留已有文字；它不自动触发 DeepSeek、正文写回或新的服务端接口。
+正文语音面板与文章会话听写共用 `useSpeechDictation`、`SpeechSession` 和 `HoldGesture`，以及同一浏览器内的语音知情授权标记。共享手势层分别记录指针和键盘来源：指针只由 `pointerup/pointercancel` 结束，普通 blur 或捕获迁移不冒充松手；键盘由 `keyup` 或持有期间的 blur 结束，Escape、页面隐藏、pagehide 和卸载继续清理。会话紧凑按钮另以 `holding` 表达物理按住，以 `SpeechSession.phase` 表达准备、连接、录音和收尾；正文语音舞台保持原有布局与待确认语义。会话听写只把腾讯云识别结果追加到本地输入框，取消时恢复录音前输入，失败保留已有文字；它不自动触发 DeepSeek、正文写回或新的服务端接口。
 
 ## ADR-004 历史 AI 模拟隔离
 
@@ -53,7 +53,7 @@ AudioWorklet 重采样至 16kHz PCM16；同源 WebSocket 代理至 127.0.0.1:300
 
 自由输入只发送一次 `chat` 请求，不增加分类器调用，也不在客户端用关键词猜测意图。模型可只返回 `answer` 回答问题，或同时返回完整 `body` 形成待确认候选；要求不明确时只返回简短追问。会话层以是否存在 `body` 分别保存为 `answered` 或 `ready`。历史 `question` / `rewrite` 记录和重试继续兼容；`chat` 候选采用后仍以 `rewrite` 记录版本来源，因此无需升级数据库/备份版本。候选继续复用基准检查、事务应用、撤销和恢复。文风要求允许合理修辞和氛围表达，但提示词保护人物关系、具体动作、时间地点、数字、对话和事件结果，并要求披露氛围性增写；模型输出仍由用户逐段核对。原始反例及用户校正见 [对话改文验收](CONVERSATIONAL-REWRITE-ACCEPTANCE.md)，统一发送的实现证据见 [统一发送验收](AI-UNIFIED-SEND-ACCEPTANCE.md)。
 
-常规优化、润色文笔和对话调整共用 chat 展示，不再在优化菜单直接编辑需求或自动跳转 preview。快捷优化的 action 仍决定固定服务端任务，展示层为旧空 prompt 提供可读操作文字；不迁移历史。应用或放弃只更新 status/正文，保留原 answer。统一反馈的实现与尺寸证据见 [会话反馈验收](AI-CONVERSATION-FEEDBACK-ACCEPTANCE.md)。
+常规优化、润色文笔和对话调整共用 chat 展示，不再在优化菜单直接编辑需求或自动跳转 preview。快捷优化的 action 仍决定固定服务端任务，展示层为旧空 prompt 提供可读操作文字；不迁移历史。应用或放弃只更新 status/正文，保留原 answer。会话级“修改记录”进入 Dialog 页头操作槽；候选的查看结果与撤销为同一消息操作组。普通成功确认使用约3秒的非模态 toast，状态仍持久保存在 turn 和修改记录；冲突、失败和覆盖风险保持内容流内持续可见。统一反馈的基础实现见 [会话反馈验收](AI-CONVERSATION-FEEDBACK-ACCEPTANCE.md)，本轮紧凑化尺寸证据见 [语音与结果反馈验收](AI-VOICE-RESULT-FEEDBACK-ACCEPTANCE.md)。
 
 浏览器只访问同源 `/api/ai`，Key 仅在服务端读取忽略的 `.env.local`。首次发送需同意正文/历史/消息的数据去向；网关不记录内容。正文 12000 字符、问题 2000 字符、上下文 JSON 120000 字符、请求 1MiB、响应 256KiB、并发 2、每分钟 20 次、超时 120 秒；追问最多输出 2048 tokens，优化 16384 tokens。取消、断开和关闭服务尽力终止上游；迟到结果不写回，刷新不自动重试。
 

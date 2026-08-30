@@ -13,5 +13,5 @@
 
 ## 3. Documentation and Verification
 
-- [ ] 3.1 Update the design system, architecture/acceptance documentation and change evidence without claiming real microphone or physical-device verification
-- [ ] 3.2 Run focused tests, `npm run check`, `npm run build` and browser regression at supported mobile widths
+- [x] 3.1 Update the design system, architecture/acceptance documentation and change evidence without claiming real microphone or physical-device verification
+- [x] 3.2 Run focused tests, `npm run check`, `npm run build` and browser regression at supported mobile widths
