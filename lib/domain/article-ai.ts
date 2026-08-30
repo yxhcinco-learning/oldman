@@ -20,8 +20,22 @@ export const aiResultSchema = z.object({
   citedVersionIds: z.array(id).max(20).default([]),
 }).strict();
 export type AiResult = z.infer<typeof aiResultSchema>;
+const NON_CHANGE_CLAUSE = /(?:[（(]\s*(?:未变|无变化|无修改)\s*[）)]|保持不变|维持不变|原样保留|无需修改|没有变化|无实际变化)/;
+const QUOTED_REPLACEMENT = /[“"]([^”"]+)[”"]\s*(?:改为|修改为|调整为|统一为|替换为)\s*[“"]([^”"]+)[”"]/g;
+function normalizedQuote(value: string) { return value.replace(/\s+/g, '').trim(); }
+function isNonChangeClause(clause: string) {
+  if (NON_CHANGE_CLAUSE.test(clause)) return true;
+  const replacements = [...clause.matchAll(QUOTED_REPLACEMENT)];
+  return replacements.length > 0 && replacements.every(match => normalizedQuote(match[1]) === normalizedQuote(match[2]));
+}
+export function actualChangeSummary(answer: string): string {
+  const clauses = answer.match(/[^；;。\n]+[；;。\n]?/g) ?? [answer];
+  const kept = clauses.filter(clause => !isNonChangeClause(clause)).join('').trim();
+  return kept || '已完成本轮整理，请对照原文查看具体变化。';
+}
 export function resultSummary(result: AiResult, originalBody: string): string {
-  return result.body === originalBody ? '本次保留原文，未产生正文修改。' : result.answer;
+  if (result.body === originalBody) return '本次保留原文，未产生正文修改。';
+  return result.body === undefined ? result.answer : actualChangeSummary(result.answer);
 }
 export const turnSchema = z.object({
   id, createdAt: z.iso.datetime(), action: aiActionSchema, prompt: z.string().max(2000), inputVersionId: id,

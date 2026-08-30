@@ -26,7 +26,7 @@ it('uses the approved Echoes palette and local font stacks', () => {
 });
 
 it('retains the approved canvas, title and speech geometry without a mock keyboard', () => {
-  expect(rule('.phone-shell')).toMatchObject({ 'max-width': '800px', height: '100dvh', 'min-height': '0' });
+  expect(rule('.phone-shell')).toMatchObject({ 'max-width': '800px', height: 'var(--visual-viewport-height, 100dvh)', 'min-height': '0', transform: 'translateY(var(--visual-viewport-offset, 0px))' });
   expect(rule('.title-input')).toMatchObject({ height: '68px', padding: '16px 0', font: '600 26px/36px var(--serif)', 'margin-bottom': '24px', 'border-bottom': '1px solid var(--line)' });
   expect(rule('.title-input::placeholder')).not.toHaveProperty('font-size');
   expect(rule('.voice-panel')['grid-template-rows']).toBe('122px 84px 20px');
@@ -54,12 +54,15 @@ it('keeps failures and simulation labels visible without displacing footer contr
   expect(rule('.editor-dock')['order']).toBe('3');
   expect(rule('.create-dock')['order']).toBe('3');
   expect(Number(rule('.demo-banner')['z-index'])).toBeGreaterThan(Number(rule('.sheet-backdrop')['z-index']));
-  expect(rule('.product-dialog')).toMatchObject({ 'max-height': '90dvh', 'overflow-y': 'auto', 'border-radius': '24px 24px 0 0' });
+  expect(rule('.product-dialog')).toMatchObject({ 'max-height': 'min(90dvh, calc(var(--visual-viewport-height, 100dvh) - 16px))', 'overflow-y': 'auto', 'border-radius': '24px 24px 0 0' });
 });
 
 it('keeps AI input focus inside its border and uses a compact optimization hint', () => {
   expect(rule('.ai-composer textarea:focus-visible')).toMatchObject({ outline: '0', 'border-color': 'var(--forest-soft)', 'box-shadow': 'inset 0 0 0 1px var(--forest-soft)' });
   expect(rule('.ai-voice-controls button')).toMatchObject({ 'min-height': '48px', 'touch-action': 'none' });
+  expect(rule('.ai-composer textarea')).toMatchObject({ height: '52px', 'min-height': '52px', 'max-height': '148px', resize: 'none' });
+  expect(rule('.ai-composer-row')).toMatchObject({ display: 'grid', 'grid-template-columns': 'minmax(0, 1fr)' + ' auto' });
+  expect(rule('.voice-panel-expand')['min-height']).toBe('48px');
   expect(rule('.optimize-tip')).toMatchObject({ position: 'absolute', width: 'min(250px, calc(100vw - 40px))', 'pointer-events': 'none' });
 });
 

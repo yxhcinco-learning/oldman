@@ -28,8 +28,10 @@ it('turns unnecessary spoken phrasing into natural written expression without we
   expect(regular).toContain('坐了3天3夜的火车');
   expect(regular).toContain('不要写成“火车上住了3天3夜”');
   expect(regular).toContain('不擅自删掉承载事实、观点、程度、情感或语气作用的内容');
+  expect(regular).toContain('不要列出“未变”“保持不变”“无需修改”的内容');
   const polish = systemPrompt('polish');
   expect(polish).toContain('润色文笔：重点改善用词搭配');
+  expect(polish).toContain('不要把同一句写成修改前后相同');
   expect(polish).not.toContain('原样保留明显口语赘词');
 });
 it('uses only the official configured service and never includes secrets in client status or results', async () => {
@@ -65,6 +67,15 @@ it('does not repeat a claimed edit when the candidate equals the current article
   expect(result.statusCode).toBe(200);
   expect(result.json().result).toMatchObject({ body: request.current.body, answer: '本次保留原文，未产生正文修改。' });
 });
+it('filters explicit unchanged entries while preserving the candidate and real explanation clauses', async () => {
+  const request = payload();
+  const body = '周末，我去了公园。';
+  const answer = '补充了逗号；将“去了公园”改为“去了公园”（未变）；事实保持不变。';
+  const app = await gateway({ fetch: vi.fn(async () => response({ answer, body, citedVersionIds: [] })) });
+  const result = await app.inject({ method: 'POST', url: '/api/ai/turn', headers: { origin }, payload: request });
+  expect(result.statusCode).toBe(200);
+  expect(result.json().result).toMatchObject({ body, answer: '补充了逗号；' });
+});
 it('uses an explicit conversational instruction to return a full candidate while keeping questions read only', async () => {
   const call = vi.fn(async () => response({ answer: '删除了第二段。', body: '周末我去了公园。', citedVersionIds: [] }));
   const app = await gateway({ fetch: call });
@@ -78,6 +89,7 @@ it('uses an explicit conversational instruction to return a full candidate while
   expect(body.messages[0].content).toContain('不得改成“我们一起种下”');
   expect(body.messages[0].content).toContain('可以加入不改变核心事实的合理文学性氛围表达');
   expect(body.messages[0].content).toContain('answer 必须明确说明加入了哪类氛围');
+  expect(body.messages[0].content).toContain('不能列出“未变”“保持不变”“无需修改”的内容');
   expect(JSON.parse(body.messages[1].content)).toMatchObject({ action: 'rewrite', prompt: '删除第二段，其余保持不变' });
 });
 it('lets one chat action answer questions or return a complete candidate without a classifier request', async () => {

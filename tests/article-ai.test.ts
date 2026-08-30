@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { emptyDraft } from '../lib/domain/writing';
-import { documentOf, newSession, newVersion, type AiTurn } from '../lib/domain/article-ai';
+import { actualChangeSummary, documentOf, newSession, newVersion, resultSummary, type AiTurn } from '../lib/domain/article-ai';
 import { IndexedWorkRepository } from '../lib/storage/repository';
 import { makeBackup, parseBackupBundle } from '../lib/storage/backup';
 import { Workspace } from '../features/writing/workspace';
@@ -20,6 +20,15 @@ async function setup(text = '第一段\n\n第二段') {
   const controller = new ArticleAiController(workspace, transport);
   return { workspace, controller, repo };
 }
+it('removes explicit non-changes from current-turn explanations without changing answer-only replies', () => {
+  const result = { answer: '删除了“吧”；将“心里也说不上滋味”改为“心里也说不上滋味”（未变）；整体语句更通顺。', body: '新的正文', citedVersionIds: [] };
+  expect(resultSummary(result, '原正文')).toBe('删除了“吧”；整体语句更通顺。');
+  expect(resultSummary({ ...result, answer: '将“原句”改为“原句”。' }, '原正文')).toBe('已完成本轮整理，请对照原文查看具体变化。');
+  expect(resultSummary({ ...result, answer: '保持不变；无需修改。' }, '原正文')).toBe('已完成本轮整理，请对照原文查看具体变化。');
+  expect(resultSummary({ ...result, body: '原正文' }, '原正文')).toBe('本次保留原文，未产生正文修改。');
+  expect(resultSummary({ answer: '这句话在当前正文中。', citedVersionIds: [] }, '原正文')).toBe('这句话在当前正文中。');
+  expect(actualChangeSummary(actualChangeSummary(result.answer))).toBe(actualChangeSummary(result.answer));
+});
 it('carries adopted, discarded and manual versions across successive operations', async () => {
   const { workspace, controller, repo } = await setup();
   const regular = await controller.run('regular'); expect(workspace.state.draft?.textDraft).toBe('第一段\n\n第二段');

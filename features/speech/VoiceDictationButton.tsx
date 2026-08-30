@@ -15,13 +15,13 @@ export function VoiceDictationButton({ value, onChange, disabled = false, onActi
     return () => onActiveChange?.(false);
   }, [dictation.active, onActiveChange]);
   const buttonText = dictation.recording ? '松开结束' : dictation.speech.phase === 'finishing' ? '正在确认' : dictation.holding ? '请继续按住' : dictation.active ? '请稍候' : '按住说话';
-  const status = dictation.speech.message || dictation.tip;
+  const status = dictation.speech.message || dictation.tip || (dictation.active ? buttonText : '');
 
   return <>
     <div className="ai-voice-controls" data-phase={dictation.speech.phase}>
       {status && <span className="ai-voice-status" role="status">{status}</span>}
-      <button type="button" className={dictation.holding ? 'holding' : ''} aria-label="按住说话输入要求" disabled={disabled} {...dictation.holdProps}>
-        <Icon name="mic" /><span>{buttonText}</span>
+      <button type="button" className={dictation.holding ? 'holding' : ''} aria-label={dictation.active ? `${buttonText}，输入要求` : '按住说话输入要求'} disabled={disabled} {...dictation.holdProps}>
+        <Icon name="mic" /><span className="ai-voice-label">{buttonText}</span>
       </button>
     </div>
     {dictation.askConsent && <Dialog className="voice-consent-dialog" title="开启语音输入" onClose={dictation.dismissConsent}>

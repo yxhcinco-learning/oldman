@@ -21,7 +21,27 @@ export function ProductApp({ repository, aiTransport }: { repository?: WorkRepos
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const file = useRef<HTMLInputElement>(null);
+  const shell = useRef<HTMLElement>(null);
   useEffect(() => { void workspace.initialize(); return () => { workspace.dispose(); void assistant.cancel(); }; }, [workspace, assistant]);
+  useEffect(() => {
+    const element = shell.current;
+    const viewport = window.visualViewport;
+    if (!element || !viewport) return;
+    const sync = () => {
+      const height = Number.isFinite(viewport.height) && viewport.height > 0 ? Math.round(viewport.height) : 0;
+      const offset = Number.isFinite(viewport.offsetTop) ? Math.max(0, Math.round(viewport.offsetTop)) : 0;
+      if (height) element.style.setProperty('--visual-viewport-height', `${height}px`);
+      else element.style.removeProperty('--visual-viewport-height');
+      element.style.setProperty('--visual-viewport-offset', `${offset}px`);
+    };
+    sync();
+    viewport.addEventListener('resize', sync);
+    viewport.addEventListener('scroll', sync);
+    return () => {
+      viewport.removeEventListener('resize', sync);
+      viewport.removeEventListener('scroll', sync);
+    };
+  }, []);
   useEffect(() => {
     const checkpoint = () => { if (document.visibilityState === 'hidden') void workspace.checkpoint(); };
     document.addEventListener('visibilitychange', checkpoint);
@@ -36,7 +56,7 @@ export function ProductApp({ repository, aiTransport }: { repository?: WorkRepos
   };
   const openAssistant = (entry: 'chat' | 'optimize') => { if (state.draft) { void workspace.checkpoint(); setAiEntry(entry); } };
   const menuWorks = state.works.filter(work => Boolean(work.deletedAt) === (menu === 'trash'));
-  return <main className="stage"><section className={`phone-shell ${state.draft ? 'app-view editor-screen' : 'home-screen'}`} aria-label="岁月有声写作应用">
+  return <main className="stage"><section ref={shell} className={`phone-shell ${state.draft ? 'app-view editor-screen' : 'home-screen'}`} aria-label="岁月有声写作应用">
     {state.loading ? <div className="loading-state" role="status">正在打开本机作品…</div> : state.draft ? <Editor draft={state.draft} update={draft => { void workspace.update(draft); }} onSave={() => void finish()} onBack={() => void finish()} onAssistant={openAssistant} saveStatus={state.saveStatus} /> :
       <WorksHome works={state.works} onNew={() => void workspace.newWork()} onOpen={work => void workspace.open(work)} onMenu={() => setMenu('library')} />}
     {state.error && <div className="storage-error" role="alert"><p>{state.error}</p><div>{state.draft && <button type="button" onClick={() => void workspace.update(state.draft!)}>重试保存</button>}<button type="button" onClick={backup}>导出当前备份</button></div></div>}

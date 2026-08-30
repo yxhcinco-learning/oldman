@@ -20,6 +20,7 @@ export function Editor({ draft, update, onSave, onBack, onAssistant, saveStatus 
 }) {
   const textarea = useRef<HTMLTextAreaElement>(null);
   const draftRef = useRef(draft);
+  const [voiceCollapsed, setVoiceCollapsed] = useState(false);
   const [showOptimizeTip, setShowOptimizeTip] = useState(() => !hasSeenOptimizeTip() && optimizeBodyLength(draft) >= OPTIMIZE_TIP_LENGTH);
   const optimizeTipHandled = useRef(showOptimizeTip || hasSeenOptimizeTip());
   // Event callbacks always read the currently rendered document.
@@ -46,9 +47,14 @@ export function Editor({ draft, update, onSave, onBack, onAssistant, saveStatus 
     update(next);
   };
   const setMode = (mode: InputMode) => {
-    if (mode === draft.inputMode) { if (mode === 'text') textarea.current?.focus(); return; }
+    if (mode === draft.inputMode) {
+      if (mode === 'text') textarea.current?.focus();
+      else setVoiceCollapsed(false);
+      return;
+    }
     const segments = effectiveSegments(draft);
     flushSync(() => updateDraft({ ...draft, segments, textDraft: articleText(segments), inputMode: mode }));
+    if (mode === 'voice') setVoiceCollapsed(false);
     if (mode === 'text') textarea.current?.focus({ preventScroll: true });
   };
   if (draft.segmentEdit) return <>
@@ -68,9 +74,10 @@ export function Editor({ draft, update, onSave, onBack, onAssistant, saveStatus 
     </div>
     <footer className={`editor-dock ${draft.inputMode}`}><WritingToolbar mode={draft.inputMode} onMode={setMode} onChat={() => onAssistant('chat')}
       onOptimize={() => { dismissOptimizeTip(); onAssistant('optimize'); }} showOptimizeTip={showOptimizeTip} />
-    {draft.inputMode === 'voice' && <VoicePanel pending={draft.pendingVoice}
+    {draft.inputMode === 'voice' && (voiceCollapsed ? <button type="button" className="voice-panel-expand" onClick={() => setVoiceCollapsed(false)}><Icon name="chevron" />展开语音输入</button> : <VoicePanel pending={draft.pendingVoice}
       onPending={text => updateDraft({ ...draftRef.current, pendingVoice: text })}
       onEdit={() => updateDraft({ ...draft, segmentEdit: { id: 'pending', text: draft.pendingVoice } })}
-      onDone={() => updateDraft(completeVoice(draftRef.current))} />}</footer>
+      onDone={() => updateDraft(completeVoice(draftRef.current))}
+      onCollapse={() => setVoiceCollapsed(true)} />)}</footer>
   </>;
 }

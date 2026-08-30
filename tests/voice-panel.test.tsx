@@ -21,3 +21,11 @@ it('keeps pending review editable and clear/complete actions independent', () =>
   fireEvent.click(screen.getByRole('button', { name: '完成' })); expect(done).toHaveBeenCalledOnce();
   fireEvent.click(screen.getByRole('button', { name: '清空' })); expect(pending).toHaveBeenCalledWith('');
 });
+it('offers a presentation-only collapse without clearing pending text', () => {
+  const pending = vi.fn(), collapse = vi.fn();
+  render(<VoicePanel pending="仍待确认" onPending={pending} onEdit={() => {}} onDone={() => {}} onCollapse={collapse} />);
+  fireEvent.click(screen.getByRole('button', { name: '收起语音输入' }));
+  expect(collapse).toHaveBeenCalledOnce();
+  expect(pending).not.toHaveBeenCalled();
+  expect(screen.getByText('仍待确认')).toBeInTheDocument();
+});

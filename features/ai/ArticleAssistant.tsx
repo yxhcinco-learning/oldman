@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Dialog } from '../../components/Dialog';
 import { Icon } from '../../components/Icons';
 import { ACTION_LABELS, VERSION_LABELS, documentOf, sameDocument, resultSummary, type AiAction, type AiTurn, type ArticleVersion } from '../../lib/domain/article-ai';
@@ -62,6 +62,14 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
   useEffect(() => {
     if (page === 'chat' && focusPromptOnChat.current) { focusPromptOnChat.current = false; promptInput.current?.focus(); }
   }, [page]);
+  useLayoutEffect(() => {
+    const input = promptInput.current;
+    if (page !== 'chat' || !input) return;
+    input.style.height = 'auto';
+    const measured = input.scrollHeight || 52;
+    input.style.height = `${Math.min(Math.max(measured, 52), 148)}px`;
+    input.style.overflowY = measured > 148 ? 'auto' : 'hidden';
+  }, [page, prompt]);
   const busy = ai.busy || saving;
   if (!draft) return null;
   const turn = session?.turns.find(t => t.id === selectedId);
@@ -114,11 +122,11 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
   };
   const compose = () => <form className="ai-composer" onSubmit={event => event.preventDefault()}>
     <label className="visually-hidden" htmlFor="article-ai-question">问问小文</label>
-    <div className="ai-prompt-field"><textarea ref={promptInput} id="article-ai-question" value={prompt} onChange={event => setPrompt(event.target.value)} disabled={busy || voiceActive} maxLength={2000}
-      rows={3} placeholder="问问题，或告诉小文想怎样调整文章" />
-      <VoiceDictationButton value={prompt} onChange={text => setPrompt(text.slice(0, 2000))} disabled={busy} onActiveChange={setVoiceActive} />
+    <div className="ai-composer-row"><textarea ref={promptInput} id="article-ai-question" value={prompt} onChange={event => setPrompt(event.target.value)} disabled={busy || voiceActive} maxLength={2000}
+      rows={1} placeholder="问问题，或告诉小文怎样调整" />
+      <div className="ai-composer-actions"><VoiceDictationButton value={prompt} onChange={text => setPrompt(text.slice(0, 2000))} disabled={busy} onActiveChange={setVoiceActive} />
+        <button type="button" className="primary-button ai-send" disabled={busy || voiceActive || !prompt.trim()} onClick={() => request('chat', prompt)}><Icon name="spark" />发送</button></div>
     </div>
-    <div className="ai-composer-actions"><button type="button" className="primary-button" disabled={busy || voiceActive || !prompt.trim()} onClick={() => request('chat', prompt)}><Icon name="spark" />发送</button></div>
   </form>;
 
   return <Dialog className={`article-ai-dialog ai-page-${page}`} title={titles[page]} onClose={close} headerActions={page === 'menu' || page === 'chat' ? <button type="button" onClick={() => { setFeedback(null); setPage('history'); }} aria-label="查看修改记录"><Icon name="book" /></button> : undefined} onBack={page === 'menu' ? undefined : () => {
@@ -147,7 +155,7 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
       {page === 'menu' && <>
         <button type="button" className="ai-regular" disabled={busy} onClick={() => request('regular')}>
           <span className="ai-tool-heading"><Icon name="spark" /><strong>常规优化</strong></span><b>优化格式，整理通畅</b>
-          <span>整理语句、段落和标点，修改错别字，尽量保留您的原意与口吻。</span>
+          <span>整理语句、段落、标点和错字，保留您的原意与口吻。</span>
         </button>
         <h3 className="ai-section-title">按需修改</h3>
         <div className="ai-tool-grid">

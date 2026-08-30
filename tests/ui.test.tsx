@@ -282,6 +282,7 @@ it('shows the new categories and returns an optimization conversation to its men
   expect(screen.getByRole('button', { name: /^润色文笔/ })).toBeEnabled();
   for (const name of ['精简内容', '扩写内容', '添加配图']) expect(screen.getByRole('button', { name: new RegExp(name) })).toBeDisabled();
   expect(screen.queryByRole('button', { name: /内容类型|文风调整|格式整理/ })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '进入小文会话并输入需求' })).toHaveTextContent('问问题，或告诉小文想怎样调整文章');
   expect(screen.queryByLabelText('问问小文')).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: '查看对话记录' })).not.toBeInTheDocument();
   const history = screen.getByRole('button', { name: '查看修改记录' });
@@ -302,6 +303,53 @@ it('shows the new categories and returns an optimization conversation to its men
   fireEvent.click(screen.getByRole('button', { name: '返回上一级' }));
   fireEvent.click(screen.getByRole('button', { name: '关闭' }));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); expect(opener).toHaveFocus(); expect(transport).not.toHaveBeenCalled();
+});
+it('sizes the application to Visual Viewport changes so editor chrome remains in the same canvas', async () => {
+  const original = Object.getOwnPropertyDescriptor(window, 'visualViewport');
+  const listeners = new Map<string, Set<() => void>>();
+  const viewport = {
+    height: 844, offsetTop: 0,
+    addEventListener: (name: string, listener: () => void) => { const set = listeners.get(name) ?? new Set(); set.add(listener); listeners.set(name, set); },
+    removeEventListener: (name: string, listener: () => void) => { listeners.get(name)?.delete(listener); },
+  };
+  Object.defineProperty(window, 'visualViewport', { configurable: true, value: viewport });
+  try {
+    const { container } = render(<ProductApp repository={repo()} />);
+    await startWriting();
+    const shell = container.querySelector<HTMLElement>('.phone-shell')!;
+    expect(shell.style.getPropertyValue('--visual-viewport-height')).toBe('844px');
+    act(() => { viewport.height = 416; viewport.offsetTop = 96; listeners.get('resize')?.forEach(listener => listener()); });
+    expect(shell.style.getPropertyValue('--visual-viewport-height')).toBe('416px');
+    expect(shell.style.getPropertyValue('--visual-viewport-offset')).toBe('96px');
+    expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument();
+    for (const name of ['语音输入', '文字输入', '聊天引导', '文章优化']) expect(screen.getByRole(name.includes('输入') ? 'tab' : 'button', { name })).toBeInTheDocument();
+  } finally {
+    if (original) Object.defineProperty(window, 'visualViewport', original);
+    else delete (window as unknown as { visualViewport?: VisualViewport }).visualViewport;
+  }
+});
+it('collapses and reopens the default speech stage without changing the article', async () => {
+  const repository = repo(); render(<ProductApp repository={repository} />); await startWriting();
+  const before = (await repository.load()).works[0].draft.textDraft;
+  fireEvent.click(screen.getByRole('tab', { name: '语音输入' }));
+  fireEvent.click(screen.getByRole('button', { name: '收起语音输入' }));
+  expect(screen.queryByRole('button', { name: '按住说话' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: '展开语音输入' }));
+  expect(screen.getByRole('button', { name: '按住说话' })).toBeInTheDocument();
+  expect((await repository.load()).works[0].draft.textDraft).toBe(before);
+});
+it('uses a bounded autosizing conversation input beside voice and explicit send controls', async () => {
+  render(<ProductApp repository={repo()} />); await startWriting();
+  fireEvent.click(screen.getByRole('button', { name: '聊天引导' }));
+  const input = screen.getByLabelText<HTMLTextAreaElement>('问问小文');
+  expect(input.rows).toBe(1);
+  expect(input.style.height).toBe('52px');
+  Object.defineProperty(input, 'scrollHeight', { configurable: true, value: 220 });
+  fireEvent.change(input, { target: { value: '请只调整第二段。'.repeat(30) } });
+  expect(input.style.height).toBe('148px');
+  expect(input.style.overflowY).toBe('auto');
+  expect(screen.getByRole('button', { name: '按住说话输入要求' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '发送' })).toBeEnabled();
 });
 it('keeps an optimization request running when its conversation returns to the menu', async () => {
   localStorage.setItem('suiyue-article-ai-consent-v1', 'yes');
