@@ -76,3 +76,11 @@
 - 新增断言在旧布局下2项失败，修改后定向23项通过；完整 `npm run check` 通过22个测试文件、204项测试，`npm run build`通过。390×844本地实页页头列为56px/246px/56px、无横向溢出，正式加载样式中的待确认取消按钮为左对齐。
 - 提交 `528f046` 已部署到 `/opt/suiyue-yousheng/releases/528f046`，`previous` 为 `/opt/suiyue-yousheng/releases/2c8e7ac`。远端哈希与本地归档一致；两个应用服务和Nginx active，回环首页/健康通过，公网无认证为401且保留挑战、`no-store`和HSTS，有效认证首页为200，AI/语音配置正常，模型仍为 `16k_zh`。线上CSS确认左对齐，已删除的语音冗余句不在活动产物中。
 - 自动化浏览器保留了失效的旧Basic Auth凭据，未在受保护公网Origin内重做页面内点击；该项不影响有效凭据HTTPS 200、活动产物和服务器健康证据，但不冒充公网真机可视交互。iOS Safari / Android Chrome的物理键盘、安全区和触控仍属于原5.3待验项。本轮未调用DeepSeek、腾讯ASR或真实麦克风。
+
+## 真机收尾确认（2026-08-31）
+
+- 用户确认 iOS Safari 与 Android Chrome 当前的系统键盘、浏览器工具栏变化和切后台返回均正常，移动写作 change 5.3 完成。
+- 用户同时确认受控公网环境中的真实麦克风、键盘、后台和网络切换功能均正常，可共同作为部署 change 5.4 与产品化 change 4.6 的人工验收证据。
+- 用户确认公网 Origin 下的简单本机数据保存体验正常。这里的“本机”指该设备、该 HTTPS Origin 的浏览器 IndexedDB；文章没有保存到服务器，也不会自动同步其他设备或 localhost 数据。
+- 本次为用户真机验收结论，未另行提供设备型号、系统/浏览器小版本或截图；记录不将其表述为代理自动化或亲自复现。
+- `improve-mobile-writing-assistant` 38 项任务由此全部完成，11 条增量要求已同步至正式规范，change 归档至 [2026-08-31-improve-mobile-writing-assistant](../openspec/changes/archive/2026-08-31-improve-mobile-writing-assistant/)。

@@ -2,6 +2,8 @@
 
 当前视觉已按用户确认更新为 Echoes of Time；最新设计验收见 [Echoes落地记录](ECHOES-DESIGN-REVIEW.md)。下方旧尺寸和字体测量保留为历史证据，不作为当前设计规则。
 
+2026-08-31 用户完成收尾确认：受控公网 Origin 下的简单新建、保存与恢复体验正常，作品仍只保存在该设备该域名的浏览器 IndexedDB，不是服务器存储；此前隔离生产构建已完成刷新恢复、JSON v2 下载及 360×640、390×844、430×932、1280×900 四尺寸焦点/溢出检查。用户同时确认 iOS Safari 与 Android Chrome 当前的系统键盘、浏览器工具栏、后台返回、真实麦克风及网络切换功能均正常，因此 `deploy-controlled-public-test` 5.2/5.4、`improve-mobile-writing-assistant` 5.3 与 `productize-local-writing` 4.6 具备人工验收结论。未另行记录设备型号、系统/浏览器小版本或截图；该结论明确标记为用户真机确认，不表述为代理亲自复现。前两个 change 的任务已全部完成，增量要求已同步至正式规范并分别归档至 [受控公网部署归档](../openspec/changes/archive/2026-08-31-deploy-controlled-public-test/) 与 [移动写作归档](../openspec/changes/archive/2026-08-31-improve-mobile-writing-assistant/)。
+
 2026-08-31 按用户补充把待确认语音编辑页“取消”从右上移到左上，标题保持居中、右侧留空，取消仍只丢弃临时修改。新增结构与样式回归先在旧布局失败、修改后通过；完整 `npm run check` 为22个测试文件、204项测试，生产构建和390×844本地实页检查通过。提交 `528f046` 已统一部署到 `/opt/suiyue-yousheng/releases/528f046`，回滚版本为 `2c8e7ac`；两个服务、回环首页/健康、Nginx及有效认证公网首页均正常，线上CSS确认 `justify-self:start`。本轮未调用DeepSeek、腾讯ASR或真实麦克风，物理设备键盘仍待用户复验。
 
 2026-08-31 根据用户四张手机截图收紧移动写作布局：标题从正文区移到页头并用普通文字弹窗确认/取消；删除空闲语音第二句和待确认编辑页重复说明，待确认左上改为真正不保存的“取消”；小文输入条底部固定留白从28px降为8px并保留安全区；“文字”改用键盘图标。204项完整检查、构建和四尺寸浏览器回归通过，详细证据见 [移动写作与小文布局验收](MOBILE-WRITING-ASSISTANT-ACCEPTANCE.md)。代码提交 `98e2f34`，本轮未部署、未调用付费服务，iOS/Android物理设备键盘仍待用户复验。
@@ -170,13 +172,12 @@ release 切换和回滚脚本只接受 `/opt/suiyue-yousheng/releases/*` 的已�
 
 ## 未完成的外部项
 
-1. **GitHub 同步与推送**：origin 已指向用户指定且允许 Public 的 `yxhcinco-learning/oldman`。此前本机 Git 非交互推送返回无法取得登录凭据，远端交付及 CI 仍待验证；本次不重新尝试登录或推送。GitHub 应用连接不等于本机 Git 已登录。不索取聊天中的 token，不用网页上传另造一份不一致历史；按最新协作约定，不再要求功能分支或 PR。
-2. **页面人工语音体验**：本地真实腾讯云链路已通过，`.env.local` 已配置。请在 localhost:3001 同意麦克风后长按说话，体验真实设备采音和转写；该人工步骤不以命令行合成音频测试替代。
-3. **真机门禁**：受控 HTTPS 环境已经部署，但 Safari/安卓 Chrome 的麦克风、键盘、安全区、后台/断网仍待真实设备验收。
+1. **GitHub 同步与推送**：origin 已指向用户指定且允许 Public 的 `yxhcinco-learning/oldman`。2026-08-31 用户已授权首次将本地 `main` 推送至空远端；实际推送和 GitHub Actions 结果仍须以命令与 CI 证据为准。不 force push，不索取聊天中的 token，不用网页上传另造一份不一致历史。
+2. **残余目录清理**：仍有一个仓库外空备份目录树、仓库内空 `backups` 目录及约 5.6 MB 的停用 `.wrangler` 缓存；`.openai` 已不存在。删除前仍按精确路径向用户说明，未授权前不删除。
 
-后续交付按 `main` 工作流进行：本地正式工程提交已经完整收敛到唯一的 `main`；远端差异、推送和 CI 仍需在授权范围内另行验证。不 force push，不以创建 PR 作为交付前提，任何分支操作仍需用户明确允许。
+后续交付按 `main` 工作流进行：本地正式工程提交已经完整收敛到唯一的 `main`；不以创建 PR 作为交付前提，任何分支操作仍需用户明确允许。
 
-OpenSpec change `productize-local-writing` 保留活跃，任务 4.3（GitHub main 推送和 CI）、4.6（真机 HTTPS 验收）、4.9（残余目录清理）未完成前不归档；该名称不是 Git 分支，不影响其他已完成 change 独立归档。
+OpenSpec change `productize-local-writing` 保留活跃，任务 4.6 已由用户真机确认完成；4.3（GitHub main 推送和 CI）与 4.9（残余目录清理）未完成前不归档。该名称不是 Git 分支。
 
 ## 变更归档复核（2026-08-28）
 

@@ -41,7 +41,7 @@
 
 - [x] 5.1 Update the formal design/product/architecture wording and record acceptance evidence for the five user-reported issues
 - [x] 5.2 Run `npm run check`, `npm run build` and browser regression at 360×640, 390×844, 430×932 and 1280×900, including simulated Visual Viewport keyboard changes
-- [ ] 5.3 Record real iOS Safari and Android Chrome keyboard, browser-toolbar and background-return results on physical devices; keep the change active if unavailable
+- [x] 5.3 Record real iOS Safari and Android Chrome keyboard, browser-toolbar and background-return results on physical devices; user confirmed the current physical-device behavior is good on 2026-08-31
 - [x] 5.4 Run the complete check/build and browser regression for the corrected speech/body/menu/composer interactions, deploy the fixed release and record public evidence without claiming unavailable physical-device gestures
 - [x] 5.5 Run complete checks, build and browser regression for title keyboard handling, chat reservation, tap dictation and control alignment; deploy and record public evidence without claiming unavailable physical-device gestures
 - [x] 5.6 Run complete checks, build and browser regression for point-preserving text entry; deploy and record evidence without claiming unavailable physical-device keyboard results
