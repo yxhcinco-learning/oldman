@@ -2,7 +2,7 @@ import { createHmac, randomInt, randomUUID } from 'node:crypto';
 import { TranscriptAccumulator } from '../features/speech/protocol';
 
 export interface Credentials { appId: string; secretId: string; secretKey: string; token?: string }
-export const ASR_ENGINE_MODELS = ['16k_zh', '16k_zh_en'] as const;
+export const ASR_ENGINE_MODELS = ['16k_zh', '16k_zh_en', '16k_zh_en_2.0'] as const;
 export type AsrEngineModel = typeof ASR_ENGINE_MODELS[number];
 
 export function loadAsrEngineModel(

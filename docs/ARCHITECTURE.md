@@ -27,7 +27,7 @@ IndexedDB v2 的 works 保存 ID、时间、revision、deletedAt 与编辑快照
 
 AudioWorklet 重采样至 16kHz PCM16；同源 WebSocket 代理至 127.0.0.1:3002；服务端签名并连接腾讯云固定地址。独立状态机管理长按、授权、采音、收尾、取消。网关限制连接、时长、输入大小及 Origin，不记录内容。
 
-40ms 发送 1280 字节 PCM，按 index 合并临时/最终结果；签名和结束信令参考 [腾讯云官方 SDK](https://github.com/TencentCloud/tencentcloud-speech-sdk-js) 与 [WebSocket 接口](https://cloud.tencent.com/document/product/1093/48982)。`TENCENT_ASR_ENGINE_MODEL_TYPE` 只允许 `16k_zh` 和 `16k_zh_en`，空值兼容前者，选定值只进入服务端签名参数；非法值在启动阶段失败，不由客户端任意指定。实现不代表真实账号/浏览器兼容性已验收。
+40ms 发送 1280 字节 PCM，按 index 合并临时/最终结果；签名和结束信令参考 [腾讯云官方 SDK](https://github.com/TencentCloud/tencentcloud-speech-sdk-js) 与 [WebSocket 接口](https://cloud.tencent.com/document/product/1093/48982)。`TENCENT_ASR_ENGINE_MODEL_TYPE` 只允许 `16k_zh`、`16k_zh_en` 和 `16k_zh_en_2.0`，空值兼容前者，选定值只进入服务端签名参数；非法值在启动阶段失败，不由客户端任意指定。实现不代表真实账号/浏览器兼容性已验收。
 
 `server/credentials.ts` 显式选择 `project` 或 `windows-user`。后者在服务端用固定、隐藏且有超时的 PowerShell 子进程读取 User 环境，秘密只在内存传递，不写项目或日志。只读取选定来源，不混用密钥对和临时 Token；缺失保持网关未配置。本机 `.env.local` 的语音部分只保存 AppID、来源和其他非秘密参数；DeepSeek 配置见 ADR-006。
 

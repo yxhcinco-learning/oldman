@@ -73,12 +73,14 @@ it('ends at the configured duration without losing already emitted text', async 
 it('loads only the supported Tencent engine models with a compatible default', () => {
   expect(loadAsrEngineModel({})).toBe('16k_zh');
   expect(loadAsrEngineModel({ TENCENT_ASR_ENGINE_MODEL_TYPE: ' 16k_zh_en ' })).toBe('16k_zh_en');
-  expect(() => loadAsrEngineModel({ TENCENT_ASR_ENGINE_MODEL_TYPE: '16k_zh_en_2.0' })).toThrow(/16k_zh, 16k_zh_en/);
+  expect(loadAsrEngineModel({ TENCENT_ASR_ENGINE_MODEL_TYPE: '16k_zh_en_2.0' })).toBe('16k_zh_en_2.0');
+  expect(() => loadAsrEngineModel({ TENCENT_ASR_ENGINE_MODEL_TYPE: '16k_zh_en_3.0' })).toThrow(/16k_zh_en_2\.0/);
 });
 it('signs only the fixed endpoint and accepts current sentence lists', () => {
   const url = new URL(signedAsrUrl(credentials, { now: 1000, voiceId: 'voice-test', nonce: 9 }));
   const canonical = 'asr.cloud.tencent.com/asr/v2/123456?engine_model_type=16k_zh&expired=1600&nonce=9&secretid=test-id&timestamp=1000&voice_format=1&voice_id=voice-test';
   expect(url.searchParams.get('signature')).toBe(createHmac('sha1', 'test-key').update(canonical).digest('base64')); expect(url.protocol).toBe('wss:');
+  expect(new URL(signedAsrUrl(credentials, { engineModel: '16k_zh_en_2.0' })).searchParams.get('engine_model_type')).toBe('16k_zh_en_2.0');
   expect(parseTencentResult({ code: 0, sentences: { sentence_list: [{ sentence_id: 0, sentence_type: 1, sentence: '测试。' }] } }, new TranscriptAccumulator()).text).toBe('测试。');
 });
 it('passes the configured bilingual engine only to the signed Tencent upstream', async () => {

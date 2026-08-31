@@ -59,7 +59,7 @@ CI 对 push 和可选 PR 运行 npm ci、check、build 和依赖审计；CI 不�
 
 受控公网测试是独立、已确认的部署流程，不使用开发服务器，也不恢复 GPT Sites/Cloudflare 接入。固定域名、systemd/Nginx 模板、秘密边界、验证和回滚步骤见 [受控公网部署](DEPLOYMENT.md)。部署使用版本化 release 和 3011/3012 回环端口；Nginx 才监听公网 80/443。修改部署配置仍需 `npm run check`、`npm run build`、Nginx/systemd 实机验证和对应 OpenSpec 证据。
 
-本机 `.env.local` 的语音部分记录 AppID 与 `ASR_CREDENTIAL_SOURCE=windows-user`，腾讯云密钥由网关启动时读取 Windows User 环境，不复制进工程。`TENCENT_ASR_TOKEN` 对长期密钥留空；`TENCENT_ASR_ENGINE_MODEL_TYPE` 只允许 `16k_zh`（默认）或 `16k_zh_en`，修改后重启网关即可切换。其他环境使用 `project` 来源。
+本机 `.env.local` 的语音部分记录 AppID 与 `ASR_CREDENTIAL_SOURCE=windows-user`，腾讯云密钥由网关启动时读取 Windows User 环境，不复制进工程。`TENCENT_ASR_TOKEN` 对长期密钥留空；`TENCENT_ASR_ENGINE_MODEL_TYPE` 只允许 `16k_zh`（默认）、`16k_zh_en` 或 `16k_zh_en_2.0`，修改后重启网关即可切换。其他环境使用 `project` 来源。
 
 ### 文章 AI 接入配置
 
