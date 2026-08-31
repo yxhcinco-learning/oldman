@@ -2,7 +2,7 @@
 
 当前视觉已按用户确认更新为 Echoes of Time；最新设计验收见 [Echoes落地记录](ECHOES-DESIGN-REVIEW.md)。下方旧尺寸和字体测量保留为历史证据，不作为当前设计规则。
 
-2026-08-31 用户完成收尾确认：受控公网 Origin 下的简单新建、保存与恢复体验正常，作品仍只保存在该设备该域名的浏览器 IndexedDB，不是服务器存储；此前隔离生产构建已完成刷新恢复、JSON v2 下载及 360×640、390×844、430×932、1280×900 四尺寸焦点/溢出检查。用户同时确认 iOS Safari 与 Android Chrome 当前的系统键盘、浏览器工具栏、后台返回、真实麦克风及网络切换功能均正常，因此 `deploy-controlled-public-test` 5.2/5.4、`improve-mobile-writing-assistant` 5.3 与 `productize-local-writing` 4.6 具备人工验收结论。未另行记录设备型号、系统/浏览器小版本或截图；该结论明确标记为用户真机确认，不表述为代理亲自复现。前两个 change 的任务已全部完成，增量要求已同步至正式规范并分别归档至 [受控公网部署归档](../openspec/changes/archive/2026-08-31-deploy-controlled-public-test/) 与 [移动写作归档](../openspec/changes/archive/2026-08-31-improve-mobile-writing-assistant/)。
+2026-08-31 用户完成收尾确认：受控公网 Origin 下的简单新建、保存与恢复体验正常，作品仍只保存在该设备该域名的浏览器 IndexedDB，不是服务器存储；此前隔离生产构建已完成刷新恢复、JSON v2 下载及 360×640、390×844、430×932、1280×900 四尺寸焦点/溢出检查。用户同时确认 iOS Safari 与 Android Chrome 当前的系统键盘、浏览器工具栏、后台返回、真实麦克风及网络切换功能均正常，因此 `deploy-controlled-public-test` 5.2/5.4、`improve-mobile-writing-assistant` 5.3 与 `productize-local-writing` 4.6 具备人工验收结论。未另行记录设备型号、系统/浏览器小版本或截图；该结论明确标记为用户真机确认，不表述为代理亲自复现。前两个 change 的任务已全部完成，增量要求已同步至正式规范并分别归档至 [受控公网部署归档](../openspec/changes/archive/2026-08-31-deploy-controlled-public-test/) 与 [移动写作归档](../openspec/changes/archive/2026-08-31-improve-mobile-writing-assistant/)。用户随后通过 Git Credential Manager 完成 GitHub 授权，本地完整历史首次非强制推送至 Public 仓库 `yxhcinco-learning/oldman`，远端新建并跟踪 `main`，提交为 `238f737`。首次 [Check run 33353417111](https://github.com/yxhcinco-learning/oldman/actions/runs/33353417111) 成功，checkout、Node、`npm ci`、完整 `npm run check`、`npm run build` 与 `npm audit --audit-level=high` 全部通过；`productize-local-writing` 4.3 完成。
 
 2026-08-31 按用户补充把待确认语音编辑页“取消”从右上移到左上，标题保持居中、右侧留空，取消仍只丢弃临时修改。新增结构与样式回归先在旧布局失败、修改后通过；完整 `npm run check` 为22个测试文件、204项测试，生产构建和390×844本地实页检查通过。提交 `528f046` 已统一部署到 `/opt/suiyue-yousheng/releases/528f046`，回滚版本为 `2c8e7ac`；两个服务、回环首页/健康、Nginx及有效认证公网首页均正常，线上CSS确认 `justify-self:start`。本轮未调用DeepSeek、腾讯ASR或真实麦克风，物理设备键盘仍待用户复验。
 
@@ -172,12 +172,11 @@ release 切换和回滚脚本只接受 `/opt/suiyue-yousheng/releases/*` 的已�
 
 ## 未完成的外部项
 
-1. **GitHub 同步与推送**：origin 已指向用户指定且允许 Public 的 `yxhcinco-learning/oldman`。2026-08-31 用户已授权首次将本地 `main` 推送至空远端；实际推送和 GitHub Actions 结果仍须以命令与 CI 证据为准。不 force push，不索取聊天中的 token，不用网页上传另造一份不一致历史。
-2. **残余目录清理**：仍有一个仓库外空备份目录树、仓库内空 `backups` 目录及约 5.6 MB 的停用 `.wrangler` 缓存；`.openai` 已不存在。删除前仍按精确路径向用户说明，未授权前不删除。
+1. **残余目录清理**：仍有一个仓库外空备份目录树、仓库内空 `backups` 目录及约 5.6 MB 的停用 `.wrangler` 缓存；`.openai` 已不存在。删除前仍按精确路径向用户说明，未授权前不删除。
 
 后续交付按 `main` 工作流进行：本地正式工程提交已经完整收敛到唯一的 `main`；不以创建 PR 作为交付前提，任何分支操作仍需用户明确允许。
 
-OpenSpec change `productize-local-writing` 保留活跃，任务 4.6 已由用户真机确认完成；4.3（GitHub main 推送和 CI）与 4.9（残余目录清理）未完成前不归档。该名称不是 Git 分支。
+OpenSpec change `productize-local-writing` 保留活跃，任务 4.3 的首次 GitHub `main` 推送和 CI、4.6 的用户真机确认均已完成；只剩 4.9（残余目录清理），完成并验证前不归档。该名称不是 Git 分支。
 
 ## 变更归档复核（2026-08-28）
 
