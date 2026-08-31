@@ -77,6 +77,8 @@ CI 对 push 和可选 PR 运行 npm ci、check、build 和依赖审计；CI 不�
 
 小程序身份要求 `WECHAT_MINIPROGRAM_APP_ID`、`WECHAT_MINIPROGRAM_APP_SECRET` 与 `SUIYUE_AUTH_DB_PATH=/var/lib/suiyue-yousheng/auth.sqlite` 三项同时有效；缺一项或格式无效时 `/api/mini/*` 失败关闭，健康信息只显示 `miniIdentityConfigured=false`，不回显具体值。AppSecret 由用户手工填入上述服务器文件，代码、检查命令和验收记录只报告是否配置。开发机可在忽略的 `.env.local` 使用独立绝对临时库路径做离线 transport 测试，但常规检查不放真实 AppID/AppSecret、不调用 `code2Session`。
 
+本机微信开发者工具在共享核心变更后执行 `npm run devtool:build-npm --workspace @suiyue/miniprogram`。该命令先重建 `@suiyue/core`、移除会被工具按版本复用的旧 `miniprogram_npm` 包，再调用本机 CLI 构建 npm，并校验开发者工具实际加载的运行包包含当前关键导出。它只做本地 npm 二次构建，不预览上传、不提审、不发布；找不到 CLI 时可用 `WECHAT_DEVTOOLS_CLI_PATH` 指向其绝对路径。
+
 开发和构建均保留 Vinext 本地 Node 链路，已删除 GPT Sites 发布配置、专用插件和依赖；不需要 Sites 登录或 Cloudflare 绑定。`local-project.test.ts` 覆盖开发/构建配置及依赖清理，`local-speech-proxy.test.ts` 使用真实 Vite 转发与假上游覆盖 WebSocket 全流程及外部 Origin 拒绝，不调用腾讯云。
 
 ## 数据与备份

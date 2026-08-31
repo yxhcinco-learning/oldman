@@ -82,7 +82,7 @@
 
 ## 10. Developer-tool, controlled integration and physical-device evidence
 
-- [ ] 10.1 Open and compile the local mini-program with the logged-in WeChat developer-tool CLI and temporary private AppID, verify page/package configuration and generate preview evidence without upload, submission or release
+- [x] 10.1 Open and compile the local mini-program with the logged-in WeChat developer-tool CLI and temporary private AppID, verify page/package configuration and generate preview evidence without upload, submission or release
 - [ ] 10.2 Run developer-tool regression for navigation, ordinary writing, local recovery, recycle bin, backup, topic paths, interview, XiaoWen, candidate application, keyboard changes, permission denial and offline failures at representative phone sizes
 - [ ] 10.3 After explicit deployment authorization and the user's manual secret/domain/privacy configuration, deploy one verified server release and test real WeChat code exchange with a non-sensitive account; record request count and non-secret result
 - [ ] 10.4 After bounded paid-call authorization, run at most the necessary short DeepSeek and Tencent ASR samples through the mini routes, recording actual counts, results and approximate cost separately without storing user content or audio

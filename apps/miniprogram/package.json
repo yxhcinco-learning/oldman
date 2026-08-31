@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/check-project.mjs && tsc -p tsconfig.json --noEmit && node scripts/prepare-devtool-npm.mjs",
+    "devtool:build-npm": "node scripts/build-devtool-npm.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --config vitest.config.ts"
   },

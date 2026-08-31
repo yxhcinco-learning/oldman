@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { completeVoice, emptyDraft, workFromDraft } from '../miniprogram/domain/core';
+import { assertDevtoolCoreRuntime } from '../scripts/devtool-runtime-check.mjs';
 
 const readJson = (relative: string) => JSON.parse(readFileSync(fileURLToPath(new URL(relative, import.meta.url)), 'utf8')) as Record<string, unknown>;
 const readText = (relative: string) => readFileSync(fileURLToPath(new URL(relative, import.meta.url)), 'utf8');
@@ -26,6 +27,15 @@ describe('微信小程序公共工程配置', () => {
     const work = workFromDraft(draft);
     expect(work.draft.segments[0]?.text).toBe('从前的故事。');
     expect(work.title).toBe('未命名作品');
+  });
+
+  it('在开发者工具二次构建后校验实际共享包导出', () => {
+    const packageJson = readJson('../package.json');
+    const prepareScript = readText('../scripts/prepare-devtool-npm.mjs');
+    expect(packageJson.scripts).toMatchObject({ 'devtool:build-npm': 'node scripts/build-devtool-npm.mjs' });
+    expect(prepareScript).toContain('await rm(generatedCoreTarget');
+    expect(() => assertDevtoolCoreRuntime({ workFromDraft() {}, isWorkAiAssisted() {}, AI_ASSISTANCE_LABEL: 'AI' })).not.toThrow();
+    expect(() => assertDevtoolCoreRuntime({ workFromDraft() {} })).toThrow(/isWorkAiAssisted/);
   });
 
   it('保留三栏主导航、键盘避让和生命周期保存边界', () => {
