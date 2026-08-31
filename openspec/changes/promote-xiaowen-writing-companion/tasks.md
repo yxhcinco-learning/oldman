@@ -59,3 +59,9 @@
 - [x] 8.1 Update the active proposal, design and delta specs so the conversation exposes only free input, dictation and send while preserving internal action compatibility
 - [x] 8.2 Replace shortcut UI regressions with absence, free-send, compact-height and historical-turn compatibility coverage
 - [x] 8.3 Remove all preset shortcut controls and helper copy, update product/architecture/acceptance documentation, and repeat full automated and four-size browser verification without paid calls
+
+## 9. Toolbar tone and stable composer focus
+
+- [x] 9.1 Update the active proposal, design and delta specs for a tonal input-mode button and focus-stable compact/expanded panel state
+- [ ] 9.2 Add design/UI regressions for the non-white shadowless mode button, explicit-only panel expansion and preserved focused composer
+- [ ] 9.3 Implement the visual and focus-state refinements, update product/design/architecture/acceptance documentation, and run targeted/full/build/four-size browser verification without paid calls

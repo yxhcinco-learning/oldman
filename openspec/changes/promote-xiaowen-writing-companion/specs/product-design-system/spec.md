@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Progressive XiaoWen companion surface
-正式编辑器 SHALL 通过单一“小文”入口打开文章级写作伙伴，并 MUST 在手机上使用紧凑与展开两种有焦点约束的底部面板，而不是长期遮挡正文的自由拖拽悬浮窗。紧凑面板 MUST 直接显示会话和消息输入区，不得展示固定快捷指令或自动聚焦输入框；默认高度 MUST 约占半屏且不超过 440px，短屏不得仅因设备高度自动切换到接近全屏。展开操作、系统键盘、短高度滚动和收起/重开 MUST 保留已存会话、进行中请求及当前作品尚未发送的输入。
+正式编辑器 SHALL 通过单一“小文”入口打开文章级写作伙伴，并 MUST 在手机上使用紧凑与展开两种有焦点约束的底部面板，而不是长期遮挡正文的自由拖拽悬浮窗。紧凑面板 MUST 直接显示会话和消息输入区，不得展示固定快捷指令或自动聚焦输入框；默认高度 MUST 约占半屏且不超过 440px，短屏和输入框普通聚焦均不得自动切换到接近全屏。只有显式页头操作 MUST 改变紧凑/展开状态；系统键盘和短高度 MUST 通过 Visual Viewport 约束当前状态。聚焦、系统键盘、短高度滚动和收起/重开 MUST 保留已存会话、进行中请求及当前作品尚未发送的输入。
 
 #### Scenario: Open XiaoWen without opening the keyboard
 - **WHEN** 用户从编辑器点击“小文”且系统键盘未打开
@@ -11,9 +11,9 @@
 - **WHEN** 用户在 360×640 等短屏打开小文且尚未聚焦输入或点击展开
 - **THEN** 面板保持约半屏的紧凑高度，不因短屏媒体条件自动占据接近全屏；用户仍可通过独立消息滚动查看历史，并可显式展开
 
-#### Scenario: Expand for a long conversation or keyboard
-- **WHEN** 用户点击“展开小文”、聚焦会话输入框，或系统键盘使可视高度不足
-- **THEN** 面板在当前 Visual Viewport 内扩展，页头与输入区固定可达，消息区独立滚动且无横向溢出；显式“收起小文”可以恢复紧凑高度，不清空输入或会话
+#### Scenario: Expand explicitly and fit the system keyboard
+- **WHEN** 用户点击“展开小文”，或系统键盘使当前 Visual Viewport 高度不足
+- **THEN** 只有前者把面板状态改为展开；后者保持用户选择的紧凑/展开状态并在当前 Visual Viewport 内约束面板最大高度。两种情况均保持页头与输入区可达、消息区独立滚动且无横向溢出，不清空输入或会话
 
 #### Scenario: Minimize and reopen XiaoWen
 - **WHEN** 用户在小文首页或下级页面点击关闭、按 Escape，随后再次点击编辑器“小文”
@@ -73,7 +73,7 @@
 
 #### Scenario: Focus the conversation input
 - **WHEN** 用户点击会话输入框或用键盘将焦点移入输入框
-- **THEN** 小文面板进入可容纳系统键盘的展开状态，输入框四边的聚焦样式完整可见，不被滚动容器裁切，也不产生横向溢出或布局跳动
+- **THEN** 小文面板保持聚焦前的紧凑或展开状态，输入框四边的聚焦样式完整可见，不被滚动容器裁切，也不产生横向溢出或高度跳动；系统键盘另由 Visual Viewport 约束当前面板
 
 #### Scenario: Dictate a conversation request
 - **WHEN** 用户点按小文语音按钮开始准备、连接和录音，再次点按结束采集
