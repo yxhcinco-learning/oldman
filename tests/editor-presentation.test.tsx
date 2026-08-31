@@ -261,7 +261,7 @@ it('opens pending speech editing with a collapsed caret at the clicked transcrip
   } finally { restore(); }
 });
 
-it('cancels pending-speech edits from the top right without replacing the original transcript', async () => {
+it('cancels pending-speech edits from the top left without replacing the original transcript', async () => {
   const pending = '原来的待确认文字';
   await openDraft(voiceDraft([{ id: 'first', text: '已有正文' }], pending));
   fireEvent.click(screen.getByRole('button', { name: '修改待确认转写' }));
@@ -269,7 +269,10 @@ it('cancels pending-speech edits from the top right without replacing the origin
   fireEvent.change(editor, { target: { value: '不应保存的改动' } });
   const cancel = screen.getByRole('button', { name: '取消修改' });
   expect(cancel).toHaveTextContent('取消');
-  expect(cancel.closest('.topbar')).not.toBeNull();
+  const topbar = cancel.closest('.topbar');
+  expect(topbar).not.toBeNull();
+  expect(topbar?.firstElementChild).toBe(cancel);
+  expect(topbar?.lastElementChild).toHaveClass('topbar-spacer');
   fireEvent.click(cancel);
   expect(screen.getByRole('button', { name: '修改待确认转写' })).toHaveTextContent(pending);
   expect(screen.queryByLabelText('段落内容')).not.toBeInTheDocument();

@@ -9,7 +9,7 @@
 - [x] 1.7 Add regression coverage for non-blocking touch long-press timing/movement cancellation and pending-speech click-to-caret mapping
 - [x] 1.8 Add contract coverage for the default, allowed bilingual 1.0/2.0 and rejected Tencent ASR engine model values and signed upstream URL
 - [x] 1.9 Add regression coverage for header title confirmation/cancellation, concise idle speech copy, pending-edit cancellation/spacing, compact chat bottom spacing and the keyboard text-mode icon
-- [ ] 1.10 Add regression coverage that pending-edit cancel occupies the left header slot while preserving the original transcript
+- [x] 1.10 Add regression coverage that pending-edit cancel occupies the left header slot while preserving the original transcript
 
 ## 2. Accurate AI feedback
 
@@ -26,7 +26,7 @@
 - [x] 3.6 Add touch/pen long-press current-page entry and preserve the clicked pending-speech offset in its separate editor
 - [x] 3.7 Load the Tencent ASR engine model from a server-only allowlisted environment setting and pass it into upstream signing
 - [x] 3.8 Move title editing into a header-triggered native input dialog, trim idle speech copy, and make pending-speech cancel/complete semantics and spacing explicit
-- [ ] 3.9 Move pending-speech edit cancel to the left header slot and keep the right slot empty
+- [x] 3.9 Move pending-speech edit cancel to the left header slot and keep the right slot empty
 
 ## 4. Compact article assistant
 

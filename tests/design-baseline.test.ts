@@ -72,6 +72,7 @@ it('keeps AI input focus inside its border and uses a compact optimization hint'
 });
 
 it('keeps pending-edit actions compact and distinguishes text input from pencil editing', () => {
+  expect(rule('.pending-edit-cancel')['justify-self']).toBe('start');
   expect(rule('.pending-segment-editor-wrap')['padding-bottom']).toBe('8px');
   expect(rule('.pending-segment-editor-footer')['padding-top']).toBe('8px');
   const controls = readFileSync('components/WritingControls.tsx', 'utf8');

@@ -199,7 +199,7 @@ export function Editor({ draft, update, onSave, onBack, onAssistant, saveStatus 
     openTextAtBodyPoint(event.currentTarget, gesture.clientX, gesture.clientY);
   };
   if (draft.segmentEdit?.id === 'pending') return <>
-    <header className="topbar"><span className="topbar-spacer" /><div><strong>修改语音文字</strong></div><button className="text-button pending-edit-cancel" type="button" aria-label="取消修改" onClick={() => updateDraft({ ...draft, segmentEdit: null })}>取消</button></header>
+    <header className="topbar"><button className="text-button pending-edit-cancel" type="button" aria-label="取消修改" onClick={() => updateDraft({ ...draft, segmentEdit: null })}>取消</button><div><strong>修改语音文字</strong></div><span className="topbar-spacer" /></header>
     <div className="segment-editor-wrap pending-segment-editor-wrap"><textarea ref={segmentTextarea} autoFocus className="segment-editor" aria-label="段落内容" maxLength={1_000_000} value={draft.segmentEdit.text} onChange={e => updateDraft({ ...draft, segmentEdit: { ...draft.segmentEdit!, text: e.target.value } })} /><p>{[...draft.segmentEdit.text.replace(/\s/g, '')].length} 字</p></div>
     <footer className="simple-footer pending-segment-editor-footer"><button className="primary-button" type="button" onClick={() => updateDraft(completeSegment(draft))}>完成修改</button></footer>
   </>;

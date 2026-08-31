@@ -202,7 +202,7 @@ svg { display: block; }
 .segment-editor { width: 100%; flex: 1; min-height: 100px; padding: 0; border: 0; resize: none; background: transparent; font-size: 18px; line-height: 32px; }
 .segment-editor-wrap > p { color: var(--muted); text-align: right; font-size: 14px; margin-top: 16px; }
 .simple-footer { flex-shrink: 0; order: 3; padding: 16px 24px max(24px, env(safe-area-inset-bottom)); }
-.pending-edit-cancel { justify-self: end; padding-left: 8px; padding-right: 8px; }
+.pending-edit-cancel { justify-self: start; padding-left: 8px; padding-right: 8px; }
 .pending-segment-editor-wrap { padding-bottom: 8px; }
 .pending-segment-editor-footer { padding-top: 8px; }
 .chat-topbar small i { display: inline-block; width: 5px; height: 5px; background: #6b8d66; border-radius: 50%; vertical-align: 2px; }
