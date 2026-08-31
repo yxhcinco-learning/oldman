@@ -18,7 +18,7 @@
     "build:core": "npm run build --workspace @suiyue/core",
     "build:miniprogram": "npm run build --workspace @suiyue/miniprogram",
     "start": "vinext start",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .vinext --ignore-pattern .wrangler --ignore-pattern coverage --ignore-pattern packages/core/dist --ignore-pattern apps/miniprogram/miniprogram_npm",
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .vinext --ignore-pattern .wrangler --ignore-pattern coverage --ignore-pattern packages/core/dist --ignore-pattern apps/miniprogram/miniprogram/miniprogram_npm",
     "typecheck": "npm run typecheck:web && npm run typecheck --workspace @suiyue/core && npm run typecheck --workspace @suiyue/miniprogram",
     "typecheck:web": "tsc --noEmit",
     "test": "npm run test:web && npm run test --workspace @suiyue/core && npm run test --workspace @suiyue/miniprogram",

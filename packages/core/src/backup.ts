@@ -10,7 +10,7 @@ const legacyDraft = z.object({
   textDraft: z.string().max(1_000_000), inputMode: z.enum(['voice', 'text']), pendingVoice: z.string().max(1_000_000),
   segmentEdit: z.object({ id: z.string().min(1).max(128), text: z.string().max(1_000_000) }).strict().nullable(),
 }).strict();
-const currentDraft = legacyDraft.extend({
+export const draftSchema = legacyDraft.extend({
   topicSnapshot: topicSnapshotSchema.nullable(), materials: z.array(writingMaterialSchema).max(10000), topicWritingMode: z.enum(['normal', 'interview']),
 }).strict().refine(value => new Set(value.materials.map(item => item.id)).size === value.materials.length, '重复的素材标识');
 const legacyWork = z.object({
@@ -21,10 +21,10 @@ const legacyWork = z.object({
   .refine(w => new Set(w.draft.segments.map(s => s.id)).size === w.draft.segments.length, '重复的段落标识')
   .refine(w => JSON.stringify(w.segments) === JSON.stringify(w.draft.segments), '作品与编辑快照不一致')
   .refine(w => !w.draft.segmentEdit || w.draft.segmentEdit.id === 'pending' || w.draft.segments.some(s => s.id === w.draft.segmentEdit?.id), '无效的段落编辑信息');
-const currentWork = z.object({
+export const workSchema = z.object({
   id: z.string().min(1).max(128), title: z.string().max(120), segments: z.array(segment).max(10000),
   createdAt: z.iso.datetime(), updatedAt: z.iso.datetime(), revision: z.number().int().positive(),
-  deletedAt: z.iso.datetime().nullable(), draft: currentDraft,
+  deletedAt: z.iso.datetime().nullable(), draft: draftSchema,
 }).strict().refine(w => w.id === w.draft.id, '作品与草稿 ID 不一致')
   .refine(w => new Set(w.draft.segments.map(s => s.id)).size === w.draft.segments.length, '重复的段落标识')
   .refine(w => JSON.stringify(w.segments) === JSON.stringify(w.draft.segments), '作品与编辑快照不一致')
@@ -33,7 +33,7 @@ const backupV1 = z.object({ app: z.literal('suiyue-yousheng'), schemaVersion: z.
 const backupV2 = z.object({ app: z.literal('suiyue-yousheng'), schemaVersion: z.literal(2), exportedAt: z.iso.datetime(),
   works: z.array(legacyWork).max(10000), sessions: z.array(articleSessionSchema).max(10000) }).strict();
 const backupV3 = z.object({ app: z.literal('suiyue-yousheng'), schemaVersion: z.literal(3), exportedAt: z.iso.datetime(),
-  works: z.array(currentWork).max(10000), sessions: z.array(articleSessionSchema).max(10000) }).strict();
+  works: z.array(workSchema).max(10000), sessions: z.array(articleSessionSchema).max(10000) }).strict();
 export const backupSchema = z.discriminatedUnion('schemaVersion', [backupV1, backupV2, backupV3]);
 export const MAX_BACKUP_BYTES = 10 * 1024 * 1024;
 export function parseBackup(raw: string): Work[] {

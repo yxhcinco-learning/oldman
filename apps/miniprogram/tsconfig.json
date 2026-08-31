@@ -11,6 +11,7 @@
     "types": ["miniprogram-api-typings"],
     "baseUrl": ".",
     "paths": {
+      "@suiyue/core": ["../../packages/core/src/index.ts"],
       "@suiyue/core/*": ["../../packages/core/src/*"]
     }
   },

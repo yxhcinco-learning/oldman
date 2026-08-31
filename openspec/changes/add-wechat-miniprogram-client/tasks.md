@@ -9,11 +9,11 @@
 
 ## 2. Mini-program local repository and backup
 
-- [ ] 2.1 Define the versioned user-file layout, per-work aggregate schema, rebuildable index, active recovery record, resolved safe paths and deterministic storage error categories
-- [ ] 2.2 Implement temporary-file validation/replacement, serialized writes, expected revisions and crash recovery so work/session updates are atomic and stale recovery cannot overwrite newer aggregates
-- [ ] 2.3 Implement load, new/save, soft delete, restore, explicit permanent delete and index rebuild without recursive user-directory deletion or silent data loss
-- [ ] 2.4 Implement compatible JSON/TXT/copy export, WeChat file selection/share flows, rescue export and validated import-as-copy with complete ID/reference remapping and rollback on partial failure
-- [ ] 2.5 Add repository tests for rapid edits, save-during-exit, conflicts, corrupted/missing index, corrupted aggregate, interrupted replacement, capacity/system errors, cleanup and legacy/current backup interchange
+- [x] 2.1 Define the versioned user-file layout, per-work aggregate schema, rebuildable index, active recovery record, resolved safe paths and deterministic storage error categories
+- [x] 2.2 Implement temporary-file validation/replacement, serialized writes, expected revisions and crash recovery so work/session updates are atomic and stale recovery cannot overwrite newer aggregates
+- [x] 2.3 Implement load, new/save, soft delete, restore, explicit permanent delete and index rebuild without recursive user-directory deletion or silent data loss
+- [x] 2.4 Implement compatible JSON/TXT/copy export, WeChat file selection/share flows, rescue export and validated import-as-copy with complete ID/reference remapping and rollback on partial failure
+- [x] 2.5 Add repository tests for rapid edits, save-during-exit, conflicts, corrupted/missing index, corrupted aggregate, interrupted replacement, capacity/system errors, cleanup and legacy/current backup interchange
 - [ ] 2.6 Add visible local-only storage, AppID/device isolation and periodic backup explanations without promising cloud recovery, then run affected checks and commit the verified local-persistence stage
 
 ## 3. Native product shell and ordinary writing
