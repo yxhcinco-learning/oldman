@@ -59,7 +59,7 @@ CI 对 push 和可选 PR 运行 npm ci、check、build 和依赖审计；CI 不�
 
 受控公网测试是独立、已确认的部署流程，不使用开发服务器，也不恢复 GPT Sites/Cloudflare 接入。固定域名、systemd/Nginx 模板、秘密边界、验证和回滚步骤见 [受控公网部署](DEPLOYMENT.md)。部署使用版本化 release 和 3011/3012 回环端口；Nginx 才监听公网 80/443。修改部署配置仍需 `npm run check`、`npm run build`、Nginx/systemd 实机验证和对应 OpenSpec 证据。
 
-本机 `.env.local` 的语音部分记录 AppID 与 `ASR_CREDENTIAL_SOURCE=windows-user`，腾讯云密钥由网关启动时读取 Windows User 环境，不复制进工程。`TENCENT_ASR_TOKEN` 对长期密钥留空；更换凭据后重启网关即可。其他环境使用 `project` 来源。
+本机 `.env.local` 的语音部分记录 AppID 与 `ASR_CREDENTIAL_SOURCE=windows-user`，腾讯云密钥由网关启动时读取 Windows User 环境，不复制进工程。`TENCENT_ASR_TOKEN` 对长期密钥留空；`TENCENT_ASR_ENGINE_MODEL_TYPE` 只允许 `16k_zh`（默认）或 `16k_zh_en`，修改后重启网关即可切换。其他环境使用 `project` 来源。
 
 ### 文章 AI 接入配置
 
@@ -73,7 +73,7 @@ CI 对 push 和可选 PR 运行 npm ci、check、build 和依赖审计；CI 不�
 
 ### Linux 运行配置
 
-生产网关从 `/etc/suiyue-yousheng/runtime.env` 读取配置，文件必须为 `0600 root:root`。Linux 只允许 `ASR_CREDENTIAL_SOURCE=project`，完整的 `TENCENT_ASR_SECRET_ID` / `TENCENT_ASR_SECRET_KEY`（以及同批 STS 凭据需要的 Token）与 DeepSeek Key 只在服务端环境文件；不得复制 Windows `windows-user` 方式、放入 release、客户端、镜像、命令输出或日志。`ASR_ALLOWED_ORIGIN` 必须精确为最终 HTTPS Origin，改域名/协议/端口会创建另一份浏览器数据空间。
+生产网关从 `/etc/suiyue-yousheng/runtime.env` 读取配置，文件必须为 `0600 root:root`。Linux 只允许 `ASR_CREDENTIAL_SOURCE=project`，完整的 `TENCENT_ASR_SECRET_ID` / `TENCENT_ASR_SECRET_KEY`（以及同批 STS 凭据需要的 Token）与 DeepSeek Key 只在服务端环境文件；不得复制 Windows `windows-user` 方式、放入 release、客户端、镜像、命令输出或日志。公网 `TENCENT_ASR_ENGINE_MODEL_TYPE=16k_zh_en`，回切时改成 `16k_zh` 并仅重启网关。`ASR_ALLOWED_ORIGIN` 必须精确为最终 HTTPS Origin，改域名/协议/端口会创建另一份浏览器数据空间。
 
 开发和构建均保留 Vinext 本地 Node 链路，已删除 GPT Sites 发布配置、专用插件和依赖；不需要 Sites 登录或 Cloudflare 绑定。`local-project.test.ts` 覆盖开发/构建配置及依赖清理，`local-speech-proxy.test.ts` 使用真实 Vite 转发与假上游覆盖 WebSocket 全流程及外部 Origin 拒绝，不调用腾讯云。
 

@@ -6,7 +6,7 @@
 
 您的截图显示“中国大陆实时流量：已开通”。在控制台将用量/资源包筛选到 **实时语音识别**，不要把“录音文件识别”额度当成本项目额度。确认有效期、可用时长和后付费开关。
 
-首期用普通话基础模型 `16k_zh`，不启用大模型版、角色分离或情绪识别。免费额度和规则会变化，以控制台为准；程序不自动充值、购买资源包或修改后付费设置。[官方计费说明](https://cloud.tencent.cn/document/product/1093/35686)
+语音模型由服务端 `TENCENT_ASR_ENGINE_MODEL_TYPE` 选择，只接受普通话基础模型 `16k_zh`（默认）和中英大模型 `16k_zh_en`；受控公网当前显式使用 `16k_zh_en`，便于中文、英文和中英混说，本地可按需切换。免费额度、单价和规则会变化，以控制台为准；程序不自动充值、购买资源包或修改后付费设置。[官方计费说明](https://cloud.tencent.cn/document/product/1093/35686)
 
 按 [AGENTS 的费用规则](../AGENTS.md#付费服务使用) 简单估算费用与总时长后，可按需用几段 10–20 秒的非敏感语音做小规模真实联调，无需逐次确认。批量、压测或高成本、费用不确定的调用先确认预算和上限；日常回归与 CI 不调用真实 ASR，其他业务逻辑按需使用真实实现或测试替身。
 
@@ -26,12 +26,13 @@ TENCENT_ASR_APP_ID=你的数字AppID
 TENCENT_ASR_SECRET_ID=
 TENCENT_ASR_SECRET_KEY=
 TENCENT_ASR_TOKEN=
+TENCENT_ASR_ENGINE_MODEL_TYPE=16k_zh
 ASR_ALLOWED_ORIGIN=http://localhost:3001
 ASR_MAX_CONNECTIONS=2
 ALLOW_PAID_SPEECH_TEST=1
 ```
 
-其他电脑或独立运行身份使用 `ASR_CREDENTIAL_SOURCE=project`（默认），通过服务端环境变量提供完整 ASR 密钥对，临时凭据同时提供 Token。两个来源互斥：不会混用 SecretId/SecretKey/Token，选定来源缺失时明确失败，不静默换成共享身份。Windows 读取有超时，异常不回显密钥。
+其他电脑或独立运行身份使用 `ASR_CREDENTIAL_SOURCE=project`（默认），通过服务端环境变量提供完整 ASR 密钥对，临时凭据同时提供 Token。两个来源互斥：不会混用 SecretId/SecretKey/Token，选定来源缺失时明确失败，不静默换成共享身份。Windows 读取有超时，异常不回显密钥。模型变量留空时兼容使用 `16k_zh`；修改为 `16k_zh_en` 后重启网关即可切换，其他值会让网关拒绝启动，避免拼写错误被静默忽略。
 
 不要添加 `NEXT_PUBLIC_` / `VITE_` 前缀。`ALLOW_PAID_SPEECH_TEST` 只控制命令行音频联调，不是云端费用封顶开关；配置凭据后在页面主动录音就可能使用额度。
 
@@ -66,7 +67,7 @@ npm run test:speech:live -- --pcm outputs/测试音频.pcm --expect 非敏感测
 
 | 提示 | 检查 |
 |---|---|
-| 尚未配置 | AppID、凭据来源、选定来源是否有完整密钥、网关是否重启 |
+| 尚未配置或网关无法启动 | AppID、凭据来源、完整密钥、模型值是否为 `16k_zh` / `16k_zh_en`、网关是否重启 |
 | 无法连接网关 | 3002 是否启动，3001 是否使用组合启动器 |
 | 来源不允许 | 地址是否严格为 `http://localhost:3001` |
 | 麦克风未获允许 | 浏览器权限与安全上下文；先在电脑 localhost 验证 |

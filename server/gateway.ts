@@ -1,13 +1,14 @@
 import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
 import WebSocket from 'ws';
-import { signedAsrUrl, parseTencentResult, type Credentials } from './tencent';
+import { signedAsrUrl, parseTencentResult, type AsrEngineModel, type Credentials } from './tencent';
 import { TranscriptAccumulator, type SpeechEvent } from '../features/speech/protocol';
 import { registerArticleAi, type AiGatewayOptions } from './article-ai';
 import { defaultOperationLogger, operationDuration, type OperationLogger } from './operations';
 
 export interface GatewayOptions {
   credentials?: Credentials; origin: string; maxConnections?: number; maxDurationMs?: number; maxBytes?: number;
+  engineModel?: AsrEngineModel;
   connect?: (url: string) => WebSocket;
   ai?: Omit<AiGatewayOptions, 'origin'>;
   operations?: OperationLogger;
@@ -62,7 +63,7 @@ export async function createGateway(options: GatewayOptions) {
     };
     active.add(socket);
     let upstream: WebSocket;
-    try { upstream = (options.connect ?? (url => new WebSocket(url, { handshakeTimeout: 8000, maxPayload: 1024 * 1024 })))(signedAsrUrl(options.credentials!)); }
+    try { upstream = (options.connect ?? (url => new WebSocket(url, { handshakeTimeout: 8000, maxPayload: 1024 * 1024 })))(signedAsrUrl(options.credentials!, { engineModel: options.engineModel })); }
     catch { finalStatus = 502; finalCategory = 'upstream_create'; active.delete(socket); socket.send(JSON.stringify({ type: 'error', message: '无法创建语音连接，请检查本地配置' })); socket.close(1011); finishLog(); return; }
     const accumulator = new TranscriptAccumulator();
     let ready = false, ended = false, completed = false, released = false, bytes = 0;

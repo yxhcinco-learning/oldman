@@ -2,9 +2,32 @@ import { createHmac, randomInt, randomUUID } from 'node:crypto';
 import { TranscriptAccumulator } from '../features/speech/protocol';
 
 export interface Credentials { appId: string; secretId: string; secretKey: string; token?: string }
+export const ASR_ENGINE_MODELS = ['16k_zh', '16k_zh_en'] as const;
+export type AsrEngineModel = typeof ASR_ENGINE_MODELS[number];
+
+export function loadAsrEngineModel(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): AsrEngineModel {
+  const configured = env.TENCENT_ASR_ENGINE_MODEL_TYPE?.trim() || '16k_zh';
+  if (!ASR_ENGINE_MODELS.includes(configured as AsrEngineModel)) {
+    throw new Error(`TENCENT_ASR_ENGINE_MODEL_TYPE must be one of: ${ASR_ENGINE_MODELS.join(', ')}`);
+  }
+  return configured as AsrEngineModel;
+}
+
+interface SignedAsrOptions {
+  engineModel?: AsrEngineModel;
+  now?: number;
+  voiceId?: string;
+  nonce?: number;
+}
+
 /** Fixed provider endpoint. Never log or return the signed URL to a browser. */
-export function signedAsrUrl(credentials: Credentials, now = Math.floor(Date.now() / 1000), voiceId: string = randomUUID(), nonce = randomInt(1, 2 ** 30)) {
-  const params: Record<string, string> = { engine_model_type: '16k_zh', expired: String(now + 600), nonce: String(nonce), secretid: credentials.secretId,
+export function signedAsrUrl(credentials: Credentials, options: SignedAsrOptions = {}) {
+  const now = options.now ?? Math.floor(Date.now() / 1000);
+  const voiceId = options.voiceId ?? randomUUID();
+  const nonce = options.nonce ?? randomInt(1, 2 ** 30);
+  const params: Record<string, string> = { engine_model_type: options.engineModel ?? '16k_zh', expired: String(now + 600), nonce: String(nonce), secretid: credentials.secretId,
     timestamp: String(now), voice_format: '1', voice_id: voiceId };
   if (credentials.token) params.token = credentials.token;
   const keys = Object.keys(params).sort();

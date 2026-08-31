@@ -4,7 +4,7 @@ import { createHmac } from 'node:crypto';
 import { afterEach, expect, it, vi } from 'vitest';
 import type WebSocket from 'ws';
 import { createGateway, type GatewayOptions } from '../server/gateway';
-import { signedAsrUrl, parseTencentResult } from '../server/tencent';
+import { loadAsrEngineModel, signedAsrUrl, parseTencentResult } from '../server/tencent';
 import { TranscriptAccumulator } from '../features/speech/protocol';
 
 const credentials = { appId: '123456', secretId: 'test-id', secretKey: 'test-key' };
@@ -21,7 +21,7 @@ const sockets: WebSocket[] = [];
 afterEach(async () => { for (const s of sockets.splice(0)) s.terminate(); for (const app of apps.splice(0)) await app.close(); });
 async function setup(options: Partial<GatewayOptions> = {}) {
   const upstream = new Upstream();
-  const connect = vi.fn(() => upstream as unknown as WebSocket);
+  const connect = vi.fn<(url: string) => WebSocket>(() => upstream as unknown as WebSocket);
   const app = await createGateway({ credentials, origin, connect, ...options }); apps.push(app); await app.ready();
   const received: { type: string; text?: string; message?: string }[] = [];
   const open = async () => { const socket = await app.injectWS('/api/speech', { headers: { origin } }, { onInit(s) { s.on('message', b => received.push(JSON.parse(b.toString()))); } }); sockets.push(socket); return socket; };
@@ -70,9 +70,21 @@ it('ends at the configured duration without losing already emitted text', async 
   await vi.waitFor(() => expect(s.received.some(r => r.type === 'limit')).toBe(true)); expect(s.upstream.send).toHaveBeenCalledWith('{"type":"end"}');
   expect(s.received.some(r => r.text === '保留文字。')).toBe(true);
 });
+it('loads only the supported Tencent engine models with a compatible default', () => {
+  expect(loadAsrEngineModel({})).toBe('16k_zh');
+  expect(loadAsrEngineModel({ TENCENT_ASR_ENGINE_MODEL_TYPE: ' 16k_zh_en ' })).toBe('16k_zh_en');
+  expect(() => loadAsrEngineModel({ TENCENT_ASR_ENGINE_MODEL_TYPE: '16k_zh_en_2.0' })).toThrow(/16k_zh, 16k_zh_en/);
+});
 it('signs only the fixed endpoint and accepts current sentence lists', () => {
-  const url = new URL(signedAsrUrl(credentials, 1000, 'voice-test', 9));
+  const url = new URL(signedAsrUrl(credentials, { now: 1000, voiceId: 'voice-test', nonce: 9 }));
   const canonical = 'asr.cloud.tencent.com/asr/v2/123456?engine_model_type=16k_zh&expired=1600&nonce=9&secretid=test-id&timestamp=1000&voice_format=1&voice_id=voice-test';
   expect(url.searchParams.get('signature')).toBe(createHmac('sha1', 'test-key').update(canonical).digest('base64')); expect(url.protocol).toBe('wss:');
   expect(parseTencentResult({ code: 0, sentences: { sentence_list: [{ sentence_id: 0, sentence_type: 1, sentence: '测试。' }] } }, new TranscriptAccumulator()).text).toBe('测试。');
+});
+it('passes the configured bilingual engine only to the signed Tencent upstream', async () => {
+  const s = await setup({ engineModel: '16k_zh_en' });
+  await s.open();
+  const upstreamUrl = new URL(s.connect.mock.calls[0]?.[0] as string);
+  expect(upstreamUrl.searchParams.get('engine_model_type')).toBe('16k_zh_en');
+  expect(upstreamUrl.origin).toBe('wss://asr.cloud.tencent.com');
 });
