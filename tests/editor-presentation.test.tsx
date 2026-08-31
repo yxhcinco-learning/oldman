@@ -55,16 +55,16 @@ it('uses a header title trigger and shares body presentation across modes withou
   expect(within(preview).getByText(placeholder)).toHaveClass('writing-placeholder');
   expect(container.querySelector('.story-content, .story-paragraph, .empty-writing')).toBeNull();
   const canvasClass = preview.parentElement?.className;
-  const textTab = screen.getByRole('tab', { name: '文字输入' });
-  expect(textTab.querySelector('.keyboard-icon')).not.toBeNull();
-  fireEvent.click(textTab);
+  const textSwitch = screen.getByRole('button', { name: '切换到文字输入' });
+  expect(textSwitch.querySelector('.keyboard-icon')).not.toBeNull();
+  fireEvent.click(textSwitch);
   const input = screen.getByRole('textbox', { name: '文章正文' });
   expect(input).toHaveAttribute('placeholder', placeholder);
   expect(input).toHaveClass('full-text-editor', 'writing-body');
   expect(input.parentElement?.className).toBe(canvasClass);
   expect(screen.getByRole('button', { name: '编辑文章标题' })).toBe(title);
   expect(input).toHaveFocus();
-  fireEvent.click(screen.getByRole('tab', { name: '语音输入' }));
+  fireEvent.click(screen.getByRole('button', { name: '切换到语音输入' }));
   expect(within(screen.getByRole('group', { name: '文章正文' })).getByText(placeholder)).toBeVisible();
   await screen.findByText('已保存到本机');
   expect((await repo.load()).works).toEqual([]);
@@ -87,7 +87,7 @@ it('confirms or cancels a native title dialog without changing the body mode', a
   fireEvent.click(within(dialog).getByRole('button', { name: '取消' }));
   expect(screen.queryByRole('dialog', { name: '编辑标题' })).not.toBeInTheDocument();
   expect(title).toHaveTextContent('原标题');
-  expect(screen.getByRole('tab', { name: '语音输入' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('button', { name: '切换到文字输入' })).toBeVisible();
   expect(screen.getByRole('button', { name: '修改待确认转写' })).toHaveTextContent('还没有确认的语音。');
 
   fireEvent.click(title);
@@ -96,7 +96,7 @@ it('confirms or cancels a native title dialog without changing the body mode', a
   fireEvent.change(input, { target: { value: '页头里的标题' } });
   fireEvent.click(within(dialog).getByRole('button', { name: '完成' }));
   expect(title).toHaveTextContent('页头里的标题');
-  expect(screen.getByRole('tab', { name: '语音输入' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('button', { name: '切换到文字输入' })).toBeVisible();
   await screen.findByText('已保存到本机');
   expect((await repo.load()).recovery?.draft.title).toBe('页头里的标题');
   expect((await repo.load()).recovery?.draft.pendingVoice).toBe('还没有确认的语音。');
@@ -123,7 +123,7 @@ it.each([
   fireEvent.click(preview);
   expect(screen.getByLabelText('文章正文')).toHaveValue(draft.textDraft);
   expect(screen.getByLabelText('文章正文')).toHaveFocus();
-  fireEvent.click(screen.getByRole('tab', { name: '语音输入' }));
+  fireEvent.click(screen.getByRole('button', { name: '切换到语音输入' }));
   await screen.findByText('已保存到本机');
   expect((await repo.load()).recovery?.draft.segments).toEqual(segments);
   expect((await repo.load()).recovery?.draft.textDraft).toBe(draft.textDraft);
@@ -286,9 +286,9 @@ it('edits ordinary article text on the current page and restores the placeholder
   const body = screen.getByRole('textbox', { name: '文章正文' });
   expect(body).toHaveFocus();
   fireEvent.change(body, { target: { value: '' } });
-  fireEvent.click(screen.getByRole('tab', { name: '语音输入' }));
+  fireEvent.click(screen.getByRole('button', { name: '切换到语音输入' }));
   expect(within(screen.getByRole('group', { name: '文章正文' })).getByText(placeholder)).toBeVisible();
-  fireEvent.click(screen.getByRole('tab', { name: '文字输入' }));
+  fireEvent.click(screen.getByRole('button', { name: '切换到文字输入' }));
   expect(screen.getByLabelText('文章正文')).toHaveValue('');
   expect(screen.getByLabelText('文章正文')).toHaveAttribute('placeholder', placeholder);
   await screen.findByText('已保存到本机');
@@ -310,7 +310,7 @@ it('keeps pending speech separate, clears it independently and appends it only o
   await screen.findByRole('button', { name: '修改待确认转写' });
   fireEvent.click(screen.getByRole('button', { name: '完成' }));
   expect(within(screen.getByRole('group', { name: '文章正文' })).getByText('待确认语音。')).toBeVisible();
-  fireEvent.click(screen.getByRole('tab', { name: '文字输入' }));
+  fireEvent.click(screen.getByRole('button', { name: '切换到文字输入' }));
   expect(screen.getByLabelText('文章正文')).toHaveValue('已确认的正文。\n\n待确认语音。');
   await screen.findByText('已保存到本机');
   expect((await nextRepo.load()).recovery?.draft.pendingVoice).toBe('');
@@ -332,7 +332,7 @@ it('migrates a recovered unfinished ordinary edit into the current-page text edi
 it('retains the text and existing rescue controls when saving after a mode switch fails', async () => {
   const { repo } = await openDraft(voiceDraft([{ id: 'first', text: '需要保留的原文' }]));
   vi.spyOn(repo, 'save').mockRejectedValueOnce(new Error('保存失败，请先备份'));
-  fireEvent.click(screen.getByRole('tab', { name: '文字输入' }));
+  fireEvent.click(screen.getByRole('button', { name: '切换到文字输入' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('保存失败，请先备份');
   expect(screen.getByLabelText('文章正文')).toHaveValue('需要保留的原文');
   expect(screen.getByRole('button', { name: '导出当前备份' })).toBeVisible();

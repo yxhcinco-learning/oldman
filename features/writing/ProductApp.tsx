@@ -17,18 +17,21 @@ export function ProductApp({ repository, aiTransport }: { repository?: WorkRepos
   const [workspace] = useState(() => new Workspace(repository ?? new IndexedWorkRepository()));
   const state = useSyncExternalStore(workspace.subscribe, workspace.getSnapshot, workspace.getSnapshot);
   const [assistant] = useState(() => new ArticleAiController(workspace, aiTransport));
-  const ai = useSyncExternalStore(assistant.subscribe, assistant.getSnapshot, assistant.getSnapshot);
   const [assistantOpen, setAssistantOpen] = useState(false);
-  const [assistantPrompt, setAssistantPrompt] = useState('');
+  const [assistantComposer, setAssistantComposer] = useState<{ workId: string | null; prompt: string }>({ workId: null, prompt: '' });
   const [assistantStatus, setAssistantStatus] = useState<AssistantStatus>('idle');
   const [menu, setMenu] = useState<Menu>(null);
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const file = useRef<HTMLInputElement>(null);
   const shell = useRef<HTMLElement>(null);
-  const previousAiBusy = useRef(false);
-  const promptWorkId = useRef<string | null>(null);
+  const assistantOpenRef = useRef(false);
   useEffect(() => { void workspace.initialize(); return () => { workspace.dispose(); void assistant.cancel(); }; }, [workspace, assistant]);
+  useEffect(() => assistant.subscribe(() => {
+    if (assistantOpenRef.current) return;
+    const next = assistant.getSnapshot();
+    setAssistantStatus(current => next.busy ? 'processing' : next.error ? 'error' : current === 'processing' ? 'unread' : current);
+  }), [assistant]);
   useEffect(() => {
     const element = shell.current;
     const viewport = window.visualViewport;
@@ -54,30 +57,23 @@ export function ProductApp({ repository, aiTransport }: { repository?: WorkRepos
     return () => document.removeEventListener('visibilitychange', checkpoint);
   }, [workspace]);
   useEffect(() => { if (notice) { const timer = setTimeout(() => setNotice(''), 3500); return () => clearTimeout(timer); } }, [notice]);
-  useEffect(() => {
-    const workId = state.draft?.id ?? null;
-    if (promptWorkId.current === workId) return;
-    promptWorkId.current = workId;
-    setAssistantPrompt(''); setAssistantOpen(false); setAssistantStatus('idle');
-  }, [state.draft?.id]);
-  useEffect(() => {
-    if (assistantOpen) setAssistantStatus('idle');
-    else if (ai.busy) setAssistantStatus('processing');
-    else if (previousAiBusy.current) setAssistantStatus(ai.error ? 'error' : 'unread');
-    else if (ai.error) setAssistantStatus('error');
-    previousAiBusy.current = ai.busy;
-  }, [ai.busy, ai.error, assistantOpen]);
   const backup = () => { download('岁月有声-备份.json', makeBackup(state.works, state.draft, state.sessions), 'application/json'); setNotice('已发起备份下载，请妥善保管文件'); };
   const finish = async () => {
     if (busy) return;
-    setBusy(true); await assistant.cancel(); setAssistantOpen(false); setAssistantPrompt(''); setAssistantStatus('idle');
+    setBusy(true); await assistant.cancel(); assistantOpenRef.current = false; setAssistantOpen(false); setAssistantComposer({ workId: null, prompt: '' }); setAssistantStatus('idle');
     const ok = await workspace.finish(); setBusy(false); if (ok) setNotice('内容已保存到本机');
   };
   const copy = async (draft: Draft) => {
     try { await navigator.clipboard.writeText(articleText(effectiveSegments(draft))); setNotice('正文已复制'); }
     catch { setNotice('浏览器未允许复制，请使用导出 TXT'); }
   };
-  const openAssistant = () => { if (state.draft) { void workspace.checkpoint(); setAssistantStatus('idle'); setAssistantOpen(true); } };
+  const openAssistant = () => { if (state.draft) { void workspace.checkpoint(); assistantOpenRef.current = true; setAssistantStatus('idle'); setAssistantOpen(true); } };
+  const closeAssistant = () => {
+    assistantOpenRef.current = false; setAssistantOpen(false);
+    const current = assistant.getSnapshot();
+    setAssistantStatus(current.busy ? 'processing' : current.error ? 'error' : 'idle');
+  };
+  const assistantPrompt = assistantComposer.workId === state.draft?.id ? assistantComposer.prompt : '';
   const menuWorks = state.works.filter(work => Boolean(work.deletedAt) === (menu === 'trash'));
   return <main className="stage"><section ref={shell} className={`phone-shell ${state.draft ? 'app-view editor-screen' : 'home-screen'}`} aria-label="岁月有声写作应用">
     {state.loading ? <div className="loading-state" role="status">正在打开本机作品…</div> : state.draft ? <Editor draft={state.draft} update={draft => { void workspace.update(draft); }} onSave={() => void finish()} onBack={() => void finish()} onAssistant={openAssistant} assistantStatus={assistantStatus} saveStatus={state.saveStatus} /> :
@@ -96,7 +92,7 @@ export function ProductApp({ repository, aiTransport }: { repository?: WorkRepos
       catch (error) { setNotice(error instanceof Error ? error.message : '导入失败，原作品未改变'); }
       finally { setBusy(false); }
     }} />
-    {assistantOpen && state.draft && <ArticleAssistant workspace={workspace} controller={assistant} prompt={assistantPrompt} onPromptChange={setAssistantPrompt} onBackup={backup} onClose={() => setAssistantOpen(false)} />}
+    {assistantOpen && state.draft && <ArticleAssistant workspace={workspace} controller={assistant} prompt={assistantPrompt} onPromptChange={prompt => setAssistantComposer({ workId: state.draft!.id, prompt })} onBackup={backup} onClose={closeAssistant} />}
     {menu && <Dialog title={typeof menu === 'object' ? menu.title : menu === 'library' ? '作品与备份' : menu === 'trash' ? '回收站' : '管理作品'} onClose={() => setMenu(null)}
       onBack={menu === 'library' ? undefined : () => setMenu(typeof menu === 'object' ? menu.deletedAt ? 'trash' : 'works' : 'library')}>
       <div className="menu-actions">
