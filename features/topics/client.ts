@@ -11,6 +11,22 @@ export interface TopicTransport {
   detail(id: string, signal?: AbortSignal): Promise<WritingTopic>;
 }
 
+export function selectHomeTopics(topics: WritingTopic[], limit = 5) {
+  const selected: WritingTopic[] = [];
+  const take = (kind: TopicKind, count: number) => {
+    for (const topic of topics) {
+      if (selected.length >= limit || count <= 0) break;
+      if (topic.kind === kind && !selected.some(item => item.id === topic.id)) { selected.push(topic); count--; }
+    }
+  };
+  take('current', 2); take('periodic', 2); take('slow', 1);
+  for (const topic of topics) {
+    if (selected.length >= limit) break;
+    if (!selected.some(item => item.id === topic.id)) selected.push(topic);
+  }
+  return selected;
+}
+
 const readJson = async (response: Response) => {
   const value = await response.json().catch(() => null);
   if (!response.ok) throw new Error(value && typeof value.error === 'string' ? value.error : '议题暂时无法打开。');

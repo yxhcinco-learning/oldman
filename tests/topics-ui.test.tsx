@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { ProductApp } from '../features/writing/ProductApp';
-import type { TopicTransport } from '../features/topics/client';
+import { selectHomeTopics, type TopicTransport } from '../features/topics/client';
 import { IndexedWorkRepository } from '../lib/storage/repository';
 import { REVIEWED_TOPIC_CATALOG } from '../server/topic-catalog';
 import type { WritingTopic } from '../lib/domain/topics';
@@ -14,6 +14,13 @@ afterEach(async () => { localStorage.clear(); for (const value of repositories.s
 const transport = (topics: WritingTopic[], detail = topics[0]): TopicTransport => ({
   list: vi.fn(async () => topics),
   detail: vi.fn(async () => detail),
+});
+
+it('keeps the five-card home selection mixed across current, periodic and slow topics', () => {
+  const selected = selectHomeTopics(REVIEWED_TOPIC_CATALOG, 5);
+  expect(selected).toHaveLength(5);
+  expect(new Set(selected.map(topic => topic.kind))).toEqual(new Set(['current', 'periodic', 'slow']));
+  expect(selected.filter(topic => topic.kind === 'current')).toHaveLength(2);
 });
 
 it('shows no more than five reviewed topics with their sources and suggested angles', async () => {
@@ -111,7 +118,9 @@ it('uses XiaoWen to save answers as materials, ask one next question and compose
   fireEvent.click(screen.getByRole('button', { name: '继续问我' }));
   expect(await screen.findByText('那次尝试中，最难解决的一步是什么？')).toBeInTheDocument();
   expect(ai.mock.calls[0][0]).toMatchObject({ action: 'interview', current: { body: '' }, materials: [{ source: 'interview-answer' }] });
-  fireEvent.click(screen.getByRole('button', { name: '整理成文章' }));
+  const compose = screen.getByRole('button', { name: '整理成文章' });
+  await waitFor(() => expect(compose).toBeEnabled());
+  fireEvent.click(compose);
   expect(await screen.findByRole('region', { name: '整理后全文' })).toHaveTextContent('九十年代，我第一次尝试用电脑备课');
   expect((await store.load()).recovery?.draft.textDraft).toBe('');
   fireEvent.click(screen.getByRole('button', { name: '采用这篇文章' }));

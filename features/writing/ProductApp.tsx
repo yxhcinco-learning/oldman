@@ -12,7 +12,7 @@ import { Editor } from './Editor';
 import { Icon } from '../../components/Icons';
 import type { AssistantStatus } from '../../components/WritingControls';
 import { snapshotTopic, type WritingTopic } from '../../lib/domain/topics';
-import { topicTransport as defaultTopicTransport, type TopicTransport } from '../topics/client';
+import { selectHomeTopics, topicTransport as defaultTopicTransport, type TopicTransport } from '../topics/client';
 import { TopicDetail } from '../topics/TopicDetail';
 
 type Menu = 'library' | 'works' | 'trash' | Work | null;
@@ -35,7 +35,7 @@ export function ProductApp({ repository, aiTransport, topicTransport = defaultTo
   const assistantOpenRef = useRef(false);
   useEffect(() => { void workspace.initialize(); return () => { workspace.dispose(); void assistant.cancel(); }; }, [workspace, assistant]);
   const loadTopics = useCallback(() => {
-    topicTransport.list({ limit: 5 }).then(value => { setTopics(value.slice(0, 5)); setTopicsStatus('ready'); }).catch(() => setTopicsStatus('error'));
+    topicTransport.list({ limit: 20 }).then(value => { setTopics(selectHomeTopics(value)); setTopicsStatus('ready'); }).catch(() => setTopicsStatus('error'));
   }, [topicTransport]);
   useEffect(loadTopics, [loadTopics]);
   useEffect(() => {
