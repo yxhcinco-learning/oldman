@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+const zodParseContext = { jitless: true } as const;
+
 const id = z.string().min(1).max(128);
 const httpUrl = z.string().url().max(2048).refine(value => /^https?:\/\//i.test(value), '来源必须使用 HTTP(S)');
 
@@ -61,7 +63,7 @@ export function snapshotTopic(topic: WritingTopic, capturedAt = new Date().toISO
     id: topic.id, revision: topic.revision, kind: topic.kind, title: topic.title, summary: topic.summary,
     whyItMatters: topic.whyItMatters, updatedAt: topic.updatedAt, sources: topic.sources, angles: topic.angles,
     starterQuestion: topic.starterQuestion, tags: topic.tags, ...(topic.correctionNote ? { correctionNote: topic.correctionNote } : {}), capturedAt,
-  });
+  }, zodParseContext);
 }
 
 export function isTopicCurrent(topic: WritingTopic, now = new Date()) {

@@ -4,6 +4,8 @@ import { topicSnapshotSchema, writingMaterialSchema } from './topics.js';
 import { newId, normalizeWork, type Work, workFromDraft, hasContent, type Draft } from './writing.js';
 import { cloneValue, utf8ByteLength } from './platform.js';
 
+const zodParseContext = { jitless: true } as const;
+
 const segment = z.object({ id: z.string().min(1).max(128), text: z.string().max(1_000_000) }).strict();
 const legacyDraft = z.object({
   id: z.string().min(1).max(128), title: z.string().max(120), segments: z.array(segment).max(10000),
@@ -43,7 +45,7 @@ export function parseBackupBundle(raw: string): { works: Work[]; sessions: Artic
   if (utf8ByteLength(raw) > MAX_BACKUP_BYTES) throw new Error('备份超过 10MB，请分批整理后再导入');
   let value: unknown;
   try { value = JSON.parse(raw); } catch { throw new Error('这不是有效的 JSON 备份，原作品未改变'); }
-  const result = backupSchema.safeParse(value);
+  const result = backupSchema.safeParse(value, zodParseContext);
   if (!result.success) throw new Error('备份格式或版本不支持，原作品未改变');
   const works = result.data.works.map(work => normalizeWork(work as Work));
   const ids = new Set(works.map(w => w.id));

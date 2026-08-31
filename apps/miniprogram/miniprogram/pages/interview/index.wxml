@@ -18,8 +18,8 @@
     <view class="composer-row">
       <textarea value="{{composer}}" maxlength="12000" auto-height placeholder="写下回答" disabled="{{saving}}"
         bindinput="onComposer" bindkeyboardheightchange="onKeyboardHeight"></textarea>
-      <button class="voice" bindtap="dictateUnavailable" disabled="{{saving}}" aria-label="语音回答">声</button>
-      <button class="send" bindtap="sendAnswer" disabled="{{saving || !composer}}">{{saving ? '保存中' : '发送'}}</button>
+      <view class="composer-button-cell"><button class="voice" bindtap="dictateUnavailable" disabled="{{saving}}" aria-label="语音回答">声</button></view>
+      <view class="composer-button-cell"><button class="send" bindtap="sendAnswer" disabled="{{saving || !composer}}">{{saving ? '保存中' : '发送'}}</button></view>
     </view>
   </view>
 </view>

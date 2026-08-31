@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { aiActionSchema, aiResultSchema, turnSchema, versionSchema, type AiAction, type ArticleSession } from './article-ai.js';
 import { topicSnapshotSchema, writingMaterialSchema, type TopicSnapshot, type WritingMaterial } from './topics.js';
 
+const zodParseContext = { jitless: true } as const;
+
 export const MAX_ARTICLE_CHARS = 12000;
 export const MAX_CONTEXT_CHARS = 120000;
 export const aiRequestSchema = z.object({
@@ -61,5 +63,5 @@ export function buildAiRequest(session: ArticleSession, action: AiAction, prompt
   }
   request.versions.sort((a, b) => session.versions.indexOf(a) - session.versions.indexOf(b));
   request.omittedRecords = history.length + eligibleTurns.length - request.versions.length - request.turns.length;
-  return aiRequestSchema.parse(request);
+  return aiRequestSchema.parse(request, zodParseContext);
 }

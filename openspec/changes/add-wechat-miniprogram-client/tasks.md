@@ -27,12 +27,12 @@
 
 ## 4. Topic, interview and XiaoWen experience
 
-- [ ] 4.1 Implement the mini-program topic HTTP adapter and reviewed 热门 list/detail pages with source links, stale/corrected/unavailable states and no unreviewed or mock fallback
-- [ ] 4.2 Implement “直接写” with a collapsible saved topic background that never inserts background or angles into the author body
-- [ ] 4.3 Implement the static first-interview introduction, one-answer/one-question message flow, change-question action, content-aware close routing and material persistence without a second assistant or form-style control clutter
-- [ ] 4.4 Port the XiaoWen conversation panel, unsent in-memory composer, typed/dictated input boundary, request status, close/reopen state and short-screen fixed composer behavior
-- [ ] 4.5 Implement article/interview compose requests, result explanations, full candidate preview, baseline conflict checks, apply/dismiss/undo and modification records against the shared session contract
-- [ ] 4.6 Add success, failure, cancel, close-while-running, offline, stale-topic, insufficient/conflicting material and candidate-conflict tests using non-network transports
+- [x] 4.1 Implement the mini-program topic HTTP adapter and reviewed 热门 list/detail pages with source links, stale/corrected/unavailable states and no unreviewed or mock fallback
+- [x] 4.2 Implement “直接写” with a collapsible saved topic background that never inserts background or angles into the author body
+- [x] 4.3 Implement the static first-interview introduction, one-answer/one-question message flow, change-question action, content-aware close routing and material persistence without a second assistant or form-style control clutter
+- [x] 4.4 Port the XiaoWen conversation panel, unsent in-memory composer, typed/dictated input boundary, request status, close/reopen state and short-screen fixed composer behavior
+- [x] 4.5 Implement article/interview compose requests, result explanations, full candidate preview, baseline conflict checks, apply/dismiss/undo and modification records against the shared session contract
+- [x] 4.6 Add success, failure, cancel, close-while-running, offline, stale-topic, insufficient/conflicting material and candidate-conflict tests using non-network transports
 - [ ] 4.7 Run the combined topic/interview/XiaoWen checks and four-size developer-tool regression, update any corresponding acceptance evidence, and commit the verified feature-parity stage
 
 ## 5. Minimal WeChat identity and business sessions

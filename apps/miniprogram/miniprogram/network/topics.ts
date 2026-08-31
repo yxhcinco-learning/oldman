@@ -21,6 +21,8 @@ function readResponse(response: MiniHttpResponse) {
   throw new Error(typeof value?.error === 'string' ? value.error.slice(0, 300) : '话题暂时无法打开。');
 }
 
+const isReviewed = (topic: WritingTopic) => topic.status === 'published' || topic.status === 'corrected';
+
 export class MiniTopicClient {
   constructor(private readonly transport: MiniHttpTransport = new WxHttpTransport(), private readonly origin = MINI_API_ORIGIN) {}
 
@@ -29,12 +31,14 @@ export class MiniTopicClient {
     if (options.kind) query.push(`kind=${encodeURIComponent(options.kind)}`);
     query.push(`limit=${Math.max(1, Math.min(20, options.limit ?? 5))}`);
     const parsed = topicListSchema.parse(readResponse(await this.transport.get(`${this.origin}/api/topics?${query.join('&')}`, 8000)), zodParseContext);
-    return selectHomeTopics(parsed.topics, options.limit ?? 5);
+    return selectHomeTopics(parsed.topics.filter(isReviewed), options.limit ?? 5);
   }
 
   async detail(id: string): Promise<WritingTopic> {
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) throw new Error('话题地址无效。');
-    return writingTopicSchema.parse(readResponse(await this.transport.get(`${this.origin}/api/topics/${encodeURIComponent(id)}`, 8000)), zodParseContext);
+    const topic = writingTopicSchema.parse(readResponse(await this.transport.get(`${this.origin}/api/topics/${encodeURIComponent(id)}`, 8000)), zodParseContext);
+    if (!isReviewed(topic)) throw new Error('这个话题尚未通过审核，暂时不能展示。');
+    return topic;
   }
 }
 

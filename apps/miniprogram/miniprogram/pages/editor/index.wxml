@@ -58,15 +58,65 @@
 
   <view wx:if="{{xiaowenOpen}}" class="xiaowen-mask" catchtouchmove="noop">
     <view class="xiaowen-panel" role="dialog" aria-modal="true" aria-label="小文文章会话">
-      <view class="xiaowen-header"><view><text>小文</text><small>文章伙伴</small></view><button bindtap="closeXiaoWen">收起小文</button></view>
-      <scroll-view class="xiaowen-messages" scroll-y>
-        <view class="assistant-message"><view class="assistant-avatar">文</view><view>我可以听你说说想怎么调整文章。只有在你发送后才会请求在线服务，结果也要由你确认后才会进入正文。</view></view>
-        <view wx:if="{{error}}" class="xiaowen-error">{{error}}</view>
+      <view class="xiaowen-header">
+        <button wx:if="{{xiaowenView !== 'chat'}}" class="xiaowen-back" bindtap="backToConversation" aria-label="返回小文对话">‹</button>
+        <view class="xiaowen-title"><text>{{xiaowenView === 'preview' ? candidateTitle : xiaowenView === 'history' ? '修改记录' : '小文'}}</text><small>{{xiaowenView === 'chat' ? '文章伙伴' : '所有内容保存在本机'}}</small></view>
+        <view class="xiaowen-header-actions">
+          <button wx:if="{{xiaowenView === 'chat'}}" bindtap="showHistory" aria-label="查看修改记录">记录</button>
+          <button bindtap="closeXiaoWen">收起小文</button>
+        </view>
+      </view>
+
+      <scroll-view wx:if="{{xiaowenView === 'chat'}}" class="xiaowen-messages" scroll-y scroll-into-view="xiaowen-end">
+        <view class="assistant-message"><view class="assistant-avatar">文</view><view>我可以听你说说想怎么调整文章。只有在你发送后才会请求在线服务；完整候选也要由你确认后才会进入正文。</view></view>
+        <view class="xiaowen-turn" wx:for="{{xiaowenTurns}}" wx:key="id">
+          <view class="xiaowen-user-message">{{item.prompt}}</view>
+          <view class="xiaowen-answer-row">
+            <view class="assistant-avatar">文</view>
+            <view class="xiaowen-answer">
+              <view class="xiaowen-answer-label">{{item.hasCandidate ? '小文的修改说明' : '小文的回答'}}</view>
+              <view>{{item.answer}}</view>
+              <view class="xiaowen-turn-actions" wx:if="{{item.hasCandidate || item.canRetry || item.canUndo}}">
+                <button wx:if="{{item.hasCandidate}}" data-id="{{item.id}}" bindtap="showCandidate">查看{{item.editLabel}}结果</button>
+                <button wx:if="{{item.canRetry}}" data-id="{{item.id}}" bindtap="retryTurn">重新发送</button>
+                <button wx:if="{{item.canUndo}}" data-id="{{item.id}}" bindtap="undoTurn">撤销{{item.editLabel}}</button>
+              </view>
+              <view class="xiaowen-turn-status">{{item.status}}</view>
+            </view>
+          </view>
+        </view>
+        <view id="xiaowen-end"></view>
+        <view wx:if="{{xiaowenStatus === 'blocked'}}" class="xiaowen-request-state">未发送</view>
+        <view wx:if="{{xiaowenError}}" class="xiaowen-error">{{xiaowenError}}</view>
+        <view wx:if="{{xiaowenRunning}}" class="xiaowen-progress"><text>小文正在处理…</text><button bindtap="cancelXiaoWen">取消请求</button></view>
       </scroll-view>
-      <view class="xiaowen-composer">
-        <textarea value="{{xiaowenComposer}}" maxlength="2000" auto-height placeholder="问小文，或提要求" bindinput="onXiaoWenInput"></textarea>
-        <button class="xiaowen-voice" bindtap="voiceUnavailable" aria-label="语音输入">声</button>
-        <button class="xiaowen-send" bindtap="sendXiaoWen" disabled="{{!xiaowenComposer}}">发送</button>
+
+      <scroll-view wx:elif="{{xiaowenView === 'preview'}}" class="xiaowen-preview" scroll-y>
+        <view class="candidate-meta"><text>{{candidateStatus === 'ready' ? '待应用' : candidateStatus === 'applied' ? '已应用' : '仅供查看'}}</text>
+          <button bindtap="toggleCandidateOriginal">{{candidateShowOriginal ? '查看候选全文' : '对照原文'}}</button></view>
+        <view class="candidate-summary"><strong>小文的{{candidateEditLabel}}说明</strong><text>{{candidateSummary}}</text></view>
+        <view class="candidate-full-text" user-select>{{candidateShowOriginal ? candidateOriginalBody : candidateBody}}</view>
+        <view class="candidate-note">请核对人物、时间、动作和经历；确认前正文保持不变。</view>
+        <view wx:if="{{candidateStale}}" class="xiaowen-error">正文已发生变化。旧结果仅供查看，请根据最新正文重新整理。</view>
+        <view wx:if="{{xiaowenError}}" class="xiaowen-error">{{xiaowenError}}</view>
+      </scroll-view>
+
+      <scroll-view wx:else class="xiaowen-history" scroll-y>
+        <view class="candidate-note">每次手动编辑、应用和恢复都会留下记录。</view>
+        <view wx:if="{{xiaowenVersions.length === 0}}" class="history-empty">暂无修改记录</view>
+        <view class="history-item" wx:for="{{xiaowenVersions}}" wx:key="id">
+          <view><strong>{{item.label}}</strong><text>{{item.title}}</text></view><small>{{item.length}} 字 · {{item.createdAt}}</small>
+        </view>
+      </scroll-view>
+
+      <view wx:if="{{xiaowenView === 'chat'}}" class="xiaowen-composer">
+        <textarea value="{{xiaowenComposer}}" maxlength="2000" auto-height placeholder="问小文，或提要求" disabled="{{operationBusy}}" bindinput="onXiaoWenInput"></textarea>
+        <view class="xiaowen-button-cell"><button class="xiaowen-voice" bindtap="voiceUnavailable" disabled="{{operationBusy}}" aria-label="语音输入">声</button></view>
+        <view class="xiaowen-button-cell"><button class="xiaowen-send" bindtap="sendXiaoWen" disabled="{{operationBusy || !xiaowenComposer}}">{{operationBusy ? '处理中' : '发送'}}</button></view>
+      </view>
+      <view wx:elif="{{xiaowenView === 'preview' && candidateStatus === 'ready'}}" class="candidate-actions">
+        <button bindtap="dismissCandidate" disabled="{{operationBusy}}">先不修改</button>
+        <button class="candidate-apply" bindtap="applyCandidate" disabled="{{operationBusy || candidateStale}}">应用{{candidateEditLabel}}</button>
       </view>
     </view>
   </view>

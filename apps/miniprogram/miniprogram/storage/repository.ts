@@ -387,6 +387,25 @@ export class MiniDraftWriter {
     await this.repository.writeRecovery(draft, this.revisions.get(draft.id) ?? 0, session);
   }
 
+  updateLatestSession(id: string, update: (session: ArticleSession) => ArticleSession) {
+    const job = this.tail.catch(() => undefined).then(async () => {
+      const snapshot = await this.repository.load();
+      const recovery = snapshot.recovery?.draft.id === id ? snapshot.recovery : null;
+      const stored = snapshot.works.find(work => work.id === id && !work.deletedAt) ?? null;
+      const draft = recovery?.draft ?? stored?.draft;
+      const session = recovery ? snapshot.recoverySession : snapshot.sessions.find(item => item.workId === id);
+      if (!draft || !session) throw new MiniStorageError('missing', { message: '当前文章会话已不存在。' });
+      const revision = recovery?.revision ?? stored?.revision ?? 0;
+      this.revisions.set(id, revision);
+      const nextSession = update(clone(session));
+      const work = await this.repository.save(clone(draft), revision, clone(nextSession));
+      this.revisions.set(id, work?.revision ?? 0);
+      return { draft, session: nextSession, work };
+    });
+    this.tail = job;
+    return job;
+  }
+
   async flush() {
     await this.tail;
     await this.repository.flush();
