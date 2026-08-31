@@ -45,7 +45,7 @@ AudioWorklet 重采样至 16kHz PCM16；同源 WebSocket 代理至 127.0.0.1:300
 
 ## ADR-006 文章级 AI 会话
 
-设计难度中等：现有框架和网关可复用，主要风险在历史证据、持久化一致性和过期结果覆盖，不需要新增 Agent 框架或向量数据库。常规优化和润色文笔保留固定 action；自由输入统一为同篇文章会话中的 `chat` action。
+设计难度中等：现有框架和网关可复用，主要风险在历史证据、持久化一致性和过期结果覆盖，不需要新增 Agent 框架或向量数据库。常规优化和润色文笔保留固定 action；自由输入统一为同篇文章会话中的 `chat` action；“接着问我”和“讲清楚了吗”复用只读 `question` action，不新增协议字段或模型调用分类器。
 
 手动输入停顿 1200ms、完成语音/段落、保存退出及 AI 操作前建立变化检查点。每个 turn 记录基准版本、动作、提示、结果与采纳状态；候选不冒充当前正文。所有动作先进入会话，`result.answer` 作为小文修改说明，turn `status` 作为独立候选状态；生成完成停留会话，用户主动打开全文预览后检查标题/正文基准及 revision，再事务应用。撤销/恢复追加版本，不删除历史；后续有手改时必须再次确认。
 
@@ -53,13 +53,17 @@ AudioWorklet 重采样至 16kHz PCM16；同源 WebSocket 代理至 127.0.0.1:300
 
 自由输入只发送一次 `chat` 请求，不增加分类器调用，也不在客户端用关键词猜测意图。模型可只返回 `answer` 回答问题，或同时返回完整 `body` 形成待确认候选；要求不明确时只返回简短追问。会话层以是否存在 `body` 分别保存为 `answered` 或 `ready`。历史 `question` / `rewrite` 记录和重试继续兼容；`chat` 候选采用后仍以 `rewrite` 记录版本来源，因此无需升级数据库/备份版本。候选继续复用基准检查、事务应用、撤销和恢复。文风要求允许合理修辞和氛围表达，但提示词保护人物关系、具体动作、时间地点、数字、对话和事件结果，并要求披露氛围性增写；模型输出仍由用户逐段核对。原始反例及用户校正见 [对话改文验收](CONVERSATIONAL-REWRITE-ACCEPTANCE.md)，统一发送的实现证据见 [统一发送验收](AI-UNIFIED-SEND-ACCEPTANCE.md)。
 
-常规优化、润色文笔和对话调整共用 chat 展示，不再在优化菜单直接编辑需求或自动跳转 preview。快捷优化的 action 仍决定固定服务端任务，展示层为旧空 prompt 提供可读操作文字；不迁移历史。应用或放弃只更新 status/正文，保留原 answer。优化首页和会话页的“修改记录”共用 Dialog 页头操作槽，内容区不保留重复入口；候选的查看结果与撤销为同一消息操作组。普通成功确认使用约3秒的非模态 toast，状态仍持久保存在 turn 和修改记录；冲突、失败和覆盖风险保持内容流内持续可见。统一反馈的基础实现见 [会话反馈验收](AI-CONVERSATION-FEEDBACK-ACCEPTANCE.md)，紧凑化结果和统一页头尺寸证据见 [语音与结果反馈验收](AI-VOICE-RESULT-FEEDBACK-ACCEPTANCE.md)及[修改记录页头统一验收](AI-RECORD-HEADER-ACCEPTANCE.md)。
+编辑器移除当前无能力的聊天占位和优化菜单，以单一“小文”入口直接创建 `ArticleAssistant` 会话视图；这只是入口收敛，不把此前另行规划的聊天概念定义成小文。会话上方四个快捷项显式映射为 `question('接着问我')`、`question('讲清楚了吗')`、`regular('')` 和 `polish('')`。常规/润色请求仍向服务端发送空 prompt，控制器只用可选的展示文案把“帮我理顺 / 润色文笔”写进 turn；历史 action、备份 schema 和旧标签不迁移。服务端 `question` 提示词对两个精确短语分别施加单问题、最多三处和正文取证限制，控制器继续确定性删除意外返回的 body。
 
-移动端根画布以 `window.visualViewport` 的高度和顶部偏移更新 CSS 变量，不支持时回退 `100dvh`；页头、正文滚动区和底部工具栏继续由同一 flex 布局管理。正文语音收起是编辑器内存展示状态，只在空闲且没有待确认文字时提供，收起后不渲染语音舞台或额外展开条；正文点击间隔由编辑器内存判定，单击恢复语音，350ms内第二次点击切换到当前页受控 textarea。触屏/触控笔另以600ms计时和10px移动阈值识别长按，不调用 `preventDefault` 或显式 pointer capture；原生 `contextmenu` 也可进入同一路径。第二次点击或长按坐标通过共享的标准 `caretPositionFromPoint` / WebKit `caretRangeFromPoint` 兼容层取得预览段落内偏移，再叠加前置段落与双换行分隔映射到 textarea 的 UTF-16 折叠 selection；空白或 API 不可用回退到文末。标题从正文区移到页头按钮，独立 `Dialog` 使用本地标题草稿和原生单行输入，确认时才更新 `Draft.title`；打开或取消不改变正文 `inputMode`、正文、待确认文字或恢复状态。普通正文不再建立 `segmentEdit`，旧的未完成普通段落编辑在恢复时合并并迁移到当前页文字模式；`segmentEdit.id === 'pending'` 的语音待确认编辑继续使用独立页面，并用同一坐标兼容层把真实转写内的点击偏移传给独立 textarea，不计状态提示；取消只清除 `segmentEdit`，完成才把编辑值写回 `pendingVoice`。工具栏“聊天”只设置短暂本地状态提示，不创建 `ArticleAssistant`；小文仍由优化菜单打开。优化菜单用适度间距兼顾一屏与舒适度；会话受控 textarea 在空 prompt 时直接固定52px，不测量 placeholder，实际文字通过 `scrollHeight` 在52–148px间增长，弹窗底部只保留8px基础间距或系统安全区，不引入 contenteditable 或新协议。
+常规优化、润色文笔、两个只读快捷意图和自由对话共用会话展示，不自动跳转 preview。应用或放弃只更新 status/正文，保留原 answer；“修改记录”继续使用 Dialog 页头操作槽，候选的查看结果与撤销为同一消息操作组。普通成功确认使用约3秒的非模态 toast，状态仍持久保存在 turn 和修改记录；冲突、失败和覆盖风险保持内容流内持续可见。统一反馈的基础实现见 [会话反馈验收](AI-CONVERSATION-FEEDBACK-ACCEPTANCE.md)，紧凑化结果和统一页头尺寸证据见 [语音与结果反馈验收](AI-VOICE-RESULT-FEEDBACK-ACCEPTANCE.md)及[修改记录页头统一验收](AI-RECORD-HEADER-ACCEPTANCE.md)。
 
-浏览器只访问同源 `/api/ai`，Key 仅在服务端读取忽略的 `.env.local`。首次发送需同意正文/历史/消息的数据去向；网关不记录内容。正文 12000 字符、问题 2000 字符、上下文 JSON 120000 字符、请求 1MiB、响应 256KiB、并发 2、每分钟 20 次、超时 120 秒；追问最多输出 2048 tokens，优化 16384 tokens。取消、断开和关闭服务尽力终止上游；迟到结果不写回，刷新不自动重试。
+移动端根画布以 `window.visualViewport` 的高度和顶部偏移更新 CSS 变量，不支持时回退 `100dvh`；页头、正文滚动区和底部工具栏继续由同一 flex 布局管理。正文语音收起是编辑器内存展示状态，只在空闲且没有待确认文字时提供，收起后不渲染语音舞台或额外展开条；正文点击间隔由编辑器内存判定，单击恢复语音，350ms内第二次点击切换到当前页受控 textarea。触屏/触控笔另以600ms计时和10px移动阈值识别长按，不调用 `preventDefault` 或显式 pointer capture；原生 `contextmenu` 也可进入同一路径。第二次点击或长按坐标通过共享的标准 `caretPositionFromPoint` / WebKit `caretRangeFromPoint` 兼容层取得预览段落内偏移，再叠加前置段落与双换行分隔映射到 textarea 的 UTF-16 折叠 selection；空白或 API 不可用回退到文末。标题从正文区移到页头按钮，独立 `Dialog` 使用本地标题草稿和原生单行输入，确认时才更新 `Draft.title`；打开或取消不改变正文 `inputMode`、正文、待确认文字或恢复状态。普通正文不再建立 `segmentEdit`，旧的未完成普通段落编辑在恢复时合并并迁移到当前页文字模式；`segmentEdit.id === 'pending'` 的语音待确认编辑继续使用独立页面，并用同一坐标兼容层把真实转写内的点击偏移传给独立 textarea，不计状态提示；取消只清除 `segmentEdit`，完成才把编辑值写回 `pendingVoice`。
 
-编辑器的优化功能发现提示不进入文章会话或数据库。当前正文首次达到80个非空白字时，以 `suiyue-optimize-tip-v1` 在本机记录“已展示”；提示约6秒自动消失且不抢焦点。清理浏览器数据后可能再次出现，不跨设备同步。
+`WritingToolbar` 的单个52px按钮只在目标 `voice | text` 间切换，图标表示目标模式，不触发录音；相邻叶片入口控制 `ArticleAssistant` 的挂载。小文面板以 compact/expanded 类控制高度，消息区和底部 composer 分离滚动；输入聚焦把面板展开，页头也可显式切换。`ProductApp` 持有当前 work 的未发送 prompt、面板开关和 attention 状态，prompt 不进入 Workspace、IndexedDB、备份或请求，work id 变化即清空。面板卸载不会销毁共享 `ArticleAiController`，因此请求继续；控制器 busy/error 与面板开关共同派生工具栏的 processing/unread/error 状态。显式取消、`finish()` 离开作品和应用销毁才调用 `controller.cancel()`。会话受控 textarea 在空 prompt 时固定52px，实际文字通过 `scrollHeight` 在52–148px间增长，弹窗底部只保留8px基础间距或系统安全区，不引入 contenteditable 或新协议。
+
+浏览器只访问同源 `/api/ai`，Key 仅在服务端读取忽略的 `.env.local`。首次发送需同意正文/历史/消息的数据去向；网关不记录内容。正文 12000 字符、问题 2000 字符、上下文 JSON 120000 字符、请求 1MiB、响应 256KiB、并发 2、每分钟 20 次、超时 120 秒；追问最多输出 2048 tokens，优化 16384 tokens。显式取消、离开作品、断开和关闭服务尽力终止上游；仅收起小文不终止。迟到结果不写回，刷新不自动重试。
+
+编辑器的小文发现提示不进入文章会话或数据库。当前正文首次达到80个非空白字时，以既有 `suiyue-optimize-tip-v1` 在本机记录“已展示”，文案为“小文可以陪您接着写，也能帮您整理。”；提示约6秒自动消失且不抢焦点、不发请求。清理浏览器数据后可能再次出现，不跨设备同步。
 
 JSON v2 携带会话与版本，接受旧 v1；导入整批校验并重映射作品/版本/turn/引用。原 10MiB 导入限制仍在，全文历史增加本机空间与备份体积，当前不提供云同步。详情和真实联调局限见 [验收记录](ARTICLE-AI-ACCEPTANCE.md)。
 

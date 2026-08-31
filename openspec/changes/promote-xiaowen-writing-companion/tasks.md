@@ -33,10 +33,10 @@
 
 ## 5. Product and technical documentation
 
-- [ ] 5.1 Update `docs/PRODUCT.md` to define XiaoWen as the single user-invoked article companion, list the four phase-one intentions and keep proactive reactions plus other future abilities out of scope
-- [ ] 5.2 Update `DESIGN-SYSTEM.md` for the Echoes single-slot microphone/keyboard switch, separate XiaoWen entry, compact/expanded panel, quick-intention layout, minimized statuses, discovery hint and mobile keyboard rules
-- [ ] 5.3 Update `docs/ARCHITECTURE.md` for the unified entry, question-intent contract, ephemeral unsent prompt, background request lifetime and unchanged storage/protocol boundaries
-- [ ] 5.4 Create a focused acceptance record covering implementation evidence, browser captures, request/action assertions, privacy/cost boundaries and any unverified real-device results
+- [x] 5.1 Update `docs/PRODUCT.md` to define XiaoWen as the single user-invoked article companion, list the four phase-one intentions and keep proactive reactions plus other future abilities out of scope
+- [x] 5.2 Update `DESIGN-SYSTEM.md` for the Echoes single-slot microphone/keyboard switch, separate XiaoWen entry, compact/expanded panel, quick-intention layout, minimized statuses, discovery hint and mobile keyboard rules
+- [x] 5.3 Update `docs/ARCHITECTURE.md` for the unified entry, question-intent contract, ephemeral unsent prompt, background request lifetime and unchanged storage/protocol boundaries
+- [x] 5.4 Create a focused acceptance record covering implementation evidence, browser captures, request/action assertions, privacy/cost boundaries and any unverified real-device results
 
 ## 6. Verification and delivery
 

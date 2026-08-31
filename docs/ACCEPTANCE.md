@@ -2,6 +2,8 @@
 
 当前视觉已按用户确认更新为 Echoes of Time；最新设计验收见 [Echoes落地记录](ECHOES-DESIGN-REVIEW.md)。下方旧尺寸和字体测量保留为历史证据，不作为当前设计规则。
 
+2026-08-31 小文文章伙伴第一阶段已完成服务端意图约束、单槽位语音/文字切换、统一小文入口、四个快捷意图、紧凑/展开面板和收起后的后台请求状态；“聊天”只移除当前占位，不在产品语义上定义为小文。专项4个测试文件、72项测试与TypeScript检查通过，尚未调用DeepSeek、腾讯ASR或真实麦克风。完整构建、浏览器、真机与限量真实模型证据按实际进度见 [小文文章伙伴验收](XIAOWEN-WRITING-COMPANION-ACCEPTANCE.md)；证据未齐前 OpenSpec 变更保持活动。
+
 2026-08-31 用户明确授权完成最后的目录清理。删除前重新确认 `D:\vibe_code\.oldman-backups` 只有2层空目录、`D:\vibe_code\oldman\backups` 为空、`D:\vibe_code\oldman\.wrangler` 为11个停用缓存文件（5,603,546字节）；三个解析绝对路径均与授权目标一致、不是仓库根目录且不是重解析点。执行层两次拒绝 `Remove-Item -Recurse`，因此改用 Windows 回收站做可恢复移除，三个原路径随后均不存在；`.openai` 此前已不存在。`productize-local-writing` 4.9 由此完成，全部28项任务具备证据。
 
 2026-08-31 用户完成收尾确认：受控公网 Origin 下的简单新建、保存与恢复体验正常，作品仍只保存在该设备该域名的浏览器 IndexedDB，不是服务器存储；此前隔离生产构建已完成刷新恢复、JSON v2 下载及 360×640、390×844、430×932、1280×900 四尺寸焦点/溢出检查。用户同时确认 iOS Safari 与 Android Chrome 当前的系统键盘、浏览器工具栏、后台返回、真实麦克风及网络切换功能均正常，因此 `deploy-controlled-public-test` 5.2/5.4、`improve-mobile-writing-assistant` 5.3 与 `productize-local-writing` 4.6 具备人工验收结论。未另行记录设备型号、系统/浏览器小版本或截图；该结论明确标记为用户真机确认，不表述为代理亲自复现。前两个 change 的任务已全部完成，增量要求已同步至正式规范并分别归档至 [受控公网部署归档](../openspec/changes/archive/2026-08-31-deploy-controlled-public-test/) 与 [移动写作归档](../openspec/changes/archive/2026-08-31-improve-mobile-writing-assistant/)。用户随后通过 Git Credential Manager 完成 GitHub 授权，本地完整历史首次非强制推送至 Public 仓库 `yxhcinco-learning/oldman`，远端新建并跟踪 `main`，提交为 `238f737`。首次 [Check run 33353417111](https://github.com/yxhcinco-learning/oldman/actions/runs/33353417111) 成功，checkout、Node、`npm ci`、完整 `npm run check`、`npm run build` 与 `npm audit --audit-level=high` 全部通过；`productize-local-writing` 4.3 完成。
