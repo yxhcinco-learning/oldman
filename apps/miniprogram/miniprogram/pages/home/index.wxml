@@ -1,0 +1,9 @@
+<view class="page-shell">
+  <view class="eyebrow">岁月有声</view>
+  <view class="page-title">把想说的话，慢慢写下来</view>
+  <view class="lead">无需注册。打开小程序即可开始，作品会先保存在这台设备上。</view>
+  <button class="primary-action" bindtap="openWorks">查看我的作品</button>
+  <view class="secondary-actions">
+    <button class="text-action" bindtap="openProfile">备份与说明</button>
+  </view>
+</view>

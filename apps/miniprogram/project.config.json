@@ -1,0 +1,30 @@
+{
+  "description": "岁月有声微信小程序（公共安全配置）",
+  "compileType": "miniprogram",
+  "miniprogramRoot": "miniprogram/",
+  "libVersion": "3.16.2",
+  "appid": "touristappid",
+  "projectname": "suiyue-yousheng-miniprogram",
+  "condition": {},
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "coverView": true,
+    "nodeModules": true,
+    "packNpmManually": true,
+    "packNpmRelationList": [
+      {
+        "packageJsonPath": "./package.json",
+        "miniprogramNpmDistDir": "./miniprogram"
+      }
+    ],
+    "useCompilerPlugins": ["typescript"],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "uglifyFileName": false
+  }
+}

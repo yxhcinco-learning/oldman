@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "types": ["miniprogram-api-typings"],
+    "baseUrl": ".",
+    "paths": {
+      "@suiyue/core/*": ["../../packages/core/src/*"]
+    }
+  },
+  "include": ["miniprogram/**/*.ts", "typings/**/*.d.ts"],
+  "exclude": ["miniprogram/miniprogram_npm", "tests"]
+}

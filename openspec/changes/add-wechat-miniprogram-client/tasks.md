@@ -1,11 +1,11 @@
 ## 1. Shared foundation and safe mini-program scaffold
 
-- [ ] 1.1 Configure the root npm workspace/scripts for the existing web app, a platform-neutral shared core package and `apps/miniprogram`, updating the single lock file without changing the web development port or Sites boundary
-- [ ] 1.2 Scaffold the native TypeScript mini-program with safe tracked `project.config.json`, app/page configuration, typings, test/build scripts and `.gitignore` rules for `project.private.config.json`, upload artifacts and developer-tool caches
-- [ ] 1.3 Create the untracked local private config from the temporary `ask_job` AppID, prove it is absent from `git ls-files` and sensitive-output scans, and record that it is development/experience-only
-- [ ] 1.4 Extract domain schemas, state transitions, backup contracts and topic/AI protocols into the shared package with compatibility re-exports so existing web tests and IndexedDB data remain unchanged
-- [ ] 1.5 Add platform-boundary and shared-contract tests that reject React/DOM/Node/`wx` leakage and run identical fixtures through web, server and mini-program consumers
-- [ ] 1.6 Run root and mini-program type/unit/build checks for the foundation stage, inspect package size and task-only diff, then commit only the verified scaffold/shared-core files without pushing
+- [x] 1.1 Configure the root npm workspace/scripts for the existing web app, a platform-neutral shared core package and `apps/miniprogram`, updating the single lock file without changing the web development port or Sites boundary
+- [x] 1.2 Scaffold the native TypeScript mini-program with safe tracked `project.config.json`, app/page configuration, typings, test/build scripts and `.gitignore` rules for `project.private.config.json`, upload artifacts and developer-tool caches
+- [x] 1.3 Create the untracked local private config from the temporary `ask_job` AppID, prove it is absent from `git ls-files` and sensitive-output scans, and record that it is development/experience-only
+- [x] 1.4 Extract domain schemas, state transitions, backup contracts and topic/AI protocols into the shared package with compatibility re-exports so existing web tests and IndexedDB data remain unchanged
+- [x] 1.5 Add platform-boundary and shared-contract tests that reject React/DOM/Node/`wx` leakage and run identical fixtures through web, server and mini-program consumers
+- [x] 1.6 Run root and mini-program type/unit/build checks for the foundation stage, inspect package size and task-only diff, then commit only the verified scaffold/shared-core files without pushing
 
 ## 2. Mini-program local repository and backup
 

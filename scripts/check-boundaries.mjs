@@ -19,12 +19,20 @@ async function scan(dir) {
     if ((dir.startsWith('app') || dir.startsWith('features') || dir.startsWith('lib')) && /process\.env\.(?:TENCENT|DEEPSEEK)|TENCENT_ASR_SECRET_KEY|DEEPSEEK_API_KEY/.test(source)) report(`客户端出现服务端凭据引用: ${path}`);
     if ((dir.startsWith('app') || dir.startsWith('features') || dir.startsWith('lib')) && /from\s+['"][^'"]*server\//.test(source)) report(`客户端导入服务端模块: ${path}`);
     if (!dir.startsWith('features/demo') && /from\s+['"][^'"]*mock-data/.test(source)) report(`真实业务依赖演示数据: ${path}`);
+    if (dir.startsWith('packages/core/src') && /(?:from\s+['"](?:react|react-dom|node:)|\b(?:window|document|localStorage|indexedDB|process|wx)\b)/.test(source)) {
+      report(`共享核心依赖平台专属 API: ${path}`);
+    }
+    if (dir.startsWith('apps/miniprogram/miniprogram') && /(?:from\s+['"](?:node:|[^'"]*server\/)|\bprocess\.env\b|WECHAT_MINIPROGRAM_APP_SECRET|TENCENT_ASR_SECRET_KEY|DEEPSEEK_API_KEY)/.test(source)) {
+      report(`小程序客户端越过平台或密钥边界: ${path}`);
+    }
   }
 }
-for (const dir of ['app', 'features', 'lib', 'server']) await scan(dir);
+for (const dir of ['app', 'features', 'lib', 'server', 'packages/core/src', 'apps/miniprogram/miniprogram']) await scan(dir);
 const files = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' }).split('\0').filter(Boolean);
 for (const file of files) {
-  if (/(^|\/)(node_modules|dist|\.wrangler|backups)\//.test(file) || /(^|\/)\.env(\.|$)/.test(file) && file !== '.env.example' || /\.(wav|pcm|webm)$/.test(file)) report(`敏感或生成文件被跟踪: ${file}`);
+  if (/(^|\/)(node_modules|dist|\.wrangler|backups|miniprogram_npm|preview|upload|\.wechat-devtools)\//.test(file) ||
+    /(^|\/)project\.private\.config\.json$/.test(file) || /(^|\/)\.env(\.|$)/.test(file) && file !== '.env.example' ||
+    /\.(wav|pcm|webm)$/.test(file)) report(`敏感或生成文件被跟踪: ${file}`);
   if (/\.(?:png|jpg|jpeg|gif|ico)$/.test(file)) continue;
   try {
     const source = await readFile(file, 'utf8');

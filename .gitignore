@@ -1,5 +1,7 @@
 # dependencies
 /node_modules
+/apps/miniprogram/node_modules/
+/packages/core/node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -40,6 +42,15 @@ yarn-error.log*
 .vercel
 next-env.d.ts
 /dist/
+/packages/core/dist/
 /.wrangler/
 /outputs/
 /work/
+
+# WeChat Mini Program local identity and generated artifacts
+/apps/miniprogram/project.private.config.json
+/apps/miniprogram/miniprogram/miniprogram_npm/
+/apps/miniprogram/.idea/
+/apps/miniprogram/.wechat-devtools/
+/apps/miniprogram/preview/
+/apps/miniprogram/upload/

@@ -1,0 +1,46 @@
+{
+  "name": "@suiyue/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./writing": {
+      "types": "./dist/writing.d.ts",
+      "default": "./dist/writing.js"
+    },
+    "./topics": {
+      "types": "./dist/topics.d.ts",
+      "default": "./dist/topics.js"
+    },
+    "./article-ai": {
+      "types": "./dist/article-ai.d.ts",
+      "default": "./dist/article-ai.js"
+    },
+    "./ai-protocol": {
+      "types": "./dist/ai-protocol.d.ts",
+      "default": "./dist/ai-protocol.js"
+    },
+    "./speech-protocol": {
+      "types": "./dist/speech-protocol.d.ts",
+      "default": "./dist/speech-protocol.js"
+    },
+    "./backup": {
+      "types": "./dist/backup.d.ts",
+      "default": "./dist/backup.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "zod": "4.4.3"
+  }
+}

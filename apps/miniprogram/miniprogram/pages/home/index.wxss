@@ -1,0 +1,17 @@
+.secondary-actions {
+  margin-top: 30rpx;
+  text-align: center;
+}
+
+.text-action {
+  display: inline-block;
+  padding: 18rpx 24rpx;
+  background: transparent;
+  color: #686156;
+  font-size: 28rpx;
+  line-height: 1.4;
+}
+
+.text-action::after {
+  border: 0;
+}

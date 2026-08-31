@@ -1,0 +1,6 @@
+<view class="page-shell">
+  <view class="eyebrow">本机作品</view>
+  <view class="page-title">我的作品</view>
+  <view class="lead">本地作品仓储正在接入。这里不会展示演示数据，也不会假装云端已经同步。</view>
+  <button class="primary-action" bindtap="goBack">返回开始页</button>
+</view>

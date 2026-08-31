@@ -1,0 +1,6 @@
+<view class="page-shell">
+  <view class="eyebrow">无需注册</view>
+  <view class="page-title">我的</view>
+  <view class="lead">不会强制索取手机号、昵称或头像。微信身份将在后台静默建立；服务尚未配置时，本地写作仍然可用。</view>
+  <button class="primary-action" bindtap="goBack">返回开始页</button>
+</view>

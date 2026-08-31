@@ -2,6 +2,10 @@
   "name": "suiyue-yousheng",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "apps/miniprogram",
+    "packages/core"
+  ],
   "engines": {
     "node": ">=24.14.1 <25"
   },
@@ -9,11 +13,16 @@
     "dev": "node scripts/dev.mjs",
     "dev:web": "vinext dev --port 3001",
     "dev:speech": "node --env-file-if-exists=.env.local --import tsx server/index.ts",
-    "build": "vinext build",
+    "build": "npm run build:core && npm run build:web && npm run build:miniprogram",
+    "build:web": "vinext build",
+    "build:core": "npm run build --workspace @suiyue/core",
+    "build:miniprogram": "npm run build --workspace @suiyue/miniprogram",
     "start": "vinext start",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .vinext --ignore-pattern .wrangler --ignore-pattern coverage",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .vinext --ignore-pattern .wrangler --ignore-pattern coverage --ignore-pattern packages/core/dist --ignore-pattern apps/miniprogram/miniprogram_npm",
+    "typecheck": "npm run typecheck:web && npm run typecheck --workspace @suiyue/core && npm run typecheck --workspace @suiyue/miniprogram",
+    "typecheck:web": "tsc --noEmit",
+    "test": "npm run test:web && npm run test --workspace @suiyue/core && npm run test --workspace @suiyue/miniprogram",
+    "test:web": "vitest run",
     "test:watch": "vitest",
     "spec:check": "openspec validate --all --strict",
     "check": "npm run typecheck && npm run lint && npm test && npm run spec:check && npm run security:check",

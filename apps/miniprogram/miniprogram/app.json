@@ -1,0 +1,17 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/works/index",
+    "pages/profile/index"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#f7f3ea",
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "岁月有声",
+    "backgroundColor": "#f7f3ea",
+    "backgroundTextStyle": "dark"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}
