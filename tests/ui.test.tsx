@@ -21,6 +21,11 @@ async function startWriting() {
 function openXiaoWen() {
   fireEvent.click(screen.getByRole('button', { name: /^打开小文/ }));
 }
+function openLibraryMenu() {
+  const entry = screen.queryByRole('button', { name: '打开作品与备份' });
+  if (!entry) fireEvent.click(screen.getByRole('tab', { name: '我的' }));
+  fireEvent.click(screen.getByRole('button', { name: '打开作品与备份' }));
+}
 it('uses one destination-mode switch and opens XiaoWen directly without copying the reference UI', async () => {
   render(<ProductApp repository={repo()} />); await startWriting();
   expect(screen.queryByRole('tablist', { name: '输入方式' })).not.toBeInTheDocument();
@@ -47,8 +52,9 @@ it('uses one destination-mode switch and opens XiaoWen directly without copying 
 it('starts with an empty local library and never inserts preview examples', async () => {
   const repository = repo(); const { container } = render(<ProductApp repository={repository} />);
   await screen.findByRole('heading', { name: '我的作品' });
+  expect(screen.getByRole('tab', { name: '文章' })).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByText('0 篇作品')).toBeVisible();
-  expect(screen.getByText('写下的内容会保存在这台设备上')).toBeVisible();
+  expect(screen.getByText('新文章会保存在这台设备上')).toBeVisible();
   expect(container.querySelector('.work-card')).toBeNull();
   expect((await repository.load()).works).toHaveLength(0);
 });
@@ -70,7 +76,7 @@ it('previews a real optimization before applying and persists an undo as history
   expect(screen.queryByText('演示模式 · 不影响作品')).not.toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '帮我整理文章' } });
   fireEvent.click(screen.getByRole('button', { name: '发送' })); expect(transport).not.toHaveBeenCalled();
-  expect(screen.getByText(/相关修改记录和聊天消息会经本地服务发送给 DeepSeek/)).toBeInTheDocument();
+  expect(screen.getByText(/相关修改记录，以及您和小文的对话会经本地服务发送给 DeepSeek/)).toBeInTheDocument();
   expect(screen.getByText(/AI 可能出错，请核对人物、时间与细节/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: '同意并继续' }));
   expect(await screen.findByRole('heading', { name: '小文' })).toBeInTheDocument();
@@ -206,7 +212,7 @@ it('copies real body and restores a work from the recycle bin', async () => {
   const writeText = vi.fn().mockResolvedValue(undefined); Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
   fireEvent.click(await screen.findByRole('button', { name: '保存' })); await screen.findByRole('heading', { name: '我的作品' });
   const chooseWork = (section: string) => {
-    fireEvent.click(screen.getByRole('button', { name: '作品与备份选项' }));
+    openLibraryMenu();
     fireEvent.click(screen.getByRole('button', { name: section }));
     fireEvent.click(screen.getByRole('button', { name: '选择作品：夏日有感' }));
   };
@@ -216,6 +222,7 @@ it('copies real body and restores a work from the recycle bin', async () => {
   expect(screen.queryByRole('button', { name: /夏日有感.*继续写/ })).not.toBeInTheDocument();
   chooseWork('回收站'); fireEvent.click(screen.getByRole('button', { name: '恢复作品' })); await screen.findByText('作品已恢复');
   expect((await repository.load()).works[0].deletedAt).toBeNull();
+  fireEvent.click(screen.getByRole('tab', { name: '文章' }));
   expect(screen.getByRole('button', { name: /夏日有感.*继续写/ })).toBeInTheDocument();
 });
 
@@ -232,7 +239,12 @@ it('keeps only the approved home affordances and card hierarchy', async () => {
   expect(container.querySelector('.work-menu, .work-row, .library-links')).toBeNull();
   expect(screen.queryByRole('button', { name: '回收站' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /体验 AI 演示/ })).not.toBeInTheDocument();
-  expect(screen.getByText('不必想好开头，从想说的开始。', { exact: false })).toBeInTheDocument();
+  expect(screen.queryByText('不必想好开头，从想说的开始。', { exact: false })).not.toBeInTheDocument();
+  expect(screen.getByRole('tab', { name: '文章' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('tab', { name: '热门' })).toBeInTheDocument();
+  expect(screen.getByRole('tab', { name: '我的' })).toBeInTheDocument();
+  expect(container.querySelector('.home-tabs')).toBeNull();
+  expect(container.querySelector('.home-bottom-tabs')).toBeInTheDocument();
 });
 
 it('keeps writing tools directly below the editor without an added save row', async () => {
@@ -250,9 +262,10 @@ it('keeps writing tools directly below the editor without an added save row', as
   expect(screen.queryByText('修改会自动保存在本机')).not.toBeInTheDocument();
 });
 
-it('keeps backups in the original more menu and navigates its subpanels without adding home links', async () => {
+it('keeps backups in the lightweight personal page and navigates its subpanels', async () => {
   render(<ProductApp repository={repo()} />);
-  const moreButton = await screen.findByRole('button', { name: '作品与备份选项' });
+  fireEvent.click(await screen.findByRole('tab', { name: '我的' }));
+  const moreButton = screen.getByRole('button', { name: '打开作品与备份' });
   moreButton.focus(); fireEvent.click(moreButton);
   expect(screen.getByRole('button', { name: '导出全部备份' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '从备份恢复副本' })).toBeInTheDocument();
@@ -265,7 +278,7 @@ it('keeps backups in the original more menu and navigates its subpanels without 
   fireEvent.click(screen.getByRole('button', { name: '关闭' }));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: '回收站' })).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: '作品与备份选项' })).toHaveFocus();
+  expect(screen.getByRole('button', { name: '打开作品与备份' })).toHaveFocus();
 });
 
 it('restores a backup from the original more menu without overwriting the existing work', async () => {
@@ -273,7 +286,7 @@ it('restores a backup from the original more menu without overwriting the existi
   fireEvent.click(await screen.findByRole('button', { name: '保存' })); await screen.findByRole('heading', { name: '我的作品' });
   const original = (await repository.load()).works[0];
   const raw = makeBackup([original]);
-  fireEvent.click(screen.getByRole('button', { name: '作品与备份选项' }));
+  openLibraryMenu();
   const input = screen.getByLabelText('选择备份文件');
   expect(input).toHaveAttribute('hidden');
   const chooseFile = vi.spyOn(input, 'click');
@@ -291,7 +304,7 @@ it('shows invalid backup feedback outside the modal and preserves existing data'
   const repository = repo(); render(<ProductApp repository={repository} />); await startWriting();
   fireEvent.click(await screen.findByRole('button', { name: '保存' })); await screen.findByRole('heading', { name: '我的作品' });
   const original = (await repository.load()).works;
-  fireEvent.click(screen.getByRole('button', { name: '作品与备份选项' }));
+  openLibraryMenu();
   fireEvent.change(screen.getByLabelText('选择备份文件'), { target: { files: [{ size: 4, text: async () => 'oops' }] } });
   expect(await screen.findByText('这不是有效的 JSON 备份，原作品未改变')).toBeVisible();
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -302,29 +315,26 @@ it('does not hide a failed work-management operation behind the modal', async ()
   const repository = repo(); render(<ProductApp repository={repository} />); await startWriting();
   fireEvent.click(await screen.findByRole('button', { name: '保存' })); await screen.findByRole('heading', { name: '我的作品' });
   vi.spyOn(repository, 'setDeleted').mockRejectedValueOnce(new Error('本机操作失败，请先备份'));
-  fireEvent.click(screen.getByRole('button', { name: '作品与备份选项' }));
+  openLibraryMenu();
   fireEvent.click(screen.getByRole('button', { name: '管理作品' }));
   fireEvent.click(screen.getByRole('button', { name: '选择作品：夏日有感' }));
   fireEvent.click(screen.getByRole('button', { name: '移入回收站' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('本机操作失败，请先备份');
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  fireEvent.click(screen.getByRole('tab', { name: '文章' }));
   expect(screen.getByRole('button', { name: /夏日有感.*继续写/ })).toBeInTheDocument();
   expect((await repository.load()).works[0].deletedAt).toBeNull();
 });
-it('opens XiaoWen compactly, changes height only explicitly and preserves focused unsent input when minimized', async () => {
+it('opens XiaoWen in one stable chat panel and preserves focused unsent input when minimized', async () => {
   const transport = vi.fn(); render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting();
   const opener = screen.getByRole('button', { name: '打开小文' }); opener.focus(); fireEvent.click(opener);
   const dialog = screen.getByRole('dialog', { name: '小文' });
-  expect(dialog).toHaveClass('compact');
+  expect(dialog).toHaveClass('xiaowen-panel');
   expect(screen.getByLabelText('问问小文')).not.toHaveFocus();
-  fireEvent.click(screen.getByRole('button', { name: '展开小文面板' }));
-  expect(dialog).toHaveClass('expanded');
+  expect(screen.queryByRole('button', { name: '展开小文面板' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: '收起小文面板' })).not.toBeInTheDocument();
   fireEvent.focus(screen.getByLabelText('问问小文'));
-  expect(dialog).toHaveClass('expanded');
-  fireEvent.click(screen.getByRole('button', { name: '收起小文面板' }));
-  expect(dialog).toHaveClass('compact');
-  fireEvent.focus(screen.getByLabelText('问问小文'));
-  expect(dialog).toHaveClass('compact');
+  expect(dialog).toHaveClass('xiaowen-panel');
   fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '还没发送的调整要求' } });
   const history = screen.getByRole('button', { name: '查看修改记录' });
   expect(history.closest('.sheet-header-actions')).toBeInTheDocument();

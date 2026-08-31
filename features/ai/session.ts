@@ -32,8 +32,8 @@ export class ArticleAiController {
     const body = documentOf(draft).body;
     const selectedMaterials = draft.materials.filter(material => material.selected);
     if (!['interview', 'compose'].includes(action) && !body.trim()) { this.patch({ error: '先写下一句，再请小文帮忙。' }); return null; }
-    if (action === 'interview' && !body.trim() && !draft.topicSnapshot && !draft.materials.length) { this.patch({ error: '请先选择一个议题或写下一点内容。' }); return null; }
-    if (action === 'compose' && !selectedMaterials.length) { this.patch({ error: '请先选择至少一条采访素材。' }); return null; }
+    if (action === 'interview' && !body.trim() && !draft.topicSnapshot && !draft.materials.length) { this.patch({ error: '先选一个话题，或在文章里写下一点内容。' }); return null; }
+    if (action === 'compose' && !selectedMaterials.length) { this.patch({ error: '还没有可以整理的回答。' }); return null; }
     if (draft.pendingVoice.trim() || draft.segmentEdit) { this.patch({ error: '请先取消或完成待确认语音，再使用小文。' }); return null; }
     if (body.length > MAX_ARTICLE_CHARS) { this.patch({ error: '每篇最多 12000 字，请先分篇整理。原文不会被截断。' }); return null; }
     if (prompt.length > 2000 || ['question', 'rewrite', 'chat'].includes(action) && !prompt.trim()) { this.patch({ error: '请输入 2000 字以内的问题或调整要求。' }); return null; }

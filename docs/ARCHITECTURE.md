@@ -32,7 +32,7 @@ AudioWorklet 重采样至 16kHz PCM16；同源 WebSocket 代理至 127.0.0.1:300
 
 `server/credentials.ts` 显式选择 `project` 或 `windows-user`。后者在服务端用固定、隐藏且有超时的 PowerShell 子进程读取 User 环境，秘密只在内存传递，不写项目或日志。只读取选定来源，不混用密钥对和临时 Token；缺失保持网关未配置。本机 `.env.local` 的语音部分只保存 AppID、来源和其他非秘密参数；DeepSeek 配置见 ADR-006。
 
-正文语音面板与文章会话听写共用 `useSpeechDictation`、`SpeechSession` 和同一浏览器内的语音知情授权标记。正文继续使用 `HoldGesture`：指针只由 `pointerup/pointercancel` 结束，键盘由 `keyup` 或持有期间的 blur 结束。小文紧凑按钮使用同一 hook 的 `tap` 交互：空闲点按直接启动，活动中再次点按调用 `SpeechSession.cancel()` 释放资源，但不回滚已经落入受控输入框的识别文字；Escape、页面隐藏、pagehide 和卸载仍按取消边界清理，异常退出可恢复本轮前缀。两种交互均以 `SpeechSession.phase` 表达准备、连接、录音和收尾。会话听写不自动触发 DeepSeek、正文写回或新的服务端接口。
+正文语音面板与文章会话听写共用 `useSpeechDictation`、`SpeechSession` 和同一浏览器内的语音知情授权标记。正文继续使用 `HoldGesture`：指针只由 `pointerup/pointercancel` 结束，键盘由 `keyup` 或持有期间的 blur 结束。小文会话语音按钮使用同一 hook 的 `tap` 交互：空闲点按直接启动，活动中再次点按调用 `SpeechSession.cancel()` 释放资源，但不回滚已经落入受控输入框的识别文字；Escape、页面隐藏、pagehide 和卸载仍按取消边界清理，异常退出可恢复本轮前缀。两种交互均以 `SpeechSession.phase` 表达准备、连接、录音和收尾。会话听写不自动触发 DeepSeek、正文写回或新的服务端接口。
 
 ## ADR-004 历史 AI 模拟隔离
 
@@ -54,7 +54,7 @@ AudioWorklet 重采样至 16kHz PCM16；同源 WebSocket 代理至 127.0.0.1:300
 
 自由输入只发送一次 `chat` 请求，不增加分类器调用，也不在客户端用关键词猜测意图。模型可只返回 `answer` 回答问题，或同时返回完整 `body` 形成待确认候选；要求不明确时只返回简短追问。会话层以是否存在 `body` 分别保存为 `answered` 或 `ready`。历史 `question` / `rewrite` 记录和重试继续兼容；`chat` 候选采用后仍以 `rewrite` 记录版本来源，因此无需升级数据库/备份版本。候选继续复用基准检查、事务应用、撤销和恢复。文风要求允许合理修辞和氛围表达，但提示词保护人物关系、具体动作、时间地点、数字、对话和事件结果，并要求披露氛围性增写；模型输出仍由用户逐段核对。原始反例及用户校正见 [对话改文验收](CONVERSATIONAL-REWRITE-ACCEPTANCE.md)，统一发送的实现证据见 [统一发送验收](AI-UNIFIED-SEND-ACCEPTANCE.md)。
 
-议题采访仍在同一 ArticleSession 内，新增 `interview` 与 `compose` action。首问来自已审核议题快照；后续 `interview` 每次只允许一个问题并确定性删除意外 body。回答作为 `interview-answer` 素材留在 Draft，不自动进入正文。`compose` 只发送用户勾选的素材，可返回一个澄清问题或完整候选；候选采用前复用现有预览、基准检查、事务应用和版本恢复，采用后的版本来源记为 `rewrite`。
+议题采访仍在同一 ArticleSession 内，使用 `interview` 与 `compose` action。首问来自已审核议题快照；后续用户在固定 composer 点击一次“发送”，Workspace 先新增一条默认选中的 `interview-answer`，再执行一次 `interview` 请求；该 action 每次只允许一个问题并确定性删除意外 body。消息流由 Draft 中的问答材料和 ArticleSession 中最新问题组合，不复制到正文。`compose` 发送已选择材料，可返回一个澄清问题或完整候选；候选采用前复用现有预览、基准检查、事务应用和版本恢复，采用后的版本来源记为 `rewrite`。
 
 编辑器移除当前无能力的聊天占位和优化菜单，以单一“小文”入口直接创建 `ArticleAssistant` 会话视图；这只是入口收敛，不把此前另行规划的聊天概念定义成小文。会话首页不渲染预设快捷指令，所有可见新请求都从自由输入经单次 `chat` action 发送，不在客户端做关键词分类。既有 `regular`、`polish` 及精确内部提示“接着问我”“讲清楚了吗”的 `question` 契约继续用于旧会话兼容与回归，不新增可见入口；历史 action、备份 schema 和旧标签不迁移。服务端 `question` 提示词继续施加单问题、最多三处和正文取证限制，控制器确定性删除意外返回的 body。
 
@@ -62,7 +62,7 @@ AudioWorklet 重采样至 16kHz PCM16；同源 WebSocket 代理至 127.0.0.1:300
 
 移动端根画布以 `window.visualViewport` 的高度和顶部偏移更新 CSS 变量，不支持时回退 `100dvh`；页头、正文滚动区和底部工具栏继续由同一 flex 布局管理。正文语音收起是编辑器内存展示状态，只在空闲且没有待确认文字时提供，收起后不渲染语音舞台或额外展开条；正文点击间隔由编辑器内存判定，单击恢复语音，350ms内第二次点击切换到当前页受控 textarea。触屏/触控笔另以600ms计时和10px移动阈值识别长按，不调用 `preventDefault` 或显式 pointer capture；原生 `contextmenu` 也可进入同一路径。第二次点击或长按坐标通过共享的标准 `caretPositionFromPoint` / WebKit `caretRangeFromPoint` 兼容层取得预览段落内偏移，再叠加前置段落与双换行分隔映射到 textarea 的 UTF-16 折叠 selection；空白或 API 不可用回退到文末。标题从正文区移到页头按钮，独立 `Dialog` 使用本地标题草稿和原生单行输入，确认时才更新 `Draft.title`；打开或取消不改变正文 `inputMode`、正文、待确认文字或恢复状态。普通正文不再建立 `segmentEdit`，旧的未完成普通段落编辑在恢复时合并并迁移到当前页文字模式；`segmentEdit.id === 'pending'` 的语音待确认编辑继续使用独立页面，并用同一坐标兼容层把真实转写内的点击偏移传给独立 textarea，不计状态提示；取消只清除 `segmentEdit`，完成才把编辑值写回 `pendingVoice`。
 
-`WritingToolbar` 的单个52px按钮只在目标 `voice | text` 间切换，图标表示目标模式，不触发录音；按钮使用 `var(--tint)` 且无外投影，与相邻叶片入口保持同一 Echoes 色阶。小文面板以 compact/expanded 类控制高度，消息区和底部 composer 分离滚动；只有页头操作更新 `expanded` 状态，textarea 聚焦不写展示状态，键盘缩小只通过根画布 Visual Viewport 变量和 dialog `max-height` 约束当前面板。`ProductApp` 持有当前 work 的未发送 prompt、面板开关和 attention 状态，prompt 不进入 Workspace、IndexedDB、备份或请求，work id 变化即清空。面板卸载不会销毁共享 `ArticleAiController`，因此请求继续；控制器 busy/error 与面板开关共同派生工具栏的 processing/unread/error 状态。显式取消、`finish()` 离开作品和应用销毁才调用 `controller.cancel()`。会话受控 textarea 在空 prompt 时固定52px，实际文字通过 `scrollHeight` 在52–148px间增长，弹窗底部只保留8px基础间距或系统安全区，不引入 contenteditable 或新协议。
+`WritingToolbar` 的单个52px按钮只在目标 `voice | text` 间切换，图标表示目标模式，不触发录音；按钮使用 `var(--tint)` 且无外投影，与相邻叶片入口保持同一 Echoes 色阶。小文面板不再保存 compact/expanded 状态或渲染尺寸控制，使用一个约72dvh、上限620px且受 Visual Viewport 约束的高度；消息区和底部 composer 分离滚动，短屏先压缩消息区。`ProductApp` 持有当前 work 的未发送 prompt、面板开关和 attention 状态，prompt 不进入 Workspace、IndexedDB、备份或请求，work id 变化即清空。面板卸载不会销毁共享 `ArticleAiController`，因此请求继续；控制器 busy/error 与面板开关共同派生工具栏的 processing/unread/error 状态。显式取消、`finish()` 离开作品和应用销毁才调用 `controller.cancel()`。会话受控 textarea 在空 prompt 时固定52px，实际文字通过 `scrollHeight` 在52–148px间增长，弹窗底部只保留8px基础间距或系统安全区，不引入 contenteditable 或新协议。
 
 浏览器只访问同源 `/api/ai`，Key 仅在服务端读取忽略的 `.env.local`。首次发送需同意正文、历史、消息及采访所用议题/素材的数据去向；网关不记录内容。正文 12000 字符、上下文 JSON 120000 字符、请求 1MiB、响应 256KiB、并发 2、每分钟 20 次、超时 120 秒；追问与采访最多输出 2048 tokens，候选最多 16384 tokens。显式取消、离开作品、断开和关闭服务尽力终止上游；仅收起小文不终止。迟到结果不写回，刷新不自动重试。
 
@@ -80,9 +80,9 @@ JSON v3 携带议题快照、采访素材、会话与版本，接受旧 v1/v2；
 
 ## ADR-008 精选议题与写作素材
 
-首页议题来自服务端人工审核目录，分为近期、时令和慢议题，列表最多返回20条、首页最多展示5条，不做无限流。每条包含摘要、有效期、来源链接、可选角度和审核/更正版本；发布接口只读，自动化只能形成候选，不能绕过人工发布。来源域名受允许清单约束，服务端不接收用户正文，也不复制第三方全文。
+首页议题来自服务端人工审核目录，分为近期、时令和慢议题，列表最多返回20条、“热门”页最多展示5条，不做无限流。`WorksHome` 内部状态只切换固定底部“文章 / 热门 / 我的”三个展示面，不改变存储或网络状态；“我的”只调用既有作品与备份对话框，不引入账号模型。每条话题包含摘要、有效期、来源链接、内部编辑判断、可选角度和审核/更正版本；前台隐藏 `whyItMatters`，标题使用内容式表述，并把命令式角度转换为中性“大家也在关心”切面。发布接口只读，自动化只能形成候选，不能绕过人工发布。来源域名受允许清单约束，服务端不接收用户正文，也不复制第三方全文。
 
-用户开始写作时把议题复制为本机快照，离线仍可查看；服务端出现更新时只提示比较，用户确认后才替换快照。议题背景、作者正文、采访素材和 AI 候选使用不同字段与状态：背景不自动插入正文，素材需显式选择，AI 候选需显式采用。内容维护规则见 [议题内容策略](TOPIC-CONTENT-POLICY.md)。
+用户开始写作时把议题复制为本机快照，离线仍可查看；服务端出现更新时只提示比较，用户确认后才替换快照。议题背景、作者正文、采访回答和 AI 候选使用不同字段与状态：背景不自动插入正文，聊天发送后回答默认保留为本机素材，只有用户点击“整理成文章”才提交这些回答生成候选，候选仍需显式采用。内容维护规则见 [议题内容策略](TOPIC-CONTENT-POLICY.md)。
 
 ### 历史回退来源
 

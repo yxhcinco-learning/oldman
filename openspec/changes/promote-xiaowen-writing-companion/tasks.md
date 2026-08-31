@@ -65,3 +65,8 @@
 - [x] 9.1 Update the active proposal, design and delta specs for a tonal input-mode button and focus-stable compact/expanded panel state
 - [x] 9.2 Add design/UI regressions for the non-white shadowless mode button, explicit-only panel expansion and preserved focused composer
 - [x] 9.3 Implement the visual and focus-state refinements, update product/design/architecture/acceptance documentation, and run targeted/full/build/four-size browser verification without paid calls
+
+## 10. Stable conversation panel refinement
+
+- [x] 10.1 Update active proposal, design and delta specs to replace compact/expanded panel state with one Visual Viewport constrained chat panel
+- [x] 10.2 Remove the panel size control, keep message scrolling and composer reachability, update regressions and documentation, and repeat full/build/four-size browser verification without paid calls

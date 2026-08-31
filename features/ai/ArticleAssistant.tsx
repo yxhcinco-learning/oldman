@@ -38,7 +38,6 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
   const state = useSyncExternalStore(workspace.subscribe, workspace.getSnapshot, workspace.getSnapshot);
   const ai = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const [page, setPage] = useState<Page>('chat');
-  const [expanded, setExpanded] = useState(false);
   const [selectedId, setSelectedId] = useState('');
   const [original, setOriginal] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -55,7 +54,7 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
   const chatScroll = useRef<HTMLDivElement>(null);
   const lastTurn = session?.turns.at(-1);
   const interviewMode = draft?.topicWritingMode === 'interview' && Boolean(draft.topicSnapshot);
-  useEffect(() => { chatScroll.current?.scrollTo({ top: chatScroll.current.scrollHeight }); }, [page, lastTurn?.id, lastTurn?.status]);
+  useEffect(() => { chatScroll.current?.scrollTo({ top: chatScroll.current.scrollHeight }); }, [page, lastTurn?.id, lastTurn?.status, draft?.materials.length]);
   useEffect(() => {
     if (feedback?.kind !== 'notice') return;
     const current = feedback;
@@ -125,7 +124,7 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
         <button type="button" className="primary-button ai-send" disabled={busy || voiceActive || !prompt.trim()} onClick={() => request('chat', prompt, undefined, true)}><Icon name="spark" />发送</button></div>
     </div>
   </form>;
-  const interviewQuestion = session?.turns.slice().reverse().find(item => ['interview', 'compose'].includes(item.action) && item.status === 'answered' && item.result)?.result?.answer
+  const interviewQuestion = session?.turns.slice().reverse().find(item => item.action === 'interview' && item.status === 'answered' && item.result)?.result?.answer
     ?? draft.topicSnapshot?.starterQuestion ?? '您最想从哪一段经历说起？';
   const saveInterviewAnswer = async () => {
     const answer = prompt.trim();
@@ -133,12 +132,24 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
     setSaving(true);
     const ok = await workspace.addMaterial({ id: newId(), source: 'interview-answer', text: answer, question: interviewQuestion, createdAt: new Date().toISOString(), selected: true });
     setSaving(false);
-    if (ok) { onPromptChange(''); setFeedback({ message: '回答已保存为素材，正文没有改变。', kind: 'notice' }); }
+    if (ok) { onPromptChange(''); request('interview', '继续采访', '继续问我'); }
   };
 
-  const panelExpanded = expanded || page !== 'chat';
-  return <Dialog className={`article-ai-dialog xiaowen-panel ${panelExpanded ? 'expanded' : 'compact'} ai-page-${page}`} title={titles[page]} closeLabel="收起小文" onClose={close} headerActions={page === 'chat' ? <>
-    <button className={`icon-button xiaowen-expand${expanded ? ' active' : ''}`} type="button" onClick={() => setExpanded(value => !value)} aria-label={expanded ? '收起小文面板' : '展开小文面板'}><Icon name="chevron" /></button>
+  const interviewMaterials = draft.materials.filter(material => material.source === 'interview-answer');
+  const lastInterviewMaterial = interviewMaterials.at(-1);
+  const waitingForQuestion = lastInterviewMaterial?.question === interviewQuestion;
+  const interviewComposer = () => <div className="interview-footer">
+    {interviewMaterials.some(material => material.selected) && <button className="interview-compose-link" type="button" disabled={busy} onClick={() => request('compose', '根据采访回答整理成文章', '整理成文章')}>整理成文章</button>}
+    <form className="ai-composer" onSubmit={event => { event.preventDefault(); void saveInterviewAnswer(); }}>
+      <label className="visually-hidden" htmlFor="interview-answer">回复小文</label>
+      <div className="ai-composer-row"><textarea ref={promptInput} id="interview-answer" value={prompt} onChange={event => onPromptChange(event.target.value)} disabled={busy || voiceActive || waitingForQuestion} maxLength={12000} rows={1} placeholder="回复小文" />
+        <div className="ai-composer-actions"><VoiceDictationButton value={prompt} onChange={text => onPromptChange(text.slice(0, 12000))} disabled={busy || waitingForQuestion} onActiveChange={setVoiceActive} ariaSubject="回复" />
+          <button type="submit" className="primary-button ai-send" disabled={busy || voiceActive || waitingForQuestion || !prompt.trim()}>发送</button></div>
+      </div>
+    </form>
+  </div>;
+
+  return <Dialog className={`article-ai-dialog xiaowen-panel ai-page-${page}`} title={titles[page]} closeLabel="收起小文" onClose={close} headerActions={page === 'chat' ? <>
     <button type="button" onClick={() => { setFeedback(null); setPage('history'); }} aria-label="查看修改记录"><Icon name="book" /></button>
   </> : undefined} onBack={page === 'chat' ? undefined : () => {
     setFeedback(null); setPage(page === 'version' ? 'history' : 'chat');
@@ -153,9 +164,9 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
       {saving && <p role="status">正在保存…</p>}
 
       {page === 'consent' && <div className="ai-consent">
-        <p>使用小文时，这篇文章的标题、正文、议题背景、所选采访素材、相关修改记录和聊天消息会经本地服务发送给 DeepSeek 处理。</p>
+        <p>使用小文时，这篇文章的标题、正文、话题背景、采访回答、相关修改记录，以及您和小文的对话会经本地服务发送给 DeepSeek 处理。</p>
         <p>作品和会话保存在当前浏览器。本产品不记录正文或密钥日志；DeepSeek 侧的数据处理适用其服务设置与条款。请勿提交不希望发送的私密内容。</p>
-        <p>优化结果需要您确认后才会进入正文。AI 可能出错，请核对人物、时间与细节。</p>
+        <p>小文给出的修改或整理结果，需要您确认后才会进入正文。AI 可能出错，请核对人物、时间与细节。</p>
         <div className="ai-result-actions"><button type="button" onClick={() => { setPending(null); setPage('chat'); }}>暂不使用</button>
           <button type="button" className="primary-button" onClick={() => {
             setConsent(true); try { localStorage.setItem(CONSENT_KEY, 'yes'); } catch { /* Session-only consent is sufficient. */ }
@@ -166,7 +177,7 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
       {page === 'preview' && turn?.result && base && <>
         <div className="ai-inline-actions"><span className="choice-chip">{ACTION_LABELS[turn.action]} · {turnStateLabel(turn, base.body)}</span>
           <button type="button" aria-pressed={original} onClick={() => setOriginal(!original)}>{original ? '查看优化结果' : '对照原文'}</button></div>
-        <div className="ai-summary"><strong>{turn.action === 'compose' ? '小文的素材说明' : '小文的修改说明'}</strong><p>{resultSummary(turn.result, base.body)}</p></div>
+        <div className="ai-summary"><strong>{turn.action === 'compose' ? '小文的整理说明' : '小文的修改说明'}</strong><p>{resultSummary(turn.result, base.body)}</p></div>
         <div className="ai-full-text" role="region" aria-label={original ? turn.action === 'compose' ? '整理前原文' : isConversationEdit(turn.action) ? '调整前原文' : '优化前原文' : turn.action === 'compose' ? '整理后全文' : isConversationEdit(turn.action) ? '调整后全文' : '优化后全文'}>{original ? base.body : turn.result.body}</div>
         <p className="ai-note">{isConversationEdit(turn.action) ? '请核对人物、动作和经历。' : '请核对事实与细节。'}</p>
         {turn.status === 'ready' && stale && <p className="ai-error" role="alert">正文已发生变化。旧结果仅供查看，请根据最新正文重新{editLabel(turn.action)}。</p>}
@@ -179,16 +190,17 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
       </>}
 
       {page === 'chat' && interviewMode && <div className="ai-interview" aria-label="小文采访">
-        <header><small>围绕议题</small><h3>{draft.topicSnapshot!.title}</h3><p>小文一次问一个问题。您的回答先保存为素材，不会自动写进正文。</p></header>
-        <section className="interview-question" aria-label="当前采访问题"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div><small>小文想问</small><p>{interviewQuestion}</p></div></section>
-        <form className="interview-answer" onSubmit={event => { event.preventDefault(); void saveInterviewAnswer(); }}>
-          <label htmlFor="interview-answer">您的回答</label><textarea ref={promptInput} id="interview-answer" value={prompt} onChange={event => onPromptChange(event.target.value)} disabled={busy || voiceActive} maxLength={12000} rows={1} placeholder="想到多少说多少，也可以用语音" />
-          <div className="interview-answer-actions"><VoiceDictationButton value={prompt} onChange={text => onPromptChange(text.slice(0, 12000))} disabled={busy} onActiveChange={setVoiceActive} ariaSubject="回答" /><button type="submit" className="primary-button" disabled={busy || voiceActive || !prompt.trim()}>保存回答</button></div>
-        </form>
-        {draft.materials.length > 0 && <fieldset className="interview-materials"><legend>本次采访素材</legend>{draft.materials.map((material, index) => <label key={material.id}><input type="checkbox" checked={material.selected} onChange={() => void workspace.updateMaterial(material.id, item => ({ ...item, selected: !item.selected }))} /><span><strong>回答 {index + 1}</strong><small>{material.question}</small><p>{material.text}</p></span></label>)}</fieldset>}
-        <div className="interview-next-actions"><button type="button" disabled={busy} onClick={() => request('interview', '继续采访', '继续问我')}>继续问我</button><button type="button" disabled={busy} onClick={() => request('interview', '换个问题', '换个问题')}>换个问题</button></div>
-        <button className="primary-button interview-compose" type="button" disabled={busy || !draft.materials.some(material => material.selected)} onClick={() => request('compose', '根据选中的采访回答整理成文章', '整理成文章')}>整理成文章</button>
-        <div className="interview-exit-actions"><button type="button" disabled={busy} onClick={onClose}>先暂停</button><button type="button" disabled={busy} onClick={() => { void workspace.update({ ...draft, topicWritingMode: 'normal' }); onClose(); }}>回到文章</button></div>
+        <p className="interview-topic">聊聊：{draft.topicSnapshot!.title}</p>
+        <div className="interview-conversation" ref={chatScroll} role="log" aria-label="小文采访对话">
+          {interviewMaterials.map(material => <div key={material.id} className="interview-exchange">
+            <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="message-bubble"><p>{material.question}</p></div></div>
+            <div className="message-row user"><div className="message-bubble"><p>{material.text}</p></div></div>
+          </div>)}
+          {!waitingForQuestion && <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="message-bubble interview-current-question"><p>{interviewQuestion}</p><button type="button" disabled={busy} onClick={() => request('interview', '换个问题', '换个问题')}>换个问题</button></div></div>}
+          {waitingForQuestion && ai.busy && <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="message-bubble"><p>小文正在想下一个问题…</p></div></div>}
+          {waitingForQuestion && !ai.busy && ai.error && <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="message-bubble interview-current-question"><p>刚才没有接上，您的回答已经留下了。</p><button type="button" onClick={() => request('interview', '继续采访', '继续问我')}>再试一次</button></div></div>}
+        </div>
+        {interviewComposer()}
       </div>}
 
       {page === 'chat' && !interviewMode && <>

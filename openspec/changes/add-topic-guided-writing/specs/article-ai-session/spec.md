@@ -9,7 +9,11 @@
 
 #### Scenario: Skip, pause or leave interview
 - **WHEN** 用户选择换个问题、暂停采访或返回正常写作
-- **THEN** 系统停止当前引导或回到对应页面，已有回答、正文和背景保留，不自动继续提问、不自动成文
+- **THEN** “换个问题”只替换当前问题；关闭小文即暂停并回到文章，已有回答、正文和背景保留，不自动继续提问、不自动成文，重开后恢复采访
+
+#### Scenario: Keep one primary interview action
+- **WHEN** 用户查看当前问题和采访输入区
+- **THEN** 输入区只提供文字、点按语音和单一“发送”；不常驻“保存回答”“继续问我”“先暂停”“回到文章”或素材勾选表单，存在回答时可另提供一个次级“整理成文章”动作
 
 #### Scenario: Reject an unexpected interview candidate
 - **WHEN** 上游在采访提问响应中意外返回完整正文或其他可应用内容

@@ -29,7 +29,7 @@ export function selectHomeTopics(topics: WritingTopic[], limit = 5) {
 
 const readJson = async (response: Response) => {
   const value = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(value && typeof value.error === 'string' ? value.error : '议题暂时无法打开。');
+  if (!response.ok) throw new Error(value && typeof value.error === 'string' ? value.error : '话题暂时无法打开。');
   return value;
 };
 

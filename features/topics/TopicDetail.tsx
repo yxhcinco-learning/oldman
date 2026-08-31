@@ -2,8 +2,9 @@ import { Dialog } from '../../components/Dialog';
 import { Icon } from '../../components/Icons';
 import type { WritingTopic } from '../../lib/domain/topics';
 import { formatTime } from '../../lib/domain/writing';
+import { topicAngleCopy } from './copy';
 
-const kindLabel = { current: '近期议题', periodic: '时令话题', slow: '常写常新' } as const;
+const kindLabel = { current: '近期话题', periodic: '时令话题', slow: '持续关注' } as const;
 
 export function TopicDetail({ topic, onClose, onStart }: {
   topic: WritingTopic;
@@ -14,15 +15,13 @@ export function TopicDetail({ topic, onClose, onStart }: {
     <article className="topic-detail">
       <div className="topic-meta"><span>{kindLabel[topic.kind]}</span><time dateTime={topic.updatedAt}>更新于 {formatTime(topic.updatedAt)}</time></div>
       <p className="topic-summary">{topic.summary}</p>
-      <p className="topic-meaning"><strong>为什么值得写</strong>{topic.whyItMatters}</p>
-      <section aria-labelledby="topic-angles-title"><h3 id="topic-angles-title">可以从这里想起</h3><ul className="topic-angle-list">{topic.angles.map(angle => <li key={angle.id}><strong>{angle.title}</strong><span>{angle.prompt}</span></li>)}</ul></section>
-      <section aria-labelledby="topic-sources-title"><h3 id="topic-sources-title">背景来源</h3><ul className="topic-source-list">{topic.sources.map(source => <li key={source.id}><a href={source.url} target="_blank" rel="noreferrer"><span>{source.title}<small>{source.publisher}</small></span><Icon name="arrow" /></a></li>)}</ul></section>
+      <section aria-labelledby="topic-angles-title"><h3 id="topic-angles-title">大家也在关心</h3><ul className="topic-angle-list">{topic.angles.map(angle => <li key={angle.id}>{topicAngleCopy(angle.prompt)}</li>)}</ul></section>
+      <section aria-labelledby="topic-sources-title"><h3 id="topic-sources-title">消息来源</h3><ul className="topic-source-list">{topic.sources.map(source => <li key={source.id}><a href={source.url} target="_blank" rel="noreferrer"><span>{source.title}<small>{source.publisher}</small></span><Icon name="arrow" /></a></li>)}</ul></section>
       {topic.correctionNote && <p className="topic-correction"><strong>更正说明</strong>{topic.correctionNote}</p>}
     </article>
     <div className="topic-start-actions">
-      <button type="button" className="primary-button" onClick={() => onStart('normal')}>直接写</button>
-      <button type="button" onClick={() => onStart('interview')}>让小文问问我</button>
-      <small>两种方式都只把议题当作背景，不会替你写入正文。</small>
+      <button type="button" onClick={() => onStart('normal')}>自己写</button>
+      <button type="button" className="primary-button" onClick={() => onStart('interview')}>和小文聊聊</button>
     </div>
   </Dialog>;
 }

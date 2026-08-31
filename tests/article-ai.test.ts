@@ -109,7 +109,7 @@ it('requires selected interview material before requesting composition', async (
   const call = vi.fn(transport); const controller = new ArticleAiController(workspace, call);
   await workspace.addMaterial({ id: 'not-selected', source: 'interview-answer', text: '尚未选择', question: '问题', selected: false, createdAt: new Date().toISOString() });
   expect(await controller.run('compose', '整理成文章')).toBeNull();
-  expect(controller.getSnapshot().error).toContain('选择至少一条采访素材');
+  expect(controller.getSnapshot().error).toContain('还没有可以整理的回答');
   expect(call).not.toHaveBeenCalled();
 });
 it('keeps shortcut labels in the conversation without sending them as optimization prompts', async () => {

@@ -23,9 +23,9 @@
 ## 4. Curated topic experience
 
 - [x] 4.1 Add a restrained home surface for continuing work, a bounded set of reviewed daily topics and periodic themes without infinite scroll or simulated filler
-- [x] 4.2 Build a topic detail view with summary, update time, accessible source links, writing angles and distinct “直接写” / guided-interview entry actions
+- [x] 4.2 Build a topic detail view with summary, update time, accessible source links, neutral related facets and distinct “自己写” / “和小文聊聊” entry actions
 - [x] 4.3 Add loading, empty, stale, corrected and unavailable states that never block access to existing local works
-- [ ] 4.4 Verify Echoes typography, focus, source-link accessibility and 360/390/430/desktop layouts without infantilizing copy or shrinking required targets
+- [x] 4.4 Verify Echoes typography, focus, source-link accessibility and 360/390/430/desktop layouts without infantilizing copy or shrinking required targets
 
 ## 5. Normal writing with event background
 
@@ -51,3 +51,9 @@
 - [ ] 7.5 Record physical iOS Safari and Android Chrome evidence for system keyboard, dictation, background switching, source links and local recovery; do not substitute desktop emulation
 - [ ] 7.6 If explicitly approved, run only bounded non-sensitive real topic/AI integration calls, record sources, request count and approximate cost separately, and do not use them in routine CI
 - [ ] 7.7 After requirements and evidence pass, synchronize delta specs, archive the change and commit only scoped files without pushing or publishing
+
+## 8. Content framing and conversational interview refinement
+
+- [x] 8.1 Update proposal, design and delta specs so topics are packaged as content, article/topic/personal surfaces use fixed bottom navigation, and interview uses a single-thread conversation with one primary action
+- [x] 8.2 Refactor the home/topic/interview UI and regressions: remove task-like helper copy, remove material-form button clutter, remove the panel expand control and keep the composer reachable
+- [x] 8.3 Update product/design/architecture/acceptance documentation, run check/build/OpenSpec validation and repeat four-size browser regression without paid model calls

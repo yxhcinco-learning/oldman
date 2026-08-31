@@ -7,6 +7,7 @@ import { articleText, effectiveSegments, completeSegment, completeVoice, type Dr
 import { caretFromPoint, textOffsetAtCaret } from '../../lib/pointCaret';
 import { VoicePanel } from '../speech/VoicePanel';
 import { snapshotTopic, type WritingTopic } from '../../lib/domain/topics';
+import { topicAngleCopy } from '../topics/copy';
 
 const BODY_PLACEHOLDER = '从想说的一句话开始……';
 const OPTIMIZE_TIP_KEY = 'suiyue-optimize-tip-v1';
@@ -204,10 +205,10 @@ export function Editor({ draft, latestTopic, update, onSave, onBack, onAssistant
     <header className="topbar editor-topbar"><button className="icon-button" type="button" aria-label="返回作品" onClick={onBack}><BackIcon /></button><button className={`editor-title-button${draft.title.trim() ? '' : ' empty'}`} type="button" aria-label="编辑文章标题" onClick={() => { setTitleEditValue(draft.title); setTitleEditorOpen(true); }}><strong>{draft.title.trim() || '点击编辑标题'}</strong></button><button className="text-button save-text" type="button" aria-describedby="save-status" onClick={onSave}>{saveStatus === 'saving' ? '保存中' : saveStatus === 'error' ? '重试' : '保存'}</button></header>
     <span id="save-status" className="visually-hidden" role="status">{saveStatus === 'saving' ? '保存中…' : saveStatus === 'saved' ? '已保存到本机' : saveStatus === 'error' ? '尚未保存，请先备份' : '内容仅保存在本机'}</span>
     <div className="editor-scroll writing-canvas">
-      {draft.topicSnapshot && <aside className="editor-topic" aria-label="文章议题背景">
+      {draft.topicSnapshot && <aside className="editor-topic" aria-label="文章话题背景">
         <button className="editor-topic-heading" type="button" aria-expanded={topicExpanded} onClick={() => setTopicExpanded(value => !value)}><span><small>文章背景</small><strong>{draft.topicSnapshot.title}</strong></span><Icon name="chevron" /></button>
-        {latestTopic?.id === draft.topicSnapshot.id && latestTopic.revision > draft.topicSnapshot.revision && <button className="topic-update-notice" type="button" onClick={() => setTopicUpdateOpen(true)}>议题有更新，查看差异</button>}
-        {topicExpanded && <div className="editor-topic-body"><p>{draft.topicSnapshot.summary}</p><strong>可参考的角度</strong><ul>{draft.topicSnapshot.angles.map(angle => <li key={angle.id}>{angle.prompt}</li>)}</ul><strong>来源</strong><ul className="editor-topic-sources">{draft.topicSnapshot.sources.map(source => <li key={source.id}><a href={source.url} target="_blank" rel="noreferrer">{source.publisher}：{source.title}</a></li>)}</ul><button type="button" onClick={onInterview}>让小文问问我</button><small>这些内容只是背景，不会自动进入正文，也不限制你的观点。</small></div>}
+        {latestTopic?.id === draft.topicSnapshot.id && latestTopic.revision > draft.topicSnapshot.revision && <button className="topic-update-notice" type="button" onClick={() => setTopicUpdateOpen(true)}>话题内容有更新</button>}
+        {topicExpanded && <div className="editor-topic-body"><p>{draft.topicSnapshot.summary}</p><strong>大家也在关心</strong><ul>{draft.topicSnapshot.angles.map(angle => <li key={angle.id}>{topicAngleCopy(angle.prompt)}</li>)}</ul><strong>消息来源</strong><ul className="editor-topic-sources">{draft.topicSnapshot.sources.map(source => <li key={source.id}><a href={source.url} target="_blank" rel="noreferrer">{source.publisher}：{source.title}</a></li>)}</ul><button type="button" onClick={onInterview}>和小文聊聊</button></div>}
       </aside>}
       {draft.inputMode === 'text' ? <textarea ref={textarea} className="full-text-editor writing-body" value={draft.textDraft} maxLength={1_000_000} onChange={e => updateDraft({ ...draft, textDraft: e.target.value })} placeholder={BODY_PLACEHOLDER} aria-label="文章正文" inputMode="text" autoCapitalize="sentences" /> : <div className="full-text-editor writing-body writing-preview" role="group" aria-label="文章正文" tabIndex={0}
         onClick={openFromBody}
@@ -236,9 +237,9 @@ export function Editor({ draft, latestTopic, update, onSave, onBack, onAssistant
         <div className="title-edit-actions"><button type="button" onClick={() => setTitleEditorOpen(false)}>取消</button><button type="submit" className="primary-button">完成</button></div>
       </form>
     </Dialog>}
-    {topicUpdateOpen && latestTopic && draft.topicSnapshot && <Dialog title="议题背景有更新" className="topic-update-dialog" onClose={() => setTopicUpdateOpen(false)}>
+    {topicUpdateOpen && latestTopic && draft.topicSnapshot && <Dialog title="话题内容有更新" className="topic-update-dialog" onClose={() => setTopicUpdateOpen(false)}>
       <div className="topic-version-compare"><section><small>写作时保存的第 {draft.topicSnapshot.revision} 版</small><p>{draft.topicSnapshot.summary}</p></section><section><small>当前第 {latestTopic.revision} 版</small><p>{latestTopic.summary}</p>{latestTopic.correctionNote && <p className="topic-correction"><strong>更正说明</strong>{latestTopic.correctionNote}</p>}</section></div>
-      <div className="topic-update-actions"><button type="button" onClick={() => setTopicUpdateOpen(false)}>保留原背景</button><button className="primary-button" type="button" onClick={() => { updateDraft({ ...draftRef.current, topicSnapshot: snapshotTopic(latestTopic) }); setTopicUpdateOpen(false); }}>采用新版背景</button></div>
+      <div className="topic-update-actions"><button type="button" onClick={() => setTopicUpdateOpen(false)}>保留原内容</button><button className="primary-button" type="button" onClick={() => { updateDraft({ ...draftRef.current, topicSnapshot: snapshotTopic(latestTopic) }); setTopicUpdateOpen(false); }}>使用新内容</button></div>
     </Dialog>}
   </>;
 }

@@ -58,19 +58,19 @@ it('keeps body typography and paragraph spacing identical between real input mod
 it('keeps failures and simulation labels visible without displacing footer controls', () => {
   expect(rule('.storage-error')).toMatchObject({ order: '2', 'flex-shrink': '0', 'overflow-y': 'auto' });
   expect(rule('.editor-dock')['order']).toBe('3');
-  expect(rule('.create-dock')['order']).toBe('3');
+  expect(rule('.home-bottom-tabs')).toMatchObject({ order: '3', 'flex-shrink': '0', 'grid-template-columns': 'repeat(3, minmax(0, 1fr))' });
   expect(Number(rule('.demo-banner')['z-index'])).toBeGreaterThan(Number(rule('.sheet-backdrop')['z-index']));
   expect(rule('.product-dialog')).toMatchObject({ 'max-height': 'min(90dvh, calc(var(--visual-viewport-height, 100dvh) - 16px))', 'overflow-y': 'auto', 'border-radius': '24px 24px 0 0' });
 });
 
-it('keeps AI input focus inside its border and uses a compact optimization hint', () => {
+it('keeps AI input focus inside its border and uses one stable conversation panel', () => {
   expect(rule('.ai-composer textarea:focus-visible')).toMatchObject({ outline: '0', 'border-color': 'var(--forest-soft)', 'box-shadow': 'inset 0 0 0 1px var(--forest-soft)' });
   expect(rule('.ai-voice-controls button')).toMatchObject({ 'min-height': '48px', 'touch-action': 'manipulation' });
   expect(rule('.ai-composer textarea')).toMatchObject({ height: '52px', 'min-height': '52px', 'max-height': '148px', resize: 'none' });
   expect(rule('.ai-composer-row')).toMatchObject({ display: 'grid', 'grid-template-columns': 'minmax(0, 1fr)' + ' auto' });
-  expect(rule('.xiaowen-panel.compact')).toMatchObject({ height: 'clamp(360px, 52dvh, 440px)', 'padding-bottom': 'max(8px, env(safe-area-inset-bottom))' });
-  expect(rule('.xiaowen-panel.expanded')['height']).toBe('min(90dvh, calc(var(--visual-viewport-height, 100dvh) - 16px))');
-  expect(css.match(/\.xiaowen-panel\.compact\s*\{/g)).toHaveLength(1);
+  expect(rule('.xiaowen-panel')).toMatchObject({ height: 'min(72dvh, 620px, calc(var(--visual-viewport-height, 100dvh) - 16px))', 'padding-bottom': 'max(8px, env(safe-area-inset-bottom))' });
+  expect(css).not.toContain('.xiaowen-panel.compact');
+  expect(css).not.toContain('.xiaowen-panel.expanded');
   expect(css).not.toContain('.voice-panel-expand');
   expect(rule('.optimize-tip')).toMatchObject({ position: 'absolute', width: 'min(250px, calc(100vw - 40px))', 'pointer-events': 'none' });
 });
