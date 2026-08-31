@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { flushSync } from 'react-dom';
-import { BackIcon, Icon } from '../../components/Icons';
+import { Dialog } from '../../components/Dialog';
+import { BackIcon } from '../../components/Icons';
 import { WritingToolbar } from '../../components/WritingControls';
 import { articleText, effectiveSegments, completeSegment, completeVoice, type Draft, type InputMode } from '../../lib/domain/writing';
 import { caretFromPoint, textOffsetAtCaret } from '../../lib/pointCaret';
@@ -42,7 +43,7 @@ export function Editor({ draft, update, onSave, onBack, onAssistant, saveStatus 
   onAssistant: (entry: 'chat' | 'optimize') => void; saveStatus: string;
 }) {
   const textarea = useRef<HTMLTextAreaElement>(null);
-  const titleInput = useRef<HTMLInputElement>(null);
+  const titleEditInput = useRef<HTMLInputElement>(null);
   const draftRef = useRef(draft);
   const migratedEdit = useRef('');
   const focusAfterMigration = useRef(false);
@@ -52,6 +53,8 @@ export function Editor({ draft, update, onSave, onBack, onAssistant, saveStatus 
   const bodyLongPress = useRef<BodyLongPress | null>(null);
   const [voiceCollapsed, setVoiceCollapsed] = useState(false);
   const [chatUnavailable, setChatUnavailable] = useState(false);
+  const [titleEditorOpen, setTitleEditorOpen] = useState(false);
+  const [titleEditValue, setTitleEditValue] = useState(draft.title);
   const [showOptimizeTip, setShowOptimizeTip] = useState(() => !hasSeenOptimizeTip() && optimizeBodyLength(draft) >= OPTIMIZE_TIP_LENGTH);
   const optimizeTipHandled = useRef(showOptimizeTip || hasSeenOptimizeTip());
   // Event callbacks always read the currently rendered document.
@@ -196,15 +199,14 @@ export function Editor({ draft, update, onSave, onBack, onAssistant, saveStatus 
     openTextAtBodyPoint(event.currentTarget, gesture.clientX, gesture.clientY);
   };
   if (draft.segmentEdit?.id === 'pending') return <>
-    <header className="topbar"><button className="icon-button" type="button" aria-label="返回文章" onClick={() => updateDraft(completeSegment(draft))}><BackIcon /></button><div><strong>修改语音文字</strong></div><span className="topbar-spacer" /></header>
-    <div className="segment-editor-wrap"><div className="segment-note"><Icon name="pen" /><span>让这段话，更像您想说的。</span></div><textarea ref={segmentTextarea} autoFocus className="segment-editor" aria-label="段落内容" maxLength={1_000_000} value={draft.segmentEdit.text} onChange={e => updateDraft({ ...draft, segmentEdit: { ...draft.segmentEdit!, text: e.target.value } })} /><p>{[...draft.segmentEdit.text.replace(/\s/g, '')].length} 字</p></div>
-    <footer className="simple-footer"><button className="primary-button" type="button" onClick={() => updateDraft(completeSegment(draft))}>完成修改</button></footer>
+    <header className="topbar"><span className="topbar-spacer" /><div><strong>修改语音文字</strong></div><button className="text-button pending-edit-cancel" type="button" aria-label="取消修改" onClick={() => updateDraft({ ...draft, segmentEdit: null })}>取消</button></header>
+    <div className="segment-editor-wrap pending-segment-editor-wrap"><textarea ref={segmentTextarea} autoFocus className="segment-editor" aria-label="段落内容" maxLength={1_000_000} value={draft.segmentEdit.text} onChange={e => updateDraft({ ...draft, segmentEdit: { ...draft.segmentEdit!, text: e.target.value } })} /><p>{[...draft.segmentEdit.text.replace(/\s/g, '')].length} 字</p></div>
+    <footer className="simple-footer pending-segment-editor-footer"><button className="primary-button" type="button" onClick={() => updateDraft(completeSegment(draft))}>完成修改</button></footer>
   </>;
   return <>
-    <header className="topbar editor-topbar"><button className="icon-button" type="button" aria-label="返回作品" onClick={onBack}><BackIcon /></button><div><strong>开始写作</strong></div><button className="text-button save-text" type="button" aria-describedby="save-status" onClick={onSave}>{saveStatus === 'saving' ? '保存中' : saveStatus === 'error' ? '重试' : '保存'}</button></header>
+    <header className="topbar editor-topbar"><button className="icon-button" type="button" aria-label="返回作品" onClick={onBack}><BackIcon /></button><button className={`editor-title-button${draft.title.trim() ? '' : ' empty'}`} type="button" aria-label="编辑文章标题" onClick={() => { setTitleEditValue(draft.title); setTitleEditorOpen(true); }}><strong>{draft.title.trim() || '点击编辑标题'}</strong></button><button className="text-button save-text" type="button" aria-describedby="save-status" onClick={onSave}>{saveStatus === 'saving' ? '保存中' : saveStatus === 'error' ? '重试' : '保存'}</button></header>
     <span id="save-status" className="visually-hidden" role="status">{saveStatus === 'saving' ? '保存中…' : saveStatus === 'saved' ? '已保存到本机' : saveStatus === 'error' ? '尚未保存，请先备份' : '内容仅保存在本机'}</span>
     <div className="editor-scroll writing-canvas">
-      <input ref={titleInput} className="title-input" maxLength={120} value={draft.title} onFocus={() => { if (draft.inputMode === 'voice') { setMode('text', false); titleInput.current?.focus({ preventScroll: true }); } }} onChange={e => updateDraft({ ...draft, title: e.target.value })} placeholder="输入标题" aria-label="文章标题" />
       {draft.inputMode === 'text' ? <textarea ref={textarea} className="full-text-editor writing-body" value={draft.textDraft} maxLength={1_000_000} onChange={e => updateDraft({ ...draft, textDraft: e.target.value })} placeholder={BODY_PLACEHOLDER} aria-label="文章正文" inputMode="text" autoCapitalize="sentences" /> : <div className="full-text-editor writing-body writing-preview" role="group" aria-label="文章正文" tabIndex={0}
         onClick={openFromBody}
         onPointerDown={startBodyLongPress}
@@ -226,5 +228,12 @@ export function Editor({ draft, update, onSave, onBack, onAssistant, saveStatus 
       onDone={() => updateDraft(completeVoice(draftRef.current))}
       onCollapse={() => { lastBodyTap.current = 0; setVoiceCollapsed(true); }} />}</footer>
     {chatUnavailable && <p className="toast editor-feature-toast" role="status">聊天功能暂未开放</p>}
+    {titleEditorOpen && <Dialog title="编辑标题" className="title-edit-dialog" initialFocusRef={titleEditInput} onClose={() => setTitleEditorOpen(false)}>
+      <form className="title-edit-form" onSubmit={event => { event.preventDefault(); updateDraft({ ...draftRef.current, title: titleEditValue }); setTitleEditorOpen(false); }}>
+        <label htmlFor="article-title-edit">文章标题</label>
+        <input ref={titleEditInput} id="article-title-edit" className="title-edit-input" type="text" inputMode="text" autoComplete="off" maxLength={120} value={titleEditValue} onChange={event => setTitleEditValue(event.target.value)} placeholder="输入标题" />
+        <div className="title-edit-actions"><button type="button" onClick={() => setTitleEditorOpen(false)}>取消</button><button type="submit" className="primary-button">完成</button></div>
+      </form>
+    </Dialog>}
   </>;
 }

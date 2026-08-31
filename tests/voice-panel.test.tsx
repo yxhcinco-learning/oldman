@@ -24,6 +24,8 @@ it('keeps pending review editable and cancel/complete actions independent', () =
 it('shows collapse only in the empty idle state and gives pending text its two review actions', () => {
   const pending = vi.fn(), collapse = vi.fn();
   const view = render(<VoicePanel pending="" onPending={pending} onEdit={() => {}} onDone={() => {}} onCollapse={collapse} />);
+  expect(screen.getByText('不着急，慢慢说。')).toBeVisible();
+  expect(screen.queryByText('文字会在这里轻轻落下。')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: '收起语音输入' }));
   expect(collapse).toHaveBeenCalledOnce();
   expect(pending).not.toHaveBeenCalled();

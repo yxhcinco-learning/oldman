@@ -9,7 +9,7 @@ export function WritingToolbar({ mode, onMode, onChat, onOptimize, disabled = fa
     {showOptimizeTip && <aside className="optimize-tip" aria-label="优化提示" role="status"><Icon name="spark" /><p>写好后，点“优化”帮您整理文章。</p></aside>}
     <div className="mode-tabs" role="tablist" aria-label="输入方式">
       <button className={mode === 'voice' ? 'active' : ''} type="button" role="tab" aria-label="语音输入" aria-selected={mode === 'voice'} disabled={disabled} onClick={() => onMode('voice')}><Icon name="mic" />语音</button>
-      <button className={mode === 'text' ? 'active' : ''} type="button" role="tab" aria-label="文字输入" aria-selected={mode === 'text'} disabled={disabled} onClick={() => onMode('text')}><Icon name="pen" />文字</button>
+      <button className={mode === 'text' ? 'active' : ''} type="button" role="tab" aria-label="文字输入" aria-selected={mode === 'text'} disabled={disabled} onClick={() => onMode('text')}><Icon name="keyboard" className="keyboard-icon" />文字</button>
     </div>
     <span className="toolbar-divider" aria-hidden="true" />
     <div className="editor-actions" aria-label="写作辅助">
@@ -20,5 +20,5 @@ export function WritingToolbar({ mode, onMode, onChat, onOptimize, disabled = fa
 }
 
 export function VoiceIdle() {
-  return <div className="voice-tip"><span className="quiet-wave" aria-hidden="true"><i /><i /><i /><i /><i /></span><p>不着急，慢慢说。<br /><span>文字会在这里轻轻落下。</span></p></div>;
+  return <div className="voice-tip"><span className="quiet-wave" aria-hidden="true"><i /><i /><i /><i /><i /></span><p>不着急，慢慢说。</p></div>;
 }

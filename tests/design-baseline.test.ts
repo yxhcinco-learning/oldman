@@ -25,10 +25,10 @@ it('uses the approved Echoes palette and local font stacks', () => {
   expect(css).not.toMatch(/https?:\/\//);
 });
 
-it('retains the approved canvas, title and speech geometry without a mock keyboard', () => {
+it('retains the approved canvas and speech geometry while moving title editing into the header', () => {
   expect(rule('.phone-shell')).toMatchObject({ 'max-width': '800px', height: 'var(--visual-viewport-height, 100dvh)', 'min-height': '0', transform: 'translateY(var(--visual-viewport-offset, 0px))' });
-  expect(rule('.title-input')).toMatchObject({ height: '68px', padding: '16px 0', font: '600 26px/36px var(--serif)', 'margin-bottom': '24px', 'border-bottom': '1px solid var(--line)' });
-  expect(rule('.title-input::placeholder')).not.toHaveProperty('font-size');
+  expect(rule('.editor-title-button')).toMatchObject({ 'min-width': '0', 'min-height': '48px', overflow: 'hidden' });
+  expect(rule('.title-edit-input')).toMatchObject({ width: '100%', height: '56px', 'font-size': '18px' });
   expect(rule('.voice-panel')['grid-template-rows']).toBe('122px 84px 20px');
   expect(rule('.voice-panel')['grid-template-rows']).toBe(rule('.voice-panel', previewCss)['grid-template-rows']);
   expect(rule('.live-transcript p, .pending-transcript p')).toMatchObject({ height: '90px', 'min-height': '90px', 'line-height': '30px', 'overflow-y': 'auto' });
@@ -66,8 +66,17 @@ it('keeps AI input focus inside its border and uses a compact optimization hint'
   expect(rule('.ai-voice-controls button')).toMatchObject({ 'min-height': '48px', 'touch-action': 'manipulation' });
   expect(rule('.ai-composer textarea')).toMatchObject({ height: '52px', 'min-height': '52px', 'max-height': '148px', resize: 'none' });
   expect(rule('.ai-composer-row')).toMatchObject({ display: 'grid', 'grid-template-columns': 'minmax(0, 1fr)' + ' auto' });
+  expect(rule('.ai-page-chat')['padding-bottom']).toBe('max(8px, env(safe-area-inset-bottom))');
   expect(css).not.toContain('.voice-panel-expand');
   expect(rule('.optimize-tip')).toMatchObject({ position: 'absolute', width: 'min(250px, calc(100vw - 40px))', 'pointer-events': 'none' });
+});
+
+it('keeps pending-edit actions compact and distinguishes text input from pencil editing', () => {
+  expect(rule('.pending-segment-editor-wrap')['padding-bottom']).toBe('8px');
+  expect(rule('.pending-segment-editor-footer')['padding-top']).toBe('8px');
+  const controls = readFileSync('components/WritingControls.tsx', 'utf8');
+  expect(controls).toContain('<Icon name="keyboard" className="keyboard-icon" />文字');
+  expect(controls).not.toContain('文字会在这里轻轻落下');
 });
 
 it('keeps the optimization menu compact enough for one screen without squeezing its choices', () => {

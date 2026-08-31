@@ -10,7 +10,10 @@ const repo = () => { const r = new IndexedWorkRepository(crypto.randomUUID()); r
 afterEach(async () => { localStorage.clear(); vi.useRealTimers(); for (const r of repos.splice(0)) await r.close(); });
 async function startWriting() {
   fireEvent.click(await screen.findByRole('button', { name: /开始写作/ }));
-  fireEvent.change(await screen.findByLabelText('文章标题'), { target: { value: '夏日有感' } });
+  fireEvent.click(await screen.findByRole('button', { name: '编辑文章标题' }));
+  const titleDialog = screen.getByRole('dialog', { name: '编辑标题' });
+  fireEvent.change(within(titleDialog).getByRole('textbox', { name: '文章标题' }), { target: { value: '夏日有感' } });
+  fireEvent.click(within(titleDialog).getByRole('button', { name: '完成' }));
   fireEvent.click(screen.getByRole('tab', { name: '文字输入' }));
   fireEvent.change(screen.getByLabelText('文章正文'), { target: { value: '窗前的雨\n落进了风里\n\n我想把这一刻写下来。' } });
   await screen.findByText('已保存到本机');

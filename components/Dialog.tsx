@@ -1,7 +1,7 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { BackIcon, Icon } from './Icons';
 
-export function Dialog({ title, children, onClose, onBack, headerActions, className = '' }: { title: string; children: ReactNode; onClose: () => void; onBack?: () => void; headerActions?: ReactNode; className?: string }) {
+export function Dialog({ title, children, onClose, onBack, headerActions, initialFocusRef, className = '' }: { title: string; children: ReactNode; onClose: () => void; onBack?: () => void; headerActions?: ReactNode; initialFocusRef?: RefObject<HTMLElement | null>; className?: string }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -9,7 +9,10 @@ export function Dialog({ title, children, onClose, onBack, headerActions, classN
     el?.showModal();
     return () => { el?.close(); previous?.focus(); };
   }, []);
-  useEffect(() => { ref.current?.querySelector<HTMLButtonElement>('.sheet-header > button, .sheet-header-actions button:last-child')?.focus(); }, [title]);
+  useEffect(() => {
+    const initial = initialFocusRef?.current ?? ref.current?.querySelector<HTMLElement>('.sheet-header > button, .sheet-header-actions button:last-child');
+    initial?.focus();
+  }, [initialFocusRef, title]);
   return <dialog ref={ref} className={`product-dialog ${className}`} aria-label={title} onCancel={e => { e.preventDefault(); onClose(); }}
     onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); onClose(); } }}>
     <div className="sheet-handle" aria-hidden="true" />

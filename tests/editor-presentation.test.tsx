@@ -17,7 +17,7 @@ async function openDraft(draft: Draft) {
   const repo = repository();
   await repo.save(draft, 0);
   const view = render(<ProductApp repository={repo} />);
-  await screen.findByLabelText('文章标题');
+  await screen.findByRole('button', { name: '编辑文章标题' });
   return { repo, ...view };
 }
 function voiceDraft(segments: Segment[], pendingVoice = ''): Draft {
@@ -45,27 +45,61 @@ function stubPointCaretApis({ position, range }: {
   };
 }
 
-it('shares empty title/body copy and presentation classes across modes without list decoration', async () => {
+it('uses a header title trigger and shares body presentation across modes without list decoration', async () => {
   const { repo, container } = await openDraft(emptyDraft());
-  const title = screen.getByLabelText('文章标题');
+  const title = screen.getByRole('button', { name: '编辑文章标题' });
   const preview = screen.getByRole('group', { name: '文章正文' });
-  expect(title).toHaveAttribute('placeholder', '输入标题');
+  expect(title).toHaveTextContent('点击编辑标题');
+  expect(container.querySelector('.editor-scroll .title-input')).toBeNull();
   expect(preview).toHaveClass('full-text-editor', 'writing-body');
   expect(within(preview).getByText(placeholder)).toHaveClass('writing-placeholder');
   expect(container.querySelector('.story-content, .story-paragraph, .empty-writing')).toBeNull();
   const canvasClass = preview.parentElement?.className;
-  fireEvent.click(screen.getByRole('tab', { name: '文字输入' }));
+  const textTab = screen.getByRole('tab', { name: '文字输入' });
+  expect(textTab.querySelector('.keyboard-icon')).not.toBeNull();
+  fireEvent.click(textTab);
   const input = screen.getByRole('textbox', { name: '文章正文' });
   expect(input).toHaveAttribute('placeholder', placeholder);
   expect(input).toHaveClass('full-text-editor', 'writing-body');
   expect(input.parentElement?.className).toBe(canvasClass);
-  expect(screen.getByLabelText('文章标题')).toBe(title);
+  expect(screen.getByRole('button', { name: '编辑文章标题' })).toBe(title);
   expect(input).toHaveFocus();
   fireEvent.click(screen.getByRole('tab', { name: '语音输入' }));
   expect(within(screen.getByRole('group', { name: '文章正文' })).getByText(placeholder)).toBeVisible();
   await screen.findByText('已保存到本机');
   expect((await repo.load()).works).toEqual([]);
   expect((await repo.load()).recovery?.draft.textDraft).toBe('');
+});
+
+it('confirms or cancels a native title dialog without changing the body mode', async () => {
+  const initial = voiceDraft([{ id: 'first', text: '已经写好的正文。' }], '还没有确认的语音。');
+  initial.title = '原标题';
+  const { repo } = await openDraft(initial);
+  const title = screen.getByRole('button', { name: '编辑文章标题' });
+  expect(title).toHaveTextContent('原标题');
+
+  fireEvent.click(title);
+  let dialog = screen.getByRole('dialog', { name: '编辑标题' });
+  let input = within(dialog).getByRole<HTMLInputElement>('textbox', { name: '文章标题' });
+  await waitFor(() => expect(input).toHaveFocus());
+  expect(input).toHaveValue('原标题');
+  fireEvent.change(input, { target: { value: '不保存的标题' } });
+  fireEvent.click(within(dialog).getByRole('button', { name: '取消' }));
+  expect(screen.queryByRole('dialog', { name: '编辑标题' })).not.toBeInTheDocument();
+  expect(title).toHaveTextContent('原标题');
+  expect(screen.getByRole('tab', { name: '语音输入' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('button', { name: '修改待确认转写' })).toHaveTextContent('还没有确认的语音。');
+
+  fireEvent.click(title);
+  dialog = screen.getByRole('dialog', { name: '编辑标题' });
+  input = within(dialog).getByRole<HTMLInputElement>('textbox', { name: '文章标题' });
+  fireEvent.change(input, { target: { value: '页头里的标题' } });
+  fireEvent.click(within(dialog).getByRole('button', { name: '完成' }));
+  expect(title).toHaveTextContent('页头里的标题');
+  expect(screen.getByRole('tab', { name: '语音输入' })).toHaveAttribute('aria-selected', 'true');
+  await screen.findByText('已保存到本机');
+  expect((await repo.load()).recovery?.draft.title).toBe('页头里的标题');
+  expect((await repo.load()).recovery?.draft.pendingVoice).toBe('还没有确认的语音。');
 });
 
 it.each([
@@ -223,7 +257,22 @@ it('opens pending speech editing with a collapsed caret at the clicked transcrip
     expect(editor.selectionEnd).toBe(5);
     expect(editor).toHaveValue(pending);
     expect(screen.queryByText('已有正文')).not.toBeInTheDocument();
+    expect(screen.queryByText('让这段话，更像您想说的。')).not.toBeInTheDocument();
   } finally { restore(); }
+});
+
+it('cancels pending-speech edits from the top right without replacing the original transcript', async () => {
+  const pending = '原来的待确认文字';
+  await openDraft(voiceDraft([{ id: 'first', text: '已有正文' }], pending));
+  fireEvent.click(screen.getByRole('button', { name: '修改待确认转写' }));
+  const editor = screen.getByRole('textbox', { name: '段落内容' });
+  fireEvent.change(editor, { target: { value: '不应保存的改动' } });
+  const cancel = screen.getByRole('button', { name: '取消修改' });
+  expect(cancel).toHaveTextContent('取消');
+  expect(cancel.closest('.topbar')).not.toBeNull();
+  fireEvent.click(cancel);
+  expect(screen.getByRole('button', { name: '修改待确认转写' })).toHaveTextContent(pending);
+  expect(screen.queryByLabelText('段落内容')).not.toBeInTheDocument();
 });
 
 it('edits ordinary article text on the current page and restores the placeholder after deleting it', async () => {
@@ -262,25 +311,6 @@ it('keeps pending speech separate, clears it independently and appends it only o
   expect(screen.getByLabelText('文章正文')).toHaveValue('已确认的正文。\n\n待确认语音。');
   await screen.findByText('已保存到本机');
   expect((await nextRepo.load()).recovery?.draft.pendingVoice).toBe('');
-});
-
-it('switches expanded voice mode to title editing without stealing focus or losing pending speech', async () => {
-  const initial = voiceDraft([{ id: 'first', text: '已经写好的正文。' }], '还没有确认的语音。');
-  const { repo } = await openDraft(initial);
-  const title = screen.getByLabelText('文章标题');
-  expect(screen.getByRole('button', { name: '修改待确认转写' })).toBeInTheDocument();
-
-  fireEvent.focus(title);
-
-  expect(screen.getByRole('tab', { name: '文字输入' })).toHaveAttribute('aria-selected', 'true');
-  expect(title).toHaveFocus();
-  expect(screen.getByRole('textbox', { name: '文章正文' })).not.toHaveFocus();
-  expect(screen.queryByRole('button', { name: '按住说话' })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('tab', { name: '语音输入' }));
-  expect(screen.getByRole('button', { name: '修改待确认转写' })).toHaveTextContent('还没有确认的语音。');
-  expect(screen.queryByRole('button', { name: '收起语音输入' })).not.toBeInTheDocument();
-  await screen.findByText('已保存到本机');
-  expect((await repo.load()).recovery?.draft.pendingVoice).toBe('还没有确认的语音。');
 });
 
 it('migrates a recovered unfinished ordinary edit into the current-page text editor', async () => {
