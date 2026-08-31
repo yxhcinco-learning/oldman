@@ -2,6 +2,8 @@
 
 当前视觉已按用户确认更新为 Echoes of Time；最新设计验收见 [Echoes落地记录](ECHOES-DESIGN-REVIEW.md)。下方旧尺寸和字体测量保留为历史证据，不作为当前设计规则。
 
+2026-08-31 用户明确授权完成最后的目录清理。删除前重新确认 `D:\vibe_code\.oldman-backups` 只有2层空目录、`D:\vibe_code\oldman\backups` 为空、`D:\vibe_code\oldman\.wrangler` 为11个停用缓存文件（5,603,546字节）；三个解析绝对路径均与授权目标一致、不是仓库根目录且不是重解析点。执行层两次拒绝 `Remove-Item -Recurse`，因此改用 Windows 回收站做可恢复移除，三个原路径随后均不存在；`.openai` 此前已不存在。`productize-local-writing` 4.9 由此完成，全部28项任务具备证据。
+
 2026-08-31 用户完成收尾确认：受控公网 Origin 下的简单新建、保存与恢复体验正常，作品仍只保存在该设备该域名的浏览器 IndexedDB，不是服务器存储；此前隔离生产构建已完成刷新恢复、JSON v2 下载及 360×640、390×844、430×932、1280×900 四尺寸焦点/溢出检查。用户同时确认 iOS Safari 与 Android Chrome 当前的系统键盘、浏览器工具栏、后台返回、真实麦克风及网络切换功能均正常，因此 `deploy-controlled-public-test` 5.2/5.4、`improve-mobile-writing-assistant` 5.3 与 `productize-local-writing` 4.6 具备人工验收结论。未另行记录设备型号、系统/浏览器小版本或截图；该结论明确标记为用户真机确认，不表述为代理亲自复现。前两个 change 的任务已全部完成，增量要求已同步至正式规范并分别归档至 [受控公网部署归档](../openspec/changes/archive/2026-08-31-deploy-controlled-public-test/) 与 [移动写作归档](../openspec/changes/archive/2026-08-31-improve-mobile-writing-assistant/)。用户随后通过 Git Credential Manager 完成 GitHub 授权，本地完整历史首次非强制推送至 Public 仓库 `yxhcinco-learning/oldman`，远端新建并跟踪 `main`，提交为 `238f737`。首次 [Check run 33353417111](https://github.com/yxhcinco-learning/oldman/actions/runs/33353417111) 成功，checkout、Node、`npm ci`、完整 `npm run check`、`npm run build` 与 `npm audit --audit-level=high` 全部通过；`productize-local-writing` 4.3 完成。
 
 2026-08-31 按用户补充把待确认语音编辑页“取消”从右上移到左上，标题保持居中、右侧留空，取消仍只丢弃临时修改。新增结构与样式回归先在旧布局失败、修改后通过；完整 `npm run check` 为22个测试文件、204项测试，生产构建和390×844本地实页检查通过。提交 `528f046` 已统一部署到 `/opt/suiyue-yousheng/releases/528f046`，回滚版本为 `2c8e7ac`；两个服务、回环首页/健康、Nginx及有效认证公网首页均正常，线上CSS确认 `justify-self:start`。本轮未调用DeepSeek、腾讯ASR或真实麦克风，物理设备键盘仍待用户复验。
@@ -152,7 +154,7 @@ release 切换和回滚脚本只接受 `/opt/suiyue-yousheng/releases/*` 的已�
 
 新根目录运行 `npm run dev` 后首页 HTTP 200，网关状态 `configured:true`；86 项检查及构建通过，依赖审计 0 漏洞、锁文件 dry-run 通过。30 个受保护文件（UI、业务、存储、语音、素材及 `.env.local`、Git config）与迁移前哈希完全一致。本轮不启用用户麦克风、不调用真实 ASR、不读写浏览器作品；访问地址和数据库名称未变。
 
-**残余缓存清理待办**：空迁移源目录已删除；仅多余空备份/配置目录及停用的 `.wrangler` 缓存尚待清理。它们不是活动工程，不参与运行、不进入 Git，具体清单见 [CLEANUP.md](CLEANUP.md) 及 OpenSpec 4.9。
+**残余缓存清理结果**：空迁移源目录此前已删除；多余空备份/配置目录及停用的 `.wrangler` 缓存也已于 2026-08-31 按授权移入 Windows 回收站，原路径确认不存在。它们不是活动工程，不参与运行、不进入 Git，证据见 [CLEANUP.md](CLEANUP.md) 及 OpenSpec 4.9。
 
 项目文档、规范、归档文件名及测试描述已统一正式版称谓。设计基线用固定提交定位，不改写 Git 历史或标签；腾讯云接口路径、数据库格式版本和依赖校验值保持不变。
 
@@ -170,13 +172,13 @@ release 切换和回滚脚本只接受 `/opt/suiyue-yousheng/releases/*` 的已�
 
 完整 check 的 95 项测试、类型、Lint、OpenSpec、边界检查及本地 build 通过。浏览器核对 360×640、390×844、430×932 和桌面，完成空白/长文/模式切换、单段修改刷新恢复、保存重开；仅创建非敏感验收样稿，未清理用户数据。详细测量和未验证项见 [输入展示验收记录](EDITOR-PRESENTATION-REVIEW.md)。未调用真实语音或发布，仅在现有分支本地提交。
 
-## 未完成的外部项
+## 收尾完成状态
 
-1. **残余目录清理**：仍有一个仓库外空备份目录树、仓库内空 `backups` 目录及约 5.6 MB 的停用 `.wrangler` 缓存；`.openai` 已不存在。删除前仍按精确路径向用户说明，未授权前不删除。
+GitHub 首次推送/CI、用户真机 HTTPS 验收与残余目录清理均已完成；当前没有 `productize-local-writing` 范围内的未完成外部项。
 
 后续交付按 `main` 工作流进行：本地正式工程提交已经完整收敛到唯一的 `main`；不以创建 PR 作为交付前提，任何分支操作仍需用户明确允许。
 
-OpenSpec change `productize-local-writing` 保留活跃，任务 4.3 的首次 GitHub `main` 推送和 CI、4.6 的用户真机确认均已完成；只剩 4.9（残余目录清理），完成并验证前不归档。该名称不是 Git 分支。
+OpenSpec change `productize-local-writing` 的28项任务均已完成，18条增量要求已同步至正式规范并归档至 [2026-08-31-productize-local-writing](../openspec/changes/archive/2026-08-31-productize-local-writing/)。当前没有活跃 change；该名称不是 Git 分支。
 
 ## 变更归档复核（2026-08-28）
 

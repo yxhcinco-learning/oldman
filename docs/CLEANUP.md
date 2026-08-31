@@ -25,7 +25,7 @@
 
 ## 残余目录清理尾项
 
-空迁移源目录已经移除，不再是待办。2026-08-31 只读复核后，4.9 的精确删除候选为：仓库外 `D:\vibe_code\.oldman-backups` 空目录树（内部只有空的 `20260828-root-replacement\v1-retired`）、当前工程空的 `D:\vibe_code\oldman\backups`，以及当前工程约 5.6 MB、11 个文件的停用 `D:\vibe_code\oldman\.wrangler` 缓存；`.openai` 已不存在。这些目录不被代码引用、不入 Git，其中 `.wrangler` 可由旧工具重新生成，但删除本身不通过 Git 恢复。未取得用户对这些精确路径的明确授权前保持不动。
+空迁移源目录已经移除，不再是待办。2026-08-31 只读复核确认：仓库外 `D:\vibe_code\.oldman-backups` 只有空的 `20260828-root-replacement\v1-retired`，当前工程 `D:\vibe_code\oldman\backups` 为空，停用的 `D:\vibe_code\oldman\.wrangler` 含 11 个缓存文件、共 5,603,546 字节；`.openai` 已不存在。用户随后明确授权删除，三个目标的解析绝对路径、非仓库根目录与非重解析点条件均通过；因执行层拒绝递归永久删除，最终使用 Windows 回收站移除并确认三个原路径均不存在。空目录没有内容可恢复，`.wrangler` 可由旧工具重新生成，也可在清空回收站前恢复。
 
 历史发布工具缓存 `.wrangler` 不再参与启动或构建，继续被 Git/Lint 忽略；不将缓存当作仍有效的发布接入。源码和锁文件已经解除对应依赖。
 
