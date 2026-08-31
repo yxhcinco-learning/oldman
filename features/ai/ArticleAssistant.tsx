@@ -114,13 +114,6 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
   };
   const close = () => { if (!saving) onClose(); };
   const compose = () => <form className="ai-composer" onSubmit={event => event.preventDefault()}>
-    <p className="xiaowen-quick-note" id="xiaowen-quick-note">前两项只回答，不会改正文；后两项会生成修改稿，确认后才会修改。</p>
-    <div className="xiaowen-quick-actions" aria-label="小文快捷选项" aria-describedby="xiaowen-quick-note">
-      <button type="button" disabled={busy || voiceActive} onClick={() => request('question', '接着问我', '问我一个问题')}>问我一个问题</button>
-      <button type="button" disabled={busy || voiceActive} onClick={() => request('question', '讲清楚了吗', '检查哪里没讲清')}>检查哪里没讲清</button>
-      <button type="button" disabled={busy || voiceActive} onClick={() => request('regular', '', '帮我整理文章')}>帮我整理文章</button>
-      <button type="button" disabled={busy || voiceActive} onClick={() => request('polish', '', '把文字写顺')}>把文字写顺</button>
-    </div>
     <label className="visually-hidden" htmlFor="article-ai-question">问问小文</label>
     <div className="ai-composer-row"><textarea ref={promptInput} id="article-ai-question" value={prompt} onFocus={() => setExpanded(true)} onChange={event => onPromptChange(event.target.value)} disabled={busy || voiceActive} maxLength={2000}
       rows={1} placeholder="问小文，或提要求" />

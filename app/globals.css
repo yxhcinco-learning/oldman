@@ -384,10 +384,6 @@ svg { display: block; }
 .ai-page-chat .article-assistant { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
 .ai-page-chat .ai-composer { flex-shrink: 0; }
 .ai-conversation { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 8px 0 0; }
-.xiaowen-quick-note { margin: 0 0 8px; color: var(--muted); font-size: 14px; line-height: 22px; }
-.xiaowen-quick-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
-.xiaowen-quick-actions > button { min-width: 0; min-height: 48px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 14px; color: var(--forest); background: var(--white); font-size: 15px; line-height: 22px; white-space: nowrap; }
-.xiaowen-quick-actions > button:hover { background: var(--tint); }
 .ai-assistant-message { min-width: 0; max-width: calc(100% - 42px); }
 .ai-assistant-message .message-bubble { max-width: 100%; }
 .ai-conversation .message-bubble { padding: 14px 16px; }

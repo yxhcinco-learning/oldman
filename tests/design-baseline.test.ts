@@ -84,10 +84,9 @@ it('keeps pending-edit actions compact and distinguishes text input from pencil 
   expect(controls).not.toContain('文字会在这里轻轻落下');
 });
 
-it('keeps XiaoWen quick intentions in two elder-friendly columns without shrinking tap targets', () => {
-  expect(rule('.xiaowen-quick-actions')).toMatchObject({ display: 'grid', 'grid-template-columns': 'repeat(2, minmax(0, 1fr))', gap: '8px' });
-  expect(rule('.xiaowen-quick-actions > button')).toMatchObject({ 'min-height': '48px', 'min-width': '0', 'white-space': 'nowrap' });
-  expect(rule('.xiaowen-quick-note')).toMatchObject({ 'font-size': '14px', 'line-height': '22px', color: 'var(--muted)' });
+it('keeps the XiaoWen composer free of preset shortcut surfaces', () => {
+  expect(css).not.toContain('.xiaowen-quick-actions');
+  expect(css).not.toContain('.xiaowen-quick-note');
   expect(rule('.xiaowen-panel.ai-page-chat > .sheet-header')['margin-bottom']).toBe('8px');
   expect(css).not.toContain('.mode-tabs');
 });

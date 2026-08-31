@@ -52,10 +52,10 @@
 - [x] 7.1 Update the active proposal, design and delta specs for a half-screen compact default, plain-language shortcut labels, one boundary note and unchanged internal prompt contracts
 - [x] 7.2 Add design/UI regressions for the compact height, no short-screen near-full-height override, visible labels, boundary note, action mapping and displayed turn labels
 - [x] 7.3 Implement the compact panel refinement and shortcut presentation without changing the Echoes system, request count, action protocol or confirmation boundary
-- [ ] 7.4 Update product/architecture/acceptance documentation, run check/build/OpenSpec validation and repeat four-size browser regression without additional paid model calls
+- [x] 7.4 Update product/architecture/acceptance documentation, run check/build/OpenSpec validation and repeat four-size browser regression without additional paid model calls
 
 ## 8. Defer preset quick instructions
 
 - [x] 8.1 Update the active proposal, design and delta specs so the conversation exposes only free input, dictation and send while preserving internal action compatibility
-- [ ] 8.2 Replace shortcut UI regressions with absence, free-send, compact-height and historical-turn compatibility coverage
-- [ ] 8.3 Remove all preset shortcut controls and helper copy, update product/architecture/acceptance documentation, and repeat full automated and four-size browser verification without paid calls
+- [x] 8.2 Replace shortcut UI regressions with absence, free-send, compact-height and historical-turn compatibility coverage
+- [x] 8.3 Remove all preset shortcut controls and helper copy, update product/architecture/acceptance documentation, and repeat full automated and four-size browser verification without paid calls
