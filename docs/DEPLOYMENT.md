@@ -10,7 +10,7 @@
 - release：`/opt/suiyue-yousheng/releases/<version>`；`current` 为活动版本，`previous` 为上次成功版本。
 - 秘密：`/etc/suiyue-yousheng/runtime.env`，必须 `0600 root:root`；Basic Auth 文件 `/etc/nginx/suiyue-yousheng.htpasswd`，必须 `0640 root:www-data`。两者都不在 Git 或 release。
 
-仓库模板位于 `deploy/`。`runtime.env.example` 只有字段形状；严禁填写后提交。Linux 固定 `ASR_CREDENTIAL_SOURCE=project`、`ASR_ALLOWED_ORIGIN=https://suiyue.maicong.chat`，当前显式配置 `TENCENT_ASR_ENGINE_MODEL_TYPE=16k_zh_en`；回切为 `16k_zh` 时只重启 `suiyue-gateway`。运行账户不读取 Windows User 凭据。
+仓库模板位于 `deploy/`。`runtime.env.example` 只有字段形状；严禁填写后提交。Linux 固定 `ASR_CREDENTIAL_SOURCE=project`、`ASR_ALLOWED_ORIGIN=https://suiyue.maicong.chat`，当前显式配置 `TENCENT_ASR_ENGINE_MODEL_TYPE=16k_zh` 以匹配体验包；以后切换模型只重启 `suiyue-gateway`。运行账户不读取 Windows User 凭据。
 
 ## 发布顺序
 

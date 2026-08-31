@@ -67,7 +67,7 @@ JSON v2 携带会话与版本，接受旧 v1；导入整批校验并重映射作
 
 2026-08-30 用户授权在既有腾讯云 Lighthouse 上进行临时、小范围公网测试。固定 Origin 为 `https://suiyue.maicong.chat`：Nginx 在 80/443 终止 TLS 和 Basic Auth，`/` 转发回环 Vinext，`/api/ai/*` 与 `/api/speech` 转发回环 Fastify，语音保留原始 Origin 和 WebSocket Upgrade。前端与网关使用专用 `suiyue` 用户、独立 3011/3012 回环端口、systemd 服务和版本化 release；不开放应用端口，不复用或停止服务器上的其他项目。
 
-阶段性访问保护和简单 IP 限流只在 Nginx；产品不新增账号、邀请码、管理后台、测试提示或配额。Linux 网关固定 `ASR_CREDENTIAL_SOURCE=project`，从 root-only 环境文件读取腾讯云和 DeepSeek 秘密，并显式使用 `16k_zh_en` 中英大模型；回切只修改该非秘密模型变量并重启网关。Fastify 保持原始请求日志关闭，只输出 requestId、动作、状态、耗时、可用 token 数和固定错误类别；Nginx 关闭该站点 access log，错误日志沿用服务器 logrotate，systemd stdout/stderr 由 journald 轮转。
+阶段性访问保护和简单 IP 限流只在 Nginx；产品不新增账号、邀请码、管理后台、测试提示或配额。Linux 网关固定 `ASR_CREDENTIAL_SOURCE=project`，从 root-only 环境文件读取腾讯云和 DeepSeek 秘密，并按当前体验包使用 `16k_zh`；中英模型保留为需先确认可用额度的服务端选项。Fastify 保持原始请求日志关闭，只输出 requestId、动作、状态、耗时、可用 token 数和固定错误类别；Nginx 关闭该站点 access log，错误日志沿用服务器 logrotate，systemd stdout/stderr 由 journald 轮转。
 
 每个浏览器 Origin 继续拥有独立 IndexedDB。公网域名首次访问为空库；localhost 或其他域名文章只能由用户显式导出 JSON、再在目标浏览器恢复为副本，服务器不接收备份或文章同步。部署、验证和回滚见 [受控公网部署](DEPLOYMENT.md)；产品协议仍由 ADR-002、ADR-003 和 ADR-006 管理。
 

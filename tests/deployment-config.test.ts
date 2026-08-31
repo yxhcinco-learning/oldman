@@ -17,7 +17,7 @@ it('keeps application services isolated, restartable and loopback-only', () => {
   expect(web).toContain('--hostname 127.0.0.1');
   expect(web).toContain('--port 3011');
   expect(gateway).toContain('EnvironmentFile=/etc/suiyue-yousheng/runtime.env');
-  expect(read('deploy/runtime.env.example')).toContain('TENCENT_ASR_ENGINE_MODEL_TYPE=16k_zh_en');
+  expect(read('deploy/runtime.env.example')).toContain('TENCENT_ASR_ENGINE_MODEL_TYPE=16k_zh');
 });
 
 it('protects the exact HTTPS origin while preserving same-origin API and WebSocket routes', () => {
