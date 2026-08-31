@@ -27,6 +27,9 @@ page { height: 100%; overflow: hidden; }
 .voice-stage { position: fixed; z-index: 8; right: 32rpx; bottom: 136rpx; left: 32rpx; display: grid; min-height: 360rpx; place-items: center; padding: 28rpx; border-radius: 32rpx 32rpx 0 0; background: #f5f3f3; }
 .voice-copy { max-height: 128rpx; overflow: hidden; color: #416657; font-size: 30rpx; line-height: 1.7; }
 .mic { display: grid; width: 152rpx; height: 152rpx; place-items: center; padding: 0; border: 8rpx solid #fff; border-radius: 50%; background: #153b2e; color: #fff; font-size: 32rpx; line-height: 136rpx; box-shadow: 0 8rpx 40rpx rgba(21, 59, 46, .12); }
+.mic { transition: transform .12s ease, background .12s ease; }
+.mic.permission, .mic.ticket, .mic.connecting, .mic.finishing { background: #416657; }
+.mic.error { background: #6f351c; }
 .voice-help { color: #717974; font-size: 25rpx; line-height: 40rpx; text-align: center; }
 .editor-notice, .editor-error { position: fixed; z-index: 15; right: 32rpx; left: 32rpx; top: 124rpx; padding: 22rpx 28rpx; border-radius: 24rpx; font-size: 27rpx; line-height: 1.55; }
 .editor-notice { background: #e8eee9; color: #153b2e; }
@@ -84,6 +87,7 @@ page { height: 100%; overflow: hidden; }
 .history-item text { min-width: 0; overflow: hidden; color: #1b1c1c; font-size: 27rpx; text-overflow: ellipsis; white-space: nowrap; }
 .history-item small, .history-empty { display: block; margin-top: 8rpx; color: #717974; font-size: 24rpx; }
 .xiaowen-composer { display: grid; grid-template-columns: minmax(0, 1fr) 96rpx 112rpx; align-items: end; gap: 12rpx; padding-top: 20rpx; }
+.xiaowen-speech-status { grid-column: 1 / -1; padding: 12rpx 18rpx; border-radius: 18rpx; background: #e8eee9; color: #416657; font-size: 25rpx; line-height: 1.5; }
 .xiaowen-composer textarea { width: 100%; min-height: 104rpx; max-height: 296rpx; padding: 20rpx 24rpx; border: 1rpx solid #e4e6e1; border-radius: 28rpx; background: #fff; font-size: 32rpx; line-height: 1.6; }
 .xiaowen-voice, .xiaowen-send { min-height: 96rpx; padding: 12rpx; border-radius: 48rpx; font-size: 28rpx; line-height: 72rpx; }
 .xiaowen-button-cell { display: flex; min-width: 0; }

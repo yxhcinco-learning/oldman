@@ -1,4 +1,4 @@
-import Fastify from 'fastify';
+import Fastify, { type FastifyRequest } from 'fastify';
 import websocket from '@fastify/websocket';
 import WebSocket from 'ws';
 import { signedAsrUrl, parseTencentResult, type AsrEngineModel, type Credentials } from './tencent';
@@ -8,6 +8,8 @@ import { defaultOperationLogger, operationDuration, type OperationLogger } from 
 import { registerTopics } from './topics';
 import type { TopicEditorialQueue } from './topic-catalog';
 import { registerMiniAuth, type MiniAuthGatewayOptions } from './mini-auth';
+import { SpeechTicketError, SpeechTicketStore } from './speech-ticket-store';
+import { MiniIdentityError } from './mini-identity-store';
 
 export interface GatewayOptions {
   credentials?: Credentials; origin: string; maxConnections?: number; maxDurationMs?: number; maxBytes?: number;
@@ -17,6 +19,7 @@ export interface GatewayOptions {
   topics?: TopicEditorialQueue;
   operations?: OperationLogger;
   miniAuth?: Omit<MiniAuthGatewayOptions, 'operations'>;
+  speechTickets?: SpeechTicketStore;
 }
 export async function createGateway(options: GatewayOptions) {
   const app = Fastify({ logger: false, bodyLimit: 64 * 1024 });
@@ -25,6 +28,7 @@ export async function createGateway(options: GatewayOptions) {
   registerTopics(app, { origin: options.origin, queue: options.topics, operations });
   registerMiniAuth(app, { ...options.miniAuth, operations });
   const active = new Set<WebSocket>();
+  const speechTickets = options.speechTickets ?? new SpeechTicketStore();
   await app.register(websocket, { options: { maxPayload: 64 * 1024 } });
   app.get('/api/health', async (request, reply) => {
     const startedAt = performance.now();
@@ -41,24 +45,44 @@ export async function createGateway(options: GatewayOptions) {
     operations({ requestId: request.id, action: 'speech.status', status: 200, durationMs: operationDuration(startedAt) });
     return { configured: Boolean(options.credentials), provider: '腾讯云', maxSeconds: 300 };
   });
-  app.get('/api/speech', {
-    websocket: true,
-    preValidation: async (request, reply) => {
-      const startedAt = performance.now();
-      if (request.headers.origin !== options.origin) {
-        operations({ requestId: request.id, action: 'speech.session', status: 403, durationMs: operationDuration(startedAt), errorCategory: 'origin_rejected' });
-        return reply.code(403).send({ error: '来源不允许' });
+  app.post('/api/mini/speech-ticket', async (request, reply) => {
+    const startedAt = performance.now();
+    const finish = (status: number, errorCategory?: string) => operations({ requestId: request.id, action: 'mini.speech.ticket', status,
+      durationMs: operationDuration(startedAt), ...(errorCategory ? { errorCategory } : {}) });
+    reply.header('Cache-Control', 'no-store');
+    if (!options.miniAuth?.service) {
+      finish(503, 'auth_not_configured');
+      return reply.code(503).send({ error: '在线身份服务尚未配置，本地写作仍可使用。' });
+    }
+    let userId: string;
+    try { userId = options.miniAuth.service.authenticateBearer(request.headers.authorization).userId; }
+    catch (error) {
+      if (error instanceof MiniIdentityError) {
+        finish(401, 'unauthorized');
+        return reply.code(401).send({ error: '在线身份已失效，请重试。' });
       }
-      if (!options.credentials) {
-        operations({ requestId: request.id, action: 'speech.session', status: 503, durationMs: operationDuration(startedAt), errorCategory: 'not_configured' });
-        return reply.code(503).send({ error: '请先配置本地语音服务' });
+      finish(503, 'identity_unavailable');
+      return reply.code(503).send({ error: '在线身份服务暂不可用，本地写作仍可使用。' });
+    }
+    if (!options.credentials) {
+      finish(503, 'not_configured');
+      return reply.code(503).send({ error: '语音服务尚未配置，请继续使用文字输入。' });
+    }
+    try {
+      const issued = speechTickets.issue(userId);
+      finish(200);
+      return reply.send({ ticket: issued.ticket, expiresAt: new Date(issued.expiresAt).toISOString() });
+    } catch (error) {
+      if (error instanceof SpeechTicketError && error.category === 'ticket_limited') {
+        finish(429, 'ticket_limited');
+        return reply.code(429).send({ error: '语音准备较频繁，请稍后再试。' });
       }
-      if (active.size >= (options.maxConnections ?? 2)) {
-        operations({ requestId: request.id, action: 'speech.session', status: 429, durationMs: operationDuration(startedAt), errorCategory: 'connection_limited' });
-        return reply.code(429).send({ error: '录音连接已满' });
-      }
-    },
-  }, (socket, request) => {
+      finish(503, 'ticket_unavailable');
+      return reply.code(503).send({ error: '语音准备暂不可用，请继续使用文字输入。' });
+    }
+  });
+
+  const speechSession = (socket: WebSocket, request: FastifyRequest, action: 'speech.session' | 'mini.speech.session') => {
     const startedAt = performance.now();
     let finalStatus = 499;
     let finalCategory: string | undefined = 'client_closed';
@@ -66,7 +90,7 @@ export async function createGateway(options: GatewayOptions) {
     const finishLog = () => {
       if (logged) return;
       logged = true;
-      operations({ requestId: request.id, action: 'speech.session', status: finalStatus, durationMs: operationDuration(startedAt), ...(finalCategory ? { errorCategory: finalCategory } : {}) });
+      operations({ requestId: request.id, action, status: finalStatus, durationMs: operationDuration(startedAt), ...(finalCategory ? { errorCategory: finalCategory } : {}) });
     };
     active.add(socket);
     let upstream: WebSocket;
@@ -124,7 +148,43 @@ export async function createGateway(options: GatewayOptions) {
     });
     socket.on('close', release);
     socket.on('error', release);
-  });
+  };
+  app.get('/api/speech', {
+    websocket: true,
+    preValidation: async (request, reply) => {
+      const startedAt = performance.now();
+      if (request.headers.origin !== options.origin) {
+        operations({ requestId: request.id, action: 'speech.session', status: 403, durationMs: operationDuration(startedAt), errorCategory: 'origin_rejected' });
+        return reply.code(403).send({ error: '来源不允许' });
+      }
+      if (!options.credentials) {
+        operations({ requestId: request.id, action: 'speech.session', status: 503, durationMs: operationDuration(startedAt), errorCategory: 'not_configured' });
+        return reply.code(503).send({ error: '请先配置本地语音服务' });
+      }
+      if (active.size >= (options.maxConnections ?? 2)) {
+        operations({ requestId: request.id, action: 'speech.session', status: 429, durationMs: operationDuration(startedAt), errorCategory: 'connection_limited' });
+        return reply.code(429).send({ error: '录音连接已满' });
+      }
+    },
+  }, (socket, request) => speechSession(socket, request, 'speech.session'));
+  app.get('/api/mini/speech', {
+    websocket: true,
+    preValidation: async (request, reply) => {
+      const startedAt = performance.now();
+      const fail = (status: number, errorCategory: string, error: string) => {
+        operations({ requestId: request.id, action: 'mini.speech.session', status, durationMs: operationDuration(startedAt), errorCategory });
+        return reply.code(status).send({ error });
+      };
+      if (!options.credentials) return fail(503, 'not_configured', '语音服务尚未配置，请继续使用文字输入。');
+      if (active.size >= (options.maxConnections ?? 2)) return fail(429, 'connection_limited', '录音连接已满');
+      const query = request.query;
+      if (!query || typeof query !== 'object' || Array.isArray(query) || Object.keys(query).length !== 1 || typeof (query as { ticket?: unknown }).ticket !== 'string') {
+        return fail(401, 'ticket_rejected', '语音连接已失效，请重试。');
+      }
+      try { speechTickets.consume((query as { ticket: string }).ticket); }
+      catch { return fail(401, 'ticket_rejected', '语音连接已失效，请重试。'); }
+    },
+  }, (socket, request) => speechSession(socket, request, 'mini.speech.session'));
   app.addHook('preClose', async () => { for (const socket of active) socket.close(1001); });
   return app;
 }

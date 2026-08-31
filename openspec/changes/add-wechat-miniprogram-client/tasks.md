@@ -54,13 +54,13 @@
 
 ## 7. Mini-program realtime speech
 
-- [ ] 7.1 Implement an in-memory cryptographically random speech-ticket store with 60-second TTL, atomic one-time consumption, bounded cleanup and tests for missing, expired, replayed and concurrent tickets
-- [ ] 7.2 Add authenticated speech-ticket HTTP and dedicated mini WSS routes that reuse the Tencent accumulator/signing path, preserve all connection/byte/duration/buffer limits and leave the browser Origin route unchanged
-- [ ] 7.3 Implement the `RecorderManager` adapter for 16 kHz mono PCM, irregular `ArrayBuffer` buffering on even sample boundaries, local volume feedback, final-frame/end ordering and bounded duration
-- [ ] 7.4 Implement long-press, privacy/microphone authorization, release-before-ready, cancel, page hide, system interruption, Socket failure and late-event isolation with text-input fallback
-- [ ] 7.5 Integrate dictated text into ordinary writing and XiaoWen composers without auto-sending AI, auto-applying text or retaining original audio files
-- [ ] 7.6 Add deterministic recorder/socket/ticket tests for success, partial/final revision, irregular frames, denial, cancellation, weak network, background, timeout, limits and resource release
-- [ ] 7.7 Run speech-focused tests and developer-tool flow checks without paid ASR, then run root check/build, inspect resource cleanup and commit the verified speech implementation stage
+- [x] 7.1 Implement an in-memory cryptographically random speech-ticket store with 60-second TTL, atomic one-time consumption, bounded cleanup and tests for missing, expired, replayed and concurrent tickets
+- [x] 7.2 Add authenticated speech-ticket HTTP and dedicated mini WSS routes that reuse the Tencent accumulator/signing path, preserve all connection/byte/duration/buffer limits and leave the browser Origin route unchanged
+- [x] 7.3 Implement the `RecorderManager` adapter for 16 kHz mono PCM, irregular `ArrayBuffer` buffering on even sample boundaries, local volume feedback, final-frame/end ordering and bounded duration
+- [x] 7.4 Implement long-press, privacy/microphone authorization, release-before-ready, cancel, page hide, system interruption, Socket failure and late-event isolation with text-input fallback
+- [x] 7.5 Integrate dictated text into ordinary writing and XiaoWen composers without auto-sending AI, auto-applying text or retaining original audio files
+- [x] 7.6 Add deterministic recorder/socket/ticket tests for success, partial/final revision, irregular frames, denial, cancellation, weak network, background, timeout, limits and resource release
+- [x] 7.7 Run speech-focused tests and developer-tool flow checks without paid ASR, then run root check/build, inspect resource cleanup and commit the verified speech implementation stage
 
 ## 8. AI origin labeling and privacy presentation
 

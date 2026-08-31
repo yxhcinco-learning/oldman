@@ -47,4 +47,17 @@ describe('微信小程序公共工程配置', () => {
     expect(profile).toContain('当前小程序 AppID');
     expect(profile).toContain('请定期手工导出备份');
   });
+
+  it('正文、小文和采访都使用长按语音且不保留旧的不可用占位入口', () => {
+    const editor = readText('../miniprogram/pages/editor/index.wxml');
+    const interview = readText('../miniprogram/pages/interview/index.wxml');
+    for (const source of [editor, interview]) {
+      expect(source).toContain('bindtouchstart=');
+      expect(source).toContain('bindtouchend=');
+      expect(source).toContain('bindtouchcancel=');
+      expect(source).not.toContain('dictateUnavailable');
+      expect(source).not.toContain('voiceUnavailable');
+    }
+    expect(editor).toContain('不会发送给小文');
+  });
 });

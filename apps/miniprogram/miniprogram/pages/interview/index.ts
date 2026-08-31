@@ -1,6 +1,11 @@
 import { newId, newSession, type ArticleSession, type Draft, type WritingMaterial } from '../../domain/core';
 import { interviewMessages, interviewQuestion, type InterviewMessage } from '../../interview/flow';
 import { miniServices } from '../../services';
+import { HoldToDictate, type MiniSpeechState } from '../../speech/session';
+import { appendDictation } from '../../speech/dictation';
+
+let speechUnsubscribe: (() => void) | undefined;
+const speechHold = new HoldToDictate();
 
 Page({
   data: {
@@ -14,9 +19,16 @@ Page({
     saving: false,
     error: '',
     keyboardHeight: 0,
+    voicePhase: 'idle' as MiniSpeechState['phase'],
+    voiceText: '',
+    voiceMessage: '',
+    voiceBusy: false,
   },
 
   onLoad(options: Record<string, string | undefined>) {
+    speechUnsubscribe?.();
+    speechUnsubscribe = miniServices().speech.subscribe(state => this.setData({ voicePhase: state.phase, voiceText: state.text, voiceMessage: state.message,
+      voiceBusy: !['idle', 'error'].includes(state.phase) }));
     void this.open(options.id ? decodeURIComponent(options.id) : '');
   },
 
@@ -53,7 +65,7 @@ Page({
   async sendAnswer() {
     const draft = this.data.draft;
     const answer = this.data.composer.trim();
-    if (!draft || !answer || this.data.saving) return;
+    if (!draft || !answer || this.data.saving || this.data.voiceBusy) return;
     const material: WritingMaterial = { id: newId(), source: 'interview-answer', text: answer, question: this.data.question,
       createdAt: new Date().toISOString(), selected: true };
     const next = { ...draft, materials: [...draft.materials, material] };
@@ -79,8 +91,23 @@ Page({
     this.setData({ questionAlternative, question: interviewQuestion(topic, completedAnswers, questionAlternative) });
   },
 
-  dictateUnavailable() {
-    this.setData({ error: '语音输入尚未配置，请继续使用文字回答。语音转写以后也只会放进输入框，不会自动发送。' });
+  pressDictation() {
+    if (this.data.saving) return;
+    this.setData({ error: '' });
+    speechHold.press(() => void miniServices().speech.start(text => this.acceptDictation(text)));
+  },
+
+  releaseDictation() { speechHold.release(() => void miniServices().speech.stop()); },
+  cancelDictation() { speechHold.cancel(() => miniServices().speech.cancel()); },
+
+  acceptDictation(text: string) {
+    const draft = this.data.draft;
+    if (!draft || !text.trim()) return;
+    const result = appendDictation(this.data.composer, text, 12_000, ' ');
+    if (!result.accepted) { this.setData({ error: '回答已到12000字上限，语音文字没有写入。' }); return; }
+    const composer = result.value;
+    miniServices().conversations.updateComposer(draft.id, composer, 'dictated');
+    this.setData({ composer, error: result.truncated ? '回答已到12000字上限，只放入了可容纳的语音文字；尚未发送。' : '' });
   },
 
   async closeInterview() {
@@ -105,7 +132,15 @@ Page({
   },
 
   onHide() {
+    miniServices().speech.interrupt();
     const draft = this.data.draft;
     if (draft && (draft.materials.length || this.data.composer.trim())) void miniServices().writer.preserve(draft, this.data.session ?? undefined).catch(() => undefined);
+  },
+
+  onUnload() {
+    miniServices().speech.interrupt();
+    speechHold.reset();
+    speechUnsubscribe?.();
+    speechUnsubscribe = undefined;
   },
 });

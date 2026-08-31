@@ -2,8 +2,12 @@ import { ACTION_LABELS, VERSION_LABELS, articleText, documentOf, emptyDraft, has
   splitDraft, type AiAction, type AiTurn, type ArticleSession, type Draft } from '../../domain/core';
 import type { MiniAiContext } from '../../ai/controller';
 import { miniServices } from '../../services';
+import { HoldToDictate, type MiniSpeechState } from '../../speech/session';
+import { appendDictation } from '../../speech/dictation';
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
+let speechUnsubscribe: (() => void) | undefined;
+const speechHold = new HoldToDictate();
 
 const turnStatusLabel: Record<AiTurn['status'], string> = {
   running: '正在处理', ready: '待应用', applied: '已应用', dismissed: '未采用', answered: '已回答', failed: '未完成', cancelled: '已取消',
@@ -44,9 +48,20 @@ Page({
     candidateStatus: '' as AiTurn['status'] | '',
     candidateEditLabel: '调整',
     operationBusy: false,
+    voicePhase: 'idle' as MiniSpeechState['phase'],
+    voiceText: '',
+    voiceMessage: '',
+    voiceElapsed: 0,
+    voiceScale: '1.00',
+    voiceTarget: '' as '' | 'body' | 'xiaowen',
+    voiceBusy: false,
   },
 
   onLoad(options: Record<string, string | undefined>) {
+    speechUnsubscribe?.();
+    speechUnsubscribe = miniServices().speech.subscribe(state => this.setData({ voicePhase: state.phase, voiceText: state.text,
+      voiceMessage: state.message, voiceElapsed: state.elapsed, voiceScale: (1 + state.level * 0.15).toFixed(2),
+      voiceBusy: !['idle', 'error'].includes(state.phase) }));
     this.setData({ xiaowenOpen: Boolean(options.xiaowen) });
     void this.open(typeof options.id === 'string' ? decodeURIComponent(options.id) : undefined, options.xiaowen === 'compose');
   },
@@ -117,8 +132,39 @@ Page({
     if (current?.inputMode === 'voice') this.updateDraft({ ...current, inputMode: 'text', textDraft: articleText(current.segments) });
   },
 
-  voiceUnavailable() {
-    this.setData({ notice: '录音尚未连接到服务端；语音转写以后只会放入当前输入框，不会自动发送或改动正文。' });
+  pressBodyVoice() {
+    this.setData({ voiceTarget: 'body', notice: '', error: '' });
+    speechHold.press(() => void miniServices().speech.start(text => this.acceptBodyDictation(text)));
+  },
+
+  pressXiaoWenVoice() {
+    if (this.data.operationBusy) return;
+    this.setData({ voiceTarget: 'xiaowen', xiaowenError: '' });
+    speechHold.press(() => void miniServices().speech.start(text => this.acceptXiaoWenDictation(text)));
+  },
+
+  releaseVoice() { speechHold.release(() => void miniServices().speech.stop()); },
+  cancelVoice() { speechHold.cancel(() => miniServices().speech.cancel()); },
+
+  acceptBodyDictation(text: string) {
+    const current = this.currentDraft();
+    if (!current || !text.trim()) return;
+    const result = appendDictation(this.data.body, text, 12_000, '\n\n');
+    if (!result.accepted) { this.setData({ error: '正文已到12000字上限，语音文字没有写入。' }); return; }
+    const body = result.value;
+    const draft: Draft = current.inputMode === 'voice' ? { ...current, segments: splitDraft(body, current.segments) } : { ...current, textDraft: body };
+    this.updateDraft(draft);
+    this.setData({ notice: result.truncated ? '正文已到12000字上限，只放入了可容纳的语音文字。' : '语音文字已放入正文，请核对后保存。' });
+  },
+
+  acceptXiaoWenDictation(text: string) {
+    const draft = this.data.draft;
+    if (!draft || !text.trim()) return;
+    const result = appendDictation(this.data.xiaowenComposer, text, 2000, ' ');
+    if (!result.accepted) { this.setData({ xiaowenError: '输入已到2000字上限，语音文字没有写入。' }); return; }
+    const xiaowenComposer = result.value;
+    miniServices().conversations.updateComposer(draft.id, xiaowenComposer, 'dictated');
+    this.setData({ xiaowenComposer, xiaowenStatus: 'idle', xiaowenError: result.truncated ? '输入已到2000字上限，只放入了可容纳的语音文字；尚未发送。' : '' });
   },
 
   openTitle() {
@@ -193,7 +239,10 @@ Page({
     this.setData({ xiaowenOpen: true, xiaowenView: 'chat', notice: '' });
   },
 
-  closeXiaoWen() { this.setData({ xiaowenOpen: false }); },
+  closeXiaoWen() {
+    if (this.data.voiceTarget === 'xiaowen') miniServices().speech.interrupt('小文已收起，已收到的语音文字会保留在输入框。');
+    this.setData({ xiaowenOpen: false });
+  },
   toggleTopic() { this.setData({ topicOpen: !this.data.topicOpen }); },
   onXiaoWenInput(event: WechatMiniprogram.TextareaInput) {
     const xiaowenComposer = event.detail.value;
@@ -201,6 +250,7 @@ Page({
     this.setData({ xiaowenComposer, xiaowenStatus: 'idle', xiaowenError: '' });
   },
   sendXiaoWen() {
+    if (this.data.voiceBusy) return;
     const prompt = this.data.xiaowenComposer.trim();
     if (prompt) void this.runXiaoWen('chat', prompt);
   },
@@ -307,10 +357,15 @@ Page({
   },
 
   onHide() {
+    miniServices().speech.interrupt();
     this.preserveAndSave();
   },
 
   onUnload() {
+    miniServices().speech.interrupt();
+    speechHold.reset();
+    speechUnsubscribe?.();
+    speechUnsubscribe = undefined;
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = undefined;
     this.preserveAndSave();

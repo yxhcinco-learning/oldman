@@ -42,9 +42,9 @@
   </view>
 
   <view wx:if="{{draft && draft.inputMode === 'voice'}}" class="voice-stage" style="bottom: {{keyboardHeight + 136}}px">
-    <view class="voice-copy">{{body ? '正文已保留，长按麦克风继续说。' : '不着急，慢慢说。'}}</view>
-    <button class="mic" bindlongpress="voiceUnavailable" aria-label="长按录音">麦</button>
-    <view class="voice-help">长按说话；当前服务未配置时可切换文字输入</view>
+    <view class="voice-copy">{{voiceTarget === 'body' && voiceText ? voiceText : body ? '正文已保留，长按麦克风继续说。' : '不着急，慢慢说。'}}</view>
+    <button class="mic {{voicePhase}}" style="transform: scale({{voiceScale}})" bindtouchstart="pressBodyVoice" bindtouchend="releaseVoice" bindtouchcancel="cancelVoice" aria-label="长按录音">{{voicePhase === 'recording' ? voiceElapsed + '秒' : '麦'}}</button>
+    <view class="voice-help">{{voiceTarget === 'body' && voiceMessage ? voiceMessage : '长按说话，松开后文字会放入正文；不会发送给小文'}}</view>
   </view>
 
   <view wx:if="{{titleDialog}}" class="dialog-mask" catchtouchmove="noop">
@@ -110,9 +110,10 @@
       </scroll-view>
 
       <view wx:if="{{xiaowenView === 'chat'}}" class="xiaowen-composer">
-        <textarea value="{{xiaowenComposer}}" maxlength="2000" auto-height placeholder="问小文，或提要求" disabled="{{operationBusy}}" bindinput="onXiaoWenInput"></textarea>
-        <view class="xiaowen-button-cell"><button class="xiaowen-voice" bindtap="voiceUnavailable" disabled="{{operationBusy}}" aria-label="语音输入">声</button></view>
-        <view class="xiaowen-button-cell"><button class="xiaowen-send" bindtap="sendXiaoWen" disabled="{{operationBusy || !xiaowenComposer}}">{{operationBusy ? '处理中' : '发送'}}</button></view>
+        <textarea value="{{xiaowenComposer}}" maxlength="2000" auto-height placeholder="问小文，或提要求" disabled="{{operationBusy || voiceBusy}}" bindinput="onXiaoWenInput"></textarea>
+        <view wx:if="{{voiceTarget === 'xiaowen' && voicePhase !== 'idle'}}" class="xiaowen-speech-status">{{voiceText || voiceMessage || '正在准备语音…'}}</view>
+        <view class="xiaowen-button-cell"><button class="xiaowen-voice" bindtouchstart="pressXiaoWenVoice" bindtouchend="releaseVoice" bindtouchcancel="cancelVoice" disabled="{{operationBusy}}" aria-label="长按语音输入">声</button></view>
+        <view class="xiaowen-button-cell"><button class="xiaowen-send" bindtap="sendXiaoWen" disabled="{{operationBusy || voiceBusy || !xiaowenComposer}}">{{operationBusy ? '处理中' : '发送'}}</button></view>
       </view>
       <view wx:elif="{{xiaowenView === 'preview' && candidateStatus === 'ready'}}" class="candidate-actions">
         <button bindtap="dismissCandidate" disabled="{{operationBusy}}">先不修改</button>
