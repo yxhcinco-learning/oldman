@@ -64,11 +64,11 @@
 
 ## 8. AI origin labeling and privacy presentation
 
-- [ ] 8.1 Define and test the deterministic current-work AI-assistance predicate and versioned backup disclosure using applied candidate/session provenance without treating dismissed candidates or user-only work as generated
-- [ ] 8.2 Add visible AI-assisted labels and verification copy to web and mini XiaoWen messages, candidate previews and modification records while preserving separation from user answers, sources and body text
-- [ ] 8.3 Add compliant visible disclosure to TXT/copy and machine-readable/user-readable disclosure to versioned JSON export/import, with regressions for apply, dismiss, manual edit, restore and cross-client backup
-- [ ] 8.4 Update privacy and consent flows for WeChat identity, local storage, microphone/Tencent ASR and article/history/DeepSeek transfer; permission requests occur only at the corresponding user action and refusal retains local/text paths
-- [ ] 8.5 Create the AI labeling/privacy submission checklist and non-content evidence fixtures, run web/mini export/UI checks plus root check/build, and commit the verified labeling/privacy stage
+- [x] 8.1 Define and test the deterministic current-work AI-assistance predicate and versioned backup disclosure using applied candidate/session provenance without treating dismissed candidates or user-only work as generated
+- [x] 8.2 Add visible AI-assisted labels and verification copy to web and mini XiaoWen messages, candidate previews and modification records while preserving separation from user answers, sources and body text
+- [x] 8.3 Add compliant visible disclosure to TXT/copy and machine-readable/user-readable disclosure to versioned JSON export/import, with regressions for apply, dismiss, manual edit, restore and cross-client backup
+- [x] 8.4 Update privacy and consent flows for WeChat identity, local storage, microphone/Tencent ASR and article/history/DeepSeek transfer; permission requests occur only at the corresponding user action and refusal retains local/text paths
+- [x] 8.5 Create the AI labeling/privacy submission checklist and non-content evidence fixtures, run web/mini export/UI checks plus root check/build, and commit the verified labeling/privacy stage
 
 ## 9. Deployment boundary and manual secret handoff
 

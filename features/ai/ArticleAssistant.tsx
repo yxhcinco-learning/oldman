@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Dialog } from '../../components/Dialog';
 import { Icon } from '../../components/Icons';
-import { ACTION_LABELS, VERSION_LABELS, documentOf, sameDocument, resultSummary, type AiAction, type AiTurn, type ArticleVersion } from '../../lib/domain/article-ai';
+import { ACTION_LABELS, AI_ASSISTANCE_LABEL, VERSION_LABELS, documentOf, externalArticleText, isAppliedAiVersion, isWorkAiAssisted, sameDocument,
+  resultSummary, type AiAction, type AiTurn, type ArticleVersion } from '../../lib/domain/article-ai';
 import { Workspace } from '../writing/workspace';
 import { VoiceDictationButton } from '../speech/VoiceDictationButton';
 import { ArticleAiController } from './session';
@@ -9,7 +10,7 @@ import { newId } from '../../lib/domain/writing';
 
 type Page = 'chat' | 'preview' | 'history' | 'version' | 'consent';
 type Feedback = { message: string; kind: 'notice' | 'warning' };
-const CONSENT_KEY = 'suiyue-article-ai-consent-v1';
+const CONSENT_KEY = 'suiyue-article-ai-consent-v2';
 const FIRST_INTERVIEW_INTRO = '您好，我是小文，您的写作助手。接下来我们围绕这个话题聊一聊，我一次问一个问题。';
 const FIRST_INTERVIEW_QUESTION = '先请您简单介绍一下自己吧。';
 const TURN_LABELS: Record<AiTurn['status'], string> = {
@@ -53,6 +54,7 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
   const draft = state.draft;
   const session = workspace.getSession();
   const visibleVersions = session?.versions.filter(item => item.body.trim()) ?? [];
+  const aiAssisted = isWorkAiAssisted(session);
   const chatScroll = useRef<HTMLDivElement>(null);
   const lastTurn = session?.turns.at(-1);
   const interviewMode = draft?.topicWritingMode === 'interview' && Boolean(draft.topicSnapshot);
@@ -172,7 +174,7 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
       {page === 'consent' && <div className="ai-consent">
         <p>使用小文时，这篇文章的标题、正文、话题背景、采访回答、相关修改记录，以及您和小文的对话会经本地服务发送给 DeepSeek 处理。</p>
         <p>作品和会话保存在当前浏览器。本产品不记录正文或密钥日志；DeepSeek 侧的数据处理适用其服务设置与条款。请勿提交不希望发送的私密内容。</p>
-        <p>小文给出的修改或整理结果，需要您确认后才会进入正文。AI 可能出错，请核对人物、时间与细节。</p>
+        <p>小文给出的回答和候选会持续标明“AI 辅助生成 · 请核对”。修改或整理结果需要您确认后才会进入正文；对外复制和导出也会保留必要说明。AI 可能出错，请核对人物、时间与细节。</p>
         <div className="ai-result-actions"><button type="button" onClick={() => { setPending(null); setPage('chat'); }}>暂不使用</button>
           <button type="button" className="primary-button" onClick={() => {
             setConsent(true); try { localStorage.setItem(CONSENT_KEY, 'yes'); } catch { /* Session-only consent is sufficient. */ }
@@ -181,6 +183,7 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
       </div>}
 
       {page === 'preview' && turn?.result && base && <>
+        <p className="ai-origin-label">{AI_ASSISTANCE_LABEL}，确认应用前不会进入正文。</p>
         <div className="ai-inline-actions"><span className="choice-chip">{ACTION_LABELS[turn.action]} · {turnStateLabel(turn, base.body)}</span>
           <button type="button" aria-pressed={original} onClick={() => setOriginal(!original)}>{original ? '查看优化结果' : '对照原文'}</button></div>
         <div className="ai-summary"><strong>{turn.action === 'compose' ? '小文的整理说明' : '小文的修改说明'}</strong><p>{resultSummary(turn.result, base.body)}</p></div>
@@ -199,10 +202,12 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
         <p className="interview-topic">聊聊：{draft.topicSnapshot!.title}</p>
         <div className="interview-conversation" ref={chatScroll} role="log" aria-label="小文采访对话">
           {interviewMaterials.map(material => <div key={material.id} className="interview-exchange">
-            <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="message-bubble">{material.question === FIRST_INTERVIEW_QUESTION && <p className="interview-intro">{FIRST_INTERVIEW_INTRO}</p>}<p>{material.question}</p></div></div>
+            <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="message-bubble">{material.question === FIRST_INTERVIEW_QUESTION && <p className="interview-intro">{FIRST_INTERVIEW_INTRO}</p>}
+              {interviewTurns.some(item => item.status === 'answered' && item.result?.answer === material.question) && <strong className="ai-origin-label inline">{AI_ASSISTANCE_LABEL}</strong>}<p>{material.question}</p></div></div>
             <div className="message-row user"><div className="message-bubble"><p>{material.text}</p></div></div>
           </div>)}
-          {!waitingForQuestion && <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="message-bubble interview-current-question">{firstInterviewQuestion && <p className="interview-intro">{FIRST_INTERVIEW_INTRO}</p>}<p>{interviewQuestion}</p>{!firstInterviewQuestion && <button type="button" disabled={busy} onClick={() => request('interview', '换个问题', '换个问题')}>换个问题</button>}</div></div>}
+          {!waitingForQuestion && <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="message-bubble interview-current-question">{firstInterviewQuestion && <p className="interview-intro">{FIRST_INTERVIEW_INTRO}</p>}
+            {!firstInterviewQuestion && Boolean(generatedInterviewQuestion) && <strong className="ai-origin-label inline">{AI_ASSISTANCE_LABEL}</strong>}<p>{interviewQuestion}</p>{!firstInterviewQuestion && <button type="button" disabled={busy} onClick={() => request('interview', '换个问题', '换个问题')}>换个问题</button>}</div></div>}
           {waitingForQuestion && ai.busy && <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="message-bubble"><p>小文正在想下一个问题…</p></div></div>}
           {waitingForQuestion && !ai.busy && ai.error && <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="message-bubble interview-current-question"><p>刚才没有接上，您的回答已经留下了。</p><button type="button" onClick={() => request('interview', '继续采访', '继续问我')}>再试一次</button></div></div>}
         </div>
@@ -214,6 +219,7 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
           {session?.turns.map(item => <div key={item.id} className="ai-turn">
             <div className="message-row user"><div className="message-bubble">{turnPromptLabel(item)}</div></div>
             <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="ai-assistant-message"><div className="message-bubble">
+                {item.result && <strong className="ai-origin-label inline">{AI_ASSISTANCE_LABEL}</strong>}
                 {item.result && <strong className="ai-answer-label">{item.result.body ? '小文的修改说明' : '小文的回答'}</strong>}
                 <p>{item.result ? resultSummary(item.result, session?.versions.find(v => v.id === item.inputVersionId)?.body ?? '') : item.error || '正在处理…'}</p>
                 {Boolean(item.omittedRecords) && <p className="ai-note">较早记录未发送，仍保存在本机。</p>}
@@ -229,8 +235,9 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
 
       {page === 'history' && <>
         <p className="ai-note">修改会自动留下记录。以前已经丢失的内容无法找回。</p>
+        {aiAssisted && <p className="ai-origin-label">这篇文章曾应用 AI 辅助候选；后续手动修改或恢复不会删除这条历史说明。</p>}
         <div className="ai-version-list">{visibleVersions.slice().reverse().slice(0, historyCount).map(item => <button type="button" key={item.id} onClick={() => showVersion(item.id)}>
-          <span><b>{VERSION_LABELS[item.source]}</b><small>{timeLabel(item.createdAt)} · {item.body.length} 字</small></span><Icon name="chevron" />
+          <span><b>{VERSION_LABELS[item.source]}</b>{isAppliedAiVersion(session, item.id) && <em>{AI_ASSISTANCE_LABEL}</em>}<small>{timeLabel(item.createdAt)} · {item.body.length} 字</small></span><Icon name="chevron" />
         </button>)}</div>
         {!visibleVersions.length && <p className="ai-empty">暂无修改记录</p>}
         {visibleVersions.length > historyCount && <button type="button" className="ai-secondary" onClick={() => setHistoryCount(historyCount + 30)}>查看更多记录</button>}
@@ -238,10 +245,11 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
 
       {page === 'version' && version && <>
         <p className="ai-note">{VERSION_LABELS[version.source]} · {timeLabel(version.createdAt)}</p>
+        {isAppliedAiVersion(session, version.id) && <p className="ai-origin-label">{AI_ASSISTANCE_LABEL}。这是当时明确应用的完整候选。</p>}
         <h3 className="ai-version-title">{version.title || '未命名作品'}</h3><div className="ai-full-text" role="region" aria-label="修改记录正文">{version.body || '（正文为空）'}</div>
         <p className="ai-note">恢复将替换当前标题和全文，当前内容会自动保留。</p>
         <div className="ai-result-actions"><button type="button" onClick={async () => {
-          try { await navigator.clipboard.writeText(version.body); setFeedback({ message: '已复制这份正文。', kind: 'notice' }); }
+          try { await navigator.clipboard.writeText(externalArticleText(version.body, session)); setFeedback({ message: '已复制这份正文。', kind: 'notice' }); }
           catch { setFeedback({ message: '浏览器未允许复制，请选中上方文字手动复制。', kind: 'warning' }); }
         }}>复制这份正文</button><button type="button" className="primary-button" disabled={busy} onClick={() => { if (restoreBase.current) void restore(version, restoreBase.current); }}>恢复这份内容</button></div>
       </>}

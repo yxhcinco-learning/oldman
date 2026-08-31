@@ -10,3 +10,4 @@
 .tool[disabled] { opacity: .55; }
 .storage-note { display: grid; gap: 16rpx; margin-top: 44rpx; padding: 32rpx; border-radius: 28rpx; background: #e8eee9; color: #416657; font-size: 28rpx; line-height: 1.7; }
 .note-title { color: #153b2e; font-family: "Songti SC", serif; font-size: 34rpx; font-weight: 600; }
+.privacy-note { margin-bottom: 180rpx; }

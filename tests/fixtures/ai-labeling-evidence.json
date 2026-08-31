@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "containsUserContent": false,
+  "containsCredentials": false,
+  "cases": [
+    { "id": "user-only", "turnStatus": "none", "expectedAiAssisted": false },
+    { "id": "candidate-ready", "turnStatus": "ready", "expectedAiAssisted": false },
+    { "id": "candidate-dismissed", "turnStatus": "dismissed", "expectedAiAssisted": false },
+    { "id": "candidate-applied", "turnStatus": "applied", "expectedAiAssisted": true },
+    { "id": "applied-then-manual", "turnStatus": "applied", "expectedAiAssisted": true },
+    { "id": "applied-then-restore", "turnStatus": "applied", "expectedAiAssisted": true }
+  ],
+  "surfaces": ["message", "candidate-preview", "modification-history", "copy", "txt", "json-v4"]
+}

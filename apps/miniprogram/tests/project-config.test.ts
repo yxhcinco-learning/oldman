@@ -17,6 +17,8 @@ describe('微信小程序公共工程配置', () => {
   it('声明三个可直接打开的主页面', () => {
     const app = readJson('../miniprogram/app.json');
     expect(app.pages).toEqual(expect.arrayContaining(['pages/home/index', 'pages/works/index', 'pages/profile/index', 'pages/editor/index']));
+    expect(app.requiredPrivateInfos).toBeUndefined();
+    expect(app.permission).toBeUndefined();
   });
 
   it('通过小程序适配入口复用写作语义', () => {
@@ -46,10 +48,13 @@ describe('微信小程序公共工程配置', () => {
     expect(profile).toContain('只保存在本机');
     expect(profile).toContain('当前小程序 AppID');
     expect(profile).toContain('请定期手工导出备份');
+    expect(profile).toContain('不请求手机号、头像或昵称');
+    expect(profile).toContain('发送 DeepSeek');
   });
 
   it('正文、小文和采访都使用长按语音且不保留旧的不可用占位入口', () => {
     const editor = readText('../miniprogram/pages/editor/index.wxml');
+    const editorController = readText('../miniprogram/pages/editor/index.ts');
     const interview = readText('../miniprogram/pages/interview/index.wxml');
     for (const source of [editor, interview]) {
       expect(source).toContain('bindtouchstart=');
@@ -59,5 +64,7 @@ describe('微信小程序公共工程配置', () => {
       expect(source).not.toContain('voiceUnavailable');
     }
     expect(editor).toContain('不会发送给小文');
+    expect(editorController).toContain('AI_ASSISTANCE_LABEL');
+    expect(editor).toContain('确认应用前不会进入正文');
   });
 });

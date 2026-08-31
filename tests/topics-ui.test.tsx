@@ -113,7 +113,7 @@ it('shows a newer topic revision but only replaces the saved background after ex
 });
 
 it('uses XiaoWen to save answers as materials, ask one next question and compose only through an explicit candidate', async () => {
-  localStorage.setItem('suiyue-article-ai-consent-v1', 'yes');
+  localStorage.setItem('suiyue-article-ai-consent-v2', 'yes');
   const topic = REVIEWED_TOPIC_CATALOG[0];
   const store = repository();
   const ai = vi.fn<AiTransport>(async request => ({ requestId: request.requestId, result: request.action === 'interview'
@@ -170,7 +170,7 @@ it('returns an untouched first interview to the topic list without leaving an em
 });
 
 it('enters the article with a visible loading state after an answer while the next question is processing', async () => {
-  localStorage.setItem('suiyue-article-ai-consent-v1', 'yes');
+  localStorage.setItem('suiyue-article-ai-consent-v2', 'yes');
   const topic = REVIEWED_TOPIC_CATALOG[0];
   const store = repository();
   let complete = () => {};
@@ -195,7 +195,7 @@ it('enters the article with a visible loading state after an answer while the ne
 });
 
 it('preserves an unsaved interview answer when the next-question request fails', async () => {
-  localStorage.setItem('suiyue-article-ai-consent-v1', 'yes');
+  localStorage.setItem('suiyue-article-ai-consent-v2', 'yes');
   const topic = REVIEWED_TOPIC_CATALOG[0];
   const ai = vi.fn<AiTransport>(async () => { throw new Error('采访服务暂时不可用。'); });
   render(<ProductApp repository={repository()} topicTransport={transport([topic])} aiTransport={ai} />);

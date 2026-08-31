@@ -65,6 +65,38 @@ export const articleSessionSchema = z.object({
   }
 });
 export type ArticleSession = z.infer<typeof articleSessionSchema>;
+export const AI_ASSISTANCE_LABEL = 'AI 辅助生成 · 请核对';
+export const AI_ASSISTANCE_DISCLOSURE = '【AI辅助说明】本文曾应用“小文”AI生成的候选，作者已确认并可能继续修改；请核对事实与细节。';
+export const AI_ASSISTANCE_NONE_DISCLOSURE = '未发现已应用的小文 AI 生成候选。';
+export const AI_DISCLOSURE_VERSION = 1 as const;
+export const aiDisclosureSchema = z.object({
+  version: z.literal(AI_DISCLOSURE_VERSION), workId: id, aiAssisted: z.boolean(),
+  basis: z.enum(['applied-ai-candidate', 'none']), appliedCandidateCount: z.number().int().nonnegative(),
+  notice: z.string().min(1).max(300),
+}).strict();
+export type AiDisclosure = z.infer<typeof aiDisclosureSchema>;
+export function appliedAiTurns(session?: ArticleSession | null): AiTurn[] {
+  if (!session) return [];
+  const versions = new Set(session.versions.map(version => version.id));
+  return session.turns.filter(turn => turn.status === 'applied' && Boolean(turn.result?.body?.trim())
+    && Boolean(turn.appliedVersionId && versions.has(turn.appliedVersionId)));
+}
+export function isWorkAiAssisted(session?: ArticleSession | null): boolean {
+  return appliedAiTurns(session).length > 0;
+}
+export function isAppliedAiVersion(session: ArticleSession | null | undefined, versionId: string): boolean {
+  return appliedAiTurns(session).some(turn => turn.appliedVersionId === versionId);
+}
+export function aiDisclosureFor(workId: string, session?: ArticleSession | null): AiDisclosure {
+  const appliedCandidateCount = session?.workId === workId ? appliedAiTurns(session).length : 0;
+  const aiAssisted = appliedCandidateCount > 0;
+  return { version: AI_DISCLOSURE_VERSION, workId, aiAssisted,
+    basis: aiAssisted ? 'applied-ai-candidate' : 'none', appliedCandidateCount,
+    notice: aiAssisted ? AI_ASSISTANCE_DISCLOSURE : AI_ASSISTANCE_NONE_DISCLOSURE };
+}
+export function externalArticleText(body: string, session?: ArticleSession | null): string {
+  return isWorkAiAssisted(session) ? `${AI_ASSISTANCE_DISCLOSURE}\n\n${body}` : body;
+}
 export const documentOf = (draft: Draft) => ({ title: draft.title, body: draft.inputMode === 'text' ? draft.textDraft : articleText(draft.segments) });
 export const sameDocument = (a: { title: string; body: string }, b: { title: string; body: string }) => a.title === b.title && a.body === b.body;
 export function newVersion(draft: Draft, source: ArticleVersion['source']): ArticleVersion {

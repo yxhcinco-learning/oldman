@@ -74,6 +74,7 @@
           <view class="xiaowen-answer-row">
             <view class="assistant-avatar">文</view>
             <view class="xiaowen-answer">
+              <view wx:if="{{item.aiLabel}}" class="ai-origin-label">{{item.aiLabel}}</view>
               <view class="xiaowen-answer-label">{{item.hasCandidate ? '小文的修改说明' : '小文的回答'}}</view>
               <view>{{item.answer}}</view>
               <view class="xiaowen-turn-actions" wx:if="{{item.hasCandidate || item.canRetry || item.canUndo}}">
@@ -92,6 +93,7 @@
       </scroll-view>
 
       <scroll-view wx:elif="{{xiaowenView === 'preview'}}" class="xiaowen-preview" scroll-y>
+        <view class="ai-origin-label">{{aiAssistanceLabel}}，确认应用前不会进入正文。</view>
         <view class="candidate-meta"><text>{{candidateStatus === 'ready' ? '待应用' : candidateStatus === 'applied' ? '已应用' : '仅供查看'}}</text>
           <button bindtap="toggleCandidateOriginal">{{candidateShowOriginal ? '查看候选全文' : '对照原文'}}</button></view>
         <view class="candidate-summary"><strong>小文的{{candidateEditLabel}}说明</strong><text>{{candidateSummary}}</text></view>
@@ -103,9 +105,10 @@
 
       <scroll-view wx:else class="xiaowen-history" scroll-y>
         <view class="candidate-note">每次手动编辑、应用和恢复都会留下记录。</view>
+        <view wx:if="{{aiAssisted}}" class="ai-origin-label history-disclosure">这篇文章曾应用 AI 辅助候选；后续手动修改或恢复不会删除这条历史说明。</view>
         <view wx:if="{{xiaowenVersions.length === 0}}" class="history-empty">暂无修改记录</view>
         <view class="history-item" wx:for="{{xiaowenVersions}}" wx:key="id">
-          <view><strong>{{item.label}}</strong><text>{{item.title}}</text></view><small>{{item.length}} 字 · {{item.createdAt}}</small>
+          <view><strong>{{item.label}}</strong><text wx:if="{{item.aiAssisted}}" class="history-ai-label">{{aiAssistanceLabel}}</text><text>{{item.title}}</text></view><small>{{item.length}} 字 · {{item.createdAt}}</small>
         </view>
       </scroll-view>
 

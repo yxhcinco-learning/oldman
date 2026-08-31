@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { articleSessionSchema, type ArticleSession } from './article-ai.js';
+import { aiDisclosureFor, aiDisclosureSchema, type AiDisclosure, articleSessionSchema, type ArticleSession } from './article-ai.js';
 import { topicSnapshotSchema, writingMaterialSchema } from './topics.js';
 import { newId, normalizeWork, type Work, workFromDraft, hasContent, type Draft } from './writing.js';
 import { cloneValue, utf8ByteLength } from './platform.js';
@@ -36,12 +36,15 @@ const backupV2 = z.object({ app: z.literal('suiyue-yousheng'), schemaVersion: z.
   works: z.array(legacyWork).max(10000), sessions: z.array(articleSessionSchema).max(10000) }).strict();
 const backupV3 = z.object({ app: z.literal('suiyue-yousheng'), schemaVersion: z.literal(3), exportedAt: z.iso.datetime(),
   works: z.array(workSchema).max(10000), sessions: z.array(articleSessionSchema).max(10000) }).strict();
-export const backupSchema = z.discriminatedUnion('schemaVersion', [backupV1, backupV2, backupV3]);
+const backupV4 = z.object({ app: z.literal('suiyue-yousheng'), schemaVersion: z.literal(4), exportedAt: z.iso.datetime(),
+  works: z.array(workSchema).max(10000), sessions: z.array(articleSessionSchema).max(10000),
+  disclosures: z.array(aiDisclosureSchema).max(10000) }).strict();
+export const backupSchema = z.discriminatedUnion('schemaVersion', [backupV1, backupV2, backupV3, backupV4]);
 export const MAX_BACKUP_BYTES = 10 * 1024 * 1024;
 export function parseBackup(raw: string): Work[] {
   return parseBackupBundle(raw).works;
 }
-export function parseBackupBundle(raw: string): { works: Work[]; sessions: ArticleSession[] } {
+export function parseBackupBundle(raw: string): { works: Work[]; sessions: ArticleSession[]; disclosures: AiDisclosure[] } {
   if (utf8ByteLength(raw) > MAX_BACKUP_BYTES) throw new Error('备份超过 10MB，请分批整理后再导入');
   let value: unknown;
   try { value = JSON.parse(raw); } catch { throw new Error('这不是有效的 JSON 备份，原作品未改变'); }
@@ -54,7 +57,16 @@ export function parseBackupBundle(raw: string): { works: Work[]; sessions: Artic
   if (new Set(sessions.map(s => s.workId)).size !== sessions.length || sessions.some(s => !ids.has(s.workId))) {
     throw new Error('备份的会话与作品不匹配，原作品未改变');
   }
-  return { works, sessions };
+  const byWork = new Map(sessions.map(session => [session.workId, session]));
+  const disclosures = works.map(work => aiDisclosureFor(work.id, byWork.get(work.id)));
+  if (result.data.schemaVersion === 4) {
+    const received = new Map(result.data.disclosures.map(disclosure => [disclosure.workId, disclosure]));
+    if (received.size !== works.length || result.data.disclosures.length !== works.length || disclosures.some(expected => {
+      const actual = received.get(expected.workId);
+      return !actual || JSON.stringify(actual) !== JSON.stringify(expected);
+    })) throw new Error('备份的 AI 披露与会话记录不一致，原作品未改变');
+  }
+  return { works, sessions, disclosures };
 }
 export function makeBackup(works: Work[], current?: Draft | null, sessions: ArticleSession[] = []): string {
   let items = cloneValue(works);
@@ -63,8 +75,10 @@ export function makeBackup(works: Work[], current?: Draft | null, sessions: Arti
     items = [...items.filter(w => w.id !== current.id), snapshot];
   }
   const ids = new Set(items.map(w => w.id));
-  return JSON.stringify({ app: 'suiyue-yousheng', schemaVersion: 3, exportedAt: new Date().toISOString(), works: items,
-    sessions: sessions.filter(s => ids.has(s.workId)) }, null, 2);
+  const includedSessions = sessions.filter(s => ids.has(s.workId));
+  const byWork = new Map(includedSessions.map(session => [session.workId, session]));
+  return JSON.stringify({ app: 'suiyue-yousheng', schemaVersion: 4, exportedAt: new Date().toISOString(), works: items,
+    sessions: includedSessions, disclosures: items.map(work => aiDisclosureFor(work.id, byWork.get(work.id))) }, null, 2);
 }
 export function asImportedCopy(source: Work): Work {
   const copy = cloneValue(source);

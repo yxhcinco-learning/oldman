@@ -71,4 +71,12 @@ describe('微信语音平台适配', () => {
     expect(handlers.stop).toHaveBeenCalledOnce();
     expect(JSON.stringify(handlers)).not.toContain('ignored.pcm');
   });
+
+  it('未真正开始录音前不获取 RecorderManager', () => {
+    const getRecorderManager = vi.fn();
+    vi.stubGlobal('wx', { getRecorderManager });
+    new WxMiniRecorder();
+    expect(getRecorderManager).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
 });

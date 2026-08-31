@@ -1,4 +1,5 @@
-import { ACTION_LABELS, VERSION_LABELS, articleText, documentOf, emptyDraft, hasContent, recoverSession, resultSummary, sameDocument,
+import { ACTION_LABELS, AI_ASSISTANCE_LABEL, VERSION_LABELS, articleText, documentOf, emptyDraft, hasContent, isAppliedAiVersion,
+  isWorkAiAssisted, recoverSession, resultSummary, sameDocument,
   splitDraft, type AiAction, type AiTurn, type ArticleSession, type Draft } from '../../domain/core';
 import type { MiniAiContext } from '../../ai/controller';
 import { miniServices } from '../../services';
@@ -35,8 +36,10 @@ Page({
     xiaowenStatus: 'idle' as 'idle' | 'blocked',
     xiaowenError: '',
     xiaowenView: 'chat' as 'chat' | 'preview' | 'history',
-    xiaowenTurns: [] as Array<{ id: string; prompt: string; answer: string; status: string; hasCandidate: boolean; canRetry: boolean; canUndo: boolean; editLabel: string }>,
-    xiaowenVersions: [] as Array<{ id: string; label: string; title: string; length: number; createdAt: string }>,
+    xiaowenTurns: [] as Array<{ id: string; prompt: string; answer: string; status: string; hasCandidate: boolean; canRetry: boolean; canUndo: boolean; editLabel: string; aiLabel: string }>,
+    xiaowenVersions: [] as Array<{ id: string; label: string; title: string; length: number; createdAt: string; aiAssisted: boolean }>,
+    aiAssisted: false,
+    aiAssistanceLabel: AI_ASSISTANCE_LABEL,
     xiaowenRunning: false,
     selectedTurnId: '',
     candidateTitle: '',
@@ -208,12 +211,14 @@ Page({
       return { id: turn.id, prompt: turn.prompt || ACTION_LABELS[turn.action],
         answer: turn.result ? resultSummary(turn.result, base?.body ?? '') : turn.error || (turn.status === 'running' ? '小文正在处理…' : ''),
         status: turnStatusLabel[turn.status], hasCandidate: Boolean(turn.result?.body), canRetry: turn.status === 'failed' || turn.status === 'cancelled',
-        canUndo: turn.status === 'applied', editLabel: actionEditLabel(turn.action) };
+        canUndo: turn.status === 'applied', editLabel: actionEditLabel(turn.action), aiLabel: turn.result ? AI_ASSISTANCE_LABEL : '' };
     });
     const xiaowenVersions = versions.filter(version => version.body.trim()).slice().reverse().map(version => ({
       id: version.id, label: VERSION_LABELS[version.source], title: version.title || '未命名作品', length: version.body.length, createdAt: version.createdAt,
+      aiAssisted: isAppliedAiVersion(session, version.id),
     }));
-    this.setData({ xiaowenTurns, xiaowenVersions, xiaowenRunning: Boolean(draft && miniServices().articleAi.isRunning(draft.id)) });
+    this.setData({ xiaowenTurns, xiaowenVersions, aiAssisted: isWorkAiAssisted(session),
+      xiaowenRunning: Boolean(draft && miniServices().articleAi.isRunning(draft.id)) });
   },
 
   adoptAiContext(context: MiniAiContext) {
@@ -225,7 +230,7 @@ Page({
   async exportRescue() {
     const draft = this.currentDraft();
     if (!draft) return;
-    try { await miniServices().backups.rescue(draft); this.setData({ notice: '已打开救援备份分享。' }); }
+    try { await miniServices().backups.rescue(draft, this.data.session); this.setData({ notice: '已打开救援备份分享。' }); }
     catch (error) { this.setData({ error: error instanceof Error ? error.message : '救援导出失败。' }); }
   },
 
@@ -258,6 +263,10 @@ Page({
   async runXiaoWen(action: AiAction, prompt: string, turnPrompt?: string) {
     const draft = this.currentDraft();
     if (!draft || this.data.operationBusy) return;
+    if (!await miniServices().aiConsent.ensure()) {
+      this.setData({ xiaowenStatus: 'blocked', xiaowenError: '没有发送给小文。您可以继续在本机写作或使用文字、语音转文字。' });
+      return;
+    }
     this.setData({ operationBusy: true, xiaowenStatus: 'idle', xiaowenError: '' });
     const result = await miniServices().articleAi.run(draft, this.data.session, action, prompt, turnPrompt, started => {
       this.adoptAiContext(started);

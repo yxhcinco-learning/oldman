@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MiniBackupController, type BackupFilePlatform } from '../miniprogram/backup/file-transfer';
-import { completeVoice, emptyDraft, makeBackup, parseBackupBundle, workFromDraft } from '../miniprogram/domain/core';
+import { AI_ASSISTANCE_DISCLOSURE, completeVoice, emptyDraft, makeBackup, newSession, newVersion, parseBackupBundle, workFromDraft } from '../miniprogram/domain/core';
 import { MiniWorkRepository } from '../miniprogram/storage/repository';
 import { MemoryFileSystem } from './memory-file-system';
 
@@ -63,5 +63,23 @@ describe('小程序手工备份与文件交接', () => {
     const controller = new MiniBackupController(repository, files, platform);
     await expect(controller.chooseAndImport()).rejects.toThrow('JSON');
     expect((await repository.load()).works).toHaveLength(1);
+  });
+
+  it('已应用候选的 TXT 和复制正文都带可见 AI 辅助说明', async () => {
+    const files = new MemoryFileSystem();
+    const platform = new FakePlatform();
+    const repository = new MiniWorkRepository(files, '/user');
+    await repository.load();
+    const draft = { ...emptyDraft(), title: '整理稿', inputMode: 'text' as const, textDraft: '整理后的正文' };
+    const session = newSession({ ...draft, textDraft: '用户原文' });
+    const version = newVersion(draft, 'rewrite');
+    session.versions.push(version);
+    session.turns.push({ id: 'applied', createdAt: new Date().toISOString(), action: 'chat', prompt: '整理', inputVersionId: session.versions[0].id,
+      status: 'applied', appliedVersionId: version.id, result: { answer: '已整理', body: draft.textDraft, citedVersionIds: [] } });
+    const controller = new MiniBackupController(repository, files, platform, () => new Date('2026-09-01T00:00:00Z'));
+    await controller.copyBody(draft, session);
+    expect(platform.copied).toContain(AI_ASSISTANCE_DISCLOSURE);
+    const txt = await controller.exportText(draft, session);
+    expect(files.files.get(txt)).toContain(AI_ASSISTANCE_DISCLOSURE);
   });
 });

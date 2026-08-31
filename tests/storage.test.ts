@@ -100,7 +100,7 @@ describe('portable backups', () => {
   });
   it('rejects invalid or future backups without changing stored works', async () => {
     const repo = repository(); await repo.save(writing(), 0); const before = await repo.load();
-    for (const raw of ['{broken', makeBackup(before.works).replace('"schemaVersion": 3', '"schemaVersion": 99'), '{"app":"other"}']) {
+    for (const raw of ['{broken', makeBackup(before.works).replace('"schemaVersion": 4', '"schemaVersion": 99'), '{"app":"other"}']) {
       await expect(repo.importBackup(raw)).rejects.toBeTruthy(); expect(await repo.load()).toEqual(before);
     }
   });
@@ -123,14 +123,14 @@ describe('portable backups', () => {
     await old.put('works', legacyWork); await old.put('recovery', { draft: legacyDraft, revision: 1 }, 'active'); old.close();
     const upgraded = new IndexedWorkRepository(name); repositories.push(upgraded);
     expect(await upgraded.load()).toEqual({ works: [work], recovery: { draft, revision: 1 }, sessions: [] });
-    const v1 = { ...JSON.parse(makeBackup([work!])), schemaVersion: 1 }; delete v1.sessions;
+    const v1 = { ...JSON.parse(makeBackup([work!])), schemaVersion: 1 }; delete v1.sessions; delete v1.disclosures;
     for (const item of v1.works) { delete item.draft.topicSnapshot; delete item.draft.materials; delete item.draft.topicWritingMode; }
     expect(await upgraded.importBackup(JSON.stringify(v1))).toBe(1);
     expect((await upgraded.load()).works.find(w => w.id === work!.id)).toEqual(work);
   });
   it('accepts legacy v2 backups and rejects duplicate material identifiers atomically', async () => {
     const repo = repository(); const draft = writing('旧版会话正文'); const session = newSession(draft); await repo.save(draft, 0, session);
-    const v2 = JSON.parse(makeBackup((await repo.load()).works, null, [session])); v2.schemaVersion = 2;
+    const v2 = JSON.parse(makeBackup((await repo.load()).works, null, [session])); v2.schemaVersion = 2; delete v2.disclosures;
     for (const item of v2.works) { delete item.draft.topicSnapshot; delete item.draft.materials; delete item.draft.topicWritingMode; }
     expect(await repo.importBackup(JSON.stringify(v2))).toBe(1);
     const before = await repo.load(); const invalid = JSON.parse(makeBackup(before.works, null, before.sessions));

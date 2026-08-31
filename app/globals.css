@@ -465,6 +465,9 @@ svg { display: block; }
 .ai-version-list > button { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; background: var(--white); padding: 16px; border-radius: 16px; color: var(--forest); }
 .ai-version-list b { display: block; font-size: 18px; line-height: 28px; }
 .ai-version-list small { display: block; font-size: 14px; line-height: 22px; color: var(--muted); margin-top: 4px; }
+.ai-version-list em { display: block; margin-top: 4px; color: var(--sienna); font-size: 13px; font-style: normal; line-height: 20px; }
+.ai-origin-label { padding: 10px 12px; border-radius: 12px; background: #f4eadf; color: var(--sienna); font-size: 14px; font-weight: 600; line-height: 22px; }
+.ai-origin-label.inline { display: block; padding: 0; border-radius: 0; background: transparent; font-size: 13px; line-height: 20px; }
 .ai-version-title { font: 600 22px/32px var(--serif); margin-top: 16px; }
 .ai-interview { display: flex; flex: 1; min-height: 0; flex-direction: column; overflow: hidden; }
 .interview-topic { flex-shrink: 0; margin: 2px 0 8px; color: var(--sienna); font-size: 14px; line-height: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

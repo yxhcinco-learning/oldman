@@ -377,18 +377,27 @@ export class WxMiniSpeechSocketFactory implements MiniSpeechSocketFactory {
 
 export class WxMiniRecorder implements MiniRecorder {
   private handlers?: MiniRecorderHandlers;
-  constructor(private readonly manager: WechatMiniprogram.RecorderManager = wx.getRecorderManager()) {
+  private manager?: WechatMiniprogram.RecorderManager;
+  constructor(manager?: WechatMiniprogram.RecorderManager) {
+    if (manager) this.bind(manager);
+  }
+  private bind(manager: WechatMiniprogram.RecorderManager) {
+    this.manager = manager;
     manager.onStart(() => this.handlers?.start());
     manager.onFrameRecorded(result => this.handlers?.frame(result.frameBuffer, result.isLastFrame));
     manager.onStop(() => { const handlers = this.handlers; this.handlers = undefined; handlers?.stop(); });
     manager.onError(() => { const handlers = this.handlers; this.handlers = undefined; handlers?.error(); });
     manager.onInterruptionBegin(() => this.handlers?.interrupted());
   }
+  private ensureManager() {
+    if (!this.manager) this.bind(wx.getRecorderManager());
+    return this.manager as WechatMiniprogram.RecorderManager;
+  }
   start(options: { duration: number; sampleRate: 16000; numberOfChannels: 1; format: 'PCM'; frameSize: number }, handlers: MiniRecorderHandlers) {
     if (this.handlers) throw new Error('Recorder is still releasing');
     this.handlers = handlers;
-    try { this.manager.start(options); }
+    try { this.ensureManager().start(options); }
     catch (error) { this.handlers = undefined; throw error; }
   }
-  stop() { this.manager.stop(); }
+  stop() { this.manager?.stop(); }
 }

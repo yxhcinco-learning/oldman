@@ -1,4 +1,4 @@
-import { articleText, effectiveSegments, parseBackupBundle, type Draft } from '../domain/core';
+import { articleText, effectiveSegments, externalArticleText, parseBackupBundle, type ArticleSession, type Draft } from '../domain/core';
 import type { MiniWorkRepository } from '../storage/repository';
 import type { LocalFileSystem } from '../storage/file-system';
 
@@ -52,8 +52,8 @@ export class MiniBackupController {
     return this.writeAndShare(raw, exportName('json', this.now()));
   }
 
-  async rescue(draft: Draft) {
-    const raw = this.repository.rescueExport(draft);
+  async rescue(draft: Draft, session?: ArticleSession | null) {
+    const raw = this.repository.rescueExport(draft, [], session ? [session] : []);
     parseBackupBundle(raw);
     return this.writeAndShare(raw, `岁月有声-救援-${exportName('json', this.now()).replace('岁月有声-备份-', '')}`);
   }
@@ -66,13 +66,13 @@ export class MiniBackupController {
     return this.repository.importBackup(raw);
   }
 
-  async exportText(draft: Draft) {
+  async exportText(draft: Draft, session?: ArticleSession | null) {
     const body = articleText(effectiveSegments(draft));
-    const raw = `${draft.title.trim() || '未命名作品'}\n\n${body}`.trimEnd();
+    const raw = `${draft.title.trim() || '未命名作品'}\n\n${externalArticleText(body, session)}`.trimEnd();
     return this.writeAndShare(raw, exportName('txt', this.now()));
   }
 
-  async copyBody(draft: Draft) {
-    await this.platform.copyText(articleText(effectiveSegments(draft)));
+  async copyBody(draft: Draft, session?: ArticleSession | null) {
+    await this.platform.copyText(externalArticleText(articleText(effectiveSegments(draft)), session));
   }
 }

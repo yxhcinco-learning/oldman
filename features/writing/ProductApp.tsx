@@ -12,6 +12,7 @@ import { Editor } from './Editor';
 import { Icon } from '../../components/Icons';
 import type { AssistantStatus } from '../../components/WritingControls';
 import { snapshotTopic, type WritingTopic } from '../../lib/domain/topics';
+import { externalArticleText } from '../../lib/domain/article-ai';
 import { selectHomeTopics, topicTransport as defaultTopicTransport, type TopicTransport } from '../topics/client';
 import { TopicDetail } from '../topics/TopicDetail';
 
@@ -83,7 +84,8 @@ export function ProductApp({ repository, aiTransport, topicTransport = defaultTo
     const ok = await workspace.finish(); setBusy(false); if (ok) setNotice('内容已保存到本机');
   };
   const copy = async (draft: Draft) => {
-    try { await navigator.clipboard.writeText(articleText(effectiveSegments(draft))); setNotice('正文已复制'); }
+    const session = state.sessions.find(item => item.workId === draft.id);
+    try { await navigator.clipboard.writeText(externalArticleText(articleText(effectiveSegments(draft)), session)); setNotice('正文已复制'); }
     catch { setNotice('浏览器未允许复制，请使用导出 TXT'); }
   };
   const openAssistant = () => { if (state.draft) { void workspace.checkpoint(); assistantOpenRef.current = true; setAssistantStatus('idle'); setAssistantOpen(true); } };
@@ -143,7 +145,7 @@ export function ProductApp({ repository, aiTransport, topicTransport = defaultTo
           <button type="button" aria-label="从备份恢复副本" disabled={busy} onClick={() => file.current?.click()}><Icon name="check" /><span>从备份恢复副本<small>不会覆盖现有作品</small></span><Icon name="chevron" /></button>
           <p>作品只在当前浏览器中。清理浏览器数据可能丢失，请定期备份。</p>
         </> : typeof menu === 'object' ? <>
-          <button type="button" onClick={() => { exportText(menu.draft); setMenu(null); }}>导出 TXT</button>
+          <button type="button" onClick={() => { exportText(menu.draft, state.sessions.find(item => item.workId === menu.id)); setMenu(null); }}>导出 TXT</button>
           <button type="button" onClick={() => { void copy(menu.draft); setMenu(null); }}>复制正文</button>
           <button className={menu.deletedAt ? '' : 'danger'} type="button" disabled={busy} onClick={async () => {
             setBusy(true); const ok = await workspace.setDeleted(menu, !menu.deletedAt); setBusy(false);
