@@ -7,6 +7,7 @@
 - [x] 1.5 Add regression coverage for title-triggered text mode without focus theft, the removed body focus line, unavailable toolbar chat, tap-toggle XiaoWen dictation and centered collapse controls
 - [x] 1.6 Add regression coverage for standard and WebKit point-to-caret APIs, paragraph/newline offset mapping and blank-area fallback
 - [x] 1.7 Add regression coverage for non-blocking touch long-press timing/movement cancellation and pending-speech click-to-caret mapping
+- [ ] 1.8 Add contract coverage for the default, allowed bilingual and rejected Tencent ASR engine model values and signed upstream URL
 
 ## 2. Accurate AI feedback
 
@@ -21,6 +22,7 @@
 - [x] 3.4 Switch expanded voice mode to current-page text state when the title receives focus, preserve pending content, remove the body focus artifact and center the collapse control
 - [x] 3.5 Transfer the second body tap position into a collapsed current-page text selection without changing article content
 - [x] 3.6 Add touch/pen long-press current-page entry and preserve the clicked pending-speech offset in its separate editor
+- [ ] 3.7 Load the Tencent ASR engine model from a server-only allowlisted environment setting and pass it into upstream signing
 
 ## 4. Compact article assistant
 
@@ -39,3 +41,4 @@
 - [x] 5.5 Run complete checks, build and browser regression for title keyboard handling, chat reservation, tap dictation and control alignment; deploy and record public evidence without claiming unavailable physical-device gestures
 - [x] 5.6 Run complete checks, build and browser regression for point-preserving text entry; deploy and record evidence without claiming unavailable physical-device keyboard results
 - [x] 5.7 Run complete checks, build and browser regression for long-press and pending-edit caret entry; deploy and record evidence without claiming unavailable physical-device gesture results
+- [ ] 5.8 Run complete checks/build, deploy the gateway with `16k_zh_en`, verify the public service and rollback setting, and record that real bilingual recognition remains a user/device check
