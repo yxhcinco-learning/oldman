@@ -32,7 +32,8 @@ export async function createGateway(options: GatewayOptions) {
   await app.register(websocket, { options: { maxPayload: 64 * 1024 } });
   app.get('/api/health', async (request, reply) => {
     const startedAt = performance.now();
-    const result = { status: 'ok', aiConfigured: Boolean(options.ai?.configuration), speechConfigured: Boolean(options.credentials) };
+    const result = { status: 'ok', aiConfigured: Boolean(options.ai?.configuration), speechConfigured: Boolean(options.credentials),
+      miniIdentityConfigured: Boolean(options.miniAuth?.service) };
     operations({ requestId: request.id, action: 'health', status: 200, durationMs: operationDuration(startedAt) });
     return reply.header('Cache-Control', 'no-store').send(result);
   });

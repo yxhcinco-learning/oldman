@@ -10,7 +10,9 @@
 - features/demo：历史模拟交互，只接收深副本和退出回调，保留独立测试；正式产品不导入。
 - lib/domain：Work、Draft、Segment、ArticleSession、ArticleVersion、AiTurn 与纯函数。
 - lib/storage：WorkRepository、IndexedDB、版本化备份。
-- server：仅回环地址的 Fastify 网关，承载 WebSocket ASR、HTTP 文章 AI 与只读议题发布接口。
+- packages/core：网页、小程序和测试共享的领域、备份、AI 来源与协议纯逻辑，不引用 DOM、Node 或 `wx`。
+- apps/miniprogram：WXML/WXSS/TypeScript 原生客户端，本地聚合文件、微信网络、录音与文件适配器独立于网页 UI。
+- server：仅回环地址的 Fastify 网关，承载 WebSocket ASR、HTTP 文章 AI、只读议题及最小微信身份/业务会话。
 
 ## ADR-001 保留工具链
 
@@ -76,9 +78,11 @@ AI 标识采用保守的作品历史谓词：只有明确应用的完整候选�
 
 ## ADR-007 受控公网测试运行时
 
-2026-08-30 用户授权在既有腾讯云 Lighthouse 上进行临时、小范围公网测试。固定 Origin 为 `https://suiyue.maicong.chat`：Nginx 在 80/443 终止 TLS 和 Basic Auth，`/` 转发回环 Vinext，`/api/ai/*`、`/api/topics` 与 `/api/speech` 转发回环 Fastify，语音保留原始 Origin 和 WebSocket Upgrade。前端与网关使用专用 `suiyue` 用户、独立 3011/3012 回环端口、systemd 服务和版本化 release；不开放应用端口，不复用或停止服务器上的其他项目。
+2026-08-30 用户授权在既有腾讯云 Lighthouse 上进行临时、小范围公网测试。固定 Origin 为 `https://suiyue.maicong.chat`：Nginx 在 80/443 终止 TLS，网页 `/`、原 `/api/ai/*` 和原 `/api/speech` 继续受 Basic Auth 与浏览器 Origin 约束；只对精确话题列表、安全 ID 形状的话题详情、`/api/mini/auth/wechat`、`/api/mini/ai/turn`、`/api/mini/speech-ticket` 和小程序 WSS 关闭 Basic Auth并分层限流，未列出的 API 拒绝。前端与网关使用专用 `suiyue` 用户、独立 3011/3012 回环端口、systemd 服务和版本化 release；不开放应用端口，不复用或停止服务器上的其他项目。
 
-阶段性访问保护和简单 IP 限流只在 Nginx；产品不新增账号、邀请码、管理后台、测试提示或配额。Linux 网关固定 `ASR_CREDENTIAL_SOURCE=project`，从 root-only 环境文件读取腾讯云和 DeepSeek 秘密，并按当前体验包使用 `16k_zh`；中英模型保留为需先确认可用额度的服务端选项。Fastify 保持原始请求日志关闭，只输出 requestId、动作、状态、耗时、可用 token 数和固定错误类别；Nginx 关闭该站点 access log，错误日志沿用服务器 logrotate，systemd stdout/stderr 由 journald 轮转。
+阶段性访问保护和简单 IP 限流只在 Nginx；产品不新增可见账号、邀请码或管理后台。Linux 网关从同一个 root-only 环境文件读取腾讯云、DeepSeek、微信 AppID/AppSecret 和身份库路径；微信三项只有同时通过固定形状与绝对路径校验才装配服务，缺失或无效时只把小程序身份失败关闭，网页和本地写作不回退假身份。最小 SQLite 库位于 release 外的 `/var/lib/suiyue-yousheng/auth.sqlite`，目录仅 `suiyue` 可写；systemd 只放行该目录。激活前停止网关、做 `quick_check` 和 SQLite 在线备份，失败迁移的库转入 root-only 隔离目录并恢复迁移前副本；普通代码回滚不删除或覆盖身份库。
+
+Fastify 保持原始请求日志关闭，只输出 requestId、动作、状态、耗时、可用 token 数和固定错误类别；Nginx 关闭该站点 access log，小程序语音 ticket 位置再次显式关闭访问日志，错误日志沿用服务器 logrotate，systemd stdout/stderr 由 journald 轮转。`/api/health` 只增加 `miniIdentityConfigured` 布尔值，不显示 AppID、路径、OpenID 或秘密。
 
 每个浏览器 Origin 继续拥有独立 IndexedDB。公网域名首次访问为空库；localhost 或其他域名文章只能由用户显式导出 JSON、再在目标浏览器恢复为副本，服务器不接收备份或文章同步。部署、验证和回滚见 [受控公网部署](DEPLOYMENT.md)；产品协议仍由 ADR-002、ADR-003 和 ADR-006 管理。
 

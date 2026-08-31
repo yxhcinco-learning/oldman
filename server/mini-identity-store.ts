@@ -62,10 +62,15 @@ export class MiniIdentityStore {
     if (this.sessionTtlMs <= 0 || this.maxActiveSessions < 1 || this.codeRetentionMs <= 0) throw new Error('Invalid identity-store limits');
 
     this.database = new DatabaseSync(options.path, { allowExtension: false });
-    this.database.exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; PRAGMA trusted_schema = OFF; PRAGMA synchronous = FULL;');
-    if (options.path !== ':memory:') this.database.exec('PRAGMA journal_mode = WAL;');
-    this.migrate();
-    this.assertIntegrity();
+    try {
+      this.database.exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; PRAGMA trusted_schema = OFF; PRAGMA synchronous = FULL;');
+      if (options.path !== ':memory:') this.database.exec('PRAGMA journal_mode = WAL;');
+      this.migrate();
+      this.assertIntegrity();
+    } catch (error) {
+      if (this.database.isOpen) this.database.close();
+      throw error;
+    }
   }
 
   private migrate() {

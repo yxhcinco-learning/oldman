@@ -17,7 +17,9 @@ it('keeps application services isolated, restartable and loopback-only', () => {
   expect(web).toContain('--hostname 127.0.0.1');
   expect(web).toContain('--port 3011');
   expect(gateway).toContain('EnvironmentFile=/etc/suiyue-yousheng/runtime.env');
+  expect(gateway).toContain('ReadWritePaths=/var/lib/suiyue-yousheng');
   expect(read('deploy/runtime.env.example')).toContain('TENCENT_ASR_ENGINE_MODEL_TYPE=16k_zh');
+  expect(read('deploy/runtime.env.example')).toContain('SUIYUE_AUTH_DB_PATH=/var/lib/suiyue-yousheng/auth.sqlite');
 });
 
 it('protects the exact HTTPS origin while preserving same-origin API and WebSocket routes', () => {
@@ -26,7 +28,8 @@ it('protects the exact HTTPS origin while preserving same-origin API and WebSock
   expect(nginx).toContain('auth_basic_user_file /etc/nginx/suiyue-yousheng.htpasswd;');
   expect(nginx).toContain('proxy_pass http://127.0.0.1:3011;');
   expect(nginx).toContain('location ^~ /api/ai/');
-  expect(nginx).toContain('location ^~ /api/topics');
+  expect(nginx).toContain('location = /api/topics');
+  expect(nginx).toContain('location ~ ^/api/topics/[a-z0-9]+(?:-[a-z0-9]+)*$');
   expect(nginx).toContain('proxy_pass http://127.0.0.1:3012;');
   expect(nginx).toContain('location = /api/speech {');
   expect(nginx).toContain('proxy_set_header Origin $http_origin;');
@@ -43,6 +46,38 @@ it('protects the exact HTTPS origin while preserving same-origin API and WebSock
   expect(nginx).toContain('auth_basic off;');
   expect(nginx).toContain('alias /var/www/suiyue-yousheng/auth-retry.html;');
   expect(nginx).toContain('add_header Cache-Control "no-store" always;');
+  for (const route of ['/api/topics', '/api/mini/auth/wechat', '/api/mini/ai/turn', '/api/mini/speech-ticket', '/api/mini/speech']) {
+    const escaped = route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const location = new RegExp(`location = ${escaped} \\{([\\s\\S]*?)\\n    \\}`).exec(nginx)?.[1] ?? '';
+    expect(location, route).toContain('auth_basic off;');
+  }
+  const topicDetail = /location ~ \^\/api\/topics\/\[a-z0-9\]\+\(\?:-\[a-z0-9\]\+\)\*\$ \{([\s\S]*?)\n    \}/.exec(nginx)?.[1] ?? '';
+  expect(topicDetail).toContain('auth_basic off;');
+  expect(nginx).toContain('zone=suiyue_mini_login');
+  expect(nginx).toContain('zone=suiyue_mini_ai');
+  expect(nginx).toContain('zone=suiyue_mini_ticket');
+  expect(nginx).toContain('zone=suiyue_mini_speech');
+  expect(nginx).toContain('location ^~ /api/mini/');
+  const miniSpeech = /location = \/api\/mini\/speech \{([\s\S]*?)\n    \}/.exec(nginx)?.[1] ?? '';
+  expect(miniSpeech).toContain('access_log off;');
+  expect(miniSpeech).toContain('proxy_set_header Upgrade $http_upgrade;');
+  expect(miniSpeech).not.toContain('proxy_set_header Origin');
+});
+
+it('prepares, backs up and verifies the release-external identity database without printing configuration values', () => {
+  const prepare = read('deploy/server/prepare-host.sh');
+  const activate = read('deploy/server/activate-release.sh');
+  const verify = read('deploy/server/verify-host.sh');
+  expect(prepare).toContain('install -d -m 0700 -o suiyue -g suiyue /var/lib/suiyue-yousheng');
+  expect(activate).toContain('deploy/server/identity-db.mjs" backup');
+  expect(activate).toContain('deploy/server/identity-db.mjs" restore');
+  expect(activate).toContain('"miniIdentityConfigured":true');
+  expect(activate).toContain('WECHAT_MINIPROGRAM_APP_SECRET=[^[:space:]]');
+  expect(verify).toContain('systemctl restart suiyue-gateway.service');
+  expect(verify).toContain('identity database was replaced during restart');
+  expect(verify).toContain('reviewed topic detail is not reachable without Basic Auth');
+  expect(verify).toContain('service logs contain a forbidden sensitive marker');
+  expect(verify).not.toMatch(/printenv|source \/etc\/suiyue-yousheng\/runtime\.env|cat \/etc\/suiyue-yousheng\/runtime\.env/);
 });
 
 it('offers a credential-blind mobile authentication retry without looping', () => {
@@ -67,5 +102,6 @@ it('contains no populated secret or product-layer temporary authentication', () 
     'deploy/nginx/auth-retry.html',
   ].map(read).join('\n');
   expect(files).not.toMatch(/(?:DEEPSEEK_API_KEY|TENCENT_ASR_SECRET_(?:ID|KEY))=[^\r\n]+/);
+  expect(files).not.toMatch(/WECHAT_MINIPROGRAM_(?:APP_ID|APP_SECRET)=[^\r\n]+/);
   expect(files).not.toMatch(/(?:password|passwd)\s*=/i);
 });

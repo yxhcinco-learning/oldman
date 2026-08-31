@@ -73,7 +73,9 @@ CI 对 push 和可选 PR 运行 npm ci、check、build 和依赖审计；CI 不�
 
 ### Linux 运行配置
 
-生产网关从 `/etc/suiyue-yousheng/runtime.env` 读取配置，文件必须为 `0600 root:root`。Linux 只允许 `ASR_CREDENTIAL_SOURCE=project`，完整的 `TENCENT_ASR_SECRET_ID` / `TENCENT_ASR_SECRET_KEY`（以及同批 STS 凭据需要的 Token）与 DeepSeek Key 只在服务端环境文件；不得复制 Windows `windows-user` 方式、放入 release、客户端、镜像、命令输出或日志。公网 `TENCENT_ASR_ENGINE_MODEL_TYPE=16k_zh` 以匹配当前体验包；以后确认中英模型额度后可修改变量并仅重启网关。`ASR_ALLOWED_ORIGIN` 必须精确为最终 HTTPS Origin，改域名/协议/端口会创建另一份浏览器数据空间。
+生产网关从 `/etc/suiyue-yousheng/runtime.env` 读取配置，文件必须为 `0600 root:root`。Linux 只允许 `ASR_CREDENTIAL_SOURCE=project`，完整的 `TENCENT_ASR_SECRET_ID` / `TENCENT_ASR_SECRET_KEY`（以及同批 STS 凭据需要的 Token）、DeepSeek Key 与微信 AppSecret 只在服务端环境文件；不得复制 Windows `windows-user` 方式、放入 release、客户端、镜像、命令输出或日志。公网 `TENCENT_ASR_ENGINE_MODEL_TYPE=16k_zh` 以匹配当前体验包；以后确认中英模型额度后可修改变量并仅重启网关。`ASR_ALLOWED_ORIGIN` 必须精确为最终 HTTPS Origin，改域名/协议/端口会创建另一份浏览器数据空间。
+
+小程序身份要求 `WECHAT_MINIPROGRAM_APP_ID`、`WECHAT_MINIPROGRAM_APP_SECRET` 与 `SUIYUE_AUTH_DB_PATH=/var/lib/suiyue-yousheng/auth.sqlite` 三项同时有效；缺一项或格式无效时 `/api/mini/*` 失败关闭，健康信息只显示 `miniIdentityConfigured=false`，不回显具体值。AppSecret 由用户手工填入上述服务器文件，代码、检查命令和验收记录只报告是否配置。开发机可在忽略的 `.env.local` 使用独立绝对临时库路径做离线 transport 测试，但常规检查不放真实 AppID/AppSecret、不调用 `code2Session`。
 
 开发和构建均保留 Vinext 本地 Node 链路，已删除 GPT Sites 发布配置、专用插件和依赖；不需要 Sites 登录或 Cloudflare 绑定。`local-project.test.ts` 覆盖开发/构建配置及依赖清理，`local-speech-proxy.test.ts` 使用真实 Vite 转发与假上游覆盖 WebSocket 全流程及外部 Origin 拒绝，不调用腾讯云。
 

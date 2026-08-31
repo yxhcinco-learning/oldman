@@ -72,13 +72,13 @@
 
 ## 9. Deployment boundary and manual secret handoff
 
-- [ ] 9.1 Add fail-closed runtime parsing and empty templates for `WECHAT_MINIPROGRAM_APP_ID`, `WECHAT_MINIPROGRAM_APP_SECRET` and `SUIYUE_AUTH_DB_PATH`, with configuration tests that never echo values
-- [ ] 9.2 Update host preparation/systemd deployment for the resolved `/var/lib/suiyue-yousheng` identity directory, restrictive ownership, pre-migration backup, integrity checks and rollback that preserves identity data
-- [ ] 9.3 Update Nginx with exact Basic-Auth exemptions for reviewed topics and `/api/mini/*`, separate rate limits, WSS Upgrade, no ticket query logging and default denial for unlisted API paths while retaining all web security headers/routes
-- [ ] 9.4 Extend deployment verification for web Basic Auth, mini login/session/ticket rejection, loopback-only ports, service restarts, database persistence and no-secret/no-content logs
-- [ ] 9.5 Update development, architecture, product, privacy, deployment and acceptance documents with the actual implemented data boundary, temporary AppID warning, manual platform settings and rollback path
-- [ ] 9.6 Run configuration/Nginx/deployment-script checks, full root check/build, OpenSpec validation and sensitive release-archive inspection, then commit only the verified deployment/documentation stage without deploying
-- [ ] 9.7 Hand off the exact server file `/etc/suiyue-yousheng/runtime.env` and variable names to the user for manual AppSecret entry; record only configured/not-configured evidence and never receive or print the secret
+- [x] 9.1 Add fail-closed runtime parsing and empty templates for `WECHAT_MINIPROGRAM_APP_ID`, `WECHAT_MINIPROGRAM_APP_SECRET` and `SUIYUE_AUTH_DB_PATH`, with configuration tests that never echo values
+- [x] 9.2 Update host preparation/systemd deployment for the resolved `/var/lib/suiyue-yousheng` identity directory, restrictive ownership, pre-migration backup, integrity checks and rollback that preserves identity data
+- [x] 9.3 Update Nginx with exact Basic-Auth exemptions for reviewed topics and `/api/mini/*`, separate rate limits, WSS Upgrade, no ticket query logging and default denial for unlisted API paths while retaining all web security headers/routes
+- [x] 9.4 Extend deployment verification for web Basic Auth, mini login/session/ticket rejection, loopback-only ports, service restarts, database persistence and no-secret/no-content logs
+- [x] 9.5 Update development, architecture, product, privacy, deployment and acceptance documents with the actual implemented data boundary, temporary AppID warning, manual platform settings and rollback path
+- [x] 9.6 Run configuration/Nginx/deployment-script checks, full root check/build, OpenSpec validation and sensitive release-archive inspection, then commit only the verified deployment/documentation stage without deploying
+- [x] 9.7 Hand off the exact server file `/etc/suiyue-yousheng/runtime.env` and variable names to the user for manual AppSecret entry; record only configured/not-configured evidence and never receive or print the secret
 
 ## 10. Developer-tool, controlled integration and physical-device evidence
 
