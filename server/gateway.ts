@@ -5,18 +5,22 @@ import { signedAsrUrl, parseTencentResult, type AsrEngineModel, type Credentials
 import { TranscriptAccumulator, type SpeechEvent } from '../features/speech/protocol';
 import { registerArticleAi, type AiGatewayOptions } from './article-ai';
 import { defaultOperationLogger, operationDuration, type OperationLogger } from './operations';
+import { registerTopics } from './topics';
+import type { TopicEditorialQueue } from './topic-catalog';
 
 export interface GatewayOptions {
   credentials?: Credentials; origin: string; maxConnections?: number; maxDurationMs?: number; maxBytes?: number;
   engineModel?: AsrEngineModel;
   connect?: (url: string) => WebSocket;
   ai?: Omit<AiGatewayOptions, 'origin'>;
+  topics?: TopicEditorialQueue;
   operations?: OperationLogger;
 }
 export async function createGateway(options: GatewayOptions) {
   const app = Fastify({ logger: false, bodyLimit: 64 * 1024 });
   const operations = options.operations ?? defaultOperationLogger;
   registerArticleAi(app, { ...options.ai, origin: options.origin, operations });
+  registerTopics(app, { origin: options.origin, queue: options.topics, operations });
   const active = new Set<WebSocket>();
   await app.register(websocket, { options: { maxPayload: 64 * 1024 } });
   app.get('/api/health', async (request, reply) => {

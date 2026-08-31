@@ -1,17 +1,17 @@
 ## 1. Product validation and content contract
 
-- [ ] 1.1 Select the first target cohort and three to five topic columns, then create at least twenty manually reviewed topic cards covering current, periodic and slow topics
+- [x] 1.1 Select the first target cohort and three to five topic columns, then create at least twenty manually reviewed topic cards covering current, periodic and slow topics
 - [ ] 1.2 Run a small target-user pilot comparing summary-only, angle-assisted and experience-question topic cards; record topic-to-input, draft completion, interview exit and source-trust evidence
-- [ ] 1.3 Confirm the user-facing names for normal writing, guided interview, pause, switch and explicit composition without presenting a second assistant or generic chat product
-- [ ] 1.4 Define allowed information sources, summary/link rights, correction procedure, review states and publication responsibilities before enabling any automated ingestion
+- [x] 1.3 Confirm the user-facing names for normal writing, guided interview, pause, switch and explicit composition without presenting a second assistant or generic chat product
+- [x] 1.4 Define allowed information sources, summary/link rights, correction procedure, review states and publication responsibilities before enabling any automated ingestion
 
 ## 2. Topic domain and publication service
 
-- [ ] 2.1 Add validated topic, topic revision, source, angle, tag, status and expiry domain schemas with tests for missing, stale, unsafe and corrected content
-- [ ] 2.2 Implement read-only topic list/detail APIs that expose only reviewed revisions and return bounded, cacheable responses without user article content
-- [ ] 2.3 Implement a minimal editorial queue for draft, AI-assisted candidate, rejected and published topic states; require human confirmation before publication
+- [x] 2.1 Add validated topic, topic revision, source, angle, tag, status and expiry domain schemas with tests for missing, stale, unsafe and corrected content
+- [x] 2.2 Implement read-only topic list/detail APIs that expose only reviewed revisions and return bounded, cacheable responses without user article content
+- [x] 2.3 Implement a minimal editorial queue for draft, AI-assisted candidate, rejected and published topic states; require human confirmation before publication
 - [ ] 2.4 Add correction and revision handling so started works retain their snapshot while visibly detecting a newer published topic
-- [ ] 2.5 Add service limits, source allowlisting, content-safe logs and failure responses without copying full third-party articles or exposing credentials
+- [x] 2.5 Add service limits, source allowlisting, content-safe logs and failure responses without copying full third-party articles or exposing credentials
 
 ## 3. Local topic and interview data
 

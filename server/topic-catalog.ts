@@ -1,0 +1,99 @@
+import { isTopicCurrent, writingTopicSchema, type TopicKind, type WritingTopic } from '../lib/domain/topics';
+
+export const ALLOWED_TOPIC_SOURCE_HOSTS = new Set([
+  'www.moe.gov.cn', 'www.bjwmb.gov.cn', 'edu.sh.gov.cn', 'lgj.mofcom.gov.cn', 'www.cq.gov.cn',
+  'www.cac.gov.cn', 'www.shanghai.gov.cn', 'www.digitalchina.gov.cn', 'zzkj.zhengzhou.gov.cn', 'www.shpt.gov.cn',
+]);
+
+const reviewedAt = '2026-08-31T08:00:00.000Z';
+const editor = '岁月有声内容编辑';
+const source = (id: string, title: string, publisher: string, url: string, publishedAt: string) => ({ id, title, publisher, url, publishedAt });
+const angles = (...items: string[]) => items.map((prompt, index) => ({ id: `angle-${index + 1}`, title: prompt.split(/[，。；]/)[0].slice(0, 28), prompt }));
+const topic = (value: Omit<WritingTopic, 'revision' | 'status' | 'reviewedBy' | 'reviewedAt' | 'publishedAt'> & { publishedAt?: string | null }) => writingTopicSchema.parse({
+  revision: 1, status: 'published', reviewedBy: editor, reviewedAt,
+  publishedAt: value.publishedAt ?? value.updatedAt, ...value,
+});
+
+const moeAi = source('moe-ai-education', '教育部等五部门关于印发《“人工智能+教育”行动计划》的通知', '教育部', 'https://www.moe.gov.cn/srcsite/A16/s3342/202604/t20260410_1433240.html', '2026-04-10T00:00:00.000Z');
+const scienceMonth = source('science-month', '全国科普月活动9月启幕，多场特色活动等你来探索', '首都文明网', 'https://www.bjwmb.gov.cn/yw/10134685.html', '2026-08-27T00:00:00.000Z');
+const shanghaiLearning = source('shanghai-senior-learning', '2026年市教委“政府开放月”活动安排预告', '上海市教育委员会', 'https://edu.sh.gov.cn/xxgk_ztlm_zfkf/20260710/134cbdfc52064f0080c49a428cba2cd8.html', '2026-07-10T00:00:00.000Z');
+const mofcomLearning = source('mofcom-senior-learning', '商务部离退休干部局举办老年大学工作培训', '商务部离退休干部局', 'https://lgj.mofcom.gov.cn/gzdt/art/2026/art_0ec3efd7e1f24cc7a3b08db49669aff8.html', '2026-08-04T00:00:00.000Z');
+const chongqingSilver = source('chongqing-silver-life', '重庆推出“乐享银龄”六大系列主题活动', '重庆市人民政府', 'https://www.cq.gov.cn/ywdt/jrcq/202608/t20260806_15898666.html', '2026-08-06T00:00:00.000Z');
+const digitalTourism = source('digital-tourism', '“文旅+科技”助力打造暑期消费新体验', '中央网信办', 'https://www.cac.gov.cn/2026-08/12/c_1788282568150760.htm', '2026-08-12T00:00:00.000Z');
+const respectMonth = source('respect-month', '上海市老龄办部署2026上海“敬老月”相关工作', '上海市人民政府', 'https://www.shanghai.gov.cn/nw18454/20260813/e219a172e25f4967b0d7ff2a674bcfcb.html', '2026-08-13T00:00:00.000Z');
+const digitalPublishing = source('digital-publishing', '数字中国建设峰会数字快讯', '数字中国建设峰会', 'https://www.digitalchina.gov.cn/2026/xwzx/szkx/', '2026-08-27T00:00:00.000Z');
+const augustObservation = source('august-observation', '真抓实干向未来——8月全国各地经济社会发展观察', '郑州市科技局', 'https://zzkj.zhengzhou.gov.cn/zwyw/10224830.jhtml', '2026-08-31T00:00:00.000Z');
+const putuoAging = source('putuo-aging-plan', '关于印发《2026年普陀区老龄工作要点》的通知', '上海市普陀区人民政府', 'https://www.shpt.gov.cn/zhengwu/zcwj-mzjzhzw/2026/82/202603.html', '2026-03-01T00:00:00.000Z');
+
+export const REVIEWED_TOPIC_CATALOG: WritingTopic[] = [
+  topic({ id: 'ai-enters-the-classroom', kind: 'current', title: '人工智能进入课堂以后，教师最重要的能力是什么', summary: '教育部等五部门发布“人工智能+教育”行动计划，提出推动智能技术与教育全过程融合，同时强调育人为本、素养优先和人文关怀。', whyItMatters: '退休教育工作者亲历过教学工具变化，能为“技术能替代什么、不能替代什么”提供具体判断。', updatedAt: moeAi.publishedAt, expiresAt: '2026-12-31T23:59:59.000Z', sources: [moeAi], angles: angles('回忆第一次把电脑、投影或网络带进课堂时发生的事', '谈谈教师现场判断、人格影响和技术工具之间的关系', '如果今天仍在教学，会怎样规定学生使用人工智能'), starterQuestion: '您第一次在教学或工作中接触电脑是什么时候，当时大家怎么看？', tags: ['教育', '人工智能', '职业经历'] }),
+  topic({ id: 'science-month-and-everyday-life', kind: 'current', title: '科技改变生活，哪一次变化让您感受最深', summary: '2026年全国科普月将于9月开展，计划通过报告、展览、校园活动和基层科普等形式，让公众接触前沿科技与日常应用。', whyItMatters: '宏大的科技主题只有落到个人生活和职业经历中，才会形成有温度、可读的文章。', updatedAt: scienceMonth.publishedAt, expiresAt: '2026-10-15T23:59:59.000Z', sources: [scienceMonth], angles: angles('写一种从稀罕物变成日用品的技术', '谈一次自己教别人使用新工具的经历', '讨论便利增加以后仍不该丢掉的生活能力'), starterQuestion: '这些年，哪一种新技术最明显地改变了您的日常生活？', tags: ['科普', '生活变化', '科技'] }),
+  topic({ id: 'senior-learning-with-ai', kind: 'current', title: '退休以后学习新技术，是赶时髦还是新生活', summary: '上海老年教育开放活动把AI智慧学习、数字素养课程和家门口的老年教育放在一起，展示老年学习从兴趣课程向数字生活延伸。', whyItMatters: '目标用户既是学习者，也可能曾是教育者，能够讨论终身学习的尊严、乐趣与实际困难。', updatedAt: shanghaiLearning.publishedAt, expiresAt: '2026-11-30T23:59:59.000Z', sources: [shanghaiLearning], angles: angles('写一次退休后重新当学生的感受', '谈适合中老年人的数字课程应该怎样教', '比较年轻时进修与退休后学习的不同'), starterQuestion: '退休以后，您主动学会的第一样新东西是什么？', tags: ['终身学习', '数字素养', '退休生活'] }),
+  topic({ id: 'what-should-senior-university-teach', kind: 'current', title: '老年大学除了琴棋书画，还可以教什么', summary: '商务部离退休干部老年大学培训涉及人工智能、传统文化和交响乐等内容，反映退休人群的学习需求正变得更多元。', whyItMatters: '有专业积累的退休者不仅能谈想学什么，也能谈自己愿意教什么、留下什么。', updatedAt: mofcomLearning.publishedAt, expiresAt: '2026-12-31T23:59:59.000Z', sources: [mofcomLearning], angles: angles('列出一门最想学和一门最愿意教的课程', '谈老年教育应该重兴趣还是重实用', '写一次同龄人互相教会一件事的经历'), starterQuestion: '如果让您给老年大学开一门课，您最想讲什么？', tags: ['老年大学', '知识分享', '退休生活'] }),
+  topic({ id: 'a-richer-retirement-life', kind: 'current', title: '退休生活的“丰富”，应该由谁来定义', summary: '重庆推出覆盖文艺、文创、阅读、健身、康养和科普的银龄活动，强调文化生活、数字能力和社会参与的多元供给。', whyItMatters: '退休生活不只有休息和养老，个人对充实、自由与参与的理解本身值得表达。', updatedAt: chongqingSilver.publishedAt, expiresAt: '2026-12-31T23:59:59.000Z', sources: [chongqingSilver], angles: angles('写退休后最珍惜的一种时间自由', '谈集体活动和独处各自的价值', '讨论“老有所为”是否应当由本人选择'), starterQuestion: '退休以后，哪件小事让您第一次感觉生活节奏真正属于自己？', tags: ['退休生活', '文化生活', '个人选择'] }),
+  topic({ id: 'technology-meets-museums', kind: 'current', title: '当博物馆遇到AI和AR，文化离我们更近了吗', summary: '多地文旅场景开始使用AI行程服务、智能导览和AR展览，让传统文化与数字体验结合，也带来“技术会不会抢走观看本身”的讨论。', whyItMatters: '有阅读、旅行和文化兴趣的用户可以把亲身参观经验与新技术放在一起思考。', updatedAt: digitalTourism.publishedAt, expiresAt: '2026-11-30T23:59:59.000Z', sources: [digitalTourism], angles: angles('比较有讲解员和使用智能导览的两次参观', '谈技术帮助理解文物还是制造热闹', '写一座最希望重新参观的博物馆'), starterQuestion: '您印象最深的一次博物馆或纪念馆参观，记住的是哪件东西？', tags: ['文化', '旅行', '数字技术'] }),
+  topic({ id: 'respect-is-more-than-a-festival', kind: 'current', title: '敬老不只在节日里，最需要改变的日常细节是什么', summary: '上海2026年敬老月安排涉及关爱帮扶、健康服务、居住安全、数字反诈和精神文化等多个方面。', whyItMatters: '“敬老”容易停留在口号，亲历者最清楚哪些日常设计真正方便、哪些只是形式。', updatedAt: respectMonth.publishedAt, expiresAt: '2026-11-15T23:59:59.000Z', sources: [respectMonth], angles: angles('写一个真正体贴中老年人的服务细节', '谈一次被过度照顾或被忽视的感受', '讨论尊重和照顾之间的界线'), starterQuestion: '您遇到过哪一个很小、却让人感到被尊重的服务细节？', tags: ['敬老', '公共服务', '生活观察'] }),
+  topic({ id: 'reading-in-the-digital-publishing-age', kind: 'current', title: '从铅字到屏幕，我们的阅读习惯变了什么', summary: '数字出版持续发展，阅读、听书和知识传播的载体越来越多。载体变化带来便利，也改变了专注、收藏和分享文字的方式。', whyItMatters: '经历过纸质出版和数字阅读转换的人，能够写出媒介变化背后的真实生活细节。', updatedAt: digitalPublishing.publishedAt, expiresAt: '2026-12-31T23:59:59.000Z', sources: [digitalPublishing], angles: angles('写一本陪伴自己很多年的纸质书', '比较报纸、电脑和手机上的阅读感受', '谈数字时代是否还需要做读书笔记'), starterQuestion: '您最早养成的阅读习惯，现在还保留着哪一个？', tags: ['阅读', '数字出版', '生活变化'] }),
+  topic({ id: 'humanoid-robots-and-human-skills', kind: 'current', title: '机器人越来越像人，人更应该珍惜什么能力', summary: '2026年8月的多地发展观察提到人形机器人运动会等科技活动，机器人从展示走向更复杂的动作和应用场景。', whyItMatters: '与其预测遥远未来，不如从几十年职业经验出发，讨论判断、责任、手艺和人与人相处。', updatedAt: augustObservation.publishedAt, expiresAt: '2026-11-30T23:59:59.000Z', sources: [augustObservation], angles: angles('写一种机器很难替代的职业经验', '回忆单位里第一次引入自动化设备', '谈效率之外仍需人工负责的事情'), starterQuestion: '您的职业生涯里，有哪一种本领是长期实践才能真正掌握的？', tags: ['机器人', '职业经验', '科技'] }),
+  topic({ id: 'teachers-day-one-student', kind: 'periodic', title: '教师节将近，写一个多年以后仍记得的学生', summary: '人工智能和数字化正在改变教育工具，但师生之间具体而长久的影响仍是教育经验中不可替代的一部分。', whyItMatters: '从一个学生、一节课或一句话写起，比概括整个教学生涯更容易形成真实文章。', updatedAt: reviewedAt, expiresAt: '2026-09-15T23:59:59.000Z', sources: [moeAi], angles: angles('写一个当时普通、后来才理解其意义的课堂瞬间', '写一位多年后再次联系的学生', '谈教师究竟会给学生留下些什么'), starterQuestion: '您的学生中，有没有一个人多年以后还会突然想起？', tags: ['教师节', '教育', '人物'] }),
+  topic({ id: 'new-semester-old-classroom', kind: 'periodic', title: '开学季：记忆里那间教室是什么样子', summary: '新学期总会带来新的课程、工具和期待。对经历过不同年代校园生活的人来说，教室本身就是时代变化的切片。', whyItMatters: '空间、声音和物件能唤起具体记忆，也能自然连接今天的教育变化。', updatedAt: reviewedAt, expiresAt: '2026-09-30T23:59:59.000Z', sources: [moeAi], angles: angles('从黑板、讲台或窗户写起', '比较自己当学生和当老师时的教室', '写开学第一天最难忘的一件小事'), starterQuestion: '闭上眼想起学校，您首先看见的是哪一间教室？', tags: ['开学季', '校园', '记忆'] }),
+  topic({ id: 'autumn-new-course', kind: 'periodic', title: '秋季开课：退休后重新成为学生', summary: '多地老年教育正在增加数字素养、文化艺术和生活课程，为退休人群提供重新学习和交流的场所。', whyItMatters: '重新当学生既有新鲜感，也可能有拘谨、比较和重新建立节奏的过程。', updatedAt: reviewedAt, expiresAt: '2026-10-31T23:59:59.000Z', sources: [shanghaiLearning, mofcomLearning], angles: angles('写第一次走进老年大学课堂的心情', '谈年龄增长后学习方法有什么变化', '写一个同学或老师带来的意外收获'), starterQuestion: '退休以后再坐进课堂，您最不习惯的是什么？', tags: ['秋季', '老年大学', '终身学习'] }),
+  topic({ id: 'mid-autumn-one-family-dish', kind: 'periodic', title: '中秋将近，写一道只有家里才有的味道', summary: '节日常通过一顿饭、一种做法和一家人的分工被记住。比起概括团圆，一道具体的菜更容易留下人物和时代。', whyItMatters: '从味觉和做法出发，可以自然写到家庭关系、迁居变化和代际传承。', updatedAt: reviewedAt, expiresAt: '2026-10-10T23:59:59.000Z', sources: [chongqingSilver], angles: angles('写是谁做、怎样做、谁最爱吃', '谈现在的节日饭与过去有什么不同', '写一道已经很少有人做的家常菜'), starterQuestion: '每到中秋或团聚时，您最先想到家里的哪一道菜？', tags: ['中秋', '家庭', '味道'] }),
+  topic({ id: 'respect-month-one-change', kind: 'periodic', title: '敬老月：与其送礼，不如改变一个细节', summary: '敬老月关注生活品质、健康服务、居住安全、反诈和精神文化，具体体验往往比大型活动更能说明问题。', whyItMatters: '用户可以从公共服务或家庭相处的亲历出发，提出有分寸、可执行的建议。', updatedAt: reviewedAt, expiresAt: '2026-11-15T23:59:59.000Z', sources: [respectMonth], angles: angles('给公共场所提出一个具体适老建议', '谈家庭里怎样帮助才不让人失去自主', '写一次自己帮助更年长者的经历'), starterQuestion: '如果只能改一个地方，让中老年人生活更方便，您会先改哪里？', tags: ['敬老月', '适老服务', '建议'] }),
+  topic({ id: 'science-month-teach-one-thing', kind: 'periodic', title: '科普月：把一件专业小事讲给家人听', summary: '全国科普月鼓励科学文化走进校园、基层和日常生活。退休专业人员拥有大量能被普通人理解和使用的经验。', whyItMatters: '把专业知识讲清楚，本身就是有价值的写作，也能形成目标人群独特的内容。', updatedAt: reviewedAt, expiresAt: '2026-10-15T23:59:59.000Z', sources: [scienceMonth], angles: angles('解释一个工作中常被外行误解的概念', '写一次向年轻同事或家人讲专业知识', '谈专业表达怎样避免故作高深'), starterQuestion: '您的老本行里，哪件事最值得用几百字讲给普通人听？', tags: ['科普月', '专业知识', '表达'] }),
+  topic({ id: 'what-retirement-learning-is-for', kind: 'slow', title: '退休以后学习，还需要“有用”吗', summary: '老年教育正在同时提供数字技能、传统文化、艺术和生活课程。学习可以解决实际问题，也可以只为了好奇、审美和结识同伴。', whyItMatters: '“有用”和“喜欢”的关系，是很多退休者重新安排时间时会遇到的真实问题。', updatedAt: reviewedAt, expiresAt: null, sources: [shanghaiLearning, mofcomLearning], angles: angles('写一次没有功利目的却很值得的学习', '谈家人如何看待退休后的兴趣投入', '比较为工作学习和为自己学习'), starterQuestion: '有没有一件事，您学它完全不是为了有用，却一直很喜欢？', tags: ['终身学习', '兴趣', '退休生活'] }),
+  topic({ id: 'keep-old-places-or-renew-them', kind: 'slow', title: '老地方应该保留原样，还是进入新的生活', summary: '数字技术、沉浸体验和城市文化更新让旧建筑、纪念馆与传统空间出现新的使用方式，也带来真实性和便利之间的讨论。', whyItMatters: '一个具体地方的前后变化，可以承载城市记忆、个人经历和公共判断。', updatedAt: reviewedAt, expiresAt: null, sources: [digitalTourism], angles: angles('写一个已经改变或消失的熟悉地方', '谈修旧如旧与重新利用如何平衡', '比较旧地方在记忆中和现实中的样子'), starterQuestion: '您生活过的地方里，哪一处变化最让您感慨？', tags: ['城市记忆', '文化', '地方'] }),
+  topic({ id: 'digital-convenience-and-safety', kind: 'slow', title: '数字生活越方便，为什么有时反而更不安心', summary: '多地老龄工作把数字素养、网络安全和反诈放在重要位置，说明会使用智能设备之外，还需要能够识别风险和保留选择。', whyItMatters: '真实经历能帮助同龄人理解风险，也能提醒产品和公共服务不要把责任全推给使用者。', updatedAt: reviewedAt, expiresAt: null, sources: [chongqingSilver, respectMonth], angles: angles('写一次差点受骗或帮助别人识别骗局的经历', '谈哪些数字操作不该只提供手机入口', '总结自己判断陌生消息的办法'), starterQuestion: '使用手机这些年，哪一次经历让您开始特别注意数字安全？', tags: ['数字安全', '反诈', '生活经验'] }),
+  topic({ id: 'reading-club-after-retirement', kind: 'slow', title: '退休后的读书会，读书重要还是相聚重要', summary: '地方老龄工作把阅读行动、读书会、文化课程和学习成果展示结合起来，阅读也成为退休生活中的社会连接。', whyItMatters: '读书既是私人体验，也能通过讨论重新建立稳定的人际关系和表达场合。', updatedAt: reviewedAt, expiresAt: null, sources: [putuoAging], angles: angles('写一次因为别人的理解而重新认识一本书', '谈读书会最舒服的交流方式', '写退休前后阅读时间和口味的变化'), starterQuestion: '有没有一本书，是别人和您聊过以后才变得特别起来？', tags: ['阅读', '读书会', '退休生活'] }),
+  topic({ id: 'teach-what-you-know', kind: 'slow', title: '把一生所学讲出来，也是一种退休生活', summary: '老年教育和基层文化活动越来越重视能者为师、知识分享和学习成果展示，为退休专业人员提供继续贡献经验的方式。', whyItMatters: '不是所有经验都适合写成教程，但一个判断、一套做事方法或一段失败经历都值得留下。', updatedAt: reviewedAt, expiresAt: null, sources: [shanghaiLearning, putuoAging], angles: angles('写一条年轻时没人教、后来自己悟出的经验', '谈怎样分享经验而不变成说教', '写一次学生或后辈反过来教会自己的事'), starterQuestion: '如果只给年轻同行留下一条经验，您最想说什么？', tags: ['经验传承', '职业', '退休生活'] }),
+  topic({ id: 'technology-needs-human-judgment', kind: 'slow', title: '工具越来越聪明，人为什么还要保留自己的判断', summary: '人工智能正在进入教育、文旅和日常服务。它能够提高效率，但责任、价值取舍和对具体人的理解仍需要使用者判断。', whyItMatters: '目标用户长期承担过专业责任，适合从真实决策而不是抽象口号讨论人机关系。', updatedAt: reviewedAt, expiresAt: null, sources: [moeAi, digitalTourism], angles: angles('写一次不能只按流程处理的工作决定', '谈经验判断与数据建议发生冲突时怎么办', '给第一次使用AI的人提一条原则'), starterQuestion: '您的工作中，有没有一次“按规定做还不够”，必须靠经验判断？', tags: ['人工智能', '职业判断', '责任'] }),
+];
+
+export function validateTopicSourceHosts(topicValue: WritingTopic, allowlist = ALLOWED_TOPIC_SOURCE_HOSTS) {
+  const blocked = topicValue.sources.find(item => !allowlist.has(new URL(item.url).hostname));
+  if (blocked) throw new Error(`来源不在允许清单：${blocked.publisher}`);
+  return topicValue;
+}
+
+export class TopicEditorialQueue {
+  private records = new Map<string, WritingTopic>();
+  constructor(values: WritingTopic[] = REVIEWED_TOPIC_CATALOG) {
+    for (const value of values) this.records.set(`${value.id}:${value.revision}`, validateTopicSourceHosts(writingTopicSchema.parse(value)));
+  }
+  private latestPublished(id: string) {
+    return [...this.records.values()].filter(item => item.id === id && ['published', 'corrected'].includes(item.status))
+      .sort((a, b) => b.revision - a.revision)[0];
+  }
+  listPublished(options: { now?: Date; kind?: TopicKind; limit?: number } = {}) {
+    const now = options.now ?? new Date();
+    const limit = Math.min(Math.max(options.limit ?? 20, 1), 20);
+    const latest = new Map<string, WritingTopic>();
+    for (const item of this.records.values()) {
+      if (!isTopicCurrent(item, now) || options.kind && item.kind !== options.kind) continue;
+      const previous = latest.get(item.id);
+      if (!previous || item.revision > previous.revision) latest.set(item.id, item);
+    }
+    return [...latest.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.title.localeCompare(b.title, 'zh-CN')).slice(0, limit);
+  }
+  getPublished(id: string, now = new Date()) { return this.listPublished({ now, limit: 20 }).find(item => item.id === id); }
+  submit(value: WritingTopic) {
+    const parsed = validateTopicSourceHosts(writingTopicSchema.parse(value));
+    if (!['draft', 'candidate'].includes(parsed.status)) throw new Error('只有草稿或候选可以进入审核队列');
+    this.records.set(`${parsed.id}:${parsed.revision}`, parsed); return parsed;
+  }
+  reject(id: string, revision: number) {
+    const current = this.records.get(`${id}:${revision}`); if (!current || !['draft', 'candidate'].includes(current.status)) throw new Error('没有可拒绝的候选');
+    const next = writingTopicSchema.parse({ ...current, status: 'rejected' }); this.records.set(`${id}:${revision}`, next); return next;
+  }
+  publish(id: string, revision: number, reviewer: string, at = new Date().toISOString()) {
+    const current = this.records.get(`${id}:${revision}`); if (!current || !['draft', 'candidate'].includes(current.status)) throw new Error('没有可发布的候选');
+    const next = validateTopicSourceHosts(writingTopicSchema.parse({ ...current, status: 'published', publishedAt: at, updatedAt: at, reviewedBy: reviewer, reviewedAt: at }));
+    this.records.set(`${id}:${revision}`, next); return next;
+  }
+  correct(value: WritingTopic) {
+    const latest = this.latestPublished(value.id);
+    if (!latest || value.revision <= latest.revision) throw new Error('更正修订号必须增加');
+    const parsed = validateTopicSourceHosts(writingTopicSchema.parse({ ...value, status: 'corrected' }));
+    this.records.set(`${parsed.id}:${parsed.revision}`, parsed); return parsed;
+  }
+}
