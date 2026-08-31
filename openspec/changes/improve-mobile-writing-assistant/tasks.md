@@ -8,6 +8,7 @@
 - [x] 1.6 Add regression coverage for standard and WebKit point-to-caret APIs, paragraph/newline offset mapping and blank-area fallback
 - [x] 1.7 Add regression coverage for non-blocking touch long-press timing/movement cancellation and pending-speech click-to-caret mapping
 - [x] 1.8 Add contract coverage for the default, allowed bilingual 1.0/2.0 and rejected Tencent ASR engine model values and signed upstream URL
+- [ ] 1.9 Add regression coverage for header title confirmation/cancellation, concise idle speech copy, pending-edit cancellation/spacing, compact chat bottom spacing and the keyboard text-mode icon
 
 ## 2. Accurate AI feedback
 
@@ -23,6 +24,7 @@
 - [x] 3.5 Transfer the second body tap position into a collapsed current-page text selection without changing article content
 - [x] 3.6 Add touch/pen long-press current-page entry and preserve the clicked pending-speech offset in its separate editor
 - [x] 3.7 Load the Tencent ASR engine model from a server-only allowlisted environment setting and pass it into upstream signing
+- [ ] 3.8 Move title editing into a header-triggered native input dialog, trim idle speech copy, and make pending-speech cancel/complete semantics and spacing explicit
 
 ## 4. Compact article assistant
 
@@ -31,6 +33,7 @@
 - [x] 4.3 Preserve focus, Escape/back navigation, consent, failure, candidate preview and message scrolling across the compact layouts
 - [x] 4.4 Restore comfortable optimization menu rhythm within the one-screen target and keep the empty composer at one line with concise copy independent of placeholder measurement
 - [x] 4.5 Make toolbar chat report unavailable without opening XiaoWen, keep the optimization launcher, and replace XiaoWen hold dictation with tap-to-start/tap-to-cancel capture
+- [ ] 4.6 Reduce the XiaoWen composer bottom gap while preserving safe-area protection and replace the text-mode pencil with a keyboard icon
 
 ## 5. Documentation and verification
 
@@ -43,3 +46,4 @@
 - [x] 5.7 Run complete checks, build and browser regression for long-press and pending-edit caret entry; deploy and record evidence without claiming unavailable physical-device gesture results
 - [x] 5.8 Run complete checks/build, deploy the gateway with `16k_zh_en`, verify the public service and rollback setting, and record that real bilingual recognition remains a user/device check
 - [x] 5.9 Restore the public gateway to experience-pack-compatible `16k_zh`, restart only the gateway, verify public health/status and record the rollback without making a real ASR call
+- [ ] 5.10 Run complete checks, build and four-size browser regression for the header title dialog, trimmed copy, pending-edit layout, compact composer bottom and keyboard icon; record evidence without claiming unavailable physical-device keyboard results

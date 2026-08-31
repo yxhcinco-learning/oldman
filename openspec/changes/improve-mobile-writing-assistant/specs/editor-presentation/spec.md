@@ -62,3 +62,25 @@
 #### Scenario: Focus the current-page body or inspect idle speech controls
 - **WHEN** 用户聚焦当前页全文输入，或返回空闲展开的语音模式
 - **THEN** 全文输入区底部不出现额外横线，收起按钮在左侧控制位内居中且与麦克风及右侧操作保持平衡
+
+### Requirement: Header title editing and concise speech text
+正式编辑器 SHALL 在页头显示当前文章标题，空标题时 MUST 显示“点击编辑标题”，正文滚动区 MUST NOT 再保留独立标题输入行。页头标题操作 MUST 打开使用原生单行文字输入的独立弹窗；只有明确确认才更新标题，关闭、Escape 或取消 MUST 保留原标题、正文输入模式、正文与待确认语音。空闲语音提示 MUST 删除“文字会在这里轻轻落下。”并保持轻波形、剩余提示和固定语音控制对齐。
+
+#### Scenario: Edit a title from the header
+- **WHEN** 用户在无标题文章点击页头“点击编辑标题”，输入标题并确认
+- **THEN** 弹窗使用普通文字输入并自动聚焦，确认后页头显示新标题，正文区域获得原标题行释放的空间，正文输入模式与内容不变
+
+#### Scenario: Cancel a title edit or reopen an existing title
+- **WHEN** 用户打开已有标题的编辑弹窗后修改临时文字，再点击取消、关闭或按 Escape
+- **THEN** 弹窗关闭且页头继续显示进入弹窗前的标题，正文、待确认语音、保存状态和语音/文字模式不变
+
+#### Scenario: Show the concise idle speech prompt
+- **WHEN** 语音舞台空闲且没有待确认文字
+- **THEN** 页面只显示轻波形和“不着急，慢慢说。”，不显示“文字会在这里轻轻落下。”，麦克风与收起控制仍保持原固定对齐
+
+### Requirement: Explicit pending-speech edit actions
+语音待确认文字编辑页 SHALL 删除重复引导句，MUST 在页头右侧显示“取消”并在取消时丢弃本页临时修改、保留进入页面前的待确认文字；底部“完成修改” MUST 仍是唯一写回编辑值的操作。字数与完成按钮之间 SHALL 使用紧凑的同组间距，不得因正文弹性高度额外叠加大块底部留白。
+
+#### Scenario: Cancel or complete pending-speech editing
+- **WHEN** 用户修改待确认语音文字后点击页头“取消”，或重新进入后点击“完成修改”
+- **THEN** 取消返回语音舞台并恢复原待确认文字；完成返回语音舞台并显示编辑后的待确认文字，两条路径均不提前并入普通正文

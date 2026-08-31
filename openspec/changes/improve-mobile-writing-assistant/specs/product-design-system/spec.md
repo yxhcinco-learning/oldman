@@ -9,7 +9,7 @@
 
 #### Scenario: Type a short or long conversation request
 - **WHEN** 用户打开空的小文会话输入框，或输入一行及多行要求
-- **THEN** 空输入框使用精简提示词并固定 52px，不因提示词测量增高；真实文字使输入框平滑增高，达到限定行数后内部滚动，语音按钮、发送按钮、焦点边框和已输入文字持续可见
+- **THEN** 空输入框使用精简提示词并固定 52px，不因提示词测量增高；真实文字使输入框平滑增高，达到限定行数后内部滚动，语音按钮、发送按钮、焦点边框和已输入文字持续可见；输入条下方只保留8px基础间距或更大的系统安全区，不叠加固定大块留白
 
 #### Scenario: Dictate and send from the compact composer
 - **WHEN** 用户点按小文语音按钮开始转写，再次点按取消采集后检查文字并点击发送，或语音配置/授权失败后改用文字
@@ -25,3 +25,10 @@
 #### Scenario: Enter XiaoWen from optimization
 - **WHEN** 用户打开“优化”并点击小文入口
 - **THEN** 系统仍进入现有小文会话，允许文字输入、点按语音转写和显式发送
+
+### Requirement: Distinct keyboard icon for text mode
+编辑器工具栏“文字”页签 SHALL 使用键盘轮廓图标，MUST 保持“文字”标签、选中状态、点击行为和“文字输入”可访问名称不变，不得与待确认内容使用的铅笔修改图标混淆。
+
+#### Scenario: Inspect or select text mode
+- **WHEN** 用户查看编辑器工具栏或点击“文字”页签
+- **THEN** 页签显示键盘图标并切换到现有当前页全文输入；语音、聊天和优化图标及行为不变
