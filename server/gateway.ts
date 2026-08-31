@@ -21,7 +21,7 @@ export interface GatewayOptions {
 export async function createGateway(options: GatewayOptions) {
   const app = Fastify({ logger: false, bodyLimit: 64 * 1024 });
   const operations = options.operations ?? defaultOperationLogger;
-  registerArticleAi(app, { ...options.ai, origin: options.origin, operations });
+  registerArticleAi(app, { ...options.ai, origin: options.origin, operations, miniAuthService: options.miniAuth?.service });
   registerTopics(app, { origin: options.origin, queue: options.topics, operations });
   registerMiniAuth(app, { ...options.miniAuth, operations });
   const active = new Set<WebSocket>();

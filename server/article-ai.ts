@@ -1,10 +1,23 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { aiResultSchema, resultSummary } from '../lib/domain/article-ai';
 import { aiRequestSchema, type AiRequest, type AiResponse } from '../features/ai/protocol';
 import { defaultOperationLogger, operationDuration, type OperationLogger } from './operations';
+import type { WechatAuthService } from './wechat-auth';
+import { MiniIdentityError } from './mini-identity-store';
 
 export interface AiConfiguration { apiKey: string; baseUrl: string; model: 'deepseek-v4-flash' }
-export interface AiGatewayOptions { configuration?: AiConfiguration; origin: string; fetch?: typeof fetch; timeoutMs?: number; maxConcurrent?: number; requestsPerMinute?: number; operations?: OperationLogger }
+export interface AiGatewayOptions {
+  configuration?: AiConfiguration;
+  origin: string;
+  fetch?: typeof fetch;
+  timeoutMs?: number;
+  maxConcurrent?: number;
+  requestsPerMinute?: number;
+  miniRequestsPerMinute?: number;
+  miniMaxConcurrentPerUser?: number;
+  miniAuthService?: WechatAuthService;
+  operations?: OperationLogger;
+}
 export function loadAiConfiguration(env: Readonly<Record<string, string | undefined>> = process.env): AiConfiguration | undefined {
   const apiKey = env.DEEPSEEK_API_KEY?.trim();
   const baseUrl = env.DEEPSEEK_BASE_URL?.trim().replace(/\/$/, '') || 'https://api.deepseek.com';
@@ -104,6 +117,8 @@ export async function callDeepSeek(request: AiRequest, configuration: AiConfigur
 }
 export function registerArticleAi(app: FastifyInstance, options: AiGatewayOptions) {
   const active = new Set<AbortController>();
+  const activeByUser = new Map<string, number>();
+  const recentByUser = new Map<string, number[]>();
   let recent: number[] = [];
   app.get('/api/ai/status', async (request, reply) => {
     const startedAt = performance.now();
@@ -115,22 +130,60 @@ export function registerArticleAi(app: FastifyInstance, options: AiGatewayOption
     log({ requestId: request.id, action: 'ai.status', status: 200, durationMs: operationDuration(startedAt) });
     return reply.header('Cache-Control', 'no-store').send({ configured: Boolean(options.configuration), provider: 'DeepSeek', model: 'deepseek-v4-flash' });
   });
-  app.post('/api/ai/turn', { bodyLimit: 1024 * 1024 }, async (request, reply) => {
+  const handleTurn = async (request: FastifyRequest, reply: FastifyReply, mode: 'web' | 'mini') => {
     const startedAt = performance.now();
     const log = options.operations ?? defaultOperationLogger;
-    let action = 'ai.turn';
+    let action = mode === 'mini' ? 'mini.ai.turn' : 'ai.turn';
     const finish = (status: number, errorCategory?: string, tokens?: { input: number; output: number }) => {
       log({ requestId: request.id, action, status, durationMs: operationDuration(startedAt), ...(tokens ? { tokens } : {}), ...(errorCategory ? { errorCategory } : {}) });
     };
     reply.header('Cache-Control', 'no-store');
-    if (request.headers.origin !== options.origin) { finish(403, 'origin_rejected'); return reply.code(403).send({ error: '来源不允许。' }); }
+    let userId: string | undefined;
+    if (mode === 'web') {
+      if (request.headers.origin !== options.origin) { finish(403, 'origin_rejected'); return reply.code(403).send({ error: '来源不允许。' }); }
+    } else {
+      if (!options.miniAuthService) { finish(503, 'auth_not_configured'); return reply.code(503).send({ error: '在线身份服务尚未配置，本地写作仍可使用。' }); }
+      try { userId = options.miniAuthService.authenticateBearer(request.headers.authorization).userId; }
+      catch (error) {
+        if (error instanceof MiniIdentityError) {
+          finish(401, 'unauthorized');
+          return reply.code(401).send({ error: '在线身份已失效，请重试。' });
+        }
+        finish(503, 'identity_unavailable');
+        return reply.code(503).send({ error: '在线身份服务暂不可用，本地写作仍可使用。' });
+      }
+    }
     if (!options.configuration) { finish(503, 'not_configured'); return reply.code(503).send({ error: '请先配置本地 DeepSeek 服务并重启网关。' }); }
     const parsed = aiRequestSchema.safeParse(request.body);
     if (!parsed.success) { finish(400, 'invalid_request'); return reply.code(400).send({ error: '文章或上下文格式无效、内容过长，请检查后再试。' }); }
-    action = `ai.${parsed.data.action}`;
+    action = `${mode === 'mini' ? 'mini.ai' : 'ai'}.${parsed.data.action}`;
     const now = Date.now(); recent = recent.filter(time => now - time < 60000);
+    let userRecent: number[] = [];
+    if (userId) {
+      if (recentByUser.size >= 4096) {
+        for (const [key, values] of recentByUser) {
+          const retained = values.filter(time => now - time < 60_000);
+          if (!retained.length && !activeByUser.has(key)) recentByUser.delete(key);
+          else recentByUser.set(key, retained);
+        }
+        if (recentByUser.size >= 4096 && !recentByUser.has(userId)) {
+          finish(429, 'user_rate_limited');
+          return reply.code(429).send({ error: '请求较多，请稍后再试。' });
+        }
+      }
+      userRecent = (recentByUser.get(userId) ?? []).filter(time => now - time < 60_000);
+      if ((activeByUser.get(userId) ?? 0) >= (options.miniMaxConcurrentPerUser ?? 1) || userRecent.length >= (options.miniRequestsPerMinute ?? 10)) {
+        recentByUser.set(userId, userRecent);
+        finish(429, 'user_rate_limited');
+        return reply.code(429).send({ error: '请求较多，请稍后再试。' });
+      }
+    }
     if (active.size >= (options.maxConcurrent ?? 2) || recent.length >= (options.requestsPerMinute ?? 20)) { finish(429, 'rate_limited'); return reply.code(429).send({ error: '请求较多，请稍后再试。' }); }
     recent.push(now);
+    if (userId) {
+      recentByUser.set(userId, [...userRecent, now]);
+      activeByUser.set(userId, (activeByUser.get(userId) ?? 0) + 1);
+    }
     const controller = new AbortController(); active.add(controller);
     const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 120000);
     const onClose = () => { if (!reply.raw.writableEnded) controller.abort(); };
@@ -145,7 +198,17 @@ export function registerArticleAi(app: FastifyInstance, options: AiGatewayOption
       if (error instanceof AiServiceError) { finish(error.status, error.category); return reply.code(error.status).send({ error: error.message }); }
       finish(502, 'upstream_invalid_response');
       return reply.code(502).send({ error: 'AI 连接或结果格式异常，原文未改变，请稍后重试。' });
-    } finally { clearTimeout(timer); active.delete(controller); reply.raw.off('close', onClose); }
-  });
+    } finally {
+      clearTimeout(timer);
+      active.delete(controller);
+      reply.raw.off('close', onClose);
+      if (userId) {
+        const count = (activeByUser.get(userId) ?? 1) - 1;
+        if (count > 0) activeByUser.set(userId, count); else activeByUser.delete(userId);
+      }
+    }
+  };
+  app.post('/api/ai/turn', { bodyLimit: 1024 * 1024 }, (request, reply) => handleTurn(request, reply, 'web'));
+  app.post('/api/mini/ai/turn', { bodyLimit: 1024 * 1024 }, (request, reply) => handleTurn(request, reply, 'mini'));
   app.addHook('preClose', async () => { for (const controller of active) controller.abort(); });
 }

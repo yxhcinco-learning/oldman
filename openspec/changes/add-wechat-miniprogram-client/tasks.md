@@ -46,11 +46,11 @@
 
 ## 6. Authenticated mini-program AI and network clients
 
-- [ ] 6.1 Add namespaced mini-program AI/status handlers that reuse current validation/upstream code while requiring Bearer sessions and preserving concurrency, timeout, size and no-retry limits
-- [ ] 6.2 Implement the mini-program `wx.request` client with bounded response parsing, Abort/cancel equivalents, one auth recovery attempt and user-facing offline/configuration/upstream errors
-- [ ] 6.3 Ensure reviewed topic reads remain bounded/cacheable while every mini AI request carries a valid business session and neither path depends on a browser Origin header
-- [ ] 6.4 Add contract tests proving web same-origin routes retain current behavior, mini routes reject missing/expired sessions before DeepSeek, and request/response schemas remain identical where intended
-- [ ] 6.5 Run AI/topic focused tests plus root check/build, inspect logs and bundles for credentials/identity leakage, and commit the verified authenticated-network stage without real paid calls
+- [x] 6.1 Add namespaced mini-program AI/status handlers that reuse current validation/upstream code while requiring Bearer sessions and preserving concurrency, timeout, size and no-retry limits
+- [x] 6.2 Implement the mini-program `wx.request` client with bounded response parsing, Abort/cancel equivalents, one auth recovery attempt and user-facing offline/configuration/upstream errors
+- [x] 6.3 Ensure reviewed topic reads remain bounded/cacheable while every mini AI request carries a valid business session and neither path depends on a browser Origin header
+- [x] 6.4 Add contract tests proving web same-origin routes retain current behavior, mini routes reject missing/expired sessions before DeepSeek, and request/response schemas remain identical where intended
+- [x] 6.5 Run AI/topic focused tests plus root check/build, inspect logs and bundles for credentials/identity leakage, and commit the verified authenticated-network stage without real paid calls
 
 ## 7. Mini-program realtime speech
 
