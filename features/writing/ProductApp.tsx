@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore, useRef } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore, useRef } from 'react';
 import { IndexedWorkRepository, type WorkRepository } from '../../lib/storage/repository';
 import { Workspace } from './workspace';
 import { makeBackup, MAX_BACKUP_BYTES } from '../../lib/storage/backup';
@@ -11,9 +11,12 @@ import { WorksHome } from './WorksHome';
 import { Editor } from './Editor';
 import { Icon } from '../../components/Icons';
 import type { AssistantStatus } from '../../components/WritingControls';
+import { snapshotTopic, type WritingTopic } from '../../lib/domain/topics';
+import { topicTransport as defaultTopicTransport, type TopicTransport } from '../topics/client';
+import { TopicDetail } from '../topics/TopicDetail';
 
 type Menu = 'library' | 'works' | 'trash' | Work | null;
-export function ProductApp({ repository, aiTransport }: { repository?: WorkRepository; aiTransport?: AiTransport }) {
+export function ProductApp({ repository, aiTransport, topicTransport = defaultTopicTransport }: { repository?: WorkRepository; aiTransport?: AiTransport; topicTransport?: TopicTransport }) {
   const [workspace] = useState(() => new Workspace(repository ?? new IndexedWorkRepository()));
   const state = useSyncExternalStore(workspace.subscribe, workspace.getSnapshot, workspace.getSnapshot);
   const [assistant] = useState(() => new ArticleAiController(workspace, aiTransport));
@@ -23,10 +26,25 @@ export function ProductApp({ repository, aiTransport }: { repository?: WorkRepos
   const [menu, setMenu] = useState<Menu>(null);
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+  const [topics, setTopics] = useState<WritingTopic[]>([]);
+  const [topicsStatus, setTopicsStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [selectedTopic, setSelectedTopic] = useState<WritingTopic | null>(null);
+  const [latestTopic, setLatestTopic] = useState<WritingTopic | null>(null);
   const file = useRef<HTMLInputElement>(null);
   const shell = useRef<HTMLElement>(null);
   const assistantOpenRef = useRef(false);
   useEffect(() => { void workspace.initialize(); return () => { workspace.dispose(); void assistant.cancel(); }; }, [workspace, assistant]);
+  const loadTopics = useCallback(() => {
+    topicTransport.list({ limit: 5 }).then(value => { setTopics(value.slice(0, 5)); setTopicsStatus('ready'); }).catch(() => setTopicsStatus('error'));
+  }, [topicTransport]);
+  useEffect(loadTopics, [loadTopics]);
+  useEffect(() => {
+    const id = state.draft?.topicSnapshot?.id;
+    if (!id) return;
+    const controller = new AbortController();
+    topicTransport.detail(id, controller.signal).then(setLatestTopic).catch(() => setLatestTopic(null));
+    return () => controller.abort();
+  }, [state.draft?.topicSnapshot?.id, topicTransport]);
   useEffect(() => assistant.subscribe(() => {
     if (assistantOpenRef.current) return;
     const next = assistant.getSnapshot();
@@ -68,6 +86,11 @@ export function ProductApp({ repository, aiTransport }: { repository?: WorkRepos
     catch { setNotice('浏览器未允许复制，请使用导出 TXT'); }
   };
   const openAssistant = () => { if (state.draft) { void workspace.checkpoint(); assistantOpenRef.current = true; setAssistantStatus('idle'); setAssistantOpen(true); } };
+  const startTopic = async (topic: WritingTopic, mode: 'normal' | 'interview') => {
+    setSelectedTopic(null);
+    await workspace.newWork({ topicSnapshot: snapshotTopic(topic), topicWritingMode: mode });
+    if (mode === 'interview') { assistantOpenRef.current = true; setAssistantStatus('idle'); setAssistantOpen(true); }
+  };
   const closeAssistant = () => {
     assistantOpenRef.current = false; setAssistantOpen(false);
     const current = assistant.getSnapshot();
@@ -76,8 +99,8 @@ export function ProductApp({ repository, aiTransport }: { repository?: WorkRepos
   const assistantPrompt = assistantComposer.workId === state.draft?.id ? assistantComposer.prompt : '';
   const menuWorks = state.works.filter(work => Boolean(work.deletedAt) === (menu === 'trash'));
   return <main className="stage"><section ref={shell} className={`phone-shell ${state.draft ? 'app-view editor-screen' : 'home-screen'}`} aria-label="岁月有声写作应用">
-    {state.loading ? <div className="loading-state" role="status">正在打开本机作品…</div> : state.draft ? <Editor draft={state.draft} update={draft => { void workspace.update(draft); }} onSave={() => void finish()} onBack={() => void finish()} onAssistant={openAssistant} assistantStatus={assistantStatus} saveStatus={state.saveStatus} /> :
-      <WorksHome works={state.works} onNew={() => void workspace.newWork()} onOpen={work => void workspace.open(work)} onMenu={() => setMenu('library')} />}
+    {state.loading ? <div className="loading-state" role="status">正在打开本机作品…</div> : state.draft ? <Editor draft={state.draft} latestTopic={latestTopic} update={draft => { void workspace.update(draft); }} onSave={() => void finish()} onBack={() => void finish()} onAssistant={openAssistant} onInterview={() => { void workspace.update({ ...state.draft!, topicWritingMode: 'interview' }); openAssistant(); }} assistantStatus={assistantStatus} saveStatus={state.saveStatus} /> :
+      <WorksHome works={state.works} topics={topics} topicsStatus={topicsStatus} onRetryTopics={() => { setTopicsStatus('loading'); loadTopics(); }} onTopic={setSelectedTopic} onNew={() => void workspace.newWork()} onOpen={work => void workspace.open(work)} onMenu={() => setMenu('library')} />}
     {state.error && <div className="storage-error" role="alert"><p>{state.error}</p><div>{state.draft && <button type="button" onClick={() => void workspace.update(state.draft!)}>重试保存</button>}<button type="button" onClick={backup}>导出当前备份</button></div></div>}
     {notice && <div className={`toast ${state.draft ? state.draft.segmentEdit ? 'segment' : `editor ${state.draft.inputMode}` : 'home'}`} role="status">{notice}</div>}
     <input ref={file} hidden type="file" accept=".json,application/json" aria-label="选择备份文件" onChange={async e => {
@@ -93,6 +116,7 @@ export function ProductApp({ repository, aiTransport }: { repository?: WorkRepos
       finally { setBusy(false); }
     }} />
     {assistantOpen && state.draft && <ArticleAssistant workspace={workspace} controller={assistant} prompt={assistantPrompt} onPromptChange={prompt => setAssistantComposer({ workId: state.draft!.id, prompt })} onBackup={backup} onClose={closeAssistant} />}
+    {selectedTopic && <TopicDetail topic={selectedTopic} onClose={() => setSelectedTopic(null)} onStart={mode => void startTopic(selectedTopic, mode)} />}
     {menu && <Dialog title={typeof menu === 'object' ? menu.title : menu === 'library' ? '作品与备份' : menu === 'trash' ? '回收站' : '管理作品'} onClose={() => setMenu(null)}
       onBack={menu === 'library' ? undefined : () => setMenu(typeof menu === 'object' ? menu.deletedAt ? 'trash' : 'works' : 'library')}>
       <div className="menu-actions">

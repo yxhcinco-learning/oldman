@@ -1,9 +1,14 @@
 import { Icon, MicIcon } from '../../components/Icons';
 import { LetterDrawing, StoryDrawing } from '../../components/Visuals';
 import { countWords, formatTime, type Work } from '../../lib/domain/writing';
+import type { WritingTopic } from '../../lib/domain/topics';
 
-export function WorksHome({ works, onNew, onOpen, onMenu }: {
+const kindLabel = { current: '近期', periodic: '时令', slow: '常写常新' } as const;
+
+export function WorksHome({ works, topics, topicsStatus, onNew, onOpen, onTopic, onRetryTopics, onMenu }: {
   works: Work[]; onNew: () => void; onOpen: (work: Work) => void;
+  topics: WritingTopic[]; topicsStatus: 'loading' | 'ready' | 'error';
+  onTopic: (topic: WritingTopic) => void; onRetryTopics: () => void;
   onMenu: () => void;
 }) {
   const visible = works.filter(w => !w.deletedAt);
@@ -13,6 +18,15 @@ export function WorksHome({ works, onNew, onOpen, onMenu }: {
     <div className="home-scroll">
       <div className="brand-row"><span className="brand"><Icon name="leaf" /><b>岁月有声</b></span><button className="round-button" type="button" aria-label="作品与备份选项" onClick={onMenu}><Icon name="more" /></button></div>
       <header className="home-header"><div className="home-intro"><p className="eyebrow">日子慢慢过，文字慢慢写</p><h1>我的作品<span aria-hidden="true">。</span></h1><p className="subtitle">把生活，留在字里行间。</p></div><LetterDrawing /></header>
+      <section className="topics-section" aria-labelledby="topics-title">
+        <div className="section-heading"><div><p className="eyebrow">编辑为你选了几件事</p><h2 id="topics-title">今日值得写</h2></div><span>最多 5 条</span></div>
+        {topicsStatus === 'loading' && <div className="topic-list-state" role="status">正在整理今日议题…</div>}
+        {topicsStatus === 'error' && <div className="topic-list-state"><p>议题暂时没有取到，你仍可继续写作和打开作品。</p><button type="button" onClick={onRetryTopics}>重新获取</button></div>}
+        {topicsStatus === 'ready' && !topics.length && <div className="topic-list-state"><p>今天还没有新议题，先从自己的近况写起吧。</p></div>}
+        {topics.length > 0 && <div className="topic-list">{topics.slice(0, 5).map(topic => <button className="topic-card" key={topic.id} type="button" onClick={() => onTopic(topic)}>
+          <span className="topic-card-kind">{kindLabel[topic.kind]}</span><strong>{topic.title}</strong><span>{topic.summary}</span><i>看看背景与角度 <Icon name="arrow" /></i>
+        </button>)}</div>}
+      </section>
       <section className="works-section" aria-labelledby="recent-title">
         <div className="section-heading"><h2 id="recent-title">最近写下</h2><span>{visible.length} 篇作品</span></div>
         <div className="work-list">{visible.map(work => (

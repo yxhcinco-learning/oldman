@@ -10,7 +10,7 @@
 - [x] 2.1 Add validated topic, topic revision, source, angle, tag, status and expiry domain schemas with tests for missing, stale, unsafe and corrected content
 - [x] 2.2 Implement read-only topic list/detail APIs that expose only reviewed revisions and return bounded, cacheable responses without user article content
 - [x] 2.3 Implement a minimal editorial queue for draft, AI-assisted candidate, rejected and published topic states; require human confirmation before publication
-- [ ] 2.4 Add correction and revision handling so started works retain their snapshot while visibly detecting a newer published topic
+- [x] 2.4 Add correction and revision handling so started works retain their snapshot while visibly detecting a newer published topic
 - [x] 2.5 Add service limits, source allowlisting, content-safe logs and failure responses without copying full third-party articles or exposing credentials
 
 ## 3. Local topic and interview data
@@ -22,17 +22,17 @@
 
 ## 4. Curated topic experience
 
-- [ ] 4.1 Add a restrained home surface for continuing work, a bounded set of reviewed daily topics and periodic themes without infinite scroll or simulated filler
-- [ ] 4.2 Build a topic detail view with summary, update time, accessible source links, writing angles and distinct “直接写” / guided-interview entry actions
-- [ ] 4.3 Add loading, empty, stale, corrected and unavailable states that never block access to existing local works
+- [x] 4.1 Add a restrained home surface for continuing work, a bounded set of reviewed daily topics and periodic themes without infinite scroll or simulated filler
+- [x] 4.2 Build a topic detail view with summary, update time, accessible source links, writing angles and distinct “直接写” / guided-interview entry actions
+- [x] 4.3 Add loading, empty, stale, corrected and unavailable states that never block access to existing local works
 - [ ] 4.4 Verify Echoes typography, focus, source-link accessibility and 360/390/430/desktop layouts without infantilizing copy or shrinking required targets
 
 ## 5. Normal writing with event background
 
-- [ ] 5.1 Create or reopen a topic-linked work through the normal editor without generating an outline, starting an interview or modifying the body
-- [ ] 5.2 Add a collapsible event-background surface showing the saved snapshot, sources and optional angles while preserving editor focus, input mode and scroll state
-- [ ] 5.3 Show topic-revision updates as an explicit comparison/refresh choice and preserve the original snapshot when the user declines or is offline
-- [ ] 5.4 Cover free writing that ignores all suggested angles and prove no background text is automatically inserted or represented as the author’s view
+- [x] 5.1 Create or reopen a topic-linked work through the normal editor without generating an outline, starting an interview or modifying the body
+- [x] 5.2 Add a collapsible event-background surface showing the saved snapshot, sources and optional angles while preserving editor focus, input mode and scroll state
+- [x] 5.3 Show topic-revision updates as an explicit comparison/refresh choice and preserve the original snapshot when the user declines or is offline
+- [x] 5.4 Cover free writing that ignores all suggested angles and prove no background text is automatically inserted or represented as the author’s view
 
 ## 6. XiaoWen guided interview
 
