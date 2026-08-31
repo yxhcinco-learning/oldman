@@ -14,16 +14,16 @@
 - [x] 2.3 Implement load, new/save, soft delete, restore, explicit permanent delete and index rebuild without recursive user-directory deletion or silent data loss
 - [x] 2.4 Implement compatible JSON/TXT/copy export, WeChat file selection/share flows, rescue export and validated import-as-copy with complete ID/reference remapping and rollback on partial failure
 - [x] 2.5 Add repository tests for rapid edits, save-during-exit, conflicts, corrupted/missing index, corrupted aggregate, interrupted replacement, capacity/system errors, cleanup and legacy/current backup interchange
-- [ ] 2.6 Add visible local-only storage, AppID/device isolation and periodic backup explanations without promising cloud recovery, then run affected checks and commit the verified local-persistence stage
+- [x] 2.6 Add visible local-only storage, AppID/device isolation and periodic backup explanations without promising cloud recovery, then run affected checks and commit the verified local-persistence stage
 
 ## 3. Native product shell and ordinary writing
 
-- [ ] 3.1 Port the current Echoes design tokens, icons, typography, safe areas and accessible base components to WXSS/WXML without importing the React component tree or restoring historical mock UI
-- [ ] 3.2 Build the custom “热门 / 文章 / 我的” navigation with 热门 default, fixed article creation above navigation, real empty/error states and at-least-48px targets
-- [ ] 3.3 Build article list, local save/recovery status, recycle bin, backup management and ordinary new/continue writing against the mini-program repository
-- [ ] 3.4 Build the native title dialog, voice/text toolbar and text editor using keyboard-height/safe-area events; preserve the visible current interaction and provide the specified paragraph/end fallback when exact DOM-style caret placement is unavailable
-- [ ] 3.5 Cover long article rendering, keyboard open/close, page hide/show, interrupted navigation, unsaved input and 360/390/430-width layout behavior with component and developer-tool evidence
-- [ ] 3.6 Run focused UI/repository tests plus root check/build, review visual/accessibility differences against the current product, and commit only the verified ordinary-writing stage
+- [x] 3.1 Port the current Echoes design tokens, icons, typography, safe areas and accessible base components to WXSS/WXML without importing the React component tree or restoring historical mock UI
+- [x] 3.2 Build the custom “热门 / 文章 / 我的” navigation with 热门 default, fixed article creation above navigation, real empty/error states and at-least-48px targets
+- [x] 3.3 Build article list, local save/recovery status, recycle bin, backup management and ordinary new/continue writing against the mini-program repository
+- [x] 3.4 Build the native title dialog, voice/text toolbar and text editor using keyboard-height/safe-area events; preserve the visible current interaction and provide the specified paragraph/end fallback when exact DOM-style caret placement is unavailable
+- [x] 3.5 Cover long article rendering, keyboard open/close, page hide/show, interrupted navigation, unsaved input and 360/390/430-width layout behavior with component and developer-tool evidence
+- [x] 3.6 Run focused UI/repository tests plus root check/build, review visual/accessibility differences against the current product, and commit only the verified ordinary-writing stage
 
 ## 4. Topic, interview and XiaoWen experience
 

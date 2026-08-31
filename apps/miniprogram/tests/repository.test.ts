@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { completeVoice, emptyDraft, makeBackup, newSession, workFromDraft, type Draft } from '../miniprogram/domain/core';
-import { MiniStorageError } from '../miniprogram/storage/errors';
+import { MiniStorageError, storageError } from '../miniprogram/storage/errors';
 import { MiniDraftWriter, MiniWorkRepository } from '../miniprogram/storage/repository';
 import { repositoryPaths, workFilePath } from '../miniprogram/storage/paths';
 import { MemoryFileSystem } from './memory-file-system';
@@ -15,6 +15,11 @@ describe('小程序本地作品仓储', () => {
     expect(() => repositoryPaths('wxfile://usr/../other')).toThrow('根路径无效');
     expect(() => repositoryPaths('https://example.com/usr')).toThrow('根路径无效');
     expect(() => workFilePath(repositoryPaths('/user'), '../escape')).toThrow('不能用于本地文件路径');
+  });
+
+  it('识别微信文件 API 的结构化错误消息', () => {
+    expect(storageError({ errMsg: 'writeFile:fail permission denied' }).category).toBe('permission');
+    expect(storageError({ errMsg: 'writeFile:fail quota exceeded' }).category).toBe('capacity');
   });
 
   it('按作品聚合保存、恢复未完成输入并保持会话', async () => {

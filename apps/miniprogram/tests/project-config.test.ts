@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { completeVoice, emptyDraft, workFromDraft } from '../miniprogram/domain/core';
 
 const readJson = (relative: string) => JSON.parse(readFileSync(fileURLToPath(new URL(relative, import.meta.url)), 'utf8')) as Record<string, unknown>;
+const readText = (relative: string) => readFileSync(fileURLToPath(new URL(relative, import.meta.url)), 'utf8');
 
 describe('微信小程序公共工程配置', () => {
   it('不提交真实 AppID，并启用 TypeScript 编译', () => {
@@ -15,7 +16,7 @@ describe('微信小程序公共工程配置', () => {
 
   it('声明三个可直接打开的主页面', () => {
     const app = readJson('../miniprogram/app.json');
-    expect(app.pages).toEqual(['pages/home/index', 'pages/works/index', 'pages/profile/index']);
+    expect(app.pages).toEqual(expect.arrayContaining(['pages/home/index', 'pages/works/index', 'pages/profile/index', 'pages/editor/index']));
   });
 
   it('通过小程序适配入口复用写作语义', () => {
@@ -23,5 +24,27 @@ describe('微信小程序公共工程配置', () => {
     const work = workFromDraft(draft);
     expect(work.draft.segments[0]?.text).toBe('从前的故事。');
     expect(work.title).toBe('未命名作品');
+  });
+
+  it('保留三栏主导航、键盘避让和生命周期保存边界', () => {
+    const navigation = readText('../miniprogram/components/app-nav/index.wxml');
+    const navigationStyles = readText('../miniprogram/components/app-nav/index.wxss');
+    const editor = readText('../miniprogram/pages/editor/index.wxml');
+    const editorStyles = readText('../miniprogram/pages/editor/index.wxss');
+    const editorController = readText('../miniprogram/pages/editor/index.ts');
+
+    expect(navigation.match(/data-target=/g)).toHaveLength(3);
+    expect(navigationStyles).toContain('repeat(3, minmax(0, 1fr))');
+    expect(editor).toContain('bindkeyboardheightchange="onKeyboardHeight"');
+    expect(editorStyles).toContain('env(safe-area-inset-bottom)');
+    expect(editorController).toContain('onHide()');
+    expect(editorController).toContain('onUnload()');
+  });
+
+  it('明确说明作品的设备和 AppID 隔离边界', () => {
+    const profile = readText('../miniprogram/pages/profile/index.wxml');
+    expect(profile).toContain('只保存在本机');
+    expect(profile).toContain('当前小程序 AppID');
+    expect(profile).toContain('请定期手工导出备份');
   });
 });

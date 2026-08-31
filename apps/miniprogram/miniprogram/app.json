@@ -2,7 +2,11 @@
   "pages": [
     "pages/home/index",
     "pages/works/index",
-    "pages/profile/index"
+    "pages/profile/index",
+    "pages/editor/index",
+    "pages/topic-detail/index",
+    "pages/interview/index",
+    "pages/source/index"
   ],
   "window": {
     "navigationBarBackgroundColor": "#f7f3ea",

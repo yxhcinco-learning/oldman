@@ -1,0 +1,25 @@
+<view class="interview-page" style="padding-bottom: {{keyboardHeight}}px">
+  <view class="interview-header">
+    <view><text>小文采访</text><small>{{draft && draft.topicSnapshot ? draft.topicSnapshot.title : ''}}</small></view>
+    <button bindtap="closeInterview">收起小文</button>
+  </view>
+  <scroll-view class="messages" scroll-y scroll-into-view="current-question">
+    <view class="message {{item.role}}" wx:for="{{messages}}" wx:key="id">
+      <view wx:if="{{item.role === 'assistant'}}" class="avatar">文</view><view class="bubble">{{item.text}}</view>
+    </view>
+    <view id="current-question" class="message assistant current">
+      <view class="avatar">文</view>
+      <view><view class="bubble">{{question}}</view><button wx:if="{{draft && draft.materials.length}}" class="change-question" bindtap="changeQuestion">换个问题</button></view>
+    </view>
+  </scroll-view>
+  <view class="interview-footer" style="bottom: {{keyboardHeight}}px">
+    <button wx:if="{{draft && draft.materials.length}}" class="compose-link" bindtap="composeArticle">整理成文章</button>
+    <view wx:if="{{error}}" class="interview-error" role="alert">{{error}}</view>
+    <view class="composer-row">
+      <textarea value="{{composer}}" maxlength="12000" auto-height placeholder="写下回答" disabled="{{saving}}"
+        bindinput="onComposer" bindkeyboardheightchange="onKeyboardHeight"></textarea>
+      <button class="voice" bindtap="dictateUnavailable" disabled="{{saving}}" aria-label="语音回答">声</button>
+      <button class="send" bindtap="sendAnswer" disabled="{{saving || !composer}}">{{saving ? '保存中' : '发送'}}</button>
+    </view>
+  </view>
+</view>

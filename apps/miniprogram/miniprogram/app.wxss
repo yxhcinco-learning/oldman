@@ -1,52 +1,40 @@
 page {
+  --paper: #fbf9f8;
+  --white: #ffffff;
+  --surface: #f5f3f3;
+  --surface-mid: #efeded;
+  --forest: #153b2e;
+  --forest-soft: #416657;
+  --tint: #e8eee9;
+  --sienna: #944924;
+  --ink: #1b1c1c;
+  --muted: #717974;
+  --line: #e4e6e1;
   box-sizing: border-box;
   min-height: 100%;
-  background: #f7f3ea;
-  color: #292721;
-  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: Manrope, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
-button {
-  font: inherit;
-}
+view, text, button, input, textarea { box-sizing: border-box; }
+button, input, textarea { font: inherit; }
+button::after { border: 0; }
+.page-shell { min-height: 100vh; padding: 48rpx 40rpx calc(300rpx + env(safe-area-inset-bottom)); }
+.page-shell.without-nav { padding-bottom: calc(64rpx + env(safe-area-inset-bottom)); }
+.brand { color: var(--forest); font-family: "Noto Serif SC", "Songti SC", SimSun, serif; font-size: 32rpx; font-weight: 600; letter-spacing: 2rpx; }
+.eyebrow { margin: 0 0 16rpx; color: var(--forest-soft); font-size: 26rpx; letter-spacing: 4rpx; }
+.page-title { color: var(--forest); font-family: "Noto Serif SC", "Songti SC", SimSun, serif; font-size: 52rpx; font-weight: 600; line-height: 1.38; }
+.lead { margin-top: 20rpx; color: var(--muted); font-size: 32rpx; line-height: 1.65; }
+.primary-action, .secondary-action { min-height: 112rpx; padding: 20rpx 32rpx; border-radius: 56rpx; font-size: 34rpx; line-height: 72rpx; }
+.primary-action { background: var(--forest); color: var(--white); }
+.secondary-action { background: var(--tint); color: var(--forest); }
+.notice, .error-panel { margin-top: 28rpx; padding: 28rpx 32rpx; border-radius: 28rpx; font-size: 28rpx; line-height: 1.65; }
+.notice { background: var(--tint); color: var(--forest-soft); }
+.error-panel { background: #f5e8df; color: #6f351c; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
-.page-shell {
-  min-height: 100vh;
-  padding: 56rpx 40rpx 72rpx;
-  box-sizing: border-box;
-}
-
-.eyebrow {
-  margin: 0 0 20rpx;
-  color: #927957;
-  font-size: 24rpx;
-  letter-spacing: 4rpx;
-}
-
-.page-title {
-  margin: 0;
-  font-family: "Songti SC", "STSong", serif;
-  font-size: 58rpx;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-.lead {
-  margin: 28rpx 0 0;
-  color: #686156;
-  font-size: 32rpx;
-  line-height: 1.75;
-}
-
-.primary-action {
-  margin: 56rpx 0 0;
-  border-radius: 999rpx;
-  background: #292721;
-  color: #fffdf7;
-  font-size: 34rpx;
-  line-height: 96rpx;
-}
-
-.primary-action::after {
-  border: 0;
+@media (max-width: 370px) {
+  .page-shell { padding-left: 32rpx; padding-right: 32rpx; }
+  .page-title { font-size: 48rpx; }
 }

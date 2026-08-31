@@ -1,6 +1,19 @@
-<view class="page-shell">
-  <view class="eyebrow">无需注册</view>
+<view class="page-shell profile-page">
+  <view class="brand">岁月有声</view>
+  <view class="eyebrow profile-eyebrow">无需注册</view>
   <view class="page-title">我的</view>
-  <view class="lead">不会强制索取手机号、昵称或头像。微信身份将在后台静默建立；服务尚未配置时，本地写作仍然可用。</view>
-  <button class="primary-action" bindtap="goBack">返回开始页</button>
+  <view class="tool-list">
+    <view class="tool-row"><button class="tool" bindtap="openWorks"><view class="tool-icon">文</view><view><text>作品与回收站</text><small>管理这台设备上的文章</small></view><b>›</b></button></view>
+    <view class="tool-row"><button class="tool" bindtap="exportBackup" disabled="{{busy}}"><view class="tool-icon">备</view><view><text>导出全部备份</text><small>保存为兼容网页端的 JSON 文件</small></view><b>›</b></button></view>
+    <view class="tool-row"><button class="tool" bindtap="importBackup" disabled="{{busy}}"><view class="tool-icon">入</view><view><text>从备份导入</text><small>完整校验后创建副本，不覆盖原作品</small></view><b>›</b></button></view>
+  </view>
+  <view wx:if="{{busy}}" class="notice">{{busy}}</view>
+  <view wx:if="{{notice}}" class="notice" role="status">{{notice}}</view>
+  <view wx:if="{{error}}" class="error-panel" role="alert">{{error}}</view>
+  <view class="storage-note">
+    <view class="note-title">只保存在本机</view>
+    <view>“已保存”表示作品已经写入当前微信用户、当前小程序 AppID 和这台设备的本地文件，不是云备份。</view>
+    <view>换设备、换微信用户、清理小程序或更换 AppID 后，原数据可能无法读取。请定期手工导出备份；微信身份和在线会话不会写入作品备份。</view>
+  </view>
 </view>
+<app-nav active="profile"></app-nav>

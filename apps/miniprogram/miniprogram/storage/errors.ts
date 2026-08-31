@@ -19,7 +19,8 @@ export class MiniStorageError extends Error {
 
 export function storageError(error: unknown, fallback: StorageErrorCategory = 'system'): MiniStorageError {
   if (error instanceof MiniStorageError) return error;
-  const text = error instanceof Error ? error.message : String(error);
+  const errMsg = typeof error === 'object' && error !== null && 'errMsg' in error ? (error as { errMsg?: unknown }).errMsg : undefined;
+  const text = typeof errMsg === 'string' ? errMsg : error instanceof Error ? error.message : String(error);
   if (/quota|space|no space|exceed|maximum file size/i.test(text)) return new MiniStorageError('capacity', { cause: error });
   if (/permission|denied|auth|readonly/i.test(text)) return new MiniStorageError('permission', { cause: error });
   if (/no such file|not found|fail file not exist/i.test(text)) return new MiniStorageError('missing', { cause: error });

@@ -67,3 +67,19 @@ export function snapshotTopic(topic: WritingTopic, capturedAt = new Date().toISO
 export function isTopicCurrent(topic: WritingTopic, now = new Date()) {
   return ['published', 'corrected'].includes(topic.status) && (!topic.expiresAt || new Date(topic.expiresAt) > now);
 }
+
+export function selectHomeTopics(topics: WritingTopic[], limit = 5) {
+  const selected: WritingTopic[] = [];
+  const take = (kind: TopicKind, count: number) => {
+    for (const topic of topics) {
+      if (selected.length >= limit || count <= 0) break;
+      if (topic.kind === kind && !selected.some(item => item.id === topic.id)) { selected.push(topic); count--; }
+    }
+  };
+  take('current', 2); take('periodic', 2); take('slow', 1);
+  for (const topic of topics) {
+    if (selected.length >= limit) break;
+    if (!selected.some(item => item.id === topic.id)) selected.push(topic);
+  }
+  return selected;
+}

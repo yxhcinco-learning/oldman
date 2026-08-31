@@ -1,17 +1,12 @@
-.secondary-actions {
-  margin-top: 30rpx;
-  text-align: center;
-}
-
-.text-action {
-  display: inline-block;
-  padding: 18rpx 24rpx;
-  background: transparent;
-  color: #686156;
-  font-size: 28rpx;
-  line-height: 1.4;
-}
-
-.text-action::after {
-  border: 0;
-}
+.home-page { padding-top: 36rpx; }
+.hero { margin-top: 52rpx; }
+.topic-state { margin-top: 48rpx; padding: 36rpx; border-radius: 30rpx; background: #f5f3f3; color: #717974; font-size: 30rpx; line-height: 1.7; }
+.topic-state button { min-height: 96rpx; margin: 20rpx 0 0; padding: 12rpx 28rpx; border-radius: 48rpx; background: #fff; color: #153b2e; font-size: 29rpx; line-height: 72rpx; }
+.topic-list { display: grid; gap: 24rpx; margin-top: 44rpx; }
+.topic-card { display: flex; width: 100%; min-height: 380rpx; padding: 36rpx; flex-direction: column; align-items: flex-start; border: 1rpx solid #e1e5dd; border-radius: 34rpx; background: #f3f3ed; color: #153b2e; text-align: left; }
+.topic-meta { display: flex; flex-wrap: wrap; gap: 12rpx; }
+.topic-meta text { min-height: 48rpx; padding: 4rpx 18rpx; border-radius: 24rpx; background: #fff; color: #416657; font-size: 24rpx; line-height: 40rpx; }
+.topic-title { margin-top: 22rpx; font-family: "Songti SC", serif; font-size: 40rpx; font-weight: 600; line-height: 1.45; }
+.topic-summary { display: -webkit-box; margin-top: 14rpx; overflow: hidden; color: #717974; font-size: 29rpx; line-height: 1.65; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.topic-more { display: flex; width: 100%; margin-top: auto; padding-top: 24rpx; align-items: center; justify-content: space-between; color: #416657; font-size: 28rpx; line-height: 48rpx; }
+.topic-more text { font-size: 44rpx; }

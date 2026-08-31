@@ -1,0 +1,29 @@
+<view class="page-shell without-nav detail-page">
+  <view wx:if="{{loading}}" class="topic-state">正在读取话题…</view>
+  <view wx:elif="{{error && !topic}}" class="error-panel" role="alert">{{error}}</view>
+  <view wx:elif="{{topic}}">
+    <view class="topic-meta"><text>{{topic.kind === 'current' ? '近期' : topic.kind === 'periodic' ? '时令' : '持续关注'}}</text><text>更新于 {{topic.updatedAt}}</text></view>
+    <view class="page-title detail-title">{{topic.title}}</view>
+    <view wx:if="{{corrected}}" class="correction"><view>内容更正</view><text>{{topic.correctionNote}}</text></view>
+    <view wx:if="{{stale}}" class="error-panel">这个话题已过有效期，只保留阅读，不再从这里创建文章。</view>
+    <view wx:if="{{error}}" class="error-panel">{{error}}</view>
+    <view class="section">
+      <view class="section-title">话题摘要</view>
+      <view class="section-copy">{{topic.summary}}</view>
+    </view>
+    <view class="section">
+      <view class="section-title">大家也在关心</view>
+      <view class="angle" wx:for="{{topic.angles}}" wx:key="id"><view class="angle-dot"></view><text>{{item.title}}</text></view>
+    </view>
+    <view class="section">
+      <view class="section-title">信息来源</view>
+      <navigator class="source" wx:for="{{sources}}" wx:key="id" url="{{item.route}}">
+        <view><text>{{item.title}}</text><small>{{item.publisher}}</small></view><b>›</b>
+      </navigator>
+    </view>
+    <view class="start-actions" wx:if="{{!stale}}">
+      <button class="secondary-action" bindtap="writeDirectly">直接写</button>
+      <button class="primary-action" bindtap="acceptInterview">接受小文采访</button>
+    </view>
+  </view>
+</view>

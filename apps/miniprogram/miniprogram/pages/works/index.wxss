@@ -1,1 +1,19 @@
-/* Page-specific styles will be added with the local works repository. */
+.works-page { padding-top: 36rpx; }
+.heading-row { display: flex; margin-top: 42rpx; align-items: flex-end; justify-content: space-between; gap: 24rpx; }
+.recycle-toggle { min-width: 112rpx; min-height: 96rpx; padding: 18rpx; border-radius: 48rpx; background: #e8eee9; color: #153b2e; font-size: 28rpx; line-height: 60rpx; }
+.empty-state { margin-top: 64rpx; padding: 64rpx 40rpx; border-radius: 32rpx; background: #fff; color: #717974; font-size: 30rpx; line-height: 1.7; text-align: center; }
+.empty-title { margin: 24rpx 0 12rpx; color: #153b2e; font-family: "Songti SC", serif; font-size: 40rpx; font-weight: 600; }
+.empty-branch { width: 96rpx; height: 48rpx; margin: 0 auto; border-top: 4rpx solid #416657; border-radius: 50%; transform: rotate(-12deg); opacity: .6; }
+.work-list { display: grid; gap: 24rpx; margin-top: 40rpx; }
+.work-card { position: relative; display: grid; min-height: 230rpx; grid-template-columns: 116rpx 1fr; gap: 28rpx; padding: 32rpx; border: 1rpx solid #e4e6e1; border-radius: 32rpx; background: #fff; box-shadow: 0 12rpx 40rpx rgba(21, 59, 46, .04); }
+.cover { position: relative; height: 144rpx; padding: 20rpx; overflow: hidden; border-radius: 24rpx; background: #e8eee9; color: #153b2e; font-family: "Songti SC", serif; font-size: 40rpx; }
+.cover view { position: absolute; right: -20rpx; bottom: -12rpx; width: 94rpx; height: 66rpx; border: 4rpx solid #416657; border-radius: 50%; opacity: .25; }
+.work-copy { min-width: 0; padding-right: 64rpx; }
+.work-title { overflow-wrap: anywhere; color: #153b2e; font-family: "Songti SC", serif; font-size: 38rpx; font-weight: 600; line-height: 1.45; }
+.work-meta { margin-top: 10rpx; color: #717974; font-size: 25rpx; line-height: 1.6; }
+.continue { min-height: 88rpx; margin: 16rpx 0 0; padding: 12rpx 0; background: transparent; color: #416657; font-size: 28rpx; line-height: 64rpx; text-align: left; }
+.trash { position: absolute; top: 20rpx; right: 18rpx; min-width: 88rpx; min-height: 88rpx; padding: 12rpx; background: transparent; color: #717974; font-size: 25rpx; line-height: 64rpx; }
+.work-actions { display: flex; gap: 12rpx; margin-top: 20rpx; }
+.work-actions button { min-height: 88rpx; padding: 12rpx 24rpx; border-radius: 44rpx; background: #e8eee9; color: #153b2e; font-size: 27rpx; line-height: 64rpx; }
+.work-actions .danger { background: #f5e8df; color: #793b20; }
+@media (max-width: 370px) { .work-card { grid-template-columns: 96rpx 1fr; gap: 20rpx; padding: 26rpx; } .cover { height: 124rpx; } }

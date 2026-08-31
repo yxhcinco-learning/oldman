@@ -1,9 +1,22 @@
-<view class="page-shell">
-  <view class="eyebrow">岁月有声</view>
-  <view class="page-title">把想说的话，慢慢写下来</view>
-  <view class="lead">无需注册。打开小程序即可开始，作品会先保存在这台设备上。</view>
-  <button class="primary-action" bindtap="openWorks">查看我的作品</button>
-  <view class="secondary-actions">
-    <button class="text-action" bindtap="openProfile">备份与说明</button>
+<view class="page-shell home-page">
+  <view class="brand">岁月有声</view>
+  <view class="hero">
+    <view class="eyebrow">值得慢慢说的事</view>
+    <view class="page-title">热门</view>
+    <view class="lead">从一件正在发生、一个熟悉时节，或一段长久牵挂开始。</view>
+  </view>
+  <view wx:if="{{loading}}" class="topic-state">正在读取经审核的话题…</view>
+  <view wx:elif="{{error}}" class="topic-state error-panel" role="alert">
+    <view>{{error}}</view><button bindtap="loadTopics">重新加载</button>
+  </view>
+  <view wx:elif="{{topics.length === 0}}" class="topic-state">目前没有可展示的审核话题。这里不会用演示内容代替。</view>
+  <view class="topic-list" wx:else>
+    <button class="topic-card" wx:for="{{topics}}" wx:key="id" data-id="{{item.id}}" bindtap="openTopic">
+      <view class="topic-meta"><text>{{item.kind}}</text><text wx:if="{{item.corrected}}">已更正</text><text wx:if="{{item.stale}}">内容已过期</text></view>
+      <view class="topic-title">{{item.title}}</view>
+      <view class="topic-summary">{{item.summary}}</view>
+      <view class="topic-more">了解详情 <text>›</text></view>
+    </button>
   </view>
 </view>
+<app-nav active="home"></app-nav>
