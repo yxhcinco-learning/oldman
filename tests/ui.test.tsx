@@ -14,14 +14,33 @@ async function startWriting() {
   const titleDialog = screen.getByRole('dialog', { name: '编辑标题' });
   fireEvent.change(within(titleDialog).getByRole('textbox', { name: '文章标题' }), { target: { value: '夏日有感' } });
   fireEvent.click(within(titleDialog).getByRole('button', { name: '完成' }));
-  fireEvent.click(screen.getByRole('tab', { name: '文字输入' }));
+  fireEvent.click(screen.getByRole('button', { name: '切换到文字输入' }));
   fireEvent.change(screen.getByLabelText('文章正文'), { target: { value: '窗前的雨\n落进了风里\n\n我想把这一刻写下来。' } });
   await screen.findByText('已保存到本机');
 }
 function openXiaoWen() {
-  fireEvent.click(screen.getByRole('button', { name: '文章优化' }));
-  fireEvent.click(screen.getByRole('button', { name: '进入小文会话并输入需求' }));
+  fireEvent.click(screen.getByRole('button', { name: /^打开小文/ }));
 }
+it('uses one destination-mode switch and opens XiaoWen directly without copying the reference UI', async () => {
+  render(<ProductApp repository={repo()} />); await startWriting();
+  expect(screen.queryByRole('tablist', { name: '输入方式' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: '聊天引导' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: '文章优化' })).not.toBeInTheDocument();
+  const switcher = screen.getByRole('button', { name: '切换到语音输入' });
+  expect(switcher.querySelector('.icon')).toBeInTheDocument();
+  fireEvent.click(switcher);
+  expect(screen.getByRole('button', { name: '切换到文字输入' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '按住说话' })).toBeInTheDocument();
+  const xiaowen = screen.getByRole('button', { name: '打开小文' });
+  xiaowen.focus(); fireEvent.click(xiaowen);
+  expect(screen.getByRole('dialog', { name: '小文' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '收起小文' })).toHaveFocus();
+  expect(screen.getByLabelText('问问小文')).not.toHaveFocus();
+  for (const label of ['接着问我', '讲清楚了吗', '帮我理顺', '润色文笔']) {
+    expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+  }
+  expect(screen.queryByText('精简内容')).not.toBeInTheDocument();
+});
 it('starts with an empty local library and never inserts preview examples', async () => {
   const repository = repo(); const { container } = render(<ProductApp repository={repository} />);
   await screen.findByRole('heading', { name: '我的作品' });
@@ -32,7 +51,7 @@ it('starts with an empty local library and never inserts preview examples', asyn
 });
 it('writes, edits the body on the current page, saves, reopens and restores from IndexedDB', async () => {
   const repository = repo(); const view = render(<ProductApp repository={repository} />); await startWriting();
-  fireEvent.click(screen.getByRole('tab', { name: '语音输入' }));
+  fireEvent.click(screen.getByRole('button', { name: '切换到语音输入' }));
   fireEvent.click(screen.getByRole('group', { name: '文章正文' }));
   fireEvent.click(screen.getByRole('group', { name: '文章正文' }));
   fireEvent.change(screen.getByRole('textbox', { name: '文章正文' }), { target: { value: '我修改了这一段。\n\n我想把这一刻写下来。' } });
@@ -44,15 +63,15 @@ it('writes, edits the body on the current page, saves, reopens and restores from
 it('previews a real optimization before applying and persists an undo as history', async () => {
   const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId, result: { answer: '调整标点。', body: '窗前的雨，\n落进了风里。\n\n我想把这一刻写下来。', citedVersionIds: [] } }));
   const repository = repo(); render(<ProductApp repository={repository} aiTransport={transport} />); await startWriting();
-  const before = (await repository.load()).works[0]; fireEvent.click(screen.getByRole('button', { name: '文章优化' }));
+  const before = (await repository.load()).works[0]; openXiaoWen();
   expect(screen.queryByText('演示模式 · 不影响作品')).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: /^常规优化/ })); expect(transport).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: '帮我理顺' })); expect(transport).not.toHaveBeenCalled();
   expect(screen.getByText(/相关修改记录和聊天消息会经本地服务发送给 DeepSeek/)).toBeInTheDocument();
   expect(screen.getByText(/AI 可能出错，请核对人物、时间与细节/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: '同意并继续' }));
-  expect(await screen.findByRole('heading', { name: '和小文聊一聊' })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: '小文' })).toBeInTheDocument();
   expect(await screen.findByText('调整标点。')).toBeInTheDocument();
-  expect(screen.getByText('常规优化')).toBeInTheDocument();
+  expect(within(screen.getByLabelText('文章对话记录')).getByText('帮我理顺')).toBeInTheDocument();
   expect(screen.getByText('小文的修改说明')).toBeInTheDocument();
   const pendingState = screen.getByText('待应用');
   expect(pendingState).toBeInTheDocument(); expect(pendingState.closest('.message-bubble')).toBeNull();
@@ -74,7 +93,7 @@ it('previews a real optimization before applying and persists an undo as history
   expect(resultAction.parentElement).toBe(undoAction.parentElement);
   await waitFor(() => expect(screen.queryByText('已应用优化并保存到本机。')).not.toBeInTheDocument(), { timeout: 4000 });
   fireEvent.click(undoAction); await screen.findByText('已恢复并保存，其他修改记录仍保留。');
-  fireEvent.click(screen.getByRole('button', { name: '关闭' }));
+  fireEvent.click(screen.getByRole('button', { name: '收起小文' }));
   expect(screen.getByLabelText('文章正文')).toHaveValue(before.draft.textDraft);
   expect((await repository.load()).sessions[0].versions.at(-1)?.source).toBe('restore');
 });
@@ -88,7 +107,7 @@ it('answers in the article conversation and exposes an actual cited version with
   fireEvent.click(screen.getByRole('button', { name: '查看引用记录 1' })); expect(screen.getByRole('region', { name: '修改记录正文' })).toHaveTextContent('窗前的雨');
   expect((await repository.load()).works[0].draft.textDraft).toEqual(before.draft.textDraft);
   view.unmount(); render(<ProductApp repository={repository} aiTransport={transport} />);
-  await screen.findByRole('button', { name: '文章优化' }); openXiaoWen(); expect(await screen.findByText('原文仍在这个版本中。')).toBeInTheDocument();
+  await screen.findByRole('button', { name: '打开小文' }); openXiaoWen(); expect(await screen.findByText('原文仍在这个版本中。')).toBeInTheDocument();
   expect(transport).toHaveBeenCalledOnce();
 });
 it('turns an explicit conversational request into a preview and applies it only after confirmation', async () => {
@@ -114,7 +133,7 @@ it('turns an explicit conversational request into a preview and applies it only 
   expect(screen.getByText('请核对人物、动作和经历。')).toBeInTheDocument();
   expect(screen.queryByText(/文风调整会改变表达/)).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: '返回上一级' }));
-  expect(screen.getByRole('heading', { name: '和小文聊一聊' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: '小文' })).toBeInTheDocument();
   expect(screen.getByText('只让第一段更温暖。')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: '查看调整结果' }));
   fireEvent.click(screen.getByRole('button', { name: '应用调整' })); await screen.findByText('已应用调整并保存到本机。');
@@ -130,8 +149,7 @@ it('keeps the modification explanation when a candidate is not adopted', async (
     result: { answer: '调整了第一段的语序和节奏。', body: request.current.body.replace('窗前的雨', '雨落窗前'), citedVersionIds: [] } }));
   const repository = repo(); render(<ProductApp repository={repository} aiTransport={transport} />); await startWriting();
   const before = (await repository.load()).works[0].draft.textDraft;
-  fireEvent.click(screen.getByRole('button', { name: '文章优化' }));
-  fireEvent.click(screen.getByRole('button', { name: '进入小文会话并输入需求' }));
+  openXiaoWen();
   fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '调整第一段语序' } });
   fireEvent.click(screen.getByRole('button', { name: '发送' }));
   expect(await screen.findByText('调整了第一段的语序和节奏。')).toBeInTheDocument();
@@ -149,8 +167,8 @@ it('shows unchanged output as having no body change outside the assistant bubble
   const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId,
     result: { answer: '没有需要修改的内容。', body: request.current.body, citedVersionIds: [] } }));
   render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting();
-  fireEvent.click(screen.getByRole('button', { name: '文章优化' }));
-  fireEvent.click(screen.getByRole('button', { name: /^常规优化/ }));
+  openXiaoWen();
+  fireEvent.click(screen.getByRole('button', { name: '帮我理顺' }));
   expect(await screen.findByText('本次保留原文，未产生正文修改。')).toBeInTheDocument();
   const unchanged = screen.getByText('无正文变化');
   expect(unchanged.closest('.message-bubble')).toBeNull();
@@ -161,11 +179,11 @@ it('runs polish from its shortcut inside the conversation', async () => {
   const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId,
     result: { answer: '改善了句式衔接。', body: `${request.current.body}\n`, citedVersionIds: [] } }));
   render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting();
-  fireEvent.click(screen.getByRole('button', { name: '文章优化' }));
-  fireEvent.click(screen.getByRole('button', { name: /^润色文笔/ }));
-  expect(await screen.findByRole('heading', { name: '和小文聊一聊' })).toBeInTheDocument();
+  openXiaoWen();
+  fireEvent.click(screen.getByRole('button', { name: '润色文笔' }));
+  expect(await screen.findByRole('heading', { name: '小文' })).toBeInTheDocument();
   expect(await screen.findByText('改善了句式衔接。')).toBeInTheDocument();
-  expect(screen.getByText('润色文笔')).toBeInTheDocument();
+  expect(within(screen.getByLabelText('文章对话记录')).getByText('润色文笔')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '查看优化结果' })).toBeInTheDocument();
   expect(transport.mock.calls[0][0]).toMatchObject({ action: 'polish', prompt: '' });
 });
@@ -217,7 +235,7 @@ it('keeps writing tools directly below the editor without an added save row', as
   expect(screen.queryByRole('button', { name: '导出与更多操作' })).not.toBeInTheDocument();
   expect(screen.getByLabelText('文章正文')).toHaveAttribute('placeholder', '从想说的一句话开始……');
   expect(screen.getByRole('button', { name: '保存' })).toHaveAccessibleDescription('已保存到本机');
-  fireEvent.click(screen.getByRole('tab', { name: '语音输入' }));
+  fireEvent.click(screen.getByRole('button', { name: '切换到语音输入' }));
   fireEvent.click(screen.getByRole('group', { name: '文章正文' }));
   fireEvent.click(screen.getByRole('group', { name: '文章正文' }));
   expect(screen.getByRole('textbox', { name: '文章正文' })).toHaveFocus();
@@ -286,32 +304,32 @@ it('does not hide a failed work-management operation behind the modal', async ()
   expect(screen.getByRole('button', { name: /夏日有感.*继续写/ })).toBeInTheDocument();
   expect((await repository.load()).works[0].deletedAt).toBeNull();
 });
-it('shows the new categories and returns an optimization conversation to its menu before closing', async () => {
+it('opens XiaoWen compactly, expands explicitly or on input focus and preserves unsent input when minimized', async () => {
   const transport = vi.fn(); render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting();
-  const opener = screen.getByRole('button', { name: '文章优化' }); opener.focus(); fireEvent.click(opener);
-  expect(screen.getByRole('button', { name: /^润色文笔/ })).toBeEnabled();
-  for (const name of ['精简内容', '扩写内容', '添加配图']) expect(screen.getByRole('button', { name: new RegExp(name) })).toBeDisabled();
-  expect(screen.queryByRole('button', { name: /内容类型|文风调整|格式整理/ })).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: '进入小文会话并输入需求' })).toHaveTextContent('问小文，或提出修改要求');
-  expect(screen.queryByLabelText('问问小文')).not.toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: '查看对话记录' })).not.toBeInTheDocument();
+  const opener = screen.getByRole('button', { name: '打开小文' }); opener.focus(); fireEvent.click(opener);
+  const dialog = screen.getByRole('dialog', { name: '小文' });
+  expect(dialog).toHaveClass('compact');
+  expect(screen.getByLabelText('问问小文')).not.toHaveFocus();
+  fireEvent.click(screen.getByRole('button', { name: '展开小文面板' }));
+  expect(dialog).toHaveClass('expanded');
+  fireEvent.click(screen.getByRole('button', { name: '收起小文面板' }));
+  expect(dialog).toHaveClass('compact');
+  fireEvent.focus(screen.getByLabelText('问问小文'));
+  expect(dialog).toHaveClass('expanded');
+  fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '还没发送的调整要求' } });
   const history = screen.getByRole('button', { name: '查看修改记录' });
   expect(history.closest('.sheet-header-actions')).toBeInTheDocument();
   expect(document.querySelector('.ai-record-entry')).toBeNull();
   fireEvent.click(history);
   expect(screen.getByRole('dialog', { name: '修改记录' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: '返回上一级' }));
-  expect(screen.getByRole('dialog', { name: '文章优化' })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: '进入小文会话并输入需求' }));
-  expect(screen.getByLabelText('问问小文')).toHaveFocus();
-  fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '还没发送的调整要求' } });
+  expect(screen.getByRole('dialog', { name: '小文' })).toBeInTheDocument();
   fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
-  expect(screen.getByRole('dialog', { name: '文章优化' })).toBeInTheDocument();
-  expect(screen.queryByLabelText('问问小文')).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: '进入小文会话并输入需求' }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(opener).toHaveFocus();
+  fireEvent.click(opener);
   expect(screen.getByLabelText('问问小文')).toHaveValue('还没发送的调整要求');
-  fireEvent.click(screen.getByRole('button', { name: '返回上一级' }));
-  fireEvent.click(screen.getByRole('button', { name: '关闭' }));
+  fireEvent.click(screen.getByRole('button', { name: '收起小文' }));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); expect(opener).toHaveFocus(); expect(transport).not.toHaveBeenCalled();
 });
 it('sizes the application to Visual Viewport changes so editor chrome remains in the same canvas', async () => {
@@ -332,7 +350,8 @@ it('sizes the application to Visual Viewport changes so editor chrome remains in
     expect(shell.style.getPropertyValue('--visual-viewport-height')).toBe('416px');
     expect(shell.style.getPropertyValue('--visual-viewport-offset')).toBe('96px');
     expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument();
-    for (const name of ['语音输入', '文字输入', '聊天引导', '文章优化']) expect(screen.getByRole(name.includes('输入') ? 'tab' : 'button', { name })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '切换到语音输入' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '打开小文' })).toBeInTheDocument();
   } finally {
     if (original) Object.defineProperty(window, 'visualViewport', original);
     else delete (window as unknown as { visualViewport?: VisualViewport }).visualViewport;
@@ -341,18 +360,18 @@ it('sizes the application to Visual Viewport changes so editor chrome remains in
 it('hides the whole default speech stage and reopens it from single/double body taps', async () => {
   const repository = repo(); render(<ProductApp repository={repository} />); await startWriting();
   const before = (await repository.load()).works[0].draft.textDraft;
-  fireEvent.click(screen.getByRole('tab', { name: '语音输入' }));
+  fireEvent.click(screen.getByRole('button', { name: '切换到语音输入' }));
   fireEvent.click(screen.getByRole('button', { name: '收起语音输入' }));
   expect(screen.queryByRole('button', { name: '按住说话' })).not.toBeInTheDocument();
   expect(screen.queryByText('展开语音输入')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('group', { name: '文章正文' }));
   expect(screen.getByRole('button', { name: '按住说话' })).toBeInTheDocument();
-  expect(screen.getByRole('tab', { name: '语音输入' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('button', { name: '切换到文字输入' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: '收起语音输入' }));
   fireEvent.click(screen.getByRole('group', { name: '文章正文' }));
   fireEvent.click(screen.getByRole('group', { name: '文章正文' }));
   expect(screen.getByRole('textbox', { name: '文章正文' })).toHaveFocus();
-  expect(screen.getByRole('tab', { name: '文字输入' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('button', { name: '切换到语音输入' })).toBeInTheDocument();
   expect((await repository.load()).works[0].draft.textDraft).toBe(before);
 });
 it('uses a bounded autosizing conversation input beside voice and explicit send controls', async () => {
@@ -372,7 +391,7 @@ it('uses a bounded autosizing conversation input beside voice and explicit send 
   expect(input.style.height).toBe('52px');
   expect(input.style.overflowY).toBe('hidden');
 });
-it('keeps an optimization request running when its conversation returns to the menu', async () => {
+it('keeps a XiaoWen request running while minimized and reports processing then unread completion', async () => {
   localStorage.setItem('suiyue-article-ai-consent-v1', 'yes');
   let continueRequest = () => {};
   let requestSignal: AbortSignal | undefined;
@@ -382,33 +401,66 @@ it('keeps an optimization request running when its conversation returns to the m
     return { requestId: request.requestId, result: { answer: '整理完成。', body: `${request.current.body}\n`, citedVersionIds: [] } };
   });
   render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting();
-  fireEvent.click(screen.getByRole('button', { name: '文章优化' }));
-  fireEvent.click(screen.getByRole('button', { name: /^常规优化/ }));
+  openXiaoWen();
+  fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '先别清掉这句话' } });
+  fireEvent.click(screen.getByRole('button', { name: '帮我理顺' }));
   await waitFor(() => expect(transport).toHaveBeenCalledOnce());
-  fireEvent.click(screen.getByRole('button', { name: '关闭' }));
-  expect(screen.getByRole('dialog', { name: '文章优化' })).toBeInTheDocument();
-  expect(screen.getByText('正在处理…')).toBeInTheDocument();
+  for (const label of ['接着问我', '讲清楚了吗', '帮我理顺', '润色文笔']) expect(screen.getByRole('button', { name: label })).toBeDisabled();
+  expect(screen.getByLabelText('问问小文')).toHaveValue('先别清掉这句话');
+  fireEvent.click(screen.getByRole('button', { name: '收起小文' }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '打开小文，正在处理' })).toHaveTextContent('正在处理');
   expect(requestSignal?.aborted).toBe(false);
   continueRequest();
-  await waitFor(() => expect(screen.queryByText('正在处理…')).not.toBeInTheDocument());
-  fireEvent.click(screen.getByRole('button', { name: '进入小文会话并输入需求' }));
+  await screen.findByRole('button', { name: '打开小文，有新回复' });
+  fireEvent.click(screen.getByRole('button', { name: '打开小文，有新回复' }));
   expect(await screen.findByText('整理完成。')).toBeInTheDocument();
+  expect(screen.getByLabelText('问问小文')).toHaveValue('先别清掉这句话');
 });
-it('reports toolbar chat as unavailable without opening XiaoWen or making a request', async () => {
-  const transport = vi.fn(); render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting();
-  vi.useFakeTimers();
-  const opener = screen.getByRole('button', { name: '聊天引导' }); opener.focus(); fireEvent.click(opener);
-  expect(screen.getByText('聊天功能暂未开放')).toHaveAttribute('role', 'status');
-  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  expect(opener).toHaveFocus();
-  expect(transport).not.toHaveBeenCalled();
-  await act(() => vi.advanceTimersByTimeAsync(3000));
-  expect(screen.queryByText('聊天功能暂未开放')).not.toBeInTheDocument();
+it('reports a minimized XiaoWen request failure on the toolbar and keeps it available after reopening', async () => {
+  localStorage.setItem('suiyue-article-ai-consent-v1', 'yes');
+  let failRequest = () => {};
+  const transport = vi.fn(async () => {
+    await new Promise<void>(resolve => { failRequest = resolve; });
+    throw new Error('暂时无法完成，请稍后再试。');
+  });
+  render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting(); openXiaoWen();
+  fireEvent.click(screen.getByRole('button', { name: '接着问我' }));
+  await waitFor(() => expect(transport).toHaveBeenCalledOnce());
+  fireEvent.click(screen.getByRole('button', { name: '收起小文' }));
+  failRequest();
+  const opener = await screen.findByRole('button', { name: '打开小文，需要处理' });
+  fireEvent.click(opener);
+  expect(await screen.findByRole('alert')).toHaveTextContent('暂时无法完成，请稍后再试。');
+});
+it('routes both reflective shortcuts through question and rejects an empty article locally', async () => {
+  localStorage.setItem('suiyue-article-ai-consent-v1', 'yes');
+  const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId, result: { answer: `回答：${request.prompt}`, citedVersionIds: [] } }));
+  render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting(); openXiaoWen();
+  fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '未发送内容' } });
+  for (const label of ['接着问我', '讲清楚了吗']) {
+    await waitFor(() => expect(screen.getByRole('button', { name: label })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: label }));
+    await screen.findByText(`回答：${label}`);
+    expect(screen.getByLabelText('问问小文')).toHaveValue('未发送内容');
+  }
+  expect(transport.mock.calls.map(([request]) => ({ action: request.action, prompt: request.prompt }))).toEqual([
+    { action: 'question', prompt: '接着问我' }, { action: 'question', prompt: '讲清楚了吗' },
+  ]);
+  await waitFor(() => expect(screen.getByRole('button', { name: '接着问我' })).toBeEnabled());
+  fireEvent.click(screen.getByRole('button', { name: '收起小文' }));
+  fireEvent.click(await screen.findByRole('button', { name: '保存' }));
+  await screen.findByRole('heading', { name: '我的作品' });
+  fireEvent.click(screen.getByRole('button', { name: /开始写作/ }));
+  fireEvent.click(screen.getByRole('button', { name: '打开小文' }));
+  fireEvent.click(screen.getByRole('button', { name: '接着问我' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('先写下一句');
+  expect(transport).toHaveBeenCalledTimes(2);
 });
 it('keeps copy failures persistent while ordinary assistant notices are transient', async () => {
   const repository = repo(); render(<ProductApp repository={repository} />); await startWriting();
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } });
-  fireEvent.click(screen.getByRole('button', { name: '文章优化' }));
+  openXiaoWen();
   fireEvent.click(screen.getByRole('button', { name: '查看修改记录' }));
   fireEvent.click(screen.getByRole('button', { name: /手动编辑/ }));
   fireEvent.click(screen.getByRole('button', { name: '复制这份正文' }));
@@ -419,26 +471,26 @@ it('keeps copy failures persistent while ordinary assistant notices are transien
   await act(() => vi.advanceTimersByTimeAsync(3100));
   expect(warning).toBeInTheDocument();
 });
-it('shows a one-time quiet optimization hint without moving typing focus', async () => {
+it('shows a one-time quiet XiaoWen hint without moving typing focus', async () => {
   const view = render(<ProductApp repository={repo()} />); await startWriting();
   vi.useFakeTimers();
   const body = screen.getByLabelText('文章正文');
   body.focus();
   fireEvent.change(body, { target: { value: '这是一段已经写好的生活记录。'.repeat(8) } });
-  expect(screen.getByLabelText('优化提示')).toHaveTextContent('写好后，点“优化”帮您整理文章。');
+  expect(screen.getByLabelText('小文提示')).toHaveTextContent('小文可以陪您接着写，也能帮您整理。');
   expect(body).toHaveFocus();
   expect(localStorage.getItem('suiyue-optimize-tip-v1')).toBe('yes');
   await act(() => vi.advanceTimersByTimeAsync(6000));
-  expect(screen.queryByLabelText('优化提示')).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('小文提示')).not.toBeInTheDocument();
   fireEvent.change(body, { target: { value: '这是一段已经写好的生活记录。'.repeat(9) } });
-  expect(screen.queryByLabelText('优化提示')).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('小文提示')).not.toBeInTheDocument();
   view.unmount();
   vi.useRealTimers();
 });
 it('uses concise elder-friendly wording in modification records and hides empty entries', async () => {
   render(<ProductApp repository={repo()} />); await startWriting();
   fireEvent.change(screen.getByRole('textbox', { name: '文章正文' }), { target: { value: '雨落在窗前。' } });
-  fireEvent.click(screen.getByRole('button', { name: '文章优化' }));
+  openXiaoWen();
   fireEvent.click(screen.getByRole('button', { name: '查看修改记录' }));
   expect(screen.getByRole('dialog', { name: '修改记录' })).toBeInTheDocument();
   expect(screen.getByText('修改会自动留下记录。以前已经丢失的内容无法找回。')).toBeInTheDocument();

@@ -2,17 +2,17 @@ import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent as ReactM
 import { flushSync } from 'react-dom';
 import { Dialog } from '../../components/Dialog';
 import { BackIcon } from '../../components/Icons';
-import { WritingToolbar } from '../../components/WritingControls';
+import { WritingToolbar, type AssistantStatus } from '../../components/WritingControls';
 import { articleText, effectiveSegments, completeSegment, completeVoice, type Draft, type InputMode } from '../../lib/domain/writing';
 import { caretFromPoint, textOffsetAtCaret } from '../../lib/pointCaret';
 import { VoicePanel } from '../speech/VoicePanel';
 
 const BODY_PLACEHOLDER = '从想说的一句话开始……';
 const OPTIMIZE_TIP_KEY = 'suiyue-optimize-tip-v1';
-const OPTIMIZE_TIP_LENGTH = 80;
+const XIAOWEN_TIP_LENGTH = 80;
 const BODY_LONG_PRESS_MS = 600;
 const BODY_LONG_PRESS_MOVE_PX = 10;
-const optimizeBodyLength = (draft: Draft) => [...articleText(effectiveSegments(draft)).replace(/\s/g, '')].length;
+const xiaowenTipBodyLength = (draft: Draft) => [...articleText(effectiveSegments(draft)).replace(/\s/g, '')].length;
 function textOffsetFromPoint(root: HTMLElement, segments: Draft['segments'], clientX: number, clientY: number) {
   const fullLength = articleText(segments).length;
   const caret = caretFromPoint(root.ownerDocument, clientX, clientY);
@@ -38,9 +38,9 @@ function hasSeenOptimizeTip() {
   catch { return false; }
 }
 
-export function Editor({ draft, update, onSave, onBack, onAssistant, saveStatus }: {
+export function Editor({ draft, update, onSave, onBack, onAssistant, assistantStatus = 'idle', saveStatus }: {
   draft: Draft; update: (draft: Draft) => void; onSave: () => void; onBack: () => void;
-  onAssistant: (entry: 'chat' | 'optimize') => void; saveStatus: string;
+  onAssistant: () => void; assistantStatus?: AssistantStatus; saveStatus: string;
 }) {
   const textarea = useRef<HTMLTextAreaElement>(null);
   const titleEditInput = useRef<HTMLInputElement>(null);
@@ -52,10 +52,9 @@ export function Editor({ draft, update, onSave, onBack, onAssistant, saveStatus 
   const pendingEditCaret = useRef<number | null>(null);
   const bodyLongPress = useRef<BodyLongPress | null>(null);
   const [voiceCollapsed, setVoiceCollapsed] = useState(false);
-  const [chatUnavailable, setChatUnavailable] = useState(false);
   const [titleEditorOpen, setTitleEditorOpen] = useState(false);
   const [titleEditValue, setTitleEditValue] = useState(draft.title);
-  const [showOptimizeTip, setShowOptimizeTip] = useState(() => !hasSeenOptimizeTip() && optimizeBodyLength(draft) >= OPTIMIZE_TIP_LENGTH);
+  const [showOptimizeTip, setShowOptimizeTip] = useState(() => !hasSeenOptimizeTip() && xiaowenTipBodyLength(draft) >= XIAOWEN_TIP_LENGTH);
   const optimizeTipHandled = useRef(showOptimizeTip || hasSeenOptimizeTip());
   // Event callbacks always read the currently rendered document.
   useLayoutEffect(() => { draftRef.current = draft; }, [draft]);
@@ -63,11 +62,6 @@ export function Editor({ draft, update, onSave, onBack, onAssistant, saveStatus 
     if (!showOptimizeTip) return;
     try { localStorage.setItem(OPTIMIZE_TIP_KEY, 'yes'); } catch { /* The current mount still remembers it. */ }
   }, [showOptimizeTip]);
-  useEffect(() => {
-    if (!chatUnavailable) return;
-    const timer = setTimeout(() => setChatUnavailable(false), 3000);
-    return () => clearTimeout(timer);
-  }, [chatUnavailable]);
   useEffect(() => {
     if (!showOptimizeTip) return;
     const timer = setTimeout(() => setShowOptimizeTip(false), 6000);
@@ -79,7 +73,7 @@ export function Editor({ draft, update, onSave, onBack, onAssistant, saveStatus 
     try { localStorage.setItem(OPTIMIZE_TIP_KEY, 'yes'); } catch { /* The current mount still remembers it. */ }
   };
   const updateDraft = (next: Draft) => {
-    if (!optimizeTipHandled.current && optimizeBodyLength(next) >= OPTIMIZE_TIP_LENGTH) {
+    if (!optimizeTipHandled.current && xiaowenTipBodyLength(next) >= XIAOWEN_TIP_LENGTH) {
       optimizeTipHandled.current = true;
       setShowOptimizeTip(true);
     }
@@ -220,14 +214,13 @@ export function Editor({ draft, update, onSave, onBack, onAssistant, saveStatus 
         {draft.segments.map((s, index) => <p key={s.id} className="writing-paragraph" data-segment-index={index}><span>{s.text}</span></p>)}
       </div>}
     </div>
-    <footer className={`editor-dock ${draft.inputMode}${draft.inputMode === 'voice' && voiceCollapsed ? ' collapsed' : ''}`}><WritingToolbar mode={draft.inputMode} onMode={setMode} onChat={() => setChatUnavailable(true)}
-      onOptimize={() => { dismissOptimizeTip(); onAssistant('optimize'); }} showOptimizeTip={showOptimizeTip} />
+    <footer className={`editor-dock ${draft.inputMode}${draft.inputMode === 'voice' && voiceCollapsed ? ' collapsed' : ''}`}><WritingToolbar mode={draft.inputMode} onMode={setMode}
+      onAssistant={() => { dismissOptimizeTip(); onAssistant(); }} assistantStatus={assistantStatus} showAssistantTip={showOptimizeTip} />
     {draft.inputMode === 'voice' && !voiceCollapsed && <VoicePanel pending={draft.pendingVoice}
       onPending={text => updateDraft({ ...draftRef.current, pendingVoice: text })}
       onEdit={caretOffset => { pendingEditCaret.current = caretOffset; updateDraft({ ...draft, segmentEdit: { id: 'pending', text: draft.pendingVoice } }); }}
       onDone={() => updateDraft(completeVoice(draftRef.current))}
       onCollapse={() => { lastBodyTap.current = 0; setVoiceCollapsed(true); }} />}</footer>
-    {chatUnavailable && <p className="toast editor-feature-toast" role="status">聊天功能暂未开放</p>}
     {titleEditorOpen && <Dialog title="编辑标题" className="title-edit-dialog" initialFocusRef={titleEditInput} onClose={() => setTitleEditorOpen(false)}>
       <form className="title-edit-form" onSubmit={event => { event.preventDefault(); updateDraft({ ...draftRef.current, title: titleEditValue }); setTitleEditorOpen(false); }}>
         <label htmlFor="article-title-edit">文章标题</label>

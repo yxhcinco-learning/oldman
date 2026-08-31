@@ -279,16 +279,6 @@ export function DemoApp({ source, entry, onExit }: { source: Draft; entry: 'chat
     patch({ screen: 'chat', messages: buildChatIntro(segments), aiTyping: false, voiceState: 'idle' });
   }
 
-  function openOptimization() {
-    const segments = state.inputMode === 'text' ? splitDraft(state.textDraft) : state.segments;
-    if (!segments.length) {
-      showToast('先写下一句，再请小文帮您优化');
-      return;
-    }
-    if (state.inputMode === 'text') dispatch({ type: 'replace-segments', segments });
-    patch({ optimizeSheet: 'menu', toast: null });
-  }
-
   function finishChat() {
     if (aiTimer.current) {
       clearTimeout(aiTimer.current);
@@ -491,7 +481,7 @@ export function DemoApp({ source, entry, onExit }: { source: Draft; entry: 'chat
         )}
 
         <footer className={`editor-dock ${state.inputMode}`}>
-          <WritingToolbar mode={state.inputMode} onMode={changeMode} onChat={openChat} onOptimize={openOptimization} disabled={state.voiceState === 'recording'} />
+          <WritingToolbar mode={state.inputMode} onMode={changeMode} onAssistant={openChat} disabled={state.voiceState === 'recording'} />
 
           {state.inputMode === 'voice' && (
             <div className={`voice-panel ${state.voiceState}`}>

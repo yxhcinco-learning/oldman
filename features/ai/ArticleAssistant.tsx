@@ -6,7 +6,7 @@ import { Workspace } from '../writing/workspace';
 import { VoiceDictationButton } from '../speech/VoiceDictationButton';
 import { ArticleAiController } from './session';
 
-type Page = 'menu' | 'chat' | 'preview' | 'history' | 'version' | 'consent';
+type Page = 'chat' | 'preview' | 'history' | 'version' | 'consent';
 type Feedback = { message: string; kind: 'notice' | 'warning' };
 const CONSENT_KEY = 'suiyue-article-ai-consent-v1';
 const TURN_LABELS: Record<AiTurn['status'], string> = {
@@ -29,24 +29,24 @@ function turnStateLabel(turn: AiTurn, baseBody?: string) {
 }
 function isConversationEdit(action: AiAction) { return action === 'rewrite' || action === 'chat'; }
 
-export function ArticleAssistant({ entry, workspace, controller, onClose, onBackup }: {
-  entry: 'chat' | 'optimize'; workspace: Workspace; controller: ArticleAiController; onClose: () => void; onBackup: () => void;
+export function ArticleAssistant({ workspace, controller, onClose, onBackup, prompt, onPromptChange }: {
+  workspace: Workspace; controller: ArticleAiController; onClose: () => void; onBackup: () => void;
+  prompt: string; onPromptChange: (prompt: string) => void;
 }) {
   const state = useSyncExternalStore(workspace.subscribe, workspace.getSnapshot, workspace.getSnapshot);
   const ai = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
-  const [page, setPage] = useState<Page>(entry === 'chat' ? 'chat' : 'menu');
+  const [page, setPage] = useState<Page>('chat');
+  const [expanded, setExpanded] = useState(false);
   const [selectedId, setSelectedId] = useState('');
-  const [prompt, setPrompt] = useState('');
   const [original, setOriginal] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [saving, setSaving] = useState(false);
   const [voiceActive, setVoiceActive] = useState(false);
   const [consent, setConsent] = useState(hasConsent);
-  const [pending, setPending] = useState<{ action: AiAction; prompt: string } | null>(null);
+  const [pending, setPending] = useState<{ action: AiAction; prompt: string; turnPrompt?: string; clearPrompt: boolean } | null>(null);
   const [historyCount, setHistoryCount] = useState(30);
   const restoreBase = useRef<{ title: string; body: string } | null>(null);
   const promptInput = useRef<HTMLTextAreaElement>(null);
-  const focusPromptOnChat = useRef(false);
   const draft = state.draft;
   const session = workspace.getSession();
   const visibleVersions = session?.versions.filter(item => item.body.trim()) ?? [];
@@ -59,9 +59,6 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
     const timer = window.setTimeout(() => setFeedback(value => value === current ? null : value), 3000);
     return () => window.clearTimeout(timer);
   }, [feedback]);
-  useEffect(() => {
-    if (page === 'chat' && focusPromptOnChat.current) { focusPromptOnChat.current = false; promptInput.current?.focus(); }
-  }, [page]);
   useLayoutEffect(() => {
     const input = promptInput.current;
     if (page !== 'chat' || !input) return;
@@ -82,18 +79,17 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
   const base = session?.versions.find(v => v.id === turn?.inputVersionId);
   const stale = Boolean(base && !sameDocument(base, documentOf(draft)));
   const previewTitle = page === 'version' ? '查看记录' : turn && isConversationEdit(turn.action) ? '看看调整后的全文' : '看看优化后的全文';
-  const titles: Record<Page, string> = { menu: '文章优化', chat: '和小文聊一聊', preview: previewTitle, history: '修改记录', version: previewTitle, consent: '使用小文前，请您了解' };
+  const titles: Record<Page, string> = { chat: '小文', preview: previewTitle, history: '修改记录', version: previewTitle, consent: '使用小文前，请您了解' };
   const showTurn = (id: string) => { setSelectedId(id); setOriginal(false); setFeedback(null); setPage('preview'); };
   const showVersion = (id: string) => { setSelectedId(id); restoreBase.current = documentOf(draft); setFeedback(null); setPage('version'); };
-  const openChat = (focusPrompt = false) => { focusPromptOnChat.current = focusPrompt; setFeedback(null); setPage('chat'); };
-  const run = async (action: AiAction, userPrompt: string) => {
+  const run = async (action: AiAction, userPrompt: string, turnPrompt?: string, clearPrompt = false) => {
     setFeedback(null); setPage('chat');
-    const id = await controller.run(action, userPrompt);
-    if (id && ['question', 'rewrite', 'chat'].includes(action)) setPrompt('');
+    const id = await controller.run(action, userPrompt, turnPrompt);
+    if (id && clearPrompt) onPromptChange('');
   };
-  const request = (action: AiAction, question = '') => {
-    if (!consent) { setPending({ action, prompt: question }); setPage('consent'); return; }
-    void run(action, question);
+  const request = (action: AiAction, question = '', turnPrompt?: string, clearPrompt = false) => {
+    if (!consent) { setPending({ action, prompt: question, turnPrompt, clearPrompt }); setPage('consent'); return; }
+    void run(action, question, turnPrompt, clearPrompt);
   };
   const apply = async () => {
     if (!turn || busy) return;
@@ -116,26 +112,28 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
     if (sameDocument(after, documentOf(draft))) void restore(before, after);
     else { showVersion(before.id); setFeedback({ message: '应用后正文又有修改，请先核对记录。恢复会替换当前全文。', kind: 'warning' }); }
   };
-  const close = () => {
-    if (saving) return;
-    if (entry === 'optimize' && page !== 'menu') {
-      setFeedback(null);
-      setPage('menu');
-      return;
-    }
-    onClose();
-  };
+  const close = () => { if (!saving) onClose(); };
   const compose = () => <form className="ai-composer" onSubmit={event => event.preventDefault()}>
+    <div className="xiaowen-quick-actions" aria-label="小文快捷选项">
+      <button type="button" disabled={busy || voiceActive} onClick={() => request('question', '接着问我')}>接着问我</button>
+      <button type="button" disabled={busy || voiceActive} onClick={() => request('question', '讲清楚了吗')}>讲清楚了吗</button>
+      <button type="button" disabled={busy || voiceActive} onClick={() => request('regular', '', '帮我理顺')}>帮我理顺</button>
+      <button type="button" disabled={busy || voiceActive} onClick={() => request('polish', '', '润色文笔')}>润色文笔</button>
+    </div>
     <label className="visually-hidden" htmlFor="article-ai-question">问问小文</label>
-    <div className="ai-composer-row"><textarea ref={promptInput} id="article-ai-question" value={prompt} onChange={event => setPrompt(event.target.value)} disabled={busy || voiceActive} maxLength={2000}
+    <div className="ai-composer-row"><textarea ref={promptInput} id="article-ai-question" value={prompt} onFocus={() => setExpanded(true)} onChange={event => onPromptChange(event.target.value)} disabled={busy || voiceActive} maxLength={2000}
       rows={1} placeholder="问小文，或提要求" />
-      <div className="ai-composer-actions"><VoiceDictationButton value={prompt} onChange={text => setPrompt(text.slice(0, 2000))} disabled={busy} onActiveChange={setVoiceActive} />
-        <button type="button" className="primary-button ai-send" disabled={busy || voiceActive || !prompt.trim()} onClick={() => request('chat', prompt)}><Icon name="spark" />发送</button></div>
+      <div className="ai-composer-actions"><VoiceDictationButton value={prompt} onChange={text => onPromptChange(text.slice(0, 2000))} disabled={busy} onActiveChange={setVoiceActive} />
+        <button type="button" className="primary-button ai-send" disabled={busy || voiceActive || !prompt.trim()} onClick={() => request('chat', prompt, undefined, true)}><Icon name="spark" />发送</button></div>
     </div>
   </form>;
 
-  return <Dialog className={`article-ai-dialog ai-page-${page}`} title={titles[page]} onClose={close} headerActions={page === 'menu' || page === 'chat' ? <button type="button" onClick={() => { setFeedback(null); setPage('history'); }} aria-label="查看修改记录"><Icon name="book" /></button> : undefined} onBack={page === 'menu' ? undefined : () => {
-    setFeedback(null); setPage(page === 'preview' ? 'chat' : page === 'version' ? 'history' : 'menu');
+  const panelExpanded = expanded || page !== 'chat';
+  return <Dialog className={`article-ai-dialog xiaowen-panel ${panelExpanded ? 'expanded' : 'compact'} ai-page-${page}`} title={titles[page]} closeLabel="收起小文" onClose={close} headerActions={page === 'chat' ? <>
+    <button className={`icon-button xiaowen-expand${expanded ? ' active' : ''}`} type="button" onClick={() => setExpanded(value => !value)} aria-label={expanded ? '收起小文面板' : '展开小文面板'}><Icon name="chevron" /></button>
+    <button type="button" onClick={() => { setFeedback(null); setPage('history'); }} aria-label="查看修改记录"><Icon name="book" /></button>
+  </> : undefined} onBack={page === 'chat' ? undefined : () => {
+    setFeedback(null); setPage(page === 'version' ? 'history' : 'chat');
   }}>
     <div className="article-assistant">
       {state.error && <div className="ai-error" role="alert"><p>{state.error}</p><div className="ai-inline-actions">
@@ -150,29 +148,12 @@ export function ArticleAssistant({ entry, workspace, controller, onClose, onBack
         <p>使用小文时，这篇文章的标题、正文、相关修改记录和聊天消息会经本地服务发送给 DeepSeek 处理。</p>
         <p>作品和会话保存在当前浏览器。本产品不记录正文或密钥日志；DeepSeek 侧的数据处理适用其服务设置与条款。请勿提交不希望发送的私密内容。</p>
         <p>优化结果需要您确认后才会进入正文。AI 可能出错，请核对人物、时间与细节。</p>
-        <div className="ai-result-actions"><button type="button" onClick={() => { setPending(null); setPage('menu'); }}>暂不使用</button>
+        <div className="ai-result-actions"><button type="button" onClick={() => { setPending(null); setPage('chat'); }}>暂不使用</button>
           <button type="button" className="primary-button" onClick={() => {
             setConsent(true); try { localStorage.setItem(CONSENT_KEY, 'yes'); } catch { /* Session-only consent is sufficient. */ }
-            const next = pending; setPending(null); if (next) void run(next.action, next.prompt); else setPage('menu');
+            const next = pending; setPending(null); if (next) void run(next.action, next.prompt, next.turnPrompt, next.clearPrompt); else setPage('chat');
           }}>同意并继续</button></div>
       </div>}
-
-      {page === 'menu' && <>
-        <button type="button" className="ai-regular" disabled={busy} onClick={() => request('regular')}>
-          <span className="ai-tool-heading"><Icon name="spark" /><strong>常规优化</strong></span><b>优化格式，整理通畅</b>
-          <span>整理语句、段落、标点和错字，保留您的原意与口吻。</span>
-        </button>
-        <h3 className="ai-section-title">按需修改</h3>
-        <div className="ai-tool-grid">
-          <button type="button" disabled={busy} onClick={() => request('polish')}><Icon name="pen" /><b>润色文笔</b><small>改善表达，不新增事实</small></button>
-          <button type="button" disabled><Icon name="format" /><b>精简内容</b><small>稍后开放</small></button>
-          <button type="button" disabled><Icon name="book" /><b>扩写内容</b><small>稍后开放</small></button>
-          <button type="button" disabled><Icon name="image" /><b>添加配图</b><small>稍后开放</small></button>
-        </div>
-        <button type="button" className="ai-chat-launcher" aria-label="进入小文会话并输入需求" onClick={() => openChat(true)}>
-          <span>问小文，或提出修改要求</span><strong>进入会话<Icon name="chevron" /></strong>
-        </button>
-      </>}
 
       {page === 'preview' && turn?.result && base && <>
         <div className="ai-inline-actions"><span className="choice-chip">{ACTION_LABELS[turn.action]} · {turnStateLabel(turn, base.body)}</span>

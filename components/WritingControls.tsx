@@ -1,21 +1,24 @@
 import { Icon } from './Icons';
 
-export function WritingToolbar({ mode, onMode, onChat, onOptimize, disabled = false, showOptimizeTip = false }: {
+export type AssistantStatus = 'idle' | 'processing' | 'unread' | 'error';
+
+export function WritingToolbar({ mode, onMode, onAssistant, assistantStatus = 'idle', disabled = false, showAssistantTip = false }: {
   mode: 'voice' | 'text'; onMode: (mode: 'voice' | 'text') => void;
-  onChat: () => void; onOptimize: () => void; disabled?: boolean;
-  showOptimizeTip?: boolean;
+  onAssistant: () => void; assistantStatus?: AssistantStatus; disabled?: boolean;
+  showAssistantTip?: boolean;
 }) {
+  const target = mode === 'text' ? 'voice' : 'text';
+  const statusLabel = assistantStatus === 'processing' ? '正在处理' : assistantStatus === 'unread' ? '有新回复' : assistantStatus === 'error' ? '需要处理' : '';
+  const assistantLabel = statusLabel ? `打开小文，${statusLabel}` : '打开小文';
   return <div className="composer-toolbar" aria-label="创作方式与工具">
-    {showOptimizeTip && <aside className="optimize-tip" aria-label="优化提示" role="status"><Icon name="spark" /><p>写好后，点“优化”帮您整理文章。</p></aside>}
-    <div className="mode-tabs" role="tablist" aria-label="输入方式">
-      <button className={mode === 'voice' ? 'active' : ''} type="button" role="tab" aria-label="语音输入" aria-selected={mode === 'voice'} disabled={disabled} onClick={() => onMode('voice')}><Icon name="mic" />语音</button>
-      <button className={mode === 'text' ? 'active' : ''} type="button" role="tab" aria-label="文字输入" aria-selected={mode === 'text'} disabled={disabled} onClick={() => onMode('text')}><Icon name="keyboard" className="keyboard-icon" />文字</button>
-    </div>
+    {showAssistantTip && <aside className="optimize-tip" aria-label="小文提示" role="status"><Icon name="leaf" /><p>小文可以陪您接着写，也能帮您整理。</p></aside>}
+    <button className="input-mode-switch" type="button" aria-label={`切换到${target === 'voice' ? '语音' : '文字'}输入`} disabled={disabled} onClick={() => onMode(target)}>
+      <Icon name={target === 'voice' ? 'mic' : 'keyboard'} className={target === 'text' ? 'keyboard-icon' : ''} />
+    </button>
     <span className="toolbar-divider" aria-hidden="true" />
-    <div className="editor-actions" aria-label="写作辅助">
-      <button type="button" aria-label="聊天引导" disabled={disabled} onClick={onChat}><Icon name="chat" />聊天</button>
-      <button type="button" aria-label="文章优化" disabled={disabled} onClick={onOptimize}><Icon name="spark" />优化</button>
-    </div>
+    <button className={`xiaowen-entry status-${assistantStatus}`} type="button" aria-label={assistantLabel} disabled={disabled} onClick={onAssistant}>
+      <Icon name="leaf" /><span>小文{statusLabel && <small>{statusLabel}</small>}</span>
+    </button>
   </div>;
 }
 

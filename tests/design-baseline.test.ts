@@ -33,7 +33,8 @@ it('retains the approved canvas and speech geometry while moving title editing i
   expect(rule('.voice-panel')['grid-template-rows']).toBe(rule('.voice-panel', previewCss)['grid-template-rows']);
   expect(rule('.live-transcript p, .pending-transcript p')).toMatchObject({ height: '90px', 'min-height': '90px', 'line-height': '30px', 'overflow-y': 'auto' });
   expect(rule('.mic-button')).toMatchObject({ width: '76px', height: '76px', 'touch-action': 'none' });
-  expect(rule('.mode-tabs button, .editor-actions button')['height']).toBe('52px');
+  expect(rule('.input-mode-switch')).toMatchObject({ width: '52px', height: '52px' });
+  expect(rule('.xiaowen-entry')['min-height']).toBe('52px');
   expect(css).toContain('@media (prefers-reduced-motion: reduce)');
   expect(css).not.toMatch(/\.(?:mock-keyboard|work-row|work-menu|library-links|save-row|creation-controls|story-paragraph)\b/);
 });
@@ -66,7 +67,8 @@ it('keeps AI input focus inside its border and uses a compact optimization hint'
   expect(rule('.ai-voice-controls button')).toMatchObject({ 'min-height': '48px', 'touch-action': 'manipulation' });
   expect(rule('.ai-composer textarea')).toMatchObject({ height: '52px', 'min-height': '52px', 'max-height': '148px', resize: 'none' });
   expect(rule('.ai-composer-row')).toMatchObject({ display: 'grid', 'grid-template-columns': 'minmax(0, 1fr)' + ' auto' });
-  expect(rule('.ai-page-chat')['padding-bottom']).toBe('max(8px, env(safe-area-inset-bottom))');
+  expect(rule('.xiaowen-panel.compact')).toMatchObject({ height: 'clamp(360px, 58dvh, 480px)', 'padding-bottom': 'max(8px, env(safe-area-inset-bottom))' });
+  expect(rule('.xiaowen-panel.expanded')['height']).toBe('min(90dvh, calc(var(--visual-viewport-height, 100dvh) - 16px))');
   expect(css).not.toContain('.voice-panel-expand');
   expect(rule('.optimize-tip')).toMatchObject({ position: 'absolute', width: 'min(250px, calc(100vw - 40px))', 'pointer-events': 'none' });
 });
@@ -76,16 +78,16 @@ it('keeps pending-edit actions compact and distinguishes text input from pencil 
   expect(rule('.pending-segment-editor-wrap')['padding-bottom']).toBe('8px');
   expect(rule('.pending-segment-editor-footer')['padding-top']).toBe('8px');
   const controls = readFileSync('components/WritingControls.tsx', 'utf8');
-  expect(controls).toContain('<Icon name="keyboard" className="keyboard-icon" />文字');
+  expect(controls).toContain("target === 'voice' ? 'mic' : 'keyboard'");
+  expect(controls).not.toContain('role="tablist"');
   expect(controls).not.toContain('文字会在这里轻轻落下');
 });
 
-it('keeps the optimization menu compact enough for one screen without squeezing its choices', () => {
-  expect(rule('.ai-page-menu > .sheet-header')['margin-bottom']).toBe('18px');
-  expect(rule('.ai-page-menu .ai-regular')).toMatchObject({ gap: '5px', padding: '16px 18px' });
-  expect(rule('.ai-page-menu .ai-tool-grid')['gap']).toBe('12px');
-  expect(rule('.ai-page-menu .ai-tool-grid > button')).toMatchObject({ 'min-height': '82px', padding: '12px 14px', 'row-gap': '4px' });
-  expect(rule('.ai-page-menu .ai-chat-launcher')).toMatchObject({ 'min-height': '64px', 'margin-top': '16px' });
+it('keeps XiaoWen quick intentions in two elder-friendly columns without shrinking tap targets', () => {
+  expect(rule('.xiaowen-quick-actions')).toMatchObject({ display: 'grid', 'grid-template-columns': 'repeat(2, minmax(0, 1fr))', gap: '8px' });
+  expect(rule('.xiaowen-quick-actions > button')).toMatchObject({ 'min-height': '48px', 'min-width': '0', 'white-space': 'nowrap' });
+  expect(rule('.xiaowen-panel.ai-page-chat > .sheet-header')['margin-bottom']).toBe('8px');
+  expect(css).not.toContain('.mode-tabs');
 });
 
 it('copies only pure SVG presentation assets and keeps the preview runtime outside production', () => {
