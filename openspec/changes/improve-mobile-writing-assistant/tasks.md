@@ -7,7 +7,7 @@
 - [x] 1.5 Add regression coverage for title-triggered text mode without focus theft, the removed body focus line, unavailable toolbar chat, tap-toggle XiaoWen dictation and centered collapse controls
 - [x] 1.6 Add regression coverage for standard and WebKit point-to-caret APIs, paragraph/newline offset mapping and blank-area fallback
 - [x] 1.7 Add regression coverage for non-blocking touch long-press timing/movement cancellation and pending-speech click-to-caret mapping
-- [x] 1.8 Add contract coverage for the default, allowed bilingual and rejected Tencent ASR engine model values and signed upstream URL
+- [x] 1.8 Add contract coverage for the default, allowed bilingual 1.0/2.0 and rejected Tencent ASR engine model values and signed upstream URL
 
 ## 2. Accurate AI feedback
 
