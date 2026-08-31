@@ -64,6 +64,8 @@ AudioWorklet 重采样至 16kHz PCM16；同源 WebSocket 代理至 127.0.0.1:300
 
 `WritingToolbar` 的单个52px按钮只在目标 `voice | text` 间切换，图标表示目标模式，不触发录音；按钮使用 `var(--tint)` 且无外投影，与相邻叶片入口保持同一 Echoes 色阶。小文面板不再保存 compact/expanded 状态或渲染尺寸控制，使用一个约72dvh、上限620px且受 Visual Viewport 约束的高度；消息区和底部 composer 分离滚动，短屏先压缩消息区。`ProductApp` 持有当前 work 的未发送 prompt、面板开关和 attention 状态，prompt 不进入 Workspace、IndexedDB、备份或请求，work id 变化即清空。面板卸载不会销毁共享 `ArticleAiController`，因此请求继续；控制器 busy/error 与面板开关共同派生工具栏的 processing/unread/error 状态。显式取消、`finish()` 离开作品和应用销毁才调用 `controller.cancel()`。会话受控 textarea 在空 prompt 时固定52px，实际文字通过 `scrollHeight` 在52–148px间增长，弹窗底部只保留8px基础间距或系统安全区，不引入 contenteditable 或新协议。
 
+话题采访首次开场由客户端静态渲染，不创建 turn、不发送请求；首个回答保存为 `interview-answer` 后才进入既有 `interview` 请求链。只有议题快照而没有标题、正文、待确认语音或用户素材的草稿只写入 recovery，不生成作品记录；关闭这种完全无内容的首次采访时 `finish()` 清除 recovery 并回到热门。存在回答、未发送 prompt、会话 turn 或进行中请求时关闭面板只切到文章，controller 继续运行，编辑器通过 `assistantStatus=processing` 显示加载状态。
+
 浏览器只访问同源 `/api/ai`，Key 仅在服务端读取忽略的 `.env.local`。首次发送需同意正文、历史、消息及采访所用议题/素材的数据去向；网关不记录内容。正文 12000 字符、上下文 JSON 120000 字符、请求 1MiB、响应 256KiB、并发 2、每分钟 20 次、超时 120 秒；追问与采访最多输出 2048 tokens，候选最多 16384 tokens。显式取消、离开作品、断开和关闭服务尽力终止上游；仅收起小文不终止。迟到结果不写回，刷新不自动重试。
 
 编辑器的小文发现提示不进入文章会话或数据库。当前正文首次达到80个非空白字时，以既有 `suiyue-optimize-tip-v1` 在本机记录“已展示”，文案为“小文可以陪您接着写，也能帮您整理。”；提示约6秒自动消失且不抢焦点、不发请求。清理浏览器数据后可能再次出现，不跨设备同步。

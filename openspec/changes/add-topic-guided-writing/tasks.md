@@ -23,7 +23,7 @@
 ## 4. Curated topic experience
 
 - [x] 4.1 Add a restrained home surface for continuing work, a bounded set of reviewed daily topics and periodic themes without infinite scroll or simulated filler
-- [x] 4.2 Build a topic detail view with summary, update time, accessible source links, neutral related facets and distinct “自己写” / “和小文聊聊” entry actions
+- [x] 4.2 Build a topic detail view with summary, update time, accessible source links, neutral related facets and distinct “直接写” / “接受小文采访” entry actions
 - [x] 4.3 Add loading, empty, stale, corrected and unavailable states that never block access to existing local works
 - [x] 4.4 Verify Echoes typography, focus, source-link accessibility and 360/390/430/desktop layouts without infantilizing copy or shrinking required targets
 
@@ -63,3 +63,9 @@
 - [x] 9.1 Update active proposal, design and delta specs for a “热门 / 文章 / 我的” icon navigation with “热门” as the default surface and the article create action fixed above the navigation
 - [x] 9.2 Implement the refined bottom navigation, keep the arrowless “开始写作” fixed above it, and update focused UI/design regressions
 - [x] 9.3 Update product/design/acceptance documentation and repeat check, build and four-size browser verification without paid model calls
+
+## 10. Interview entry and exit refinement
+
+- [x] 10.1 Update active proposal, design and delta specs for concise action labels, a static first-interview introduction, content-aware close routing and compact topic-list spacing
+- [x] 10.2 Implement the first-interview opening, discard content-free topic drafts, preserve active interview work with an editor loading state, and update focused regressions
+- [x] 10.3 Update product/design/architecture/acceptance documentation and repeat check, build and four-size browser verification without paid model calls

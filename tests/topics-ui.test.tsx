@@ -58,7 +58,7 @@ it('starts normal writing with a saved background snapshot and never inserts it 
   render(<ProductApp repository={store} topicTransport={transport([topic])} />);
   await openTopics();
   fireEvent.click(await screen.findByRole('button', { name: new RegExp(topic.title) }));
-  fireEvent.click(screen.getByRole('button', { name: '自己写' }));
+  fireEvent.click(screen.getByRole('button', { name: '直接写' }));
   await screen.findByRole('group', { name: '文章正文' });
   fireEvent.click(screen.getByRole('button', { name: '切换到文字输入' }));
   const body = screen.getByLabelText<HTMLTextAreaElement>('文章正文');
@@ -98,7 +98,7 @@ it('shows a newer topic revision but only replaces the saved background after ex
   render(<ProductApp repository={store} topicTransport={transport([topic], latest)} />);
   await openTopics();
   fireEvent.click(await screen.findByRole('button', { name: new RegExp(topic.title) }));
-  fireEvent.click(screen.getByRole('button', { name: '自己写' }));
+  fireEvent.click(screen.getByRole('button', { name: '直接写' }));
   const update = await screen.findByRole('button', { name: '话题内容有更新' });
   fireEvent.click(update);
   const dialog = screen.getByRole('dialog', { name: '话题内容有更新' });
@@ -122,9 +122,13 @@ it('uses XiaoWen to save answers as materials, ask one next question and compose
   render(<ProductApp repository={store} topicTransport={transport([topic])} aiTransport={ai} />);
   await openTopics();
   fireEvent.click(await screen.findByRole('button', { name: new RegExp(topic.title) }));
-  fireEvent.click(screen.getByRole('button', { name: '和小文聊聊' }));
+  fireEvent.click(screen.getByRole('button', { name: '接受小文采访' }));
   expect(await screen.findByRole('dialog', { name: '小文' })).toBeInTheDocument();
-  expect(screen.getByRole('log', { name: '小文采访对话' })).toHaveTextContent(topic.starterQuestion);
+  const conversation = screen.getByRole('log', { name: '小文采访对话' });
+  expect(conversation).toHaveTextContent('您好，我是小文，您的写作助手。');
+  expect(conversation).toHaveTextContent('先请您简单介绍一下自己吧。');
+  expect(screen.queryByRole('button', { name: '换个问题' })).not.toBeInTheDocument();
+  expect(ai).not.toHaveBeenCalled();
   expect(screen.getByRole('button', { name: '点按开始语音输入回复' })).toBeInTheDocument();
   const answer = screen.getByLabelText('回复小文');
   fireEvent.change(answer, { target: { value: '九十年代，我第一次尝试用电脑备课，是从练习打字开始的。' } });
@@ -134,7 +138,7 @@ it('uses XiaoWen to save answers as materials, ask one next question and compose
     expect(saved?.topicSnapshot?.id).toBe(topic.id);
     expect(saved?.topicWritingMode).toBe('interview');
     expect(saved?.materials).toHaveLength(1);
-    expect(saved?.materials[0]).toMatchObject({ source: 'interview-answer', selected: true, question: topic.starterQuestion });
+    expect(saved?.materials[0]).toMatchObject({ source: 'interview-answer', selected: true, question: '先请您简单介绍一下自己吧。' });
     expect(saved?.textDraft).toBe('');
   });
   expect(await screen.findByText('那次尝试中，最难解决的一步是什么？')).toBeInTheDocument();
@@ -148,20 +152,46 @@ it('uses XiaoWen to save answers as materials, ask one next question and compose
   await waitFor(async () => expect((await store.load()).recovery?.draft.textDraft).toContain('九十年代'));
 });
 
-it('closes as a pause and later resumes the same XiaoWen interview without duplicate exit buttons', async () => {
+it('returns an untouched first interview to the topic list without leaving an empty work', async () => {
   const topic = REVIEWED_TOPIC_CATALOG[0];
   const store = repository();
   render(<ProductApp repository={store} topicTransport={transport([topic])} />);
   await openTopics();
   fireEvent.click(await screen.findByRole('button', { name: new RegExp(topic.title) }));
-  fireEvent.click(screen.getByRole('button', { name: '和小文聊聊' }));
+  fireEvent.click(screen.getByRole('button', { name: '接受小文采访' }));
   expect(screen.queryByRole('button', { name: '先暂停' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: '回到文章' })).not.toBeInTheDocument();
   fireEvent.click(await screen.findByRole('button', { name: '收起小文' }));
-  expect(screen.queryByRole('dialog', { name: '小文' })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: '打开小文' }));
-  expect(await screen.findByRole('log', { name: '小文采访对话' })).toHaveTextContent(topic.starterQuestion);
-  expect((await store.load()).recovery?.draft.topicWritingMode).toBe('interview');
+  expect(await screen.findByRole('heading', { name: '热门话题', level: 1 })).toBeInTheDocument();
+  await waitFor(async () => {
+    expect((await store.load()).recovery).toBeNull();
+    expect((await store.load()).works).toEqual([]);
+  });
+});
+
+it('enters the article with a visible loading state after an answer while the next question is processing', async () => {
+  localStorage.setItem('suiyue-article-ai-consent-v1', 'yes');
+  const topic = REVIEWED_TOPIC_CATALOG[0];
+  const store = repository();
+  let complete = () => {};
+  const ai = vi.fn<AiTransport>(async request => {
+    await new Promise<void>(resolve => { complete = resolve; });
+    return { requestId: request.requestId, result: { answer: '您最想从哪一段经历继续说起？', citedVersionIds: [] } };
+  });
+  render(<ProductApp repository={store} topicTransport={transport([topic])} aiTransport={ai} />);
+  await openTopics();
+  fireEvent.click(await screen.findByRole('button', { name: new RegExp(topic.title) }));
+  fireEvent.click(screen.getByRole('button', { name: '接受小文采访' }));
+  fireEvent.change(await screen.findByLabelText('回复小文'), { target: { value: '我退休前教了三十多年语文。' } });
+  fireEvent.click(screen.getByRole('button', { name: '发送' }));
+  await waitFor(() => expect(ai).toHaveBeenCalledOnce());
+  fireEvent.click(screen.getByRole('button', { name: '收起小文' }));
+  expect(await screen.findByRole('group', { name: '文章正文' })).toBeInTheDocument();
+  expect(screen.getByText('小文正在整理刚才的回答…')).toBeVisible();
+  expect(screen.getByRole('button', { name: '打开小文，正在处理' })).toBeInTheDocument();
+  expect((await store.load()).works[0].draft.materials[0].text).toBe('我退休前教了三十多年语文。');
+  complete();
+  expect(await screen.findByRole('button', { name: '打开小文，有新回复' })).toBeInTheDocument();
 });
 
 it('preserves an unsaved interview answer when the next-question request fails', async () => {
@@ -171,7 +201,7 @@ it('preserves an unsaved interview answer when the next-question request fails',
   render(<ProductApp repository={repository()} topicTransport={transport([topic])} aiTransport={ai} />);
   await openTopics();
   fireEvent.click(await screen.findByRole('button', { name: new RegExp(topic.title) }));
-  fireEvent.click(screen.getByRole('button', { name: '和小文聊聊' }));
+  fireEvent.click(screen.getByRole('button', { name: '接受小文采访' }));
   const answer = await screen.findByLabelText('回复小文');
   fireEvent.change(answer, { target: { value: '这段话还没有保存，请不要丢掉。' } });
   fireEvent.click(screen.getByRole('button', { name: '发送' }));

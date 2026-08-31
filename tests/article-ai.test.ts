@@ -89,12 +89,12 @@ it('keeps interview answers out of the body and composes only explicitly selecte
     ? { answer: '当时最先提出不同意见的是谁？', body: '采访不能返回候选正文', citedVersionIds: [] }
     : { answer: '采用了第一次回答，没有采用未勾选内容。', body: '这是根据所选回答整理的候选文章。', citedVersionIds: [] } }));
   const controller = new ArticleAiController(workspace, call);
+  await workspace.addMaterial({ id: 'selected-answer', source: 'interview-answer', text: '我第一次用电脑备课是在九十年代。', question: '先请您简单介绍一下自己吧。', selected: true, createdAt: new Date().toISOString() });
   const questionId = await controller.run('interview', '继续采访', '继续问我');
-  expect(call.mock.calls[0][0]).toMatchObject({ action: 'interview', current: { body: '' }, topicSnapshot: { id: topic.id }, materials: [] });
+  expect(call.mock.calls[0][0]).toMatchObject({ action: 'interview', current: { body: '' }, topicSnapshot: { id: topic.id }, materials: [{ id: 'selected-answer' }] });
   expect(workspace.getSession()!.turns.find(turn => turn.id === questionId)).toMatchObject({ action: 'interview', status: 'answered', result: { answer: '当时最先提出不同意见的是谁？' } });
   expect(workspace.getSession()!.turns.find(turn => turn.id === questionId)?.result?.body).toBeUndefined();
   expect(workspace.state.draft?.textDraft).toBe('');
-  await workspace.addMaterial({ id: 'selected-answer', source: 'interview-answer', text: '我第一次用电脑备课是在九十年代。', question: topic.starterQuestion, selected: true, createdAt: new Date().toISOString() });
   await workspace.addMaterial({ id: 'unused-answer', source: 'interview-answer', text: '这条回答没有被选择。', question: '另一个问题', selected: false, createdAt: new Date().toISOString() });
   const composeId = await controller.run('compose', '根据选中的采访回答整理成文章', '整理成文章');
   expect(call.mock.calls[1][0].materials.map(material => material.id)).toEqual(['selected-answer']);

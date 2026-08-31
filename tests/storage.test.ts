@@ -50,6 +50,13 @@ describe('IndexedDB works and recovery', () => {
     const repo = repository(); const draft = writing(); await repo.save(draft, 0); await repo.clearRecovery('another');
     expect((await repo.load()).recovery).not.toBeNull(); await repo.clearRecovery(draft.id); expect((await repo.load()).recovery).toBeNull();
   });
+  it('keeps a topic-only draft recoverable without adding an empty work', async () => {
+    const repo = repository(); const draft = emptyDraft({ topicSnapshot: snapshotTopic(REVIEWED_TOPIC_CATALOG[0]), topicWritingMode: 'interview' });
+    expect(await repo.save(draft, 0)).toBeNull();
+    const saved = await repo.load();
+    expect(saved.works).toEqual([]); expect(saved.recovery?.draft.id).toBe(draft.id);
+    await repo.clearRecovery(draft.id); expect((await repo.load()).recovery).toBeNull();
+  });
   it('does not delete a database from a newer version', async () => {
     const name = crypto.randomUUID(); const db = await openDB(name, 3, { upgrade(db) { db.createObjectStore('future'); } });
     await db.put('future', 'important', 'data'); db.close();
@@ -74,13 +81,14 @@ describe('portable backups', () => {
   });
   it('rejects a stale material write without replacing newer topic-linked content', async () => {
     const repo = repository(); const snapshot = snapshotTopic(REVIEWED_TOPIC_CATALOG[0]);
-    const draft = emptyDraft({ topicSnapshot: snapshot, topicWritingMode: 'interview' }); await repo.save(draft, 0);
-    const current = { ...draft, materials: [{ id: newId(), source: 'interview-answer' as const, text: '较新的回答',
-      question: snapshot.starterQuestion, createdAt: new Date().toISOString(), selected: true }] };
+    const draft = { ...emptyDraft({ topicSnapshot: snapshot, topicWritingMode: 'interview' }), materials: [{ id: newId(), source: 'interview-answer' as const,
+      text: '较早的回答', question: snapshot.starterQuestion, createdAt: new Date().toISOString(), selected: true }] }; await repo.save(draft, 0);
+    const current = { ...draft, materials: [...draft.materials, { id: newId(), source: 'interview-answer' as const, text: '较新的回答',
+      question: '下一问', createdAt: new Date().toISOString(), selected: true }] };
     await repo.save(current, 1);
     await expect(repo.save({ ...draft, materials: [{ id: newId(), source: 'user-note', text: '过期内容', createdAt: new Date().toISOString(), selected: true }] }, 1))
       .rejects.toBeInstanceOf(ConflictError);
-    expect((await repo.load()).works[0].draft.materials[0].text).toBe('较新的回答');
+    expect((await repo.load()).works[0].draft.materials.at(-1)?.text).toBe('较新的回答');
   });
   it('imports validated backups as new copies with new segment ids', async () => {
     const repo = repository(); const draft = writing(); await repo.save(draft, 0);

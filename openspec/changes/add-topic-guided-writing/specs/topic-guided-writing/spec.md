@@ -4,12 +4,12 @@
 用户从议题开始写作时 SHALL 可以选择直接进入正常写作，或进入由小文逐问引导的采访模式；两条路径 MUST 关联同一篇作品和同一个议题背景，并允许随时切换而不丢失正文或素材。
 
 #### Scenario: Start with normal writing
-- **WHEN** 用户在话题详情选择“自己写”
+- **WHEN** 用户在话题详情选择“直接写”
 - **THEN** 系统创建或打开关联作品并显示正常编辑器，议题作为可收起背景存在，不自动打开采访、不生成提纲或正文
 
 #### Scenario: Start with guided interview
-- **WHEN** 用户选择让小文引导表达
-- **THEN** 系统进入同一作品的小文聊天式采访，小文基于议题先问一个具体问题，正文保持不变
+- **WHEN** 用户在话题详情选择“接受小文采访”
+- **THEN** 系统进入同一作品的小文聊天式采访，先用简短静态文案说明小文身份和一次一问的方式，再请用户简单介绍自己；打开本身不调用 AI，正文保持不变
 
 #### Scenario: Continue as one conversation
 - **WHEN** 用户通过文字或语音回答当前问题并点击“发送”
@@ -18,6 +18,14 @@
 #### Scenario: Switch paths without losing work
 - **WHEN** 用户在采访、正常写作或稍后恢复之间切换
 - **THEN** 当前正文、议题快照、采访素材和会话状态分别保留，切换本身不调用成文、不应用候选也不清空内容
+
+#### Scenario: Leave an untouched first interview
+- **WHEN** 用户首次进入采访后没有发送回答、没有未发送文字、没有会话结果且没有进行中的请求，随后关闭小文
+- **THEN** 系统回到“热门”列表并清除本次临时空稿，不进入文章页、不生成“未命名作品”
+
+#### Scenario: Leave after contributing or while processing
+- **WHEN** 用户已有采访回答、未发送文字、会话结果或进行中的请求，随后关闭小文
+- **THEN** 系统进入同篇文章，保留全部内容；请求进行中时编辑器显示清楚的加载状态，请求不因关闭面板而取消
 
 ### Requirement: Event as optional writing background
 正常写作模式 SHALL 将所选事件呈现为可查看、可收起且不占据作者正文的背景材料；用户 MUST 能核对来源、更新时间和中性相关切面，也 MUST 能完全不采用这些内容自行写作。

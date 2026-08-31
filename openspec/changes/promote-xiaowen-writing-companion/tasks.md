@@ -75,3 +75,8 @@
 
 - [x] 11.1 Update active design and delta spec so the current-question action aligns with the question text while retaining its touch target and focus state
 - [x] 11.2 Implement the alignment, update focused regressions and repeat check/build/four-size browser verification without paid calls
+
+## 12. Topic interview entry and exit refinement
+
+- [x] 12.1 Update active design and delta specs for the static first-interview introduction and content-aware close routing
+- [x] 12.2 Implement the interview transition and minimized processing feedback, update regressions and repeat check/build/four-size browser verification without paid calls

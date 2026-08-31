@@ -10,6 +10,8 @@ import { newId } from '../../lib/domain/writing';
 type Page = 'chat' | 'preview' | 'history' | 'version' | 'consent';
 type Feedback = { message: string; kind: 'notice' | 'warning' };
 const CONSENT_KEY = 'suiyue-article-ai-consent-v1';
+const FIRST_INTERVIEW_INTRO = '您好，我是小文，您的写作助手。接下来我们围绕这个话题聊一聊，我一次问一个问题。';
+const FIRST_INTERVIEW_QUESTION = '先请您简单介绍一下自己吧。';
 const TURN_LABELS: Record<AiTurn['status'], string> = {
   running: '正在处理', ready: '待应用', applied: '已应用', dismissed: '未采用', answered: '已回答', failed: '未完成', cancelled: '已取消',
 };
@@ -124,8 +126,12 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
         <button type="button" className="primary-button ai-send" disabled={busy || voiceActive || !prompt.trim()} onClick={() => request('chat', prompt, undefined, true)}><Icon name="spark" />发送</button></div>
     </div>
   </form>;
-  const interviewQuestion = session?.turns.slice().reverse().find(item => item.action === 'interview' && item.status === 'answered' && item.result)?.result?.answer
-    ?? draft.topicSnapshot?.starterQuestion ?? '您最想从哪一段经历说起？';
+  const interviewMaterials = draft.materials.filter(material => material.source === 'interview-answer');
+  const interviewTurns = session?.turns.filter(item => item.action === 'interview') ?? [];
+  const firstInterviewQuestion = interviewMaterials.length === 0 && interviewTurns.length === 0;
+  const generatedInterviewQuestion = interviewTurns.slice().reverse().find(item => item.status === 'answered' && item.result)?.result?.answer;
+  const interviewQuestion = firstInterviewQuestion ? FIRST_INTERVIEW_QUESTION
+    : generatedInterviewQuestion ?? draft.topicSnapshot?.starterQuestion ?? '您最想从哪一段经历说起？';
   const saveInterviewAnswer = async () => {
     const answer = prompt.trim();
     if (!answer || busy) return;
@@ -134,10 +140,10 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
     setSaving(false);
     if (ok) { onPromptChange(''); request('interview', '继续采访', '继续问我'); }
   };
-
-  const interviewMaterials = draft.materials.filter(material => material.source === 'interview-answer');
   const lastInterviewMaterial = interviewMaterials.at(-1);
-  const waitingForQuestion = lastInterviewMaterial?.question === interviewQuestion;
+  const waitingForQuestion = lastInterviewMaterial?.question === FIRST_INTERVIEW_QUESTION
+    ? !generatedInterviewQuestion
+    : lastInterviewMaterial?.question === interviewQuestion;
   const interviewComposer = () => <div className="interview-footer">
     {interviewMaterials.some(material => material.selected) && <button className="interview-compose-link" type="button" disabled={busy} onClick={() => request('compose', '根据采访回答整理成文章', '整理成文章')}>整理成文章</button>}
     <form className="ai-composer" onSubmit={event => { event.preventDefault(); void saveInterviewAnswer(); }}>
@@ -193,10 +199,10 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
         <p className="interview-topic">聊聊：{draft.topicSnapshot!.title}</p>
         <div className="interview-conversation" ref={chatScroll} role="log" aria-label="小文采访对话">
           {interviewMaterials.map(material => <div key={material.id} className="interview-exchange">
-            <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="message-bubble"><p>{material.question}</p></div></div>
+            <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="message-bubble">{material.question === FIRST_INTERVIEW_QUESTION && <p className="interview-intro">{FIRST_INTERVIEW_INTRO}</p>}<p>{material.question}</p></div></div>
             <div className="message-row user"><div className="message-bubble"><p>{material.text}</p></div></div>
           </div>)}
-          {!waitingForQuestion && <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="message-bubble interview-current-question"><p>{interviewQuestion}</p><button type="button" disabled={busy} onClick={() => request('interview', '换个问题', '换个问题')}>换个问题</button></div></div>}
+          {!waitingForQuestion && <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="message-bubble interview-current-question">{firstInterviewQuestion && <p className="interview-intro">{FIRST_INTERVIEW_INTRO}</p>}<p>{interviewQuestion}</p>{!firstInterviewQuestion && <button type="button" disabled={busy} onClick={() => request('interview', '换个问题', '换个问题')}>换个问题</button>}</div></div>}
           {waitingForQuestion && ai.busy && <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="message-bubble"><p>小文正在想下一个问题…</p></div></div>}
           {waitingForQuestion && !ai.busy && ai.error && <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="message-bubble interview-current-question"><p>刚才没有接上，您的回答已经留下了。</p><button type="button" onClick={() => request('interview', '继续采访', '继续问我')}>再试一次</button></div></div>}
         </div>

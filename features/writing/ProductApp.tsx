@@ -89,14 +89,28 @@ export function ProductApp({ repository, aiTransport, topicTransport = defaultTo
   const openAssistant = () => { if (state.draft) { void workspace.checkpoint(); assistantOpenRef.current = true; setAssistantStatus('idle'); setAssistantOpen(true); } };
   const startTopic = async (topic: WritingTopic, mode: 'normal' | 'interview') => {
     setSelectedTopic(null);
-    setHomeSurface('works');
+    setHomeSurface(mode === 'normal' ? 'works' : 'topics');
     await workspace.newWork({ topicSnapshot: snapshotTopic(topic), topicWritingMode: mode });
     if (mode === 'interview') { assistantOpenRef.current = true; setAssistantStatus('idle'); setAssistantOpen(true); }
   };
   const closeAssistant = () => {
-    assistantOpenRef.current = false; setAssistantOpen(false);
+    const draft = state.draft;
     const current = assistant.getSnapshot();
+    const prompt = assistantComposer.workId === draft?.id ? assistantComposer.prompt.trim() : '';
+    const session = draft ? workspace.getSession(draft.id) : undefined;
+    const emptyFirstInterview = Boolean(draft?.topicSnapshot && draft.topicWritingMode === 'interview'
+      && !draft.title.trim() && !articleText(effectiveSegments(draft)).trim() && !draft.pendingVoice.trim() && !draft.segmentEdit?.text.trim()
+      && !draft.materials.length && !prompt && !session?.turns.length && !current.busy);
+    assistantOpenRef.current = false; setAssistantOpen(false);
     setAssistantStatus(current.busy ? 'processing' : current.error ? 'error' : 'idle');
+    if (emptyFirstInterview) {
+      setAssistantComposer({ workId: null, prompt: '' });
+      setAssistantStatus('idle');
+      setHomeSurface('topics');
+      void workspace.finish();
+      return;
+    }
+    if (draft?.topicWritingMode === 'interview') setHomeSurface('works');
   };
   const assistantPrompt = assistantComposer.workId === state.draft?.id ? assistantComposer.prompt : '';
   const menuWorks = state.works.filter(work => Boolean(work.deletedAt) === (menu === 'trash'));

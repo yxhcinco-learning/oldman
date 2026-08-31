@@ -73,7 +73,7 @@ svg { display: block; }
 .section-heading h2 { font-size: 20px; line-height: 28px; }
 .section-heading > span { font-size: 14px; color: var(--muted); }
 .work-list { display: grid; gap: 16px; }
-.topics-section { margin-bottom: 36px; }
+.topics-section { margin-bottom: 0; }
 .topics-section .section-heading { align-items: flex-end; }
 .topics-section .section-heading .eyebrow { margin-bottom: 4px; }
 .topic-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -473,9 +473,12 @@ svg { display: block; }
 .interview-conversation .message-row { margin-bottom: 10px; }
 .interview-conversation .message-bubble { max-width: calc(100% - 42px); padding: 13px 15px; }
 .interview-conversation .message-bubble p { margin: 0; }
+.interview-conversation .message-bubble .interview-intro { margin-bottom: 10px; color: var(--forest-soft); font-size: 16px; line-height: 27px; }
 .interview-current-question button { display: block; min-height: 44px; margin-top: 8px; padding: 6px 0; border-radius: 8px; color: var(--forest); text-decoration: underline; text-underline-offset: 4px; }
 .interview-footer { flex-shrink: 0; background: var(--paper); }
 .interview-compose-link { display: block; min-height: 44px; margin: 0 0 2px auto; padding: 6px 10px; color: var(--forest-soft); font-size: 15px; line-height: 22px; }
+.interview-processing { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; padding: 11px 14px; border-radius: 14px; background: var(--tint); color: var(--forest-soft); font-size: 15px; line-height: 24px; }
+.interview-processing .icon { width: 18px; height: 18px; animation: breathe 1.2s ease-in-out infinite; }
 @media (max-width: 380px) {
   .article-ai-dialog { padding-left: 16px; padding-right: 16px; }
   .ai-full-text { padding: 16px; }

@@ -20,8 +20,8 @@ export function TopicDetail({ topic, onClose, onStart }: {
       {topic.correctionNote && <p className="topic-correction"><strong>更正说明</strong>{topic.correctionNote}</p>}
     </article>
     <div className="topic-start-actions">
-      <button type="button" onClick={() => onStart('normal')}>自己写</button>
-      <button type="button" className="primary-button" onClick={() => onStart('interview')}>和小文聊聊</button>
+      <button type="button" onClick={() => onStart('normal')}>直接写</button>
+      <button type="button" className="primary-button" onClick={() => onStart('interview')}>接受小文采访</button>
     </div>
   </Dialog>;
 }

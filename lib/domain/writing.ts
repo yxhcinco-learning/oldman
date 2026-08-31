@@ -49,8 +49,9 @@ export function effectiveSegments(draft: Draft) {
   return draft.inputMode === 'text' ? splitDraft(draft.textDraft, draft.segments) : draft.segments;
 }
 export function hasContent(draft: Draft) {
+  // A topic snapshot is recoverable context, not an authored work by itself.
   return Boolean(draft.title.trim() || articleText(effectiveSegments(draft)).trim() || draft.pendingVoice.trim() || draft.segmentEdit?.text.trim() ||
-    draft.topicSnapshot || draft.materials.length);
+    draft.materials.length);
 }
 export function workFromDraft(draft: Draft, existing?: Work): Work {
   const now = new Date().toISOString();

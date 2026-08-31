@@ -27,6 +27,14 @@
 - **WHEN** 话题采访显示当前问题和“换个问题”操作
 - **THEN** 操作与问题正文共享同一左侧起点，不增加一层造成视觉右移的水平内边距，同时保持至少 44px 高的可点击区域和清楚焦点
 
+#### Scenario: Introduce a first topic interview without a request
+- **WHEN** 用户首次进入尚无回答和采访轮次的话题采访
+- **THEN** 小文用两段短消息说明自己是写作助手、会一次问一个问题，并请用户简单介绍自己；打开面板不发送 AI 请求，首次问题不显示“换个问题”
+
+#### Scenario: Close a topic interview according to real content
+- **WHEN** 用户关闭话题采访
+- **THEN** 有回答、未发送文字、会话结果或进行中请求时进入同篇文章并以可访问状态表示处理中；完全无内容时回到热门列表且不留下空作品
+
 ## MODIFIED Requirements
 
 ### Requirement: Keep AI isolation visible

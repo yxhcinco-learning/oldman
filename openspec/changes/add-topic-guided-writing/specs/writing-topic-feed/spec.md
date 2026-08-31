@@ -7,6 +7,10 @@
 - **WHEN** 用户从固定底部导航切换到“热门”
 - **THEN** 系统默认在首个导航项展示有限数量的近期、时令和常青内容；“文章”页面不再同时堆叠这些卡片，内容区顶部不重复显示页签，用户可随时切回文章
 
+#### Scenario: Finish the topic list near the navigation
+- **WHEN** 用户滚动到热门话题列表末尾
+- **THEN** 最后一张话题卡与固定底部导航之间只保留正常内容留白，不出现一块看似缺少内容的大片空白区域
+
 #### Scenario: Keep new article creation visible above navigation
 - **WHEN** 用户切换到“文章”页面并查看已有作品或空态
 - **THEN** “开始写作”固定在底部主导航上方，不随作品列表滚动下沉，并且不使用方向箭头暗示额外层级；作品列表仍可独立滚动
