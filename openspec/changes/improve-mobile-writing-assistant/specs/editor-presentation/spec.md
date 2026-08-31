@@ -53,11 +53,11 @@
 - **THEN** 系统无损合入该编辑文字并进入当前页文字输入，不重新展示独立普通段落编辑页
 
 ### Requirement: Stable title editing beside the speech stage
-标题 SHALL 与当前页正文使用同一文字编辑状态。若用户在语音模式聚焦标题，系统 MUST 在键盘出现前切换到文字态并隐藏语音舞台，同时 MUST 保持标题焦点、标题值、普通正文、待确认语音与恢复状态。全文输入框聚焦时 MUST NOT 显示无语义的底部横线；空闲语音收起按钮 MUST 在左侧控制位内居中，不得贴靠屏幕左缘。
+标题 SHALL 使用页头触发的独立文字输入弹窗。若用户在语音模式打开标题编辑，系统 MUST 保持正文 `inputMode`、语音舞台展开状态、标题值、普通正文、待确认语音与恢复状态；弹窗关闭后 MUST 返回相同正文模式，不得把焦点转移到全文输入框。全文输入框聚焦时 MUST NOT 显示无语义的底部横线；空闲语音收起按钮 MUST 在左侧控制位内居中，不得贴靠屏幕左缘。
 
-#### Scenario: Focus the title while voice mode is expanded
-- **WHEN** 用户在展开的语音模式点击标题并唤起系统键盘
-- **THEN** 编辑器切换到“文字”页签、语音舞台不再被键盘顶起显示，标题继续获得焦点且正文和待确认语音均保持；不会把焦点转移到全文输入框
+#### Scenario: Edit the title while voice mode is expanded
+- **WHEN** 用户在展开的语音模式点击页头标题并在独立弹窗中唤起系统键盘
+- **THEN** 标题输入获得焦点，正文仍保持“语音”模式且正文和待确认语音均不变；关闭弹窗后恢复原语音舞台，不会把焦点转移到全文输入框
 
 #### Scenario: Focus the current-page body or inspect idle speech controls
 - **WHEN** 用户聚焦当前页全文输入，或返回空闲展开的语音模式
