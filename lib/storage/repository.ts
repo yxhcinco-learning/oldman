@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import { hasContent, workFromDraft, type Draft, type Recovery, type Work } from '../domain/writing';
+import { hasContent, normalizeDraft, normalizeWork, workFromDraft, type Draft, type Recovery, type Work } from '../domain/writing';
 import { asImportedCopy, parseBackupBundle } from './backup';
 import { articleSessionSchema, copySession, type ArticleSession } from '../domain/article-ai';
 
@@ -23,10 +23,12 @@ export class IndexedWorkRepository implements WorkRepository {
   constructor(private readonly name = 'suiyue-yousheng') {}
   private db() {
     if (!this.connection) {
-      this.connection = openDB<WritingDB>(this.name, 2, {
+      this.connection = openDB<WritingDB>(this.name, 3, {
         upgrade(db, oldVersion) {
           if (oldVersion < 1) { db.createObjectStore('works', { keyPath: 'id' }); db.createObjectStore('recovery'); }
           if (oldVersion < 2) db.createObjectStore('articleSessions', { keyPath: 'workId' });
+          // v3 adds optional topic/material fields inside existing records. They
+          // are normalized lazily and persisted on the next ordinary save.
         },
         blocking: () => { void this.connection?.then(db => db.close()); this.connection = undefined; },
         terminated: () => { this.connection = undefined; },
@@ -37,8 +39,9 @@ export class IndexedWorkRepository implements WorkRepository {
   async load() {
     const db = await this.db();
     const tx = db.transaction(['works', 'recovery', 'articleSessions'], 'readonly');
-    const works = await tx.objectStore('works').getAll();
+    const works = (await tx.objectStore('works').getAll()).map(normalizeWork);
     let recovery = await tx.objectStore('recovery').get('active') ?? null;
+    if (recovery) recovery = { ...recovery, draft: normalizeDraft(recovery.draft) };
     const sessions = await tx.objectStore('articleSessions').getAll();
     await tx.done;
     const recoveryId = recovery?.draft.id;
@@ -49,7 +52,8 @@ export class IndexedWorkRepository implements WorkRepository {
     if (session && (session.workId !== draft.id || !articleSessionSchema.safeParse(session).success)) throw new Error('会话记录无效，原作品未改变');
     const db = await this.db();
     const tx = db.transaction(['works', 'recovery', 'articleSessions'], 'readwrite');
-    const current = await tx.objectStore('works').get(draft.id);
+    const stored = await tx.objectStore('works').get(draft.id);
+    const current = stored ? normalizeWork(stored) : undefined;
     if ((current?.revision ?? 0) !== expected || current?.deletedAt) {
       tx.abort(); await tx.done.catch(() => {}); throw new ConflictError();
     }
@@ -69,7 +73,8 @@ export class IndexedWorkRepository implements WorkRepository {
   async setDeleted(id: string, deleted: boolean, expected: number) {
     const db = await this.db();
     const tx = db.transaction(['works', 'recovery'], 'readwrite');
-    const work = await tx.objectStore('works').get(id);
+    const stored = await tx.objectStore('works').get(id);
+    const work = stored ? normalizeWork(stored) : undefined;
     if (!work || work.revision !== expected) { tx.abort(); await tx.done.catch(() => {}); throw new ConflictError(); }
     const now = new Date().toISOString();
     await tx.objectStore('works').put({ ...work, deletedAt: deleted ? now : null, updatedAt: now, revision: work.revision + 1 });

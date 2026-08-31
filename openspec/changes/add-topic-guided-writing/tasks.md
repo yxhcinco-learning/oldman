@@ -15,9 +15,9 @@
 
 ## 3. Local topic and interview data
 
-- [ ] 3.1 Extend the domain model with topic snapshots and source-typed writing materials that remain separate from draft body, pending speech and AI candidates
-- [ ] 3.2 Add a non-destructive IndexedDB migration and repository transactions for snapshots, interview answers and mode state with revision-conflict coverage
-- [ ] 3.3 Upgrade versioned JSON export/import validation and ID remapping for topic-linked works while continuing to accept legacy backups
+- [x] 3.1 Extend the domain model with topic snapshots and source-typed writing materials that remain separate from draft body, pending speech and AI candidates
+- [x] 3.2 Add a non-destructive IndexedDB migration and repository transactions for snapshots, interview answers and mode state with revision-conflict coverage
+- [x] 3.3 Upgrade versioned JSON export/import validation and ID remapping for topic-linked works while continuing to accept legacy backups
 - [ ] 3.4 Add rescue-export and offline regressions covering storage failure, unavailable topic service, stale revisions and partially completed interviews
 
 ## 4. Curated topic experience

@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { openDB } from 'idb';
 import { IndexedWorkRepository, DraftWriter, ConflictError, type WorkRepository } from '../lib/storage/repository';
-import { emptyDraft, completeSegment, completeVoice, effectiveSegments, type Draft } from '../lib/domain/writing';
+import { emptyDraft, completeSegment, completeVoice, effectiveSegments, newId, type Draft, type Work } from '../lib/domain/writing';
 import { makeBackup, parseBackup, parseBackupBundle } from '../lib/storage/backup';
 import { newSession } from '../lib/domain/article-ai';
 import { Workspace } from '../features/writing/workspace';
+import { snapshotTopic } from '../lib/domain/topics';
+import { REVIEWED_TOPIC_CATALOG } from '../server/topic-catalog';
 
 const repositories: IndexedWorkRepository[] = [];
 const repository = () => { const r = new IndexedWorkRepository(crypto.randomUUID()); repositories.push(r); return r; };
@@ -57,6 +59,29 @@ describe('IndexedDB works and recovery', () => {
 });
 
 describe('portable backups', () => {
+  it('persists topic snapshots and interview material separately from the article', async () => {
+    const repo = repository(); const snapshot = snapshotTopic(REVIEWED_TOPIC_CATALOG[0]);
+    const draft = { ...emptyDraft({ topicSnapshot: snapshot, topicWritingMode: 'interview' }), materials: [{ id: newId(), source: 'interview-answer' as const,
+      question: snapshot.starterQuestion, text: '这是我的亲身回答。', createdAt: new Date().toISOString(), selected: true }] };
+    await repo.save(draft, 0); const loaded = await repo.load();
+    expect(loaded.works[0].draft).toMatchObject({ topicSnapshot: { id: snapshot.id, revision: snapshot.revision }, topicWritingMode: 'interview' });
+    expect(loaded.works[0].draft.materials[0].text).toBe('这是我的亲身回答。'); expect(loaded.works[0].segments).toEqual([]);
+    const parsed = parseBackupBundle(makeBackup(loaded.works, null, loaded.sessions));
+    expect(parsed.works[0].draft.materials).toEqual(draft.materials); expect(parsed.works[0].draft.topicSnapshot).toEqual(snapshot);
+    await repo.importBackup(makeBackup(loaded.works, null, loaded.sessions));
+    const copy = (await repo.load()).works.find(item => item.id !== draft.id)!;
+    expect(copy.draft.materials[0].id).not.toBe(draft.materials[0].id); expect(copy.segments).toEqual([]);
+  });
+  it('rejects a stale material write without replacing newer topic-linked content', async () => {
+    const repo = repository(); const snapshot = snapshotTopic(REVIEWED_TOPIC_CATALOG[0]);
+    const draft = emptyDraft({ topicSnapshot: snapshot, topicWritingMode: 'interview' }); await repo.save(draft, 0);
+    const current = { ...draft, materials: [{ id: newId(), source: 'interview-answer' as const, text: '较新的回答',
+      question: snapshot.starterQuestion, createdAt: new Date().toISOString(), selected: true }] };
+    await repo.save(current, 1);
+    await expect(repo.save({ ...draft, materials: [{ id: newId(), source: 'user-note', text: '过期内容', createdAt: new Date().toISOString(), selected: true }] }, 1))
+      .rejects.toBeInstanceOf(ConflictError);
+    expect((await repo.load()).works[0].draft.materials[0].text).toBe('较新的回答');
+  });
   it('imports validated backups as new copies with new segment ids', async () => {
     const repo = repository(); const draft = writing(); await repo.save(draft, 0);
     const before = (await repo.load()).works; const backup = makeBackup(before);
@@ -67,7 +92,7 @@ describe('portable backups', () => {
   });
   it('rejects invalid or future backups without changing stored works', async () => {
     const repo = repository(); await repo.save(writing(), 0); const before = await repo.load();
-    for (const raw of ['{broken', makeBackup(before.works).replace('"schemaVersion": 2', '"schemaVersion": 99'), '{"app":"other"}']) {
+    for (const raw of ['{broken', makeBackup(before.works).replace('"schemaVersion": 3', '"schemaVersion": 99'), '{"app":"other"}']) {
       await expect(repo.importBackup(raw)).rejects.toBeTruthy(); expect(await repo.load()).toEqual(before);
     }
   });
@@ -82,13 +107,30 @@ describe('portable backups', () => {
   });
   it('upgrades v1 without changing works or recovery and accepts v1 backups', async () => {
     const name = crypto.randomUUID(); const source = repository(); const draft = writing('旧版正文'); const work = await source.save(draft, 0);
+    const legacyWork = structuredClone(work!) as Omit<Work, 'draft'> & { draft: Partial<Draft> };
+    delete legacyWork.draft.topicSnapshot; delete legacyWork.draft.materials; delete legacyWork.draft.topicWritingMode;
+    const legacyDraft = structuredClone(draft) as Partial<Draft>;
+    delete legacyDraft.topicSnapshot; delete legacyDraft.materials; delete legacyDraft.topicWritingMode;
     const old = await openDB(name, 1, { upgrade(db) { db.createObjectStore('works', { keyPath: 'id' }); db.createObjectStore('recovery'); } });
-    await old.put('works', work); await old.put('recovery', { draft, revision: 1 }, 'active'); old.close();
+    await old.put('works', legacyWork); await old.put('recovery', { draft: legacyDraft, revision: 1 }, 'active'); old.close();
     const upgraded = new IndexedWorkRepository(name); repositories.push(upgraded);
     expect(await upgraded.load()).toEqual({ works: [work], recovery: { draft, revision: 1 }, sessions: [] });
     const v1 = { ...JSON.parse(makeBackup([work!])), schemaVersion: 1 }; delete v1.sessions;
+    for (const item of v1.works) { delete item.draft.topicSnapshot; delete item.draft.materials; delete item.draft.topicWritingMode; }
     expect(await upgraded.importBackup(JSON.stringify(v1))).toBe(1);
     expect((await upgraded.load()).works.find(w => w.id === work!.id)).toEqual(work);
+  });
+  it('accepts legacy v2 backups and rejects duplicate material identifiers atomically', async () => {
+    const repo = repository(); const draft = writing('旧版会话正文'); const session = newSession(draft); await repo.save(draft, 0, session);
+    const v2 = JSON.parse(makeBackup((await repo.load()).works, null, [session])); v2.schemaVersion = 2;
+    for (const item of v2.works) { delete item.draft.topicSnapshot; delete item.draft.materials; delete item.draft.topicWritingMode; }
+    expect(await repo.importBackup(JSON.stringify(v2))).toBe(1);
+    const before = await repo.load(); const invalid = JSON.parse(makeBackup(before.works, null, before.sessions));
+    invalid.works[0].draft.materials = [
+      { id: 'duplicate', source: 'user-note', text: '一', createdAt: new Date().toISOString(), selected: true },
+      { id: 'duplicate', source: 'user-note', text: '二', createdAt: new Date().toISOString(), selected: true },
+    ];
+    await expect(repo.importBackup(JSON.stringify(invalid))).rejects.toThrow(); expect(await repo.load()).toEqual(before);
   });
   it('restores session versions and references as an independent copy and retains recycle history', async () => {
     const repo = repository(); const draft = writing('有历史的原文'); const session = newSession(draft);

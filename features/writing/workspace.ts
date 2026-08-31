@@ -1,4 +1,5 @@
 import { emptyDraft, hasContent, splitDraft, type Draft, type Work } from '../../lib/domain/writing';
+import type { TopicSnapshot, TopicWritingMode, WritingMaterial } from '../../lib/domain/topics';
 import { DraftWriter, type WorkRepository } from '../../lib/storage/repository';
 import { checkpointSession, documentOf, newSession, newVersion, recoverSession, sameDocument, type ArticleSession } from '../../lib/domain/article-ai';
 
@@ -28,7 +29,9 @@ export class Workspace {
     }).catch(error => this.patch({ loading: false, error: message(error), saveStatus: 'error' }));
     return this.initPromise;
   }
-  async newWork() { const draft = emptyDraft(); this.writer.seed(draft.id, 0); await this.update(draft); }
+  async newWork(options: { topicSnapshot?: TopicSnapshot; topicWritingMode?: TopicWritingMode } = {}) {
+    const draft = emptyDraft(options); this.writer.seed(draft.id, 0); await this.update(draft);
+  }
   async open(work: Work) { this.writer.seed(work.id, work.revision); await this.update(structuredClone(work.draft)); }
   getSession(id = this.state.draft?.id) { return this.state.sessions.find(session => session.workId === id); }
   dispose() { clearTimeout(this.checkpointTimer); }
@@ -70,6 +73,16 @@ export class Workspace {
     const session = this.getSession(workId);
     if (!draft || draft.id !== workId || !session) return Promise.resolve(false);
     return this.persist(draft, update(session));
+  }
+  async addMaterial(material: WritingMaterial) {
+    const draft = this.state.draft;
+    if (!draft || draft.materials.some(item => item.id === material.id)) return false;
+    return this.update({ ...draft, materials: [...draft.materials, material] });
+  }
+  async updateMaterial(id: string, update: (material: WritingMaterial) => WritingMaterial) {
+    const draft = this.state.draft;
+    if (!draft || !draft.materials.some(item => item.id === id)) return false;
+    return this.update({ ...draft, materials: draft.materials.map(item => item.id === id ? update(item) : item) });
   }
   async applyTurn(turnId: string): Promise<boolean> {
     if (!await this.checkpoint()) return false;

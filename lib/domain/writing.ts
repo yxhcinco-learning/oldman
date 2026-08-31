@@ -1,3 +1,5 @@
+import type { TopicSnapshot, TopicWritingMode, WritingMaterial } from './topics';
+
 export interface Segment { id: string; text: string }
 export type InputMode = 'voice' | 'text';
 export interface Draft {
@@ -8,6 +10,9 @@ export interface Draft {
   inputMode: InputMode;
   pendingVoice: string;
   segmentEdit: { id: string; text: string } | null;
+  topicSnapshot: TopicSnapshot | null;
+  materials: WritingMaterial[];
+  topicWritingMode: TopicWritingMode;
 }
 export interface Work {
   id: string;
@@ -29,14 +34,23 @@ export function splitDraft(text: string, previous: Segment[] = []): Segment[] {
     id: previous[i]?.id ?? newId(), text: p,
   }));
 }
-export function emptyDraft(): Draft {
-  return { id: newId(), title: '', segments: [], textDraft: '', inputMode: 'voice', pendingVoice: '', segmentEdit: null };
+export function emptyDraft(options: { topicSnapshot?: TopicSnapshot | null; topicWritingMode?: TopicWritingMode } = {}): Draft {
+  return { id: newId(), title: '', segments: [], textDraft: '', inputMode: 'voice', pendingVoice: '', segmentEdit: null,
+    topicSnapshot: options.topicSnapshot ?? null, materials: [], topicWritingMode: options.topicWritingMode ?? 'normal' };
+}
+export function normalizeDraft(value: Draft): Draft {
+  return { ...value, topicSnapshot: value.topicSnapshot ?? null, materials: value.materials ?? [], topicWritingMode: value.topicWritingMode ?? 'normal' };
+}
+export function normalizeWork(value: Work): Work {
+  const draft = normalizeDraft(value.draft);
+  return { ...value, draft, segments: draft.segments };
 }
 export function effectiveSegments(draft: Draft) {
   return draft.inputMode === 'text' ? splitDraft(draft.textDraft, draft.segments) : draft.segments;
 }
 export function hasContent(draft: Draft) {
-  return Boolean(draft.title.trim() || articleText(effectiveSegments(draft)).trim() || draft.pendingVoice.trim() || draft.segmentEdit?.text.trim());
+  return Boolean(draft.title.trim() || articleText(effectiveSegments(draft)).trim() || draft.pendingVoice.trim() || draft.segmentEdit?.text.trim() ||
+    draft.topicSnapshot || draft.materials.length);
 }
 export function workFromDraft(draft: Draft, existing?: Work): Work {
   const now = new Date().toISOString();
