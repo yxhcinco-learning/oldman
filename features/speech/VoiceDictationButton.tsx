@@ -3,11 +3,12 @@ import { Dialog } from '../../components/Dialog';
 import { Icon } from '../../components/Icons';
 import { useSpeechDictation } from './useSpeechDictation';
 
-export function VoiceDictationButton({ value, onChange, disabled = false, onActiveChange }: {
+export function VoiceDictationButton({ value, onChange, disabled = false, onActiveChange, ariaSubject = '要求' }: {
   value: string;
   onChange: (text: string) => void;
   disabled?: boolean;
   onActiveChange?: (active: boolean) => void;
+  ariaSubject?: string;
 }) {
   const dictation = useSpeechDictation(value, onChange, 'tap');
   useEffect(() => {
@@ -20,7 +21,7 @@ export function VoiceDictationButton({ value, onChange, disabled = false, onActi
   return <>
     <div className="ai-voice-controls" data-phase={dictation.speech.phase}>
       {status && <span className="ai-voice-status" role="status">{status}</span>}
-      <button type="button" className={dictation.active ? 'active' : ''} aria-label={dictation.active ? '取消语音输入要求' : '点按开始语音输入要求'} disabled={disabled} {...dictation.tapProps}>
+      <button type="button" className={dictation.active ? 'active' : ''} aria-label={dictation.active ? `取消语音输入${ariaSubject}` : `点按开始语音输入${ariaSubject}`} disabled={disabled} {...dictation.tapProps}>
         <Icon name="mic" /><span className="ai-voice-label">{buttonText}</span>
       </button>
     </div>

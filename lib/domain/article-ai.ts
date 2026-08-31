@@ -2,10 +2,11 @@ import { z } from 'zod';
 import { articleText, newId, type Draft } from './writing';
 
 const id = z.string().min(1).max(128);
-export const aiActionSchema = z.enum(['regular', 'polish', 'question', 'rewrite', 'chat']);
+export const aiActionSchema = z.enum(['regular', 'polish', 'question', 'rewrite', 'chat', 'interview', 'compose']);
 export type AiAction = z.infer<typeof aiActionSchema>;
 export const ACTION_LABELS: Record<AiAction, string> = {
   regular: '常规优化', polish: '润色文笔', question: '文字追问', rewrite: '对话调整', chat: '调整文章',
+  interview: '小文采访', compose: '整理成文章',
 };
 export const versionSchema = z.object({
   id, createdAt: z.iso.datetime(), source: z.enum(['baseline', 'manual', 'regular', 'polish', 'rewrite', 'restore']),
@@ -54,11 +55,11 @@ export const articleSessionSchema = z.object({
   for (const turn of session.turns) {
     if (!versions.has(turn.inputVersionId) || (turn.appliedVersionId && !versions.has(turn.appliedVersionId)) ||
       turn.result?.citedVersionIds.some(ref => !versions.has(ref))) ctx.addIssue({ code: 'custom', message: '无效的版本引用' });
-    if (['ready', 'applied'].includes(turn.status) && (turn.action === 'question' || !turn.result?.body?.trim())) {
+    if (['ready', 'applied'].includes(turn.status) && (['question', 'interview'].includes(turn.action) || !turn.result?.body?.trim())) {
       ctx.addIssue({ code: 'custom', message: '无效的优化结果' });
     }
     if (turn.status === 'applied' && !turn.appliedVersionId) ctx.addIssue({ code: 'custom', message: '缺少应用版本' });
-    if (turn.status === 'answered' && (!['question', 'chat'].includes(turn.action) || !turn.result || Boolean(turn.result.body))) {
+    if (turn.status === 'answered' && (!['question', 'chat', 'interview', 'compose'].includes(turn.action) || !turn.result || Boolean(turn.result.body))) {
       ctx.addIssue({ code: 'custom', message: '无效的追问结果' });
     }
   }

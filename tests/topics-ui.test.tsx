@@ -5,10 +5,11 @@ import type { TopicTransport } from '../features/topics/client';
 import { IndexedWorkRepository } from '../lib/storage/repository';
 import { REVIEWED_TOPIC_CATALOG } from '../server/topic-catalog';
 import type { WritingTopic } from '../lib/domain/topics';
+import type { AiTransport } from '../features/ai/session';
 
 const repositories: IndexedWorkRepository[] = [];
 const repository = () => { const value = new IndexedWorkRepository(crypto.randomUUID()); repositories.push(value); return value; };
-afterEach(async () => { for (const value of repositories.splice(0)) await value.close(); });
+afterEach(async () => { localStorage.clear(); for (const value of repositories.splice(0)) await value.close(); });
 
 const transport = (topics: WritingTopic[], detail = topics[0]): TopicTransport => ({
   list: vi.fn(async () => topics),
@@ -82,16 +83,70 @@ it('shows a newer topic revision but only replaces the saved background after ex
   expect(screen.queryByRole('button', { name: '议题有更新，查看差异' })).not.toBeInTheDocument();
 });
 
-it('opens XiaoWen as the interview mode for the same topic instead of a separate chat product', async () => {
+it('uses XiaoWen to save answers as materials, ask one next question and compose only through an explicit candidate', async () => {
+  localStorage.setItem('suiyue-article-ai-consent-v1', 'yes');
+  const topic = REVIEWED_TOPIC_CATALOG[0];
+  const store = repository();
+  const ai = vi.fn<AiTransport>(async request => ({ requestId: request.requestId, result: request.action === 'interview'
+    ? { answer: '那次尝试中，最难解决的一步是什么？', citedVersionIds: [] }
+    : { answer: '采用了您关于第一次接触电脑的回答。', body: '九十年代，我第一次尝试用电脑备课，是从练习打字开始的。', citedVersionIds: [] } }));
+  render(<ProductApp repository={store} topicTransport={transport([topic])} aiTransport={ai} />);
+  fireEvent.click(await screen.findByRole('button', { name: new RegExp(topic.title) }));
+  fireEvent.click(screen.getByRole('button', { name: '让小文问问我' }));
+  expect(await screen.findByRole('dialog', { name: '小文' })).toBeInTheDocument();
+  expect(screen.getByRole('region', { name: '当前采访问题' })).toHaveTextContent(topic.starterQuestion);
+  expect(screen.getByRole('button', { name: '点按开始语音输入回答' })).toBeInTheDocument();
+  const answer = screen.getByLabelText('您的回答');
+  fireEvent.change(answer, { target: { value: '九十年代，我第一次尝试用电脑备课，是从练习打字开始的。' } });
+  fireEvent.click(screen.getByRole('button', { name: '保存回答' }));
+  await waitFor(async () => {
+    const saved = (await store.load()).recovery?.draft;
+    expect(saved?.topicSnapshot?.id).toBe(topic.id);
+    expect(saved?.topicWritingMode).toBe('interview');
+    expect(saved?.materials).toHaveLength(1);
+    expect(saved?.materials[0]).toMatchObject({ source: 'interview-answer', selected: true, question: topic.starterQuestion });
+    expect(saved?.textDraft).toBe('');
+  });
+  expect(screen.getByRole('checkbox', { name: /回答 1/ })).toBeChecked();
+  fireEvent.click(screen.getByRole('button', { name: '继续问我' }));
+  expect(await screen.findByText('那次尝试中，最难解决的一步是什么？')).toBeInTheDocument();
+  expect(ai.mock.calls[0][0]).toMatchObject({ action: 'interview', current: { body: '' }, materials: [{ source: 'interview-answer' }] });
+  fireEvent.click(screen.getByRole('button', { name: '整理成文章' }));
+  expect(await screen.findByRole('region', { name: '整理后全文' })).toHaveTextContent('九十年代，我第一次尝试用电脑备课');
+  expect((await store.load()).recovery?.draft.textDraft).toBe('');
+  fireEvent.click(screen.getByRole('button', { name: '采用这篇文章' }));
+  await waitFor(async () => expect((await store.load()).recovery?.draft.textDraft).toContain('九十年代'));
+});
+
+it('pauses and later resumes the same XiaoWen interview, while return-to-writing exits the mode', async () => {
   const topic = REVIEWED_TOPIC_CATALOG[0];
   const store = repository();
   render(<ProductApp repository={store} topicTransport={transport([topic])} />);
   fireEvent.click(await screen.findByRole('button', { name: new RegExp(topic.title) }));
   fireEvent.click(screen.getByRole('button', { name: '让小文问问我' }));
-  expect(await screen.findByRole('dialog', { name: '小文' })).toBeInTheDocument();
-  await waitFor(async () => {
-    const saved = (await store.load()).recovery?.draft;
-    expect(saved?.topicSnapshot?.id).toBe(topic.id);
-    expect(saved?.topicWritingMode).toBe('interview');
-  });
+  fireEvent.click(await screen.findByRole('button', { name: '先暂停' }));
+  expect(screen.queryByRole('dialog', { name: '小文' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: '打开小文' }));
+  expect(await screen.findByRole('region', { name: '当前采访问题' })).toHaveTextContent(topic.starterQuestion);
+  fireEvent.click(screen.getByRole('button', { name: '回到文章' }));
+  expect(screen.queryByRole('dialog', { name: '小文' })).not.toBeInTheDocument();
+  await waitFor(async () => expect((await store.load()).recovery?.draft.topicWritingMode).toBe('normal'));
+  fireEvent.click(screen.getByRole('button', { name: '打开小文' }));
+  expect(await screen.findByLabelText('问问小文')).toBeInTheDocument();
+  expect(screen.queryByLabelText('小文采访')).not.toBeInTheDocument();
+});
+
+it('preserves an unsaved interview answer when the next-question request fails', async () => {
+  localStorage.setItem('suiyue-article-ai-consent-v1', 'yes');
+  const topic = REVIEWED_TOPIC_CATALOG[0];
+  const ai = vi.fn<AiTransport>(async () => { throw new Error('采访服务暂时不可用。'); });
+  render(<ProductApp repository={repository()} topicTransport={transport([topic])} aiTransport={ai} />);
+  fireEvent.click(await screen.findByRole('button', { name: new RegExp(topic.title) }));
+  fireEvent.click(screen.getByRole('button', { name: '让小文问问我' }));
+  const answer = await screen.findByLabelText('您的回答');
+  fireEvent.change(answer, { target: { value: '这段话还没有保存，请不要丢掉。' } });
+  fireEvent.click(screen.getByRole('button', { name: '继续问我' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('采访服务暂时不可用');
+  expect(screen.getByLabelText('您的回答')).toHaveValue('这段话还没有保存，请不要丢掉。');
+  expect(screen.getByRole('group', { name: '文章正文' })).not.toHaveTextContent('这段话还没有保存');
 });

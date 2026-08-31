@@ -90,12 +90,12 @@ export class Workspace {
     const session = this.getSession();
     const turn = session?.turns.find(t => t.id === turnId);
     const base = session?.versions.find(v => v.id === turn?.inputVersionId);
-    if (!draft || !session || !turn || turn.status !== 'ready' || turn.action === 'question' || !turn.result?.body || !base) return false;
+    if (!draft || !session || !turn || turn.status !== 'ready' || ['question', 'interview'].includes(turn.action) || !turn.result?.body || !base) return false;
     if (draft.segmentEdit || draft.pendingVoice.trim() || !sameDocument(base, documentOf(draft))) {
       this.patch({ error: '正文已发生变化，请根据最新内容重新优化；旧结果仍可查看。' }); return false;
     }
     const next = { ...draft, segments: splitDraft(turn.result.body, draft.segments), textDraft: turn.result.body };
-    const source = turn.action === 'chat' ? 'rewrite' : turn.action;
+    const source = ['chat', 'compose'].includes(turn.action) ? 'rewrite' : turn.action;
     if (source !== 'regular' && source !== 'polish' && source !== 'rewrite') return false;
     const version = newVersion(next, source);
     return this.commitArticle(next, { ...session, versions: [...session.versions, version],

@@ -6,6 +6,8 @@ import { makeBackup, parseBackupBundle } from '../lib/storage/backup';
 import { Workspace } from '../features/writing/workspace';
 import { ArticleAiController, requestArticleAi, type AiTransport } from '../features/ai/session';
 import { buildAiRequest, MAX_CONTEXT_CHARS, type AiResponse } from '../features/ai/protocol';
+import { snapshotTopic } from '../lib/domain/topics';
+import { REVIEWED_TOPIC_CATALOG } from '../server/topic-catalog';
 
 const repos: IndexedWorkRepository[] = [];
 const workspaces: Workspace[] = [];
@@ -77,6 +79,38 @@ it('uses one chat action for both an answer and a confirmed rewrite candidate', 
   expect(workspace.getSession()!.versions.at(-1)).toMatchObject({ source: 'rewrite', body: '第一段\n\n更温暖的第二段' });
   expect((await repo.load()).sessions[0].turns.map(turn => turn.action)).toEqual(['chat', 'chat']);
   expect(call).toHaveBeenCalledTimes(2);
+});
+it('keeps interview answers out of the body and composes only explicitly selected materials into a candidate', async () => {
+  const repo = new IndexedWorkRepository(crypto.randomUUID()); repos.push(repo);
+  const workspace = new Workspace(repo); workspaces.push(workspace); await workspace.initialize();
+  const topic = snapshotTopic(REVIEWED_TOPIC_CATALOG[0]);
+  await workspace.newWork({ topicSnapshot: topic, topicWritingMode: 'interview' });
+  const call = vi.fn<AiTransport>(async request => ({ requestId: request.requestId, result: request.action === 'interview'
+    ? { answer: '当时最先提出不同意见的是谁？', body: '采访不能返回候选正文', citedVersionIds: [] }
+    : { answer: '采用了第一次回答，没有采用未勾选内容。', body: '这是根据所选回答整理的候选文章。', citedVersionIds: [] } }));
+  const controller = new ArticleAiController(workspace, call);
+  const questionId = await controller.run('interview', '继续采访', '继续问我');
+  expect(call.mock.calls[0][0]).toMatchObject({ action: 'interview', current: { body: '' }, topicSnapshot: { id: topic.id }, materials: [] });
+  expect(workspace.getSession()!.turns.find(turn => turn.id === questionId)).toMatchObject({ action: 'interview', status: 'answered', result: { answer: '当时最先提出不同意见的是谁？' } });
+  expect(workspace.getSession()!.turns.find(turn => turn.id === questionId)?.result?.body).toBeUndefined();
+  expect(workspace.state.draft?.textDraft).toBe('');
+  await workspace.addMaterial({ id: 'selected-answer', source: 'interview-answer', text: '我第一次用电脑备课是在九十年代。', question: topic.starterQuestion, selected: true, createdAt: new Date().toISOString() });
+  await workspace.addMaterial({ id: 'unused-answer', source: 'interview-answer', text: '这条回答没有被选择。', question: '另一个问题', selected: false, createdAt: new Date().toISOString() });
+  const composeId = await controller.run('compose', '根据选中的采访回答整理成文章', '整理成文章');
+  expect(call.mock.calls[1][0].materials.map(material => material.id)).toEqual(['selected-answer']);
+  expect(workspace.getSession()!.turns.find(turn => turn.id === composeId)).toMatchObject({ action: 'compose', status: 'ready' });
+  expect(workspace.state.draft?.textDraft).toBe('');
+  expect(await workspace.applyTurn(composeId!)).toBe(true);
+  expect(workspace.state.draft?.textDraft).toBe('这是根据所选回答整理的候选文章。');
+  expect(workspace.getSession()!.versions.at(-1)?.source).toBe('rewrite');
+});
+it('requires selected interview material before requesting composition', async () => {
+  const { workspace } = await setup();
+  const call = vi.fn(transport); const controller = new ArticleAiController(workspace, call);
+  await workspace.addMaterial({ id: 'not-selected', source: 'interview-answer', text: '尚未选择', question: '问题', selected: false, createdAt: new Date().toISOString() });
+  expect(await controller.run('compose', '整理成文章')).toBeNull();
+  expect(controller.getSnapshot().error).toContain('选择至少一条采访素材');
+  expect(call).not.toHaveBeenCalled();
 });
 it('keeps shortcut labels in the conversation without sending them as optimization prompts', async () => {
   const { workspace } = await setup();

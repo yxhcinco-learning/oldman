@@ -5,6 +5,8 @@ import { loadAiConfiguration, systemPrompt, type AiGatewayOptions } from '../ser
 import { emptyDraft } from '../lib/domain/writing';
 import { newSession } from '../lib/domain/article-ai';
 import { buildAiRequest } from '../features/ai/protocol';
+import { snapshotTopic } from '../lib/domain/topics';
+import { REVIEWED_TOPIC_CATALOG } from '../server/topic-catalog';
 
 const configuration = { apiKey: 'test-only-key', baseUrl: 'https://api.deepseek.com', model: 'deepseek-v4-flash' as const };
 const origin = 'http://localhost:3001';
@@ -43,6 +45,38 @@ it('gives XiaoWen grounded answer-only contracts for the two article reflection 
   expect(question).toContain('最多指出 3 处');
   expect(question).toContain('只能依据当前正文和提供的记录');
   expect(question).toContain('不得返回 body');
+});
+it('defines one-question interview and selected-material composition contracts', () => {
+  const interview = systemPrompt('interview');
+  expect(interview).toContain('只提出 1 个');
+  expect(interview).toContain('topicSnapshot 只能作为背景');
+  expect(interview).toContain('不得暗示用户经历过没有说过的事');
+  expect(interview).toContain('绝不返回 body');
+  const compose = systemPrompt('compose');
+  expect(compose).toContain('selected=true');
+  expect(compose).toContain('不补造细节、对话、因果或评价');
+  expect(compose).toContain('只在 answer 中提出 1 个具体澄清问题');
+});
+it('accepts an empty article for topic interview, strips accidental body and sends only selected material for composition', async () => {
+  const topic = snapshotTopic(REVIEWED_TOPIC_CATALOG[0]);
+  const draft = emptyDraft({ topicSnapshot: topic, topicWritingMode: 'interview' });
+  const session = newSession(draft);
+  const material = { id: 'answer-1', source: 'interview-answer' as const, text: '第一次用电脑备课时，我先从打字学起。', question: topic.starterQuestion, selected: true, createdAt: new Date().toISOString() };
+  const skipped = { ...material, id: 'answer-2', text: '不采用这一条。', selected: false };
+  const call = vi.fn<typeof fetch>()
+    .mockResolvedValueOnce(response({ answer: '那次备课最费力的是哪一步？', body: '不应保留', citedVersionIds: [] }))
+    .mockResolvedValueOnce(response({ answer: '采用了关于第一次电脑备课的回答。', body: '第一次用电脑备课时，我先从打字学起。', citedVersionIds: [] }));
+  const app = await gateway({ fetch: call });
+  const interview = buildAiRequest(session, 'interview', '继续采访', crypto.randomUUID(), { topicSnapshot: topic, materials: [material] });
+  const interviewResult = await app.inject({ method: 'POST', url: '/api/ai/turn', headers: { origin }, payload: interview });
+  expect(interviewResult.statusCode).toBe(200); expect(interviewResult.json().result.body).toBeUndefined();
+  const compose = buildAiRequest(session, 'compose', '整理成文章', crypto.randomUUID(), { topicSnapshot: topic, materials: [material, skipped] });
+  const composeResult = await app.inject({ method: 'POST', url: '/api/ai/turn', headers: { origin }, payload: compose });
+  expect(composeResult.statusCode).toBe(200); expect(composeResult.json().result.body).toContain('第一次用电脑备课');
+  const upstream = JSON.parse((call.mock.calls as unknown as [string, RequestInit][])[1][1].body as string);
+  const user = JSON.parse(upstream.messages[1].content);
+  expect(user.topicSnapshot.id).toBe(topic.id);
+  expect(user.materials.map((item: { id: string }) => item.id)).toEqual(['answer-1']);
 });
 it('uses only the official configured service and never includes secrets in client status or results', async () => {
   const call = vi.fn(async () => response()); const app = await gateway({ fetch: call });

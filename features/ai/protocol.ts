@@ -1,16 +1,23 @@
 import { z } from 'zod';
 import { aiActionSchema, aiResultSchema, turnSchema, versionSchema, type AiAction, type ArticleSession } from '../../lib/domain/article-ai';
+import { topicSnapshotSchema, writingMaterialSchema, type TopicSnapshot, type WritingMaterial } from '../../lib/domain/topics';
 
 export const MAX_ARTICLE_CHARS = 12000;
 export const MAX_CONTEXT_CHARS = 120000;
 export const aiRequestSchema = z.object({
   workId: z.string().min(1).max(128), requestId: z.string().min(1).max(128),
   action: aiActionSchema, prompt: z.string().max(2000),
-  current: versionSchema.extend({ body: z.string().min(1).max(MAX_ARTICLE_CHARS) }),
+  current: versionSchema.extend({ body: z.string().max(MAX_ARTICLE_CHARS) }),
   versions: z.array(versionSchema).max(32), turns: z.array(turnSchema).max(16),
-  omittedRecords: z.number().int().nonnegative(),
+  topicSnapshot: topicSnapshotSchema.optional(), materials: z.array(writingMaterialSchema).max(24),
+  omittedRecords: z.number().int().nonnegative(), omittedMaterials: z.number().int().nonnegative(),
 }).strict().superRefine((value, ctx) => {
-  if (!value.current.body.trim() || ['question', 'rewrite', 'chat'].includes(value.action) && !value.prompt.trim()) ctx.addIssue({ code: 'custom', message: '请输入正文、问题或调整要求' });
+  const hasBody = Boolean(value.current.body.trim());
+  const hasContext = hasBody || Boolean(value.topicSnapshot) || value.materials.length > 0;
+  if (!['interview', 'compose'].includes(value.action) && !hasBody || value.action === 'interview' && !hasContext || value.action === 'compose' && !value.materials.some(material => material.selected)) {
+    ctx.addIssue({ code: 'custom', message: '请输入正文或选择采访素材' });
+  }
+  if (['question', 'rewrite', 'chat'].includes(value.action) && !value.prompt.trim()) ctx.addIssue({ code: 'custom', message: '请输入问题或调整要求' });
   const ids = [value.current.id, ...value.versions.map(v => v.id)];
   if (new Set(ids).size !== ids.length) ctx.addIssue({ code: 'custom', message: '重复版本' });
   if (JSON.stringify(value).length > MAX_CONTEXT_CHARS) ctx.addIssue({ code: 'custom', message: '上下文过长' });
@@ -23,9 +30,17 @@ export const aiResponseSchema = z.object({
 export type AiResponse = z.infer<typeof aiResponseSchema>;
 
 /** The full local archive is retained; only a bounded selection crosses the network. */
-export function buildAiRequest(session: ArticleSession, action: AiAction, prompt: string, requestId: string): AiRequest {
+export function buildAiRequest(session: ArticleSession, action: AiAction, prompt: string, requestId: string, context: { topicSnapshot?: TopicSnapshot | null; materials?: WritingMaterial[] } = {}): AiRequest {
   const current = session.versions.at(-1)!;
-  const request: AiRequest = { workId: session.workId, requestId, action, prompt, current, versions: [], turns: [], omittedRecords: 0 };
+  const contextual = ['interview', 'compose'].includes(action);
+  const candidates = contextual ? (context.materials ?? []).filter(material => action !== 'compose' || material.selected).slice(-24) : [];
+  const request: AiRequest = { workId: session.workId, requestId, action, prompt, current, versions: [], turns: [],
+    ...(contextual && context.topicSnapshot ? { topicSnapshot: context.topicSnapshot } : {}), materials: [], omittedRecords: 0, omittedMaterials: 0 };
+  for (const material of candidates) {
+    const next = { ...request, materials: [...request.materials, material] };
+    if (JSON.stringify(next).length < MAX_CONTEXT_CHARS - 128) request.materials = next.materials;
+  }
+  request.omittedMaterials = candidates.length - request.materials.length;
   const eligibleTurns = session.turns.filter(t => t.id !== requestId && t.status !== 'running');
   for (const turn of eligibleTurns.slice(-16).reverse()) {
     const next = { ...request, turns: [turn, ...request.turns] };

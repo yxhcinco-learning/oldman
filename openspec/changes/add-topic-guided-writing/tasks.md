@@ -18,7 +18,7 @@
 - [x] 3.1 Extend the domain model with topic snapshots and source-typed writing materials that remain separate from draft body, pending speech and AI candidates
 - [x] 3.2 Add a non-destructive IndexedDB migration and repository transactions for snapshots, interview answers and mode state with revision-conflict coverage
 - [x] 3.3 Upgrade versioned JSON export/import validation and ID remapping for topic-linked works while continuing to accept legacy backups
-- [ ] 3.4 Add rescue-export and offline regressions covering storage failure, unavailable topic service, stale revisions and partially completed interviews
+- [x] 3.4 Add rescue-export and offline regressions covering storage failure, unavailable topic service, stale revisions and partially completed interviews
 
 ## 4. Curated topic experience
 
@@ -36,16 +36,16 @@
 
 ## 6. XiaoWen guided interview
 
-- [ ] 6.1 Add an explicit interview mode inside the existing XiaoWen identity and article session, with pause, change-question, return-to-writing and later-resume states
-- [ ] 6.2 Add a server interview action that asks exactly one grounded question, returns no candidate body and rejects invented user experience or topic facts
-- [ ] 6.3 Save typed and dictated answers as source-typed interview material, preserving cancellation and failure content without appending it to the body
-- [ ] 6.4 Add explicit material selection and composition into a full candidate with provenance summary, clarification for gaps/conflicts and existing preview/apply/dismiss safeguards
-- [ ] 6.5 Preserve existing free XiaoWen questions, article rewrites, optimizations, version history and current-work unsent input without restoring a separate generic chat entry
+- [x] 6.1 Add an explicit interview mode inside the existing XiaoWen identity and article session, with pause, change-question, return-to-writing and later-resume states
+- [x] 6.2 Add a server interview action that asks exactly one grounded question, returns no candidate body and rejects invented user experience or topic facts
+- [x] 6.3 Save typed and dictated answers as source-typed interview material, preserving cancellation and failure content without appending it to the body
+- [x] 6.4 Add explicit material selection and composition into a full candidate with provenance summary, clarification for gaps/conflicts and existing preview/apply/dismiss safeguards
+- [x] 6.5 Preserve existing free XiaoWen questions, article rewrites, optimizations, version history and current-work unsent input without restoring a separate generic chat entry
 
 ## 7. Documentation, verification and delivery
 
 - [ ] 7.1 Update product, design-system and architecture documents only when the corresponding behavior is implemented, keeping planned direction distinct from current status
-- [ ] 7.2 Add automated success, failure, cancel, offline, stale-source, storage-conflict and backup tests using reviewed fixtures and non-network AI transports
+- [x] 7.2 Add automated success, failure, cancel, offline, stale-source, storage-conflict and backup tests using reviewed fixtures and non-network AI transports
 - [ ] 7.3 Run `npm run check`, `npm run build`, OpenSpec validation and task-only diff/sensitive-output review
 - [ ] 7.4 Run browser regression for feed, topic detail, both writing paths, switching, interview composition and source updates at 360×640, 390×844, 430×932 and 1280×900
 - [ ] 7.5 Record physical iOS Safari and Android Chrome evidence for system keyboard, dictation, background switching, source links and local recovery; do not substitute desktop emulation
