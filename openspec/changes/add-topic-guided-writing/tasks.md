@@ -44,7 +44,7 @@
 
 ## 7. Documentation, verification and delivery
 
-- [ ] 7.1 Update product, design-system and architecture documents only when the corresponding behavior is implemented, keeping planned direction distinct from current status
+- [x] 7.1 Update product, design-system and architecture documents only when the corresponding behavior is implemented, keeping planned direction distinct from current status
 - [x] 7.2 Add automated success, failure, cancel, offline, stale-source, storage-conflict and backup tests using reviewed fixtures and non-network AI transports
 - [ ] 7.3 Run `npm run check`, `npm run build`, OpenSpec validation and task-only diff/sensitive-output review
 - [ ] 7.4 Run browser regression for feed, topic detail, both writing paths, switching, interview composition and source updates at 360×640, 390×844, 430×932 and 1280×900

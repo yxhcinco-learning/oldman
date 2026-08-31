@@ -26,6 +26,7 @@ it('protects the exact HTTPS origin while preserving same-origin API and WebSock
   expect(nginx).toContain('auth_basic_user_file /etc/nginx/suiyue-yousheng.htpasswd;');
   expect(nginx).toContain('proxy_pass http://127.0.0.1:3011;');
   expect(nginx).toContain('location ^~ /api/ai/');
+  expect(nginx).toContain('location ^~ /api/topics');
   expect(nginx).toContain('proxy_pass http://127.0.0.1:3012;');
   expect(nginx).toContain('location = /api/speech {');
   expect(nginx).toContain('proxy_set_header Origin $http_origin;');

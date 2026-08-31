@@ -5,7 +5,7 @@
 ## 固定拓扑与文件
 
 - Lighthouse：`lhins-pg6lbxtx`（`ap-guangzhou`），只保留公网 80/443；SSH/TAT 管理边界不由本项目扩大。
-- Nginx：TLS、Basic Auth、安全头、按 IP 限流；`/` → `127.0.0.1:3011`，`/api/ai/*`、`/api/health`、`/api/speech/status` 和 `/api/speech` → `127.0.0.1:3012`。
+- Nginx：TLS、Basic Auth、安全头、按 IP 限流；`/` → `127.0.0.1:3011`，`/api/ai/*`、`/api/topics`、`/api/health`、`/api/speech/status` 和 `/api/speech` → `127.0.0.1:3012`。
 - systemd：`suiyue-web.service` 与 `suiyue-gateway.service`，专用无登录用户 `suiyue`，异常重启并响应 SIGTERM。
 - release：`/opt/suiyue-yousheng/releases/<version>`；`current` 为活动版本，`previous` 为上次成功版本。
 - 秘密：`/etc/suiyue-yousheng/runtime.env`，必须 `0600 root:root`；Basic Auth 文件 `/etc/nginx/suiyue-yousheng.htpasswd`，必须 `0640 root:www-data`。两者都不在 Git 或 release。
