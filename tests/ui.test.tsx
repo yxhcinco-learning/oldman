@@ -9,6 +9,7 @@ const repos: IndexedWorkRepository[] = [];
 const repo = () => { const r = new IndexedWorkRepository(crypto.randomUUID()); repos.push(r); return r; };
 afterEach(async () => { localStorage.clear(); vi.useRealTimers(); for (const r of repos.splice(0)) await r.close(); });
 async function startWriting() {
+  fireEvent.click(await screen.findByRole('tab', { name: '文章' }));
   fireEvent.click(await screen.findByRole('button', { name: /开始写作/ }));
   fireEvent.click(await screen.findByRole('button', { name: '编辑文章标题' }));
   const titleDialog = screen.getByRole('dialog', { name: '编辑标题' });
@@ -51,11 +52,21 @@ it('uses one destination-mode switch and opens XiaoWen directly without copying 
 });
 it('starts with an empty local library and never inserts preview examples', async () => {
   const repository = repo(); const { container } = render(<ProductApp repository={repository} />);
+  const tabs = await screen.findAllByRole('tab');
+  expect(tabs.map(tab => tab.textContent)).toEqual(['热门', '文章', '我的']);
+  expect(screen.getByRole('tab', { name: '热门' })).toHaveAttribute('aria-selected', 'true');
+  expect(container.querySelectorAll('.home-tab-icon .icon')).toHaveLength(3);
+  fireEvent.click(screen.getByRole('tab', { name: '文章' }));
   await screen.findByRole('heading', { name: '我的作品' });
   expect(screen.getByRole('tab', { name: '文章' })).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByText('0 篇作品')).toBeVisible();
   expect(screen.getByText('新文章会保存在这台设备上')).toBeVisible();
   expect(container.querySelector('.work-card')).toBeNull();
+  const create = screen.getByRole('button', { name: '开始写作' });
+  expect(create.parentElement).toHaveClass('home-create-dock');
+  expect(create.parentElement?.previousElementSibling).toHaveClass('home-scroll');
+  expect(create.parentElement?.nextElementSibling).toHaveClass('home-bottom-tabs');
+  expect(create.querySelectorAll('.icon')).toHaveLength(1);
   expect((await repository.load()).works).toHaveLength(0);
 });
 it('writes, edits the body on the current page, saves, reopens and restores from IndexedDB', async () => {
@@ -66,7 +77,7 @@ it('writes, edits the body on the current page, saves, reopens and restores from
   fireEvent.change(screen.getByRole('textbox', { name: '文章正文' }), { target: { value: '我修改了这一段。\n\n我想把这一刻写下来。' } });
   fireEvent.click(await screen.findByRole('button', { name: '保存' }));
   await screen.findByRole('heading', { name: '我的作品' }); expect((await repository.load()).works[0].segments[0].text).toBe('我修改了这一段。');
-  view.unmount(); render(<ProductApp repository={repository} />); fireEvent.click(await screen.findByRole('button', { name: /夏日有感.*继续写/ }));
+  view.unmount(); render(<ProductApp repository={repository} />); fireEvent.click(await screen.findByRole('tab', { name: '文章' })); fireEvent.click(await screen.findByRole('button', { name: /夏日有感.*继续写/ }));
   expect(await screen.findByRole('textbox', { name: '文章正文' })).toHaveValue('我修改了这一段。\n\n我想把这一刻写下来。');
 });
 it('previews a real optimization before applying and persists an undo as history', async () => {

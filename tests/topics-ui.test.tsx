@@ -35,10 +35,13 @@ it('keeps every published title and visible facet free of assignment-style copy'
 it('separates popular topics from articles and presents them as content instead of writing assignments', async () => {
   const topics = REVIEWED_TOPIC_CATALOG.slice(0, 6);
   render(<ProductApp repository={repository()} topicTransport={transport(topics)} />);
-  expect(await screen.findByRole('heading', { name: '我的作品' })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: '热门话题', level: 1 })).toBeInTheDocument();
+  expect(screen.getByRole('tab', { name: '热门' })).toHaveAttribute('aria-selected', 'true');
+  await waitFor(() => expect(screen.getAllByRole('button', { name: /了解详情/ })).toHaveLength(5));
+  fireEvent.click(screen.getByRole('tab', { name: '文章' }));
+  expect(screen.getByRole('heading', { name: '我的作品' })).toBeInTheDocument();
   expect(screen.queryByText(topics[0].title)).not.toBeInTheDocument();
   await openTopics();
-  await waitFor(() => expect(screen.getAllByRole('button', { name: /了解详情/ })).toHaveLength(5));
   fireEvent.click(screen.getByRole('button', { name: new RegExp(topics[0].title) }));
   const dialog = screen.getByRole('dialog', { name: topics[0].title });
   expect(within(dialog).queryByText('为什么值得写')).not.toBeInTheDocument();

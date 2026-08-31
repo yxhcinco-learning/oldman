@@ -7,7 +7,7 @@ import { download, exportText } from '../../lib/domain/download';
 import { Dialog } from '../../components/Dialog';
 import { ArticleAssistant } from '../ai/ArticleAssistant';
 import { ArticleAiController, type AiTransport } from '../ai/session';
-import { WorksHome } from './WorksHome';
+import { WorksHome, type HomeSurface } from './WorksHome';
 import { Editor } from './Editor';
 import { Icon } from '../../components/Icons';
 import type { AssistantStatus } from '../../components/WritingControls';
@@ -30,6 +30,7 @@ export function ProductApp({ repository, aiTransport, topicTransport = defaultTo
   const [topicsStatus, setTopicsStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [selectedTopic, setSelectedTopic] = useState<WritingTopic | null>(null);
   const [latestTopic, setLatestTopic] = useState<WritingTopic | null>(null);
+  const [homeSurface, setHomeSurface] = useState<HomeSurface>('topics');
   const file = useRef<HTMLInputElement>(null);
   const shell = useRef<HTMLElement>(null);
   const assistantOpenRef = useRef(false);
@@ -88,6 +89,7 @@ export function ProductApp({ repository, aiTransport, topicTransport = defaultTo
   const openAssistant = () => { if (state.draft) { void workspace.checkpoint(); assistantOpenRef.current = true; setAssistantStatus('idle'); setAssistantOpen(true); } };
   const startTopic = async (topic: WritingTopic, mode: 'normal' | 'interview') => {
     setSelectedTopic(null);
+    setHomeSurface('works');
     await workspace.newWork({ topicSnapshot: snapshotTopic(topic), topicWritingMode: mode });
     if (mode === 'interview') { assistantOpenRef.current = true; setAssistantStatus('idle'); setAssistantOpen(true); }
   };
@@ -100,7 +102,7 @@ export function ProductApp({ repository, aiTransport, topicTransport = defaultTo
   const menuWorks = state.works.filter(work => Boolean(work.deletedAt) === (menu === 'trash'));
   return <main className="stage"><section ref={shell} className={`phone-shell ${state.draft ? 'app-view editor-screen' : 'home-screen'}`} aria-label="岁月有声写作应用">
     {state.loading ? <div className="loading-state" role="status">正在打开本机作品…</div> : state.draft ? <Editor draft={state.draft} latestTopic={latestTopic} update={draft => { void workspace.update(draft); }} onSave={() => void finish()} onBack={() => void finish()} onAssistant={openAssistant} onInterview={() => { void workspace.update({ ...state.draft!, topicWritingMode: 'interview' }); openAssistant(); }} assistantStatus={assistantStatus} saveStatus={state.saveStatus} /> :
-      <WorksHome works={state.works} topics={topics} topicsStatus={topicsStatus} onRetryTopics={() => { setTopicsStatus('loading'); loadTopics(); }} onTopic={setSelectedTopic} onNew={() => void workspace.newWork()} onOpen={work => void workspace.open(work)} onMenu={() => setMenu('library')} />}
+      <WorksHome works={state.works} topics={topics} topicsStatus={topicsStatus} surface={homeSurface} onSurface={setHomeSurface} onRetryTopics={() => { setTopicsStatus('loading'); loadTopics(); }} onTopic={setSelectedTopic} onNew={() => { setHomeSurface('works'); void workspace.newWork(); }} onOpen={work => { setHomeSurface('works'); void workspace.open(work); }} onMenu={() => setMenu('library')} />}
     {state.error && <div className="storage-error" role="alert"><p>{state.error}</p><div>{state.draft && <button type="button" onClick={() => void workspace.update(state.draft!)}>重试保存</button>}<button type="button" onClick={backup}>导出当前备份</button></div></div>}
     {notice && <div className={`toast ${state.draft ? state.draft.segmentEdit ? 'segment' : `editor ${state.draft.inputMode}` : 'home'}`} role="status">{notice}</div>}
     <input ref={file} hidden type="file" accept=".json,application/json" aria-label="选择备份文件" onChange={async e => {

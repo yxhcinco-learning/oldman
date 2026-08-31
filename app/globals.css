@@ -105,7 +105,7 @@ svg { display: block; }
 .work-bottom small.complete { background: var(--tint); color: var(--forest-soft); }
 .work-bottom > i { display: flex; align-items: center; gap: 4px; font-size: 14px; line-height: 20px; font-style: normal; color: var(--forest-soft); white-space: nowrap; }
 .work-bottom .icon { width: 17px; height: 17px; }
-.home-create-button { margin-bottom: 28px; }
+.home-create-dock { order: 2; flex-shrink: 0; padding: 8px 20px; background: linear-gradient(180deg, #fbf9f800, var(--paper) 18%); }
 .profile-section { display: grid; gap: 12px; }
 .profile-tool { display: grid; width: 100%; min-height: 88px; grid-template-columns: 52px minmax(0, 1fr) 24px; align-items: center; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: var(--white); text-align: left; }
 .profile-tool-icon { display: grid; width: 52px; height: 52px; place-items: center; border-radius: 50%; background: var(--tint); color: var(--forest); }
@@ -113,9 +113,12 @@ svg { display: block; }
 .profile-tool strong { display: block; color: var(--forest); font: 600 19px/28px var(--serif); }
 .profile-tool small { display: block; margin-top: 2px; color: var(--muted); font-size: 14px; line-height: 22px; }
 .profile-tool > .icon { color: var(--forest-soft); }
-.home-bottom-tabs { display: grid; order: 3; flex-shrink: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 8px 16px max(8px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--paper); }
-.home-bottom-tabs button { min-height: 52px; border-radius: 16px; color: var(--muted); font-size: 16px; line-height: 24px; font-weight: 500; }
-.home-bottom-tabs button[aria-selected="true"] { color: var(--forest); background: var(--tint); font-weight: 600; }
+.home-bottom-tabs { display: grid; order: 3; flex-shrink: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 6px 14px max(6px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--paper); box-shadow: 0 -8px 24px #153b2e08; }
+.home-bottom-tabs button { display: flex; min-height: 60px; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-radius: 14px; color: var(--muted); font-size: 15px; line-height: 20px; font-weight: 500; }
+.home-tab-icon { display: grid; width: 38px; height: 28px; place-items: center; border-radius: 14px; transition: color .2s, background .2s; }
+.home-tab-icon .icon { width: 21px; height: 21px; }
+.home-bottom-tabs button[aria-selected="true"] { color: var(--forest); font-weight: 600; }
+.home-bottom-tabs button[aria-selected="true"] .home-tab-icon { background: var(--tint); }
 .create-button, .primary-button {
   min-height: 56px; width: 100%; border-radius: 999px; padding: 14px 24px;
   background: var(--forest); color: var(--white); font-size: 18px; font-weight: 500;
@@ -123,7 +126,6 @@ svg { display: block; }
 }
 .create-button { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 64px; position: relative; }
 .create-button strong { font-weight: 500; letter-spacing: .06em; }
-.create-button > .icon:last-child { position: absolute; right: 24px; width: 20px; }
 .create-button:hover, .primary-button:hover { background: #2d5244; box-shadow: 0 4px 20px #153b2e14; }
 .topbar {
   flex-shrink: 0; min-height: 76px; padding: max(12px, env(safe-area-inset-top)) 16px 12px;
@@ -471,7 +473,7 @@ svg { display: block; }
 .interview-conversation .message-row { margin-bottom: 10px; }
 .interview-conversation .message-bubble { max-width: calc(100% - 42px); padding: 13px 15px; }
 .interview-conversation .message-bubble p { margin: 0; }
-.interview-current-question button { min-height: 44px; margin-top: 8px; padding: 6px 12px; border-radius: 22px; color: var(--forest); background: var(--white); }
+.interview-current-question button { display: block; min-height: 44px; margin-top: 8px; padding: 6px 0; border-radius: 8px; color: var(--forest); text-decoration: underline; text-underline-offset: 4px; }
 .interview-footer { flex-shrink: 0; background: var(--paper); }
 .interview-compose-link { display: block; min-height: 44px; margin: 0 0 2px auto; padding: 6px 10px; color: var(--forest-soft); font-size: 15px; line-height: 22px; }
 @media (max-width: 380px) {

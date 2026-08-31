@@ -1,18 +1,18 @@
-import { useState } from 'react';
 import { Icon, MicIcon } from '../../components/Icons';
 import { LetterDrawing, StoryDrawing } from '../../components/Visuals';
 import { countWords, formatTime, type Work } from '../../lib/domain/writing';
 import type { WritingTopic } from '../../lib/domain/topics';
 
 const kindLabel = { current: '近期', periodic: '时令', slow: '持续关注' } as const;
+export type HomeSurface = 'works' | 'topics' | 'profile';
 
-export function WorksHome({ works, topics, topicsStatus, onNew, onOpen, onTopic, onRetryTopics, onMenu }: {
+export function WorksHome({ works, topics, topicsStatus, surface, onSurface, onNew, onOpen, onTopic, onRetryTopics, onMenu }: {
   works: Work[]; onNew: () => void; onOpen: (work: Work) => void;
   topics: WritingTopic[]; topicsStatus: 'loading' | 'ready' | 'error';
+  surface: HomeSurface; onSurface: (surface: HomeSurface) => void;
   onTopic: (topic: WritingTopic) => void; onRetryTopics: () => void;
   onMenu: () => void;
 }) {
-  const [surface, setSurface] = useState<'works' | 'topics' | 'profile'>('works');
   const visible = works.filter(w => !w.deletedAt);
   // Decorative, stable covers; they do not infer content or persist a new field.
   const cover = (id: string) => ['bike', 'home', 'train'][[...id].reduce((sum, char) => sum + char.codePointAt(0)!, 0) % 3];
@@ -21,7 +21,6 @@ export function WorksHome({ works, topics, topicsStatus, onNew, onOpen, onTopic,
       <div className="brand-row"><span className="brand"><Icon name="leaf" /><b>岁月有声</b></span></div>
       {surface === 'works' ? <>
         <header className="home-header"><div className="home-intro"><p className="eyebrow">日子慢慢过，文字慢慢写</p><h1>我的作品<span aria-hidden="true">。</span></h1><p className="subtitle">把生活，留在字里行间。</p></div><LetterDrawing /></header>
-        <button className="create-button home-create-button" type="button" onClick={onNew}><MicIcon /><span><strong>开始写作</strong></span><Icon name="arrow" /></button>
         <section className="works-section" aria-labelledby="recent-title">
           <div className="section-heading"><h2 id="recent-title">最近写下</h2><span>{visible.length} 篇作品</span></div>
           <div className="work-list">{visible.map(work => (
@@ -56,10 +55,11 @@ export function WorksHome({ works, topics, topicsStatus, onNew, onOpen, onTopic,
         </section>
       </>}
     </div>
+    {surface === 'works' && <div className="home-create-dock"><button className="create-button home-create-button" type="button" onClick={onNew}><MicIcon /><span><strong>开始写作</strong></span></button></div>}
     <nav className="home-bottom-tabs" role="tablist" aria-label="主要页面">
-      <button type="button" role="tab" aria-selected={surface === 'works'} onClick={() => setSurface('works')}>文章</button>
-      <button type="button" role="tab" aria-selected={surface === 'topics'} onClick={() => setSurface('topics')}>热门</button>
-      <button type="button" role="tab" aria-selected={surface === 'profile'} onClick={() => setSurface('profile')}>我的</button>
+      <button type="button" role="tab" aria-selected={surface === 'topics'} onClick={() => onSurface('topics')}><span className="home-tab-icon" aria-hidden="true"><Icon name="spark" /></span><span>热门</span></button>
+      <button type="button" role="tab" aria-selected={surface === 'works'} onClick={() => onSurface('works')}><span className="home-tab-icon" aria-hidden="true"><Icon name="pen" /></span><span>文章</span></button>
+      <button type="button" role="tab" aria-selected={surface === 'profile'} onClick={() => onSurface('profile')}><span className="home-tab-icon" aria-hidden="true"><Icon name="book" /></span><span>我的</span></button>
     </nav>
   </>;
 }

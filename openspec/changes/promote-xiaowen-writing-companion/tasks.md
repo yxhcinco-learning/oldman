@@ -70,3 +70,8 @@
 
 - [x] 10.1 Update active proposal, design and delta specs to replace compact/expanded panel state with one Visual Viewport constrained chat panel
 - [x] 10.2 Remove the panel size control, keep message scrolling and composer reachability, update regressions and documentation, and repeat full/build/four-size browser verification without paid calls
+
+## 11. Interview action alignment refinement
+
+- [x] 11.1 Update active design and delta spec so the current-question action aligns with the question text while retaining its touch target and focus state
+- [x] 11.2 Implement the alignment, update focused regressions and repeat check/build/four-size browser verification without paid calls

@@ -58,7 +58,10 @@ it('keeps body typography and paragraph spacing identical between real input mod
 it('keeps failures and simulation labels visible without displacing footer controls', () => {
   expect(rule('.storage-error')).toMatchObject({ order: '2', 'flex-shrink': '0', 'overflow-y': 'auto' });
   expect(rule('.editor-dock')['order']).toBe('3');
-  expect(rule('.home-bottom-tabs')).toMatchObject({ order: '3', 'flex-shrink': '0', 'grid-template-columns': 'repeat(3, minmax(0, 1fr))' });
+  expect(rule('.home-bottom-tabs')).toMatchObject({ order: '3', 'flex-shrink': '0', 'grid-template-columns': 'repeat(3, minmax(0, 1fr))', 'box-shadow': '0 -8px 24px #153b2e08' });
+  expect(rule('.home-create-dock')).toMatchObject({ order: '2', 'flex-shrink': '0', padding: '8px 20px' });
+  expect(rule('.home-bottom-tabs button')).toMatchObject({ display: 'flex', 'min-height': '60px', 'flex-direction': 'column', 'align-items': 'center' });
+  expect(rule('.home-tab-icon')).toMatchObject({ display: 'grid', width: '38px', height: '28px', 'place-items': 'center' });
   expect(Number(rule('.demo-banner')['z-index'])).toBeGreaterThan(Number(rule('.sheet-backdrop')['z-index']));
   expect(rule('.product-dialog')).toMatchObject({ 'max-height': 'min(90dvh, calc(var(--visual-viewport-height, 100dvh) - 16px))', 'overflow-y': 'auto', 'border-radius': '24px 24px 0 0' });
 });
@@ -69,6 +72,7 @@ it('keeps AI input focus inside its border and uses one stable conversation pane
   expect(rule('.ai-composer textarea')).toMatchObject({ height: '52px', 'min-height': '52px', 'max-height': '148px', resize: 'none' });
   expect(rule('.ai-composer-row')).toMatchObject({ display: 'grid', 'grid-template-columns': 'minmax(0, 1fr)' + ' auto' });
   expect(rule('.xiaowen-panel')).toMatchObject({ height: 'min(72dvh, 620px, calc(var(--visual-viewport-height, 100dvh) - 16px))', 'padding-bottom': 'max(8px, env(safe-area-inset-bottom))' });
+  expect(rule('.interview-current-question button')).toMatchObject({ display: 'block', 'min-height': '44px', padding: '6px 0', 'text-decoration': 'underline' });
   expect(css).not.toContain('.xiaowen-panel.compact');
   expect(css).not.toContain('.xiaowen-panel.expanded');
   expect(css).not.toContain('.voice-panel-expand');

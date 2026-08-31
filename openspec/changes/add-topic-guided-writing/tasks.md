@@ -57,3 +57,9 @@
 - [x] 8.1 Update proposal, design and delta specs so topics are packaged as content, article/topic/personal surfaces use fixed bottom navigation, and interview uses a single-thread conversation with one primary action
 - [x] 8.2 Refactor the home/topic/interview UI and regressions: remove task-like helper copy, remove material-form button clutter, remove the panel expand control and keep the composer reachable
 - [x] 8.3 Update product/design/architecture/acceptance documentation, run check/build/OpenSpec validation and repeat four-size browser regression without paid model calls
+
+## 9. Bottom navigation and article-entry refinement
+
+- [x] 9.1 Update active proposal, design and delta specs for a “热门 / 文章 / 我的” icon navigation with “热门” as the default surface and the article create action fixed above the navigation
+- [x] 9.2 Implement the refined bottom navigation, keep the arrowless “开始写作” fixed above it, and update focused UI/design regressions
+- [x] 9.3 Update product/design/acceptance documentation and repeat check, build and four-size browser verification without paid model calls

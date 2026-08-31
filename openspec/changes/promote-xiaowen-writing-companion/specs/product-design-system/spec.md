@@ -23,6 +23,10 @@
 - **WHEN** 在 360×640、390×844、430×932 或 1280×900 查看空会话、长会话或话题采访
 - **THEN** 稳定面板内的输入、语音、发送、修改记录和关闭均可达，极短高度使用消息区内部滚动而不缩小规定字号或触控目标，界面无横向溢出且不显示尺寸切换按钮
 
+#### Scenario: Align the current-question action
+- **WHEN** 话题采访显示当前问题和“换个问题”操作
+- **THEN** 操作与问题正文共享同一左侧起点，不增加一层造成视觉右移的水平内边距，同时保持至少 44px 高的可点击区域和清楚焦点
+
 ## MODIFIED Requirements
 
 ### Requirement: Keep AI isolation visible
