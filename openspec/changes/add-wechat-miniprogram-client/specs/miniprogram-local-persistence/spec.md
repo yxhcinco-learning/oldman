@@ -1,0 +1,75 @@
+## ADDED Requirements
+
+### Requirement: Versioned per-work local aggregates
+小程序 MUST 将作品、草稿恢复状态和对应文章会话保存在 `wx.env.USER_DATA_PATH` 下经过 schema 校验的版本化本地文件中，并 SHALL 按作品拆分聚合数据；作品索引只可作为可重建缓存，不得成为正文或版本历史的唯一事实来源。
+
+#### Scenario: Save and reopen a work
+- **WHEN** 用户保存包含标题、正文、待确认输入、话题快照、采访素材、版本和小文会话的作品后重新打开小程序
+- **THEN** 系统从有效聚合文件完整恢复各类数据且保持来源分层，列表索引与聚合不一致时从聚合重建索引
+
+#### Scenario: Index is missing or damaged
+- **WHEN** 索引文件不存在、解析失败或引用不存在的作品
+- **THEN** 系统扫描并校验作品聚合，恢复可用列表、隔离损坏文件并报告非破坏性问题，不清空用户目录
+
+### Requirement: Atomic ordered writes and conflict protection
+小程序仓储 SHALL 使用单写队列、expected revision、同目录临时文件和校验后替换提交作品；AI 候选应用、恢复和文章会话状态 MUST 在同一作品聚合中提交，过期写入不得覆盖较新内容。
+
+#### Scenario: Rapid edits during an in-flight save
+- **WHEN** 前一次文件写入尚未完成而用户继续输入或点击保存退出
+- **THEN** 写队列最终提交包含最新输入的 revision 后才完成退出，旧快照不能在新快照之后落盘
+
+#### Scenario: Crash between aggregate and index update
+- **WHEN** 聚合文件已经成功替换而索引或活动恢复记录尚未更新时进程退出
+- **THEN** 下次启动以有效聚合的 revision 和时间为准重建索引，不用旧 recovery 覆盖新正文
+
+#### Scenario: Revision conflict
+- **WHEN** 保存使用的 expected revision 落后于磁盘中的有效作品
+- **THEN** 系统拒绝覆盖、保留内存副本并提供重载、另存副本或救援导出，不显示“已保存”
+
+### Requirement: Recoverable storage failures
+小程序 MUST 处理空间不足、权限/系统错误、文件损坏和用户文件被系统清理；失败时 SHALL 保留仍在内存中的正文、待确认语音和未发送编辑，显示真实未保存状态并提供有限重试或救援导出。
+
+#### Scenario: Local file write fails
+- **WHEN** 创建临时文件、替换文件或更新恢复信息失败
+- **THEN** 原有效聚合保持可读，当前内存内容不被旧磁盘数据覆盖，系统不声称已保存且不进入无上限重试
+
+#### Scenario: User files were cleaned
+- **WHEN** 启动时发现此前索引存在但作品聚合已被系统清理
+- **THEN** 系统说明本地文件不可用、保留仍可读取的有效项目并提供备份导入，不伪造云端恢复或创建空内容覆盖
+
+### Requirement: Local work lifecycle and soft deletion
+小程序 SHALL 支持新建、续写、手动保存、软删除、恢复和明确清理回收站；软删除 MUST 保留完整作品聚合与会话，只有用户明确确认的永久删除才可移除对应本地文件。
+
+#### Scenario: Delete and restore
+- **WHEN** 用户把作品移入回收站后恢复
+- **THEN** 标题、正文、素材、会话和版本全部恢复，作品回到正常列表且 revision 单调增加
+
+#### Scenario: Permanently delete selected work
+- **WHEN** 用户在回收站明确确认永久删除一篇作品
+- **THEN** 系统只删除该作品的已解析绝对用户文件和索引条目，不递归清理用户目录、不影响其他作品，并在失败时保留可恢复状态
+
+### Requirement: Compatible manual backup migration
+小程序 SHALL 导出与网页端兼容的有版本、大小和 schema 校验的 JSON 备份，并 MUST 将有效导入作为新副本添加；单篇 TXT、复制正文与救援导出 SHALL 保持现有未完成输入和 AI 标识边界。
+
+#### Scenario: Move a web backup into the mini program
+- **WHEN** 用户选择受支持的网页端 JSON 备份并导入小程序
+- **THEN** 系统完整校验后为作品、段落、素材、会话和版本引用重映射 ID，作为新副本加入且不覆盖本地作品
+
+#### Scenario: Move a temporary-AppID backup into the final AppID
+- **WHEN** 用户在临时 AppID 导出备份并在正式 AppID 手工选择导入
+- **THEN** 系统只迁移备份中经过校验的业务内容，不迁移 token、OpenID 或隐式设备身份，并明确创建副本
+
+#### Scenario: Import an invalid or oversized backup
+- **WHEN** 文件损坏、版本未知、引用不一致、内容超限或写入新副本中途失败
+- **THEN** 整次导入拒绝或回滚，现有聚合和索引保持，不留下半篇作品或部分会话
+
+### Requirement: Local-only storage disclosure
+小程序 MUST 把“已保存”解释为当前微信用户、当前 AppID、当前设备的本地文件写入成功，不得暗示云备份、永久保存或跨设备同步；身份 token 和服务端用户记录 MUST 与作品文件分离。
+
+#### Scenario: View storage information
+- **WHEN** 用户在“我的”、保存状态或首次备份提示查看数据说明
+- **THEN** 系统说明换设备、换微信用户、清理小程序或更换 AppID 可能无法读取原数据，并提供手工备份入口
+
+#### Scenario: Establish or replace an online session
+- **WHEN** 小程序创建、刷新或清除业务 token
+- **THEN** 本地作品目录和聚合文件保持不变，服务端不会因为会话变化收到作品、采访素材或会话正文
