@@ -16,7 +16,8 @@ export function repositoryPaths(userDataPath: string): RepositoryPaths {
   const userRoot = trimTrailingSlash(userDataPath);
   const isAbsoluteFilePath = userRoot.startsWith('/');
   const isWxUserPath = /^wxfile:\/\/[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/.test(userRoot);
-  if (!userRoot || userRoot.includes('\\') || userRoot.split('/').includes('..') || (!isAbsoluteFilePath && !isWxUserPath)) {
+  const isDevtoolUserPath = /^http:\/\/usr(?:\/[A-Za-z0-9_-]+)*$/.test(userRoot);
+  if (!userRoot || userRoot.includes('\\') || userRoot.split('/').includes('..') || (!isAbsoluteFilePath && !isWxUserPath && !isDevtoolUserPath)) {
     throw new Error('用户文件根路径无效');
   }
   const root = `${userRoot}/suiyue-v1`;

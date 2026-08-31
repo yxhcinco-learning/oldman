@@ -11,7 +11,9 @@ const writing = (text: string, title = ''): Draft => completeVoice({ ...emptyDra
 describe('小程序本地作品仓储', () => {
   it('接受微信用户文件根路径并拒绝越界路径', () => {
     expect(repositoryPaths('wxfile://usr/').root).toBe('wxfile://usr/suiyue-v1');
+    expect(repositoryPaths('http://usr/').root).toBe('http://usr/suiyue-v1');
     expect(() => repositoryPaths('wxfile://usr/../other')).toThrow('根路径无效');
+    expect(() => repositoryPaths('https://example.com/usr')).toThrow('根路径无效');
     expect(() => workFilePath(repositoryPaths('/user'), '../escape')).toThrow('不能用于本地文件路径');
   });
 

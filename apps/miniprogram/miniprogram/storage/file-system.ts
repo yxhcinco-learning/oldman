@@ -9,37 +9,40 @@ export interface LocalFileSystem {
 }
 
 export class WxLocalFileSystem implements LocalFileSystem {
-  private readonly manager = wx.getFileSystemManager();
+  constructor(private readonly manager: WechatMiniprogram.FileSystemManager = wx.getFileSystemManager()) {}
 
-  ensureDirectory(path: string) {
-    return new Promise<void>((resolve, reject) => this.manager.mkdir({ dirPath: path, recursive: true, success: () => resolve(), fail: error => {
-      if (/already exists/i.test(error.errMsg)) resolve();
-      else reject(error);
-    } }));
+  async ensureDirectory(path: string) {
+    if (await this.exists(path)) return;
+    try { this.manager.mkdirSync(path, true); }
+    catch (error) {
+      if (!/already exist/i.test(String((error as { errMsg?: unknown }).errMsg ?? error))) throw error;
+    }
   }
 
-  exists(path: string) {
-    return new Promise<boolean>(resolve => this.manager.access({ path, success: () => resolve(true), fail: () => resolve(false) }));
+  async exists(path: string) {
+    try { this.manager.accessSync(path); return true; }
+    catch { return false; }
   }
 
-  readText(path: string) {
-    return new Promise<string>((resolve, reject) => this.manager.readFile({ filePath: path, encoding: 'utf8',
-      success: result => resolve(typeof result.data === 'string' ? result.data : ''), fail: reject }));
+  async readText(path: string) {
+    const value = this.manager.readFileSync(path, 'utf8');
+    if (typeof value !== 'string') throw new Error('本地文本文件编码无效');
+    return value;
   }
 
-  writeText(path: string, value: string) {
-    return new Promise<void>((resolve, reject) => this.manager.writeFile({ filePath: path, data: value, encoding: 'utf8', success: () => resolve(), fail: reject }));
+  async writeText(path: string, value: string) {
+    this.manager.writeFileSync(path, value, 'utf8');
   }
 
-  list(path: string) {
-    return new Promise<string[]>((resolve, reject) => this.manager.readdir({ dirPath: path, success: result => resolve(result.files), fail: reject }));
+  async list(path: string) {
+    return this.manager.readdirSync(path);
   }
 
-  rename(from: string, to: string) {
-    return new Promise<void>((resolve, reject) => this.manager.rename({ oldPath: from, newPath: to, success: () => resolve(), fail: reject }));
+  async rename(from: string, to: string) {
+    this.manager.renameSync(from, to);
   }
 
-  remove(path: string) {
-    return new Promise<void>((resolve, reject) => this.manager.unlink({ filePath: path, success: () => resolve(), fail: reject }));
+  async remove(path: string) {
+    this.manager.unlinkSync(path);
   }
 }

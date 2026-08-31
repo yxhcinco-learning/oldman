@@ -21,6 +21,7 @@ export interface RepositorySnapshot {
 }
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+const zodParseContext = { jitless: true } as const;
 
 export class MiniWorkRepository {
   readonly paths: RepositoryPaths;
@@ -69,7 +70,7 @@ export class MiniWorkRepository {
   private parseAggregate(raw: string): WorkAggregate {
     let value: unknown;
     try { value = JSON.parse(raw); } catch { throw new MiniStorageError('corrupt'); }
-    const result = aggregateSchema.safeParse(value);
+    const result = aggregateSchema.safeParse(value, zodParseContext);
     if (!result.success) throw new MiniStorageError('corrupt');
     return result.data as WorkAggregate;
   }
@@ -165,7 +166,7 @@ export class MiniWorkRepository {
   }
 
   private async writeAggregate(aggregate: WorkAggregate) {
-    const parsed = aggregateSchema.parse(aggregate) as WorkAggregate;
+    const parsed = aggregateSchema.parse(aggregate, zodParseContext) as WorkAggregate;
     const path = workFilePath(this.paths, parsed.work.id);
     await this.replaceValidated(path, JSON.stringify(parsed), raw => this.parseAggregate(raw));
   }
@@ -177,7 +178,7 @@ export class MiniWorkRepository {
   private async readPreviousIndex(): Promise<Set<string> | null> {
     if (!await this.files.exists(this.paths.index)) return null;
     try {
-      const index = repositoryIndexSchema.parse(JSON.parse(await this.files.readText(this.paths.index)));
+      const index = repositoryIndexSchema.parse(JSON.parse(await this.files.readText(this.paths.index)), zodParseContext);
       return new Set(index.entries.map(entry => entry.id));
     } catch {
       await this.quarantine(this.paths.index, 'index.json');
@@ -204,14 +205,14 @@ export class MiniWorkRepository {
     }
     entries.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     const index: RepositoryIndex = { schemaVersion: LOCAL_SCHEMA_VERSION, generatedAt: this.now().toISOString(), entries };
-    await this.writeSmallFile(this.paths.index, index, value => repositoryIndexSchema.parse(value));
+    await this.writeSmallFile(this.paths.index, index, value => repositoryIndexSchema.parse(value, zodParseContext));
     return index;
   }
 
   private async loadRecovery(aggregates: WorkAggregate[]): Promise<{ recovery: Recovery | null; session: ArticleSession | null }> {
     if (!await this.files.exists(this.paths.recovery)) return { recovery: null, session: null };
     let record: RecoveryRecord;
-    try { record = recoveryRecordSchema.parse(JSON.parse(await this.files.readText(this.paths.recovery))); }
+    try { record = recoveryRecordSchema.parse(JSON.parse(await this.files.readText(this.paths.recovery)), zodParseContext); }
     catch {
       await this.quarantine(this.paths.recovery, 'active-recovery.json');
       this.issues.push({ category: 'corrupt', message: '未完成编辑的恢复记录已损坏，已保留已保存作品。' });
@@ -247,7 +248,7 @@ export class MiniWorkRepository {
     const sessionSnapshot = session ? clone(session) : undefined;
     return this.enqueue(async () => {
       await this.initialize();
-      if (sessionSnapshot && (sessionSnapshot.workId !== draftSnapshot.id || !articleSessionSchema.safeParse(sessionSnapshot).success)) {
+      if (sessionSnapshot && (sessionSnapshot.workId !== draftSnapshot.id || !articleSessionSchema.safeParse(sessionSnapshot, zodParseContext).success)) {
         throw new MiniStorageError('invalid', { message: '会话记录无效，原作品未改变。' });
       }
       const current = await this.readAggregate(draftSnapshot.id);
@@ -268,19 +269,19 @@ export class MiniWorkRepository {
     const sessionSnapshot = session ? clone(session) : null;
     return this.enqueue(async () => {
       await this.initialize();
-      if (sessionSnapshot && (sessionSnapshot.workId !== snapshot.id || !articleSessionSchema.safeParse(sessionSnapshot).success)) {
+      if (sessionSnapshot && (sessionSnapshot.workId !== snapshot.id || !articleSessionSchema.safeParse(sessionSnapshot, zodParseContext).success)) {
         throw new MiniStorageError('invalid');
       }
       const record: RecoveryRecord = { schemaVersion: LOCAL_SCHEMA_VERSION, workId: snapshot.id, expectedRevision,
         recoveryRevision: expectedRevision + 1, updatedAt: this.now().toISOString(), draft: snapshot, session: sessionSnapshot };
-      await this.writeSmallFile(this.paths.recovery, record, value => recoveryRecordSchema.parse(value));
+      await this.writeSmallFile(this.paths.recovery, record, value => recoveryRecordSchema.parse(value, zodParseContext));
     });
   }
 
   private async clearRecoveryInternal(id: string) {
     if (!await this.files.exists(this.paths.recovery)) return;
     try {
-      const record = recoveryRecordSchema.parse(JSON.parse(await this.files.readText(this.paths.recovery)));
+      const record = recoveryRecordSchema.parse(JSON.parse(await this.files.readText(this.paths.recovery)), zodParseContext);
       if (record.workId === id) await this.files.remove(this.paths.recovery);
     } catch { /* load() will isolate an invalid recovery record. */ }
   }
@@ -339,7 +340,7 @@ export class MiniWorkRepository {
     const sessions = source.sessions.map(session => copySession(session, workIds.get(session.workId)!));
     const sessionByWork = new Map(sessions.map(session => [session.workId, session]));
     const aggregates = copies.map(work => aggregateSchema.parse({ app: 'suiyue-yousheng', schemaVersion: LOCAL_SCHEMA_VERSION,
-      savedAt: this.now().toISOString(), work, session: sessionByWork.get(work.id) ?? null }) as WorkAggregate);
+      savedAt: this.now().toISOString(), work, session: sessionByWork.get(work.id) ?? null }, zodParseContext) as WorkAggregate);
     return this.enqueue(async () => {
       await this.initialize();
       const created: string[] = [];
