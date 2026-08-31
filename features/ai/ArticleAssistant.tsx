@@ -115,7 +115,7 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
   const close = () => { if (!saving) onClose(); };
   const compose = () => <form className="ai-composer" onSubmit={event => event.preventDefault()}>
     <label className="visually-hidden" htmlFor="article-ai-question">问问小文</label>
-    <div className="ai-composer-row"><textarea ref={promptInput} id="article-ai-question" value={prompt} onFocus={() => setExpanded(true)} onChange={event => onPromptChange(event.target.value)} disabled={busy || voiceActive} maxLength={2000}
+    <div className="ai-composer-row"><textarea ref={promptInput} id="article-ai-question" value={prompt} onChange={event => onPromptChange(event.target.value)} disabled={busy || voiceActive} maxLength={2000}
       rows={1} placeholder="问小文，或提要求" />
       <div className="ai-composer-actions"><VoiceDictationButton value={prompt} onChange={text => onPromptChange(text.slice(0, 2000))} disabled={busy} onActiveChange={setVoiceActive} />
         <button type="button" className="primary-button ai-send" disabled={busy || voiceActive || !prompt.trim()} onClick={() => request('chat', prompt, undefined, true)}><Icon name="spark" />发送</button></div>

@@ -311,7 +311,7 @@ it('does not hide a failed work-management operation behind the modal', async ()
   expect(screen.getByRole('button', { name: /夏日有感.*继续写/ })).toBeInTheDocument();
   expect((await repository.load()).works[0].deletedAt).toBeNull();
 });
-it('opens XiaoWen compactly, expands explicitly or on input focus and preserves unsent input when minimized', async () => {
+it('opens XiaoWen compactly, changes height only explicitly and preserves focused unsent input when minimized', async () => {
   const transport = vi.fn(); render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting();
   const opener = screen.getByRole('button', { name: '打开小文' }); opener.focus(); fireEvent.click(opener);
   const dialog = screen.getByRole('dialog', { name: '小文' });
@@ -319,10 +319,12 @@ it('opens XiaoWen compactly, expands explicitly or on input focus and preserves 
   expect(screen.getByLabelText('问问小文')).not.toHaveFocus();
   fireEvent.click(screen.getByRole('button', { name: '展开小文面板' }));
   expect(dialog).toHaveClass('expanded');
+  fireEvent.focus(screen.getByLabelText('问问小文'));
+  expect(dialog).toHaveClass('expanded');
   fireEvent.click(screen.getByRole('button', { name: '收起小文面板' }));
   expect(dialog).toHaveClass('compact');
   fireEvent.focus(screen.getByLabelText('问问小文'));
-  expect(dialog).toHaveClass('expanded');
+  expect(dialog).toHaveClass('compact');
   fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '还没发送的调整要求' } });
   const history = screen.getByRole('button', { name: '查看修改记录' });
   expect(history.closest('.sheet-header-actions')).toBeInTheDocument();

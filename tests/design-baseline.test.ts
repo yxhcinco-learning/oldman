@@ -33,7 +33,8 @@ it('retains the approved canvas and speech geometry while moving title editing i
   expect(rule('.voice-panel')['grid-template-rows']).toBe(rule('.voice-panel', previewCss)['grid-template-rows']);
   expect(rule('.live-transcript p, .pending-transcript p')).toMatchObject({ height: '90px', 'min-height': '90px', 'line-height': '30px', 'overflow-y': 'auto' });
   expect(rule('.mic-button')).toMatchObject({ width: '76px', height: '76px', 'touch-action': 'none' });
-  expect(rule('.input-mode-switch')).toMatchObject({ width: '52px', height: '52px' });
+  expect(rule('.input-mode-switch')).toMatchObject({ width: '52px', height: '52px', background: 'var(--tint)', 'box-shadow': 'none' });
+  expect(rule('.input-mode-switch:hover, .xiaowen-entry:hover')['background-color']).toBe('#dfe8e0');
   expect(rule('.xiaowen-entry')['min-height']).toBe('52px');
   expect(css).toContain('@media (prefers-reduced-motion: reduce)');
   expect(css).not.toMatch(/\.(?:mock-keyboard|work-row|work-menu|library-links|save-row|creation-controls|story-paragraph)\b/);
