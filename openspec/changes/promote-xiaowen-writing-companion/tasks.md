@@ -64,4 +64,4 @@
 
 - [x] 9.1 Update the active proposal, design and delta specs for a tonal input-mode button and focus-stable compact/expanded panel state
 - [x] 9.2 Add design/UI regressions for the non-white shadowless mode button, explicit-only panel expansion and preserved focused composer
-- [ ] 9.3 Implement the visual and focus-state refinements, update product/design/architecture/acceptance documentation, and run targeted/full/build/four-size browser verification without paid calls
+- [x] 9.3 Implement the visual and focus-state refinements, update product/design/architecture/acceptance documentation, and run targeted/full/build/four-size browser verification without paid calls
