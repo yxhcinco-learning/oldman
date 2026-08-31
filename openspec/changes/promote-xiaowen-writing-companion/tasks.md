@@ -40,9 +40,9 @@
 
 ## 6. Verification and delivery
 
-- [ ] 6.1 Run targeted server, domain, session and UI tests with non-network transports; confirm no automatic or duplicate paid request occurs on open, expand, minimize, hint display or dictation
-- [ ] 6.2 Run `npm run check` and `npm run build`, inspect the task-only diff and sensitive/generated-file boundaries, and record exact results
-- [ ] 6.3 Run browser regression at 360×640, 390×844, 430×932 and 1280×900 for empty/long conversations, compact/expanded modes, four shortcuts, free input, consent, failure, candidate confirmation, history and minimized completion
+- [x] 6.1 Run targeted server, domain, session and UI tests with non-network transports; confirm no automatic or duplicate paid request occurs on open, expand, minimize, hint display or dictation
+- [x] 6.2 Run `npm run check` and `npm run build`, inspect the task-only diff and sensitive/generated-file boundaries, and record exact results
+- [x] 6.3 Run browser regression at 360×640, 390×844, 430×932 and 1280×900 for empty/long conversations, compact/expanded modes, four shortcuts, free input, consent, failure, candidate confirmation, history and minimized completion
 - [ ] 6.4 On physical iOS Safari and Android Chrome, record system-keyboard Visual Viewport, safe-area, background-return, microphone cancellation, focus and toolbar-entry results; keep the change active if either platform lacks evidence
-- [ ] 6.5 Perform at most two short, non-sensitive real DeepSeek calls—one per read-only shortcut—record actual behavior and approximate usage, and do not treat mocked prompt tests as real model evidence
+- [x] 6.5 Perform at most two short, non-sensitive real DeepSeek calls—one per read-only shortcut—record actual behavior and approximate usage, and do not treat mocked prompt tests as real model evidence
 - [ ] 6.6 After all required evidence passes, synchronize the delta specs into `openspec/specs`, archive the change, update acceptance status and commit only this change's files without pushing or publishing
