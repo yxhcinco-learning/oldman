@@ -49,4 +49,4 @@
 - [x] 5.8 Run complete checks/build, deploy the gateway with `16k_zh_en`, verify the public service and rollback setting, and record that real bilingual recognition remains a user/device check
 - [x] 5.9 Restore the public gateway to experience-pack-compatible `16k_zh`, restart only the gateway, verify public health/status and record the rollback without making a real ASR call
 - [x] 5.10 Run complete checks, build and four-size browser regression for the header title dialog, trimmed copy, pending-edit layout, compact composer bottom and keyboard icon; record evidence without claiming unavailable physical-device keyboard results
-- [ ] 5.11 Run complete checks/build and focused mobile browser regression for the left-aligned pending-edit cancel action, then deploy the verified batch to the existing online test environment
+- [x] 5.11 Run complete checks/build and focused mobile browser regression for the left-aligned pending-edit cancel action, then deploy the verified batch to the existing online test environment
