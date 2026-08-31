@@ -78,6 +78,29 @@ it('uses one chat action for both an answer and a confirmed rewrite candidate', 
   expect((await repo.load()).sessions[0].turns.map(turn => turn.action)).toEqual(['chat', 'chat']);
   expect(call).toHaveBeenCalledTimes(2);
 });
+it('keeps shortcut labels in the conversation without sending them as optimization prompts', async () => {
+  const { workspace } = await setup();
+  const call = vi.fn(transport);
+  const controller = new ArticleAiController(workspace, call);
+  const regularId = await controller.run('regular', '', '帮我理顺');
+  const polishId = await controller.run('polish', '', '润色文笔');
+  expect(call.mock.calls.map(([request]) => request.prompt)).toEqual(['', '']);
+  expect(workspace.getSession()!.turns.find(turn => turn.id === regularId)?.prompt).toBe('帮我理顺');
+  expect(workspace.getSession()!.turns.find(turn => turn.id === polishId)?.prompt).toBe('润色文笔');
+});
+it.each(['接着问我', '讲清楚了吗'])('keeps the %s shortcut answer-only even if the service returns a body', async shortcut => {
+  const { workspace } = await setup();
+  const controller = new ArticleAiController(workspace, async request => ({
+    requestId: request.requestId,
+    result: { answer: '只返回回答。', body: '不应保存的候选正文', citedVersionIds: [] },
+  }));
+  const id = await controller.run('question', shortcut);
+  const turn = workspace.getSession()!.turns.find(item => item.id === id);
+  expect(turn).toMatchObject({ action: 'question', prompt: shortcut, status: 'answered' });
+  expect(turn?.result?.body).toBeUndefined();
+  const restored = parseBackupBundle(makeBackup(workspace.state.works, workspace.state.draft, workspace.state.sessions));
+  expect(restored.sessions[0].turns.find(item => item.id === id)).toMatchObject({ action: 'question', prompt: shortcut, status: 'answered' });
+});
 it('refuses stale candidates and restore confirmations without overwriting later typing', async () => {
   const { workspace, controller, repo } = await setup(); const turn = await controller.run('rewrite', '只调整第二段');
   const baseline = workspace.getSession()!.versions[0];

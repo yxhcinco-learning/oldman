@@ -25,7 +25,7 @@ export class ArticleAiController {
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   getSnapshot = () => this.state;
   private patch(next: Partial<typeof this.state>) { this.state = { ...this.state, ...next }; this.listeners.forEach(fn => fn()); }
-  async run(action: AiAction, prompt = ''): Promise<string | null> {
+  async run(action: AiAction, prompt = '', turnPrompt?: string): Promise<string | null> {
     if (this.active) return null;
     const draft = this.workspace.state.draft;
     if (!draft || !documentOf(draft).body.trim()) { this.patch({ error: '先写下一句，再请小文帮忙。' }); return null; }
@@ -42,7 +42,7 @@ export class ArticleAiController {
       const latest = this.workspace.state.draft;
       if (!latest || latest.pendingVoice.trim() || latest.segmentEdit || !sameDocument(session.versions.at(-1)!, documentOf(latest))) throw new Error('正文正在变化，请完成输入后再试。');
       const request = buildAiRequest(session, action, prompt.trim(), active.id);
-      const turn: AiTurn = { id: active.id, action, prompt: ['question', 'rewrite', 'chat'].includes(action) ? prompt.trim() : ACTION_LABELS[action],
+      const turn: AiTurn = { id: active.id, action, prompt: turnPrompt?.trim() || (['question', 'rewrite', 'chat'].includes(action) ? prompt.trim() : ACTION_LABELS[action]),
         inputVersionId: request.current.id, createdAt: new Date().toISOString(), status: 'running', omittedRecords: request.omittedRecords };
       if (!await this.workspace.updateSession(active.workId, current => ({ ...current, turns: [...current.turns, turn] }))) throw new Error('会话尚未保存，暂未发送 AI 请求。');
       if (this.active !== active) return null;

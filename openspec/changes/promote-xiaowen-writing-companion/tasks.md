@@ -1,7 +1,7 @@
 ## 1. Contract and regression coverage
 
-- [ ] 1.1 Add server prompt contract tests for exact “接着问我” and “讲清楚了吗” question intents, including current-body grounding, one-question/three-issue limits, clear-article response and no candidate body
-- [ ] 1.2 Add controller/domain regressions proving question shortcuts discard an unexpected body, persist an answered turn, preserve old `question`/`chat`/optimization turns and require no schema or backup migration
+- [x] 1.1 Add server prompt contract tests for exact “接着问我” and “讲清楚了吗” question intents, including current-body grounding, one-question/three-issue limits, clear-article response and no candidate body
+- [x] 1.2 Add controller/domain regressions proving question shortcuts discard an unexpected body, persist an answered turn, preserve old `question`/`chat`/optimization turns and require no schema or backup migration
 - [ ] 1.3 Replace toolbar/menu UI expectations with a single-slot microphone/keyboard mode switch plus accessible “小文” entry, direct conversation opening, removed chat-unavailable feedback and removed optimization/disabled-feature menu
 - [ ] 1.4 Add UI coverage for all four shortcut labels and action mappings, non-empty conversation bubbles, preserved unsent free input, consent routing, local invalid-body rejection and busy-state mutual exclusion
 - [ ] 1.5 Add interaction tests for compact open without input autofocus, explicit expand/collapse, input-focus expansion, short-height scrolling and 48px/two-column quick controls
@@ -10,8 +10,8 @@
 
 ## 2. Grounded quick intentions
 
-- [ ] 2.1 Extend the server `question` prompt so exact “接着问我” uses only current-body evidence, briefly acknowledges a real detail and asks exactly one easy continuation question without inventing experience
-- [ ] 2.2 Extend the server `question` prompt so exact “讲清楚了吗” reports at most three grounded clarity questions or explicitly says the article is clear without fabricating gaps
+- [x] 2.1 Extend the server `question` prompt so exact “接着问我” uses only current-body evidence, briefly acknowledges a real detail and asks exactly one easy continuation question without inventing experience
+- [x] 2.2 Extend the server `question` prompt so exact “讲清楚了吗” reports at most three grounded clarity questions or explicitly says the article is clear without fabricating gaps
 - [ ] 2.3 Route both read-only shortcuts through existing `question`, keep regular/polish on their existing actions, and ensure invalid, cancelled or malformed responses use current non-retrying failure semantics
 
 ## 3. Unified XiaoWen entry and state

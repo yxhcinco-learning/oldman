@@ -34,6 +34,16 @@ it('turns unnecessary spoken phrasing into natural written expression without we
   expect(polish).toContain('不要把同一句写成修改前后相同');
   expect(polish).not.toContain('原样保留明显口语赘词');
 });
+it('gives XiaoWen grounded answer-only contracts for the two article reflection shortcuts', () => {
+  const question = systemPrompt('question');
+  expect(question).toContain('如果 prompt 是“接着问我”');
+  expect(question).toContain('当前正文中的一个真实细节');
+  expect(question).toContain('只提出 1 个容易回答的问题');
+  expect(question).toContain('如果 prompt 是“讲清楚了吗”');
+  expect(question).toContain('最多指出 3 处');
+  expect(question).toContain('只能依据当前正文和提供的记录');
+  expect(question).toContain('不得返回 body');
+});
 it('uses only the official configured service and never includes secrets in client status or results', async () => {
   const call = vi.fn(async () => response()); const app = await gateway({ fetch: call });
   const status = await app.inject({ method: 'GET', url: '/api/ai/status' }); expect(status.json().configured).toBe(true); expect(status.body).not.toContain(configuration.apiKey);
