@@ -36,9 +36,10 @@ it('uses one destination-mode switch and opens XiaoWen directly without copying 
   expect(screen.getByRole('dialog', { name: '小文' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '收起小文' })).toHaveFocus();
   expect(screen.getByLabelText('问问小文')).not.toHaveFocus();
-  for (const label of ['接着问我', '讲清楚了吗', '帮我理顺', '润色文笔']) {
+  for (const label of ['问我一个问题', '检查哪里没讲清', '帮我整理文章', '把文字写顺']) {
     expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
   }
+  expect(screen.getByText('前两项只回答，不会改正文；后两项会生成修改稿，确认后才会修改。')).toBeInTheDocument();
   expect(screen.queryByText('精简内容')).not.toBeInTheDocument();
 });
 it('starts with an empty local library and never inserts preview examples', async () => {
@@ -65,13 +66,13 @@ it('previews a real optimization before applying and persists an undo as history
   const repository = repo(); render(<ProductApp repository={repository} aiTransport={transport} />); await startWriting();
   const before = (await repository.load()).works[0]; openXiaoWen();
   expect(screen.queryByText('演示模式 · 不影响作品')).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: '帮我理顺' })); expect(transport).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: '帮我整理文章' })); expect(transport).not.toHaveBeenCalled();
   expect(screen.getByText(/相关修改记录和聊天消息会经本地服务发送给 DeepSeek/)).toBeInTheDocument();
   expect(screen.getByText(/AI 可能出错，请核对人物、时间与细节/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: '同意并继续' }));
   expect(await screen.findByRole('heading', { name: '小文' })).toBeInTheDocument();
   expect(await screen.findByText('调整标点。')).toBeInTheDocument();
-  expect(within(screen.getByLabelText('文章对话记录')).getByText('帮我理顺')).toBeInTheDocument();
+  expect(within(screen.getByLabelText('文章对话记录')).getByText('帮我整理文章')).toBeInTheDocument();
   expect(screen.getByText('小文的修改说明')).toBeInTheDocument();
   const pendingState = screen.getByText('待应用');
   expect(pendingState).toBeInTheDocument(); expect(pendingState.closest('.message-bubble')).toBeNull();
@@ -168,7 +169,7 @@ it('shows unchanged output as having no body change outside the assistant bubble
     result: { answer: '没有需要修改的内容。', body: request.current.body, citedVersionIds: [] } }));
   render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting();
   openXiaoWen();
-  fireEvent.click(screen.getByRole('button', { name: '帮我理顺' }));
+  fireEvent.click(screen.getByRole('button', { name: '帮我整理文章' }));
   expect(await screen.findByText('本次保留原文，未产生正文修改。')).toBeInTheDocument();
   const unchanged = screen.getByText('无正文变化');
   expect(unchanged.closest('.message-bubble')).toBeNull();
@@ -180,10 +181,10 @@ it('runs polish from its shortcut inside the conversation', async () => {
     result: { answer: '改善了句式衔接。', body: `${request.current.body}\n`, citedVersionIds: [] } }));
   render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting();
   openXiaoWen();
-  fireEvent.click(screen.getByRole('button', { name: '润色文笔' }));
+  fireEvent.click(screen.getByRole('button', { name: '把文字写顺' }));
   expect(await screen.findByRole('heading', { name: '小文' })).toBeInTheDocument();
   expect(await screen.findByText('改善了句式衔接。')).toBeInTheDocument();
-  expect(within(screen.getByLabelText('文章对话记录')).getByText('润色文笔')).toBeInTheDocument();
+  expect(within(screen.getByLabelText('文章对话记录')).getByText('把文字写顺')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '查看优化结果' })).toBeInTheDocument();
   expect(transport.mock.calls[0][0]).toMatchObject({ action: 'polish', prompt: '' });
 });
@@ -403,9 +404,9 @@ it('keeps a XiaoWen request running while minimized and reports processing then 
   render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting();
   openXiaoWen();
   fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '先别清掉这句话' } });
-  fireEvent.click(screen.getByRole('button', { name: '帮我理顺' }));
+  fireEvent.click(screen.getByRole('button', { name: '帮我整理文章' }));
   await waitFor(() => expect(transport).toHaveBeenCalledOnce());
-  for (const label of ['接着问我', '讲清楚了吗', '帮我理顺', '润色文笔']) expect(screen.getByRole('button', { name: label })).toBeDisabled();
+  for (const label of ['问我一个问题', '检查哪里没讲清', '帮我整理文章', '把文字写顺']) expect(screen.getByRole('button', { name: label })).toBeDisabled();
   expect(screen.getByLabelText('问问小文')).toHaveValue('先别清掉这句话');
   fireEvent.click(screen.getByRole('button', { name: '收起小文' }));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -425,7 +426,7 @@ it('reports a minimized XiaoWen request failure on the toolbar and keeps it avai
     throw new Error('暂时无法完成，请稍后再试。');
   });
   render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting(); openXiaoWen();
-  fireEvent.click(screen.getByRole('button', { name: '接着问我' }));
+  fireEvent.click(screen.getByRole('button', { name: '问我一个问题' }));
   await waitFor(() => expect(transport).toHaveBeenCalledOnce());
   fireEvent.click(screen.getByRole('button', { name: '收起小文' }));
   failRequest();
@@ -438,22 +439,26 @@ it('routes both reflective shortcuts through question and rejects an empty artic
   const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId, result: { answer: `回答：${request.prompt}`, citedVersionIds: [] } }));
   render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting(); openXiaoWen();
   fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '未发送内容' } });
-  for (const label of ['接着问我', '讲清楚了吗']) {
+  for (const { label, internal } of [
+    { label: '问我一个问题', internal: '接着问我' },
+    { label: '检查哪里没讲清', internal: '讲清楚了吗' },
+  ]) {
     await waitFor(() => expect(screen.getByRole('button', { name: label })).toBeEnabled());
     fireEvent.click(screen.getByRole('button', { name: label }));
-    await screen.findByText(`回答：${label}`);
+    await screen.findByText(`回答：${internal}`);
+    expect(within(screen.getByLabelText('文章对话记录')).getByText(label)).toBeInTheDocument();
     expect(screen.getByLabelText('问问小文')).toHaveValue('未发送内容');
   }
   expect(transport.mock.calls.map(([request]) => ({ action: request.action, prompt: request.prompt }))).toEqual([
     { action: 'question', prompt: '接着问我' }, { action: 'question', prompt: '讲清楚了吗' },
   ]);
-  await waitFor(() => expect(screen.getByRole('button', { name: '接着问我' })).toBeEnabled());
+  await waitFor(() => expect(screen.getByRole('button', { name: '问我一个问题' })).toBeEnabled());
   fireEvent.click(screen.getByRole('button', { name: '收起小文' }));
   fireEvent.click(await screen.findByRole('button', { name: '保存' }));
   await screen.findByRole('heading', { name: '我的作品' });
   fireEvent.click(screen.getByRole('button', { name: /开始写作/ }));
   fireEvent.click(screen.getByRole('button', { name: '打开小文' }));
-  fireEvent.click(screen.getByRole('button', { name: '接着问我' }));
+  fireEvent.click(screen.getByRole('button', { name: '问我一个问题' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('先写下一句');
   expect(transport).toHaveBeenCalledTimes(2);
 });

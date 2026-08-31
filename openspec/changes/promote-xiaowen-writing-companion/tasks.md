@@ -50,6 +50,6 @@
 ## 7. Compact default and plain-language refinement
 
 - [x] 7.1 Update the active proposal, design and delta specs for a half-screen compact default, plain-language shortcut labels, one boundary note and unchanged internal prompt contracts
-- [ ] 7.2 Add design/UI regressions for the compact height, no short-screen near-full-height override, visible labels, boundary note, action mapping and displayed turn labels
-- [ ] 7.3 Implement the compact panel refinement and shortcut presentation without changing the Echoes system, request count, action protocol or confirmation boundary
+- [x] 7.2 Add design/UI regressions for the compact height, no short-screen near-full-height override, visible labels, boundary note, action mapping and displayed turn labels
+- [x] 7.3 Implement the compact panel refinement and shortcut presentation without changing the Echoes system, request count, action protocol or confirmation boundary
 - [ ] 7.4 Update product/architecture/acceptance documentation, run check/build/OpenSpec validation and repeat four-size browser regression without additional paid model calls

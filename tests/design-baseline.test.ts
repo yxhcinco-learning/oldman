@@ -67,8 +67,9 @@ it('keeps AI input focus inside its border and uses a compact optimization hint'
   expect(rule('.ai-voice-controls button')).toMatchObject({ 'min-height': '48px', 'touch-action': 'manipulation' });
   expect(rule('.ai-composer textarea')).toMatchObject({ height: '52px', 'min-height': '52px', 'max-height': '148px', resize: 'none' });
   expect(rule('.ai-composer-row')).toMatchObject({ display: 'grid', 'grid-template-columns': 'minmax(0, 1fr)' + ' auto' });
-  expect(rule('.xiaowen-panel.compact')).toMatchObject({ height: 'clamp(360px, 58dvh, 480px)', 'padding-bottom': 'max(8px, env(safe-area-inset-bottom))' });
+  expect(rule('.xiaowen-panel.compact')).toMatchObject({ height: 'clamp(360px, 52dvh, 440px)', 'padding-bottom': 'max(8px, env(safe-area-inset-bottom))' });
   expect(rule('.xiaowen-panel.expanded')['height']).toBe('min(90dvh, calc(var(--visual-viewport-height, 100dvh) - 16px))');
+  expect(css.match(/\.xiaowen-panel\.compact\s*\{/g)).toHaveLength(1);
   expect(css).not.toContain('.voice-panel-expand');
   expect(rule('.optimize-tip')).toMatchObject({ position: 'absolute', width: 'min(250px, calc(100vw - 40px))', 'pointer-events': 'none' });
 });
@@ -86,6 +87,7 @@ it('keeps pending-edit actions compact and distinguishes text input from pencil 
 it('keeps XiaoWen quick intentions in two elder-friendly columns without shrinking tap targets', () => {
   expect(rule('.xiaowen-quick-actions')).toMatchObject({ display: 'grid', 'grid-template-columns': 'repeat(2, minmax(0, 1fr))', gap: '8px' });
   expect(rule('.xiaowen-quick-actions > button')).toMatchObject({ 'min-height': '48px', 'min-width': '0', 'white-space': 'nowrap' });
+  expect(rule('.xiaowen-quick-note')).toMatchObject({ 'font-size': '14px', 'line-height': '22px', color: 'var(--muted)' });
   expect(rule('.xiaowen-panel.ai-page-chat > .sheet-header')['margin-bottom']).toBe('8px');
   expect(css).not.toContain('.mode-tabs');
 });
