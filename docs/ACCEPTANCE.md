@@ -6,6 +6,8 @@
 
 2026-08-31 追加修正编辑器模式按钮与小文输入聚焦：52px键盘/语音切换按钮改为浅绿纸面色并移除外投影；小文输入框聚焦不再把紧凑面板强制展开，只有页头操作改变紧凑/展开状态，系统键盘继续由 Visual Viewport 约束。35项针对性测试、完整210项检查、构建、OpenSpec严格校验及四尺寸浏览器点击通过；聚焦前后紧凑高度完全一致、显式展开仍有效、无横向溢出，未调用DeepSeek或腾讯ASR。
 
+2026-08-31 经用户明确授权把小文文章伙伴当前版本发布到受控公网。固定提交 `e001f35` 已部署为 `/opt/suiyue-yousheng/releases/e001f35`，`previous` 保留 `/opt/suiyue-yousheng/releases/528f046`；发布前完整210项检查、OpenSpec严格校验、边界检查与生产构建通过，服务器再次完成锁文件安装和生产构建。两个应用服务与Nginx均 active、重启计数为0，3011/3012回环健康及公网有效认证首页、health、AI status、speech status均为200；无认证首页/API为401，内部认证恢复地址直访为404。线上静态产物确认包含浅绿无投影的模式按钮样式且不含三项已移除快捷按钮文案。本轮未调用DeepSeek、腾讯ASR或麦克风，未修改域名、DNS、鉴权、运行密钥、模型配置或其他项目；远端和本机临时归档已在校验后精确删除。
+
 2026-08-31 用户明确授权完成最后的目录清理。删除前重新确认 `D:\vibe_code\.oldman-backups` 只有2层空目录、`D:\vibe_code\oldman\backups` 为空、`D:\vibe_code\oldman\.wrangler` 为11个停用缓存文件（5,603,546字节）；三个解析绝对路径均与授权目标一致、不是仓库根目录且不是重解析点。执行层两次拒绝 `Remove-Item -Recurse`，因此改用 Windows 回收站做可恢复移除，三个原路径随后均不存在；`.openai` 此前已不存在。`productize-local-writing` 4.9 由此完成，全部28项任务具备证据。
 
 2026-08-31 用户完成收尾确认：受控公网 Origin 下的简单新建、保存与恢复体验正常，作品仍只保存在该设备该域名的浏览器 IndexedDB，不是服务器存储；此前隔离生产构建已完成刷新恢复、JSON v2 下载及 360×640、390×844、430×932、1280×900 四尺寸焦点/溢出检查。用户同时确认 iOS Safari 与 Android Chrome 当前的系统键盘、浏览器工具栏、后台返回、真实麦克风及网络切换功能均正常，因此 `deploy-controlled-public-test` 5.2/5.4、`improve-mobile-writing-assistant` 5.3 与 `productize-local-writing` 4.6 具备人工验收结论。未另行记录设备型号、系统/浏览器小版本或截图；该结论明确标记为用户真机确认，不表述为代理亲自复现。前两个 change 的任务已全部完成，增量要求已同步至正式规范并分别归档至 [受控公网部署归档](../openspec/changes/archive/2026-08-31-deploy-controlled-public-test/) 与 [移动写作归档](../openspec/changes/archive/2026-08-31-improve-mobile-writing-assistant/)。用户随后通过 Git Credential Manager 完成 GitHub 授权，本地完整历史首次非强制推送至 Public 仓库 `yxhcinco-learning/oldman`，远端新建并跟踪 `main`，提交为 `238f737`。首次 [Check run 33353417111](https://github.com/yxhcinco-learning/oldman/actions/runs/33353417111) 成功，checkout、Node、`npm ci`、完整 `npm run check`、`npm run build` 与 `npm audit --audit-level=high` 全部通过；`productize-local-writing` 4.3 完成。
@@ -60,17 +62,17 @@
 
 ### 部署版本与拓扑
 
-- 当前应用 release 来自提交 `528f046`，本地归档 325 个成员、1,780,259 字节，SHA-256 `85656d75bb66bf5ec9d11494019bb418ccb4dbc082f7fea08ead0137625d2375`；远端上传文件哈希一致，归档没有绝对/遍历路径、符号链接、秘密、node_modules、缓存、测试音频或用户材料，并包含已验收的移动写作布局与“取消”左移。远端和本机临时归档均在完成校验、解包与上线复核后精确删除，活动 release 保留。
-- Lighthouse `lhins-pg6lbxtx` / `ap-guangzhou-3`，4 核 4 GiB、根盘使用 43%；DNSPod A 记录 `2384307236` 指向 `43.136.85.81`、TTL 600。未修改DNS、根域、www、time、tct或其他项目。
-- `/opt/suiyue-yousheng/releases/528f046` 为活动 release，`previous` 保留 `/opt/suiyue-yousheng/releases/2c8e7ac`；`suiyue-web.service` 在 `127.0.0.1:3011`，`suiyue-gateway.service` 在 `127.0.0.1:3012`，均 active，两个回环端口均在监听。服务器其他 Node 服务和端口未停止或复用。
+- 当前应用 release 来自提交 `e001f35`，本地归档 348 个成员、1,818,402 字节，SHA-256 `ec10b1d79b6d798bd8ced4d69ee06eb87635eeef93a801840ea753ab820a419d`；远端上传文件哈希一致，归档没有绝对/遍历路径、秘密、node_modules、缓存、测试音频或用户材料，并包含已验收的小文文章伙伴、浅绿无投影模式按钮及输入聚焦稳定修正。远端和本机临时归档均在完成校验、解包与上线复核后精确删除，活动 release 保留。
+- Lighthouse `lhins-pg6lbxtx` / `ap-guangzhou-3`，4 核 4 GiB、根盘使用 44%；DNSPod A 记录 `2384307236` 指向 `43.136.85.81`、TTL 600。未修改DNS、根域、www、time、tct或其他项目。
+- `/opt/suiyue-yousheng/releases/e001f35` 为活动 release，`previous` 保留 `/opt/suiyue-yousheng/releases/528f046`；`suiyue-web.service` 在 `127.0.0.1:3011`，`suiyue-gateway.service` 在 `127.0.0.1:3012`，均 active，两个回环端口均在监听。服务器其他 Node 服务和端口未停止或复用。
 - Nginx 仅在既有公网 80/443 接入：HTTP 308；HTTPS Basic Auth；`/` → 3011，AI/status/health/语音 → 3012，WSS 保留 Origin/Upgrade；前端 401 通过内部位置读取 root-owned 静态恢复页。Cloud firewall 仍只有 80、443、既有 22 和 ICMP，应用只监听回环。
 - Linux 固定 `ASR_CREDENTIAL_SOURCE=project`、`ASR_ALLOWED_ORIGIN=https://suiyue.maicong.chat`，当前 `TENCENT_ASR_ENGINE_MODEL_TYPE=16k_zh`。DeepSeek 与腾讯云完整凭据从 `/etc/suiyue-yousheng/runtime.env`（0600 root:root）读取；认证文件为 0640 root:www-data。最近模型回退前的环境备份为 `/etc/suiyue-yousheng/runtime.env.pre-return-16k-zh-20260831`（0600 root:root），release 与客户端不含秘密。
-- 本轮模型配置提交为 `811e85e` / `658e7e7`，2.0 可选项提交为 `53b117c` / `2c8e7ac`；最新移动布局发布提交为 `528f046`，此前认证恢复与模型白名单继续包含在 release 中。部署阶段未 push、切换分支或改写历史。
+- 本轮模型配置提交为 `811e85e` / `658e7e7`，2.0 可选项提交为 `53b117c` / `2c8e7ac`；最新小文文章伙伴发布提交为 `e001f35`，此前移动布局、认证恢复与模型白名单继续包含在 release 中。部署阶段未 push、切换分支或改写历史。
 
 ### 实际检查
 
-- 本地代码阶段：最新 `npm run check` 通过 22 个文件 204 项测试，含类型、Lint、OpenSpec、模块/敏感边界；`npm run build` 通过。390×844本地实页无横向溢出，页头三列为对称的56px/中间/56px，待确认取消样式为左对齐；服务器锁文件安装667个包并再次完成Vinext/Vite生产构建，本轮没有升级依赖。
-- 线上产物：current 精确指向 `528f046`，两个 systemd 服务 active且重启计数均为0，3011/3012两个回环端口在监听，健康检查通过，发布后10分钟内无两个应用服务的error级日志；运行模型保持体验包兼容的 `16k_zh`。公网无认证入口继续返回恢复页401，有效认证首页为200；活动CSS包含 `.pending-edit-cancel{justify-self:start...}`、包含“点击编辑标题”且不含已删除的语音冗余句。本轮未向DeepSeek或腾讯ASR发送内容请求。
+- 本地代码阶段：最新 `npm run check` 通过 22 个文件 210 项测试，含类型、Lint、OpenSpec、模块/敏感边界；`npm run build` 通过。部署前同一固定提交已完成360×640、390×844、430×932、1280×900四尺寸实页检查；服务器锁文件安装667个包并再次完成Vinext/Vite生产构建，本轮没有升级依赖。
+- 线上产物：current 精确指向 `e001f35`，两个 systemd 服务 active且重启计数均为0，3011/3012两个回环端口在监听，健康检查通过，发布后15分钟内无两个应用服务的error级日志；运行模型保持体验包兼容的 `16k_zh`。公网无认证入口继续返回恢复页401，有效认证首页为200；7个活动静态资源包含 `.input-mode-switch` 的 `var(--tint)` / `box-shadow:none` 新样式且不含“接着问我”“讲清楚了吗”“帮我理顺”三项已移除快捷按钮文案。本轮未向DeepSeek或腾讯ASR发送内容请求。
 - 公网协议：无认证首页为 401，仍带 `WWW-Authenticate`，响应正文为新恢复页并带 `Cache-Control: no-store`、HSTS 和 CSP；内部恢复地址直接访问为 404，未认证 `/api/health` 仍为 401 且不返回恢复页。有效认证首页为 200；两个预期测试账号分别为 200，无效账号或口令为 401。原有静态资源、AI/语音 status、WSS、安全头和限流边界不变。
 - 拒绝路径：外部 Origin 403，无效 AI body 400；WSS 无认证/外部 Origin 分别 401/403；5 个无效突发请求结果为 403、429、429、429、429，未连接上游。Nginx access log 关闭，限流返回 429。
 - 真实上游严格限量：公网腾讯 ASR 1 次，9.13 秒非敏感合成 PCM，33 字、17 次转写更新、见到 final 并正常结束；没有用户原音。DeepSeek 3 次：常规优化 input/output 762/64 tokens、润色 757/41、文字追问 842/31，均 200；前两项返回候选、追问只返回回答。没有重试、批量、压测、充值、购买或其他付费调用。
@@ -85,7 +87,7 @@
 
 ### 回滚
 
-release 切换和回滚脚本只接受 `/opt/suiyue-yousheng/releases/*` 的已解析路径；激活失败脚本会恢复 `previous`，首次失败则停止两个服务。current/previous 分别指向 `528f046` 与 `2c8e7ac`。公网模型保持 `16k_zh`；模型修改前环境保存在 0600 root:root 的 `runtime.env.pre-return-16k-zh-20260831`，应用回滚仍使用 `rollback.sh`。旧 Nginx 配置另保存在 `/etc/nginx/sites-available/suiyue-yousheng.conf.pre-auth-retry-20260830-164033`；代理恢复需复制该备份或从上一 release 重新运行 `enable-https.sh`，两者都必须先通过 `nginx -t`。首次部署完全撤回时停止/禁用两个岁月有声 unit、恢复该站点部署前 Nginx 状态并在 `nginx -t` 后 reload；保留 release、root-only 环境、证书和 DNS 供恢复，不删除浏览器数据或其他项目。
+release 切换和回滚脚本只接受 `/opt/suiyue-yousheng/releases/*` 的已解析路径；激活失败脚本会恢复 `previous`，首次失败则停止两个服务。current/previous 分别指向 `e001f35` 与 `528f046`。公网模型保持 `16k_zh`；模型修改前环境保存在 0600 root:root 的 `runtime.env.pre-return-16k-zh-20260831`，应用回滚仍使用 `rollback.sh`。旧 Nginx 配置另保存在 `/etc/nginx/sites-available/suiyue-yousheng.conf.pre-auth-retry-20260830-164033`；代理恢复需复制该备份或从上一 release 重新运行 `enable-https.sh`，两者都必须先通过 `nginx -t`。首次部署完全撤回时停止/禁用两个岁月有声 unit、恢复该站点部署前 Nginx 状态并在 `nginx -t` 后 reload；保留 release、root-only 环境、证书和 DNS 供恢复，不删除浏览器数据或其他项目。
 
 ## 2026-08-27 阶段已完成（历史记录）
 
