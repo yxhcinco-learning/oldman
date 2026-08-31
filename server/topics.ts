@@ -40,4 +40,3 @@ export function registerTopics(app: FastifyInstance, options: { origin: string; 
     return reply.header('Cache-Control', 'public, max-age=300, stale-while-revalidate=600').send(topicValue);
   });
 }
-
