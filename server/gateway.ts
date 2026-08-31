@@ -7,6 +7,7 @@ import { registerArticleAi, type AiGatewayOptions } from './article-ai';
 import { defaultOperationLogger, operationDuration, type OperationLogger } from './operations';
 import { registerTopics } from './topics';
 import type { TopicEditorialQueue } from './topic-catalog';
+import { registerMiniAuth, type MiniAuthGatewayOptions } from './mini-auth';
 
 export interface GatewayOptions {
   credentials?: Credentials; origin: string; maxConnections?: number; maxDurationMs?: number; maxBytes?: number;
@@ -15,12 +16,14 @@ export interface GatewayOptions {
   ai?: Omit<AiGatewayOptions, 'origin'>;
   topics?: TopicEditorialQueue;
   operations?: OperationLogger;
+  miniAuth?: Omit<MiniAuthGatewayOptions, 'operations'>;
 }
 export async function createGateway(options: GatewayOptions) {
   const app = Fastify({ logger: false, bodyLimit: 64 * 1024 });
   const operations = options.operations ?? defaultOperationLogger;
   registerArticleAi(app, { ...options.ai, origin: options.origin, operations });
   registerTopics(app, { origin: options.origin, queue: options.topics, operations });
+  registerMiniAuth(app, { ...options.miniAuth, operations });
   const active = new Set<WebSocket>();
   await app.register(websocket, { options: { maxPayload: 64 * 1024 } });
   app.get('/api/health', async (request, reply) => {

@@ -37,12 +37,12 @@
 
 ## 5. Minimal WeChat identity and business sessions
 
-- [ ] 5.1 Add a narrow SQLite adapter on the pinned/verified Node runtime plus the release-external identity store with users, `(app_id, openid)` identities, hashed opaque sessions, migrations, WAL/integrity settings, expiry/revocation cleanup and transactional repository tests
-- [ ] 5.2 Implement a bounded `code2Session` transport using server-only AppID/AppSecret, strict response/error validation, one-use code handling and logs that never contain URL query secrets, OpenID or session keys
-- [ ] 5.3 Implement `POST /api/mini/auth/wechat`, minimal user upsert, high-entropy token issuance, active-session limits and unified unauthorized responses with IP/user limits before any paid upstream
-- [ ] 5.4 Implement the mini-program single-flight auth client, encrypted token persistence with memory-only fallback, one bounded relogin on 401 and an offline state that never blocks local writing
-- [ ] 5.5 Add deterministic success, invalid/expired/replayed code, AppID mismatch, upstream failure, token expiry/revocation, persistence failure, concurrency and no-profile-data tests without real WeChat calls
-- [ ] 5.6 Run identity migrations/tests, root security/check/build and a sensitive-output scan, back up the local test database if needed, and commit only the verified identity stage
+- [x] 5.1 Add a narrow SQLite adapter on the pinned/verified Node runtime plus the release-external identity store with users, `(app_id, openid)` identities, hashed opaque sessions, migrations, WAL/integrity settings, expiry/revocation cleanup and transactional repository tests
+- [x] 5.2 Implement a bounded `code2Session` transport using server-only AppID/AppSecret, strict response/error validation, one-use code handling and logs that never contain URL query secrets, OpenID or session keys
+- [x] 5.3 Implement `POST /api/mini/auth/wechat`, minimal user upsert, high-entropy token issuance, active-session limits and unified unauthorized responses with IP/user limits before any paid upstream
+- [x] 5.4 Implement the mini-program single-flight auth client, encrypted token persistence with memory-only fallback, one bounded relogin on 401 and an offline state that never blocks local writing
+- [x] 5.5 Add deterministic success, invalid/expired/replayed code, AppID mismatch, upstream failure, token expiry/revocation, persistence failure, concurrency and no-profile-data tests without real WeChat calls
+- [x] 5.6 Run identity migrations/tests, root security/check/build and a sensitive-output scan, back up the local test database if needed, and commit only the verified identity stage
 
 ## 6. Authenticated mini-program AI and network clients
 
