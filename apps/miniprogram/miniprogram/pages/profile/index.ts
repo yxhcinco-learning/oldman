@@ -1,7 +1,12 @@
 import { miniServices } from '../../services';
+import { selectTab } from '../../ui/tab-bar';
 
 Page({
   data: { menuOpen: false, busy: '', notice: '', error: '' },
+
+  onShow() {
+    selectTab(this, 2);
+  },
 
   openMenu() { this.setData({ menuOpen: true, notice: '', error: '' }); },
   closeMenu() { this.setData({ menuOpen: false }); },

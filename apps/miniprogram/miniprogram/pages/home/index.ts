@@ -1,5 +1,6 @@
 import { isTopicCurrent, type WritingTopic } from '../../domain/core';
 import { miniTopics } from '../../network/topics';
+import { selectTab } from '../../ui/tab-bar';
 
 interface TopicCard {
   id: string;
@@ -19,6 +20,10 @@ Page({
 
   onLoad() {
     void this.loadTopics();
+  },
+
+  onShow() {
+    selectTab(this, 0);
   },
 
   async loadTopics() {

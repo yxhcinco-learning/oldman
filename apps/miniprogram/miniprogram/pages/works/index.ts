@@ -1,5 +1,6 @@
 import { countWords, formatTime, type Work } from '../../domain/core';
 import { miniServices } from '../../services';
+import { selectTab } from '../../ui/tab-bar';
 
 interface WorkCard {
   id: string;
@@ -32,6 +33,7 @@ Page({
   },
 
   onShow() {
+    selectTab(this, 1);
     void this.refresh();
   },
 

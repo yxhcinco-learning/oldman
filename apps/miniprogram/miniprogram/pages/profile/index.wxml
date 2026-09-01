@@ -9,7 +9,6 @@
     <view class="tool-row"><button class="tool" bindtap="openMenu"><view class="tool-icon"><image class="book-image" src="/assets/book.svg" mode="aspectFit"></image></view><view><text>作品与备份</text><small>管理、导出或恢复这台设备上的文章</small></view><b>›</b></button></view>
   </view>
 </view>
-<app-nav active="profile"></app-nav>
 
 <view wx:if="{{menuOpen}}" class="sheet-mask" bindtap="closeMenu" catchtouchmove="noop">
   <view class="backup-sheet" catchtap="noop" role="dialog" aria-modal="true" aria-label="作品与备份">

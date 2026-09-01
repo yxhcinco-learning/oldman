@@ -17,7 +17,14 @@ describe('微信小程序公共工程配置', () => {
 
   it('声明三个可直接打开的主页面', () => {
     const app = readJson('../miniprogram/app.json');
+    const tabBar = app.tabBar as { custom: boolean; list: Array<{ pagePath: string; text: string }> };
     expect(app.pages).toEqual(expect.arrayContaining(['pages/home/index', 'pages/works/index', 'pages/profile/index', 'pages/editor/index']));
+    expect(tabBar.custom).toBe(true);
+    expect(tabBar.list).toEqual([
+      { pagePath: 'pages/home/index', text: '热门' },
+      { pagePath: 'pages/works/index', text: '文章' },
+      { pagePath: 'pages/profile/index', text: '我的' },
+    ]);
     expect(app.requiredPrivateInfos).toBeUndefined();
     expect(app.permission).toBeUndefined();
   });
@@ -39,25 +46,37 @@ describe('微信小程序公共工程配置', () => {
   });
 
   it('保留三栏主导航、键盘避让和生命周期保存边界', () => {
-    const navigation = readText('../miniprogram/components/app-nav/index.wxml');
-    const navigationStyles = readText('../miniprogram/components/app-nav/index.wxss');
-    const navigationController = readText('../miniprogram/components/app-nav/index.ts');
+    const navigationConfig = readJson('../miniprogram/custom-tab-bar/index.json');
+    const navigation = readText('../miniprogram/custom-tab-bar/index.wxml');
+    const navigationStyles = readText('../miniprogram/custom-tab-bar/index.wxss');
+    const navigationController = readText('../miniprogram/custom-tab-bar/index.ts');
+    const tabSelection = readText('../miniprogram/ui/tab-bar.ts');
+    const homeConfig = readText('../miniprogram/pages/home/index.json');
+    const home = readText('../miniprogram/pages/home/index.wxml');
+    const homeController = readText('../miniprogram/pages/home/index.ts');
     const editor = readText('../miniprogram/pages/editor/index.wxml');
     const editorStyles = readText('../miniprogram/pages/editor/index.wxss');
     const editorController = readText('../miniprogram/pages/editor/index.ts');
     const works = readText('../miniprogram/pages/works/index.wxml');
     const worksController = readText('../miniprogram/pages/works/index.ts');
 
-    expect(navigation.match(/bindtap="navigate"/g)).toHaveLength(3);
+    expect(navigationConfig.component).toBe(true);
+    expect(navigation).toContain('wx:for="{{list}}"');
+    expect(navigation).toContain('bindtap="switchTab"');
     expect(works).toContain('bindtap="startWriting"');
     expect(navigationStyles).toContain('repeat(3, minmax(0, 1fr))');
-    expect(navigationStyles).toMatch(/\.nav-shell\s*\{[^}]*position:\s*fixed/);
-    expect(navigationStyles).toMatch(/\.nav-shell\s*\{[^}]*height:\s*calc\(72px/);
+    expect(navigationStyles).toMatch(/\.tab-bar\s*\{[^}]*position:\s*fixed/);
+    expect(navigationStyles).toMatch(/\.tab-bar\s*\{[^}]*height:\s*calc\(72px/);
     expect(navigationStyles).toMatch(/:host\s*\{[^}]*height:\s*0/);
     expect(navigationStyles).toMatch(/\.tab\s*\{[^}]*min-height:\s*60px/);
     expect(navigationStyles).toContain('.tab.active .icon-wrap');
     expect(navigationController).toContain('wx.showToast');
-    expect(navigationController).toContain('wx.reLaunch');
+    expect(navigationController).toContain('wx.switchTab');
+    expect(tabSelection).toContain('getTabBar');
+    expect(homeConfig).not.toContain('app-nav');
+    expect(home).not.toContain('<app-nav');
+    expect(homeController).toContain('selectTab(this, 0)');
+    expect(worksController).toContain('selectTab(this, 1)');
     expect(editor).toContain('bindkeyboardheightchange="onKeyboardHeight"');
     expect(editorStyles).toContain('env(safe-area-inset-bottom)');
     expect(editorStyles).toContain('.voice-side-slot');

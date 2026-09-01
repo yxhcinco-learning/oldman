@@ -15,6 +15,27 @@
     "backgroundColor": "#f7f3ea",
     "backgroundTextStyle": "dark"
   },
+  "tabBar": {
+    "custom": true,
+    "color": "#717974",
+    "selectedColor": "#153b2e",
+    "backgroundColor": "#fbf9f8",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "热门"
+      },
+      {
+        "pagePath": "pages/works/index",
+        "text": "文章"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的"
+      }
+    ]
+  },
   "style": "v2",
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents"
