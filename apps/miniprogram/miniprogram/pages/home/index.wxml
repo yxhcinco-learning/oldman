@@ -7,7 +7,9 @@
   </view>
   <view wx:if="{{loading}}" class="topic-state">正在读取经审核的话题…</view>
   <view wx:elif="{{error}}" class="topic-state error-panel" role="alert">
-    <view>{{error}}</view><button bindtap="loadTopics">重新加载</button>
+    <view class="state-title">{{error}}</view>
+    <view class="state-copy">你仍可使用下方“开始写作”，作品会保存到本机。</view>
+    <button bindtap="loadTopics">重新加载话题</button>
   </view>
   <view wx:elif="{{topics.length === 0}}" class="topic-state">目前没有可展示的审核话题。这里不会用演示内容代替。</view>
   <view class="topic-list" wx:else>

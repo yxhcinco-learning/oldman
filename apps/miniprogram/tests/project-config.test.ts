@@ -41,16 +41,26 @@ describe('微信小程序公共工程配置', () => {
   it('保留三栏主导航、键盘避让和生命周期保存边界', () => {
     const navigation = readText('../miniprogram/components/app-nav/index.wxml');
     const navigationStyles = readText('../miniprogram/components/app-nav/index.wxss');
+    const navigationController = readText('../miniprogram/components/app-nav/index.ts');
     const editor = readText('../miniprogram/pages/editor/index.wxml');
     const editorStyles = readText('../miniprogram/pages/editor/index.wxss');
     const editorController = readText('../miniprogram/pages/editor/index.ts');
+    const worksController = readText('../miniprogram/pages/works/index.ts');
 
-    expect(navigation.match(/data-target=/g)).toHaveLength(3);
+    expect(navigation.match(/open-type="reLaunch"/g)).toHaveLength(3);
+    expect(navigation).toContain('url="/pages/editor/index" open-type="navigate"');
     expect(navigationStyles).toContain('repeat(3, minmax(0, 1fr))');
+    expect(navigationStyles).toMatch(/:host\s*\{[^}]*position:\s*fixed/);
+    expect(navigationStyles).toMatch(/:host\s*\{[^}]*height:\s*calc\(238rpx/);
+    expect(navigationStyles).toMatch(/\.tab\s*\{[^}]*min-height:\s*10[4-9]rpx/);
+    expect(navigationController).toContain('wx.showToast');
     expect(editor).toContain('bindkeyboardheightchange="onKeyboardHeight"');
     expect(editorStyles).toContain('env(safe-area-inset-bottom)');
     expect(editorController).toContain('onHide()');
     expect(editorController).toContain('onUnload()');
+    expect(editorController).toContain('lifecycleSavePending');
+    expect(editorController).toContain('this.data.saved && !this.data.saving');
+    expect(worksController).toContain('await miniServices().writer.flush()');
   });
 
   it('明确说明作品的设备和 AppID 隔离边界', () => {

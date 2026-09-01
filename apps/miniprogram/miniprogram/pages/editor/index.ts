@@ -8,6 +8,7 @@ import { appendDictation } from '../../speech/dictation';
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let speechUnsubscribe: (() => void) | undefined;
+let lifecycleSavePending: Promise<void> | undefined;
 const speechHold = new HoldToDictate();
 
 const turnStatusLabel: Record<AiTurn['status'], string> = {
@@ -61,6 +62,7 @@ Page({
   },
 
   onLoad(options: Record<string, string | undefined>) {
+    lifecycleSavePending = undefined;
     speechUnsubscribe?.();
     speechUnsubscribe = miniServices().speech.subscribe(state => this.setData({ voicePhase: state.phase, voiceText: state.text,
       voiceMessage: state.message, voiceElapsed: state.elapsed, voiceScale: (1 + state.level * 0.15).toFixed(2),
@@ -359,10 +361,12 @@ Page({
   noop() {},
 
   preserveAndSave() {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = undefined;
+    if (this.data.saved && !this.data.saving) return;
     const draft = this.currentDraft();
-    if (!draft || !hasContent(draft)) return;
-    void miniServices().writer.preserve(draft, this.data.session ?? undefined)
-      .then(() => this.saveNow()).catch(() => undefined);
+    if (!draft || !hasContent(draft) || lifecycleSavePending) return;
+    lifecycleSavePending = this.saveNow().finally(() => { lifecycleSavePending = undefined; });
   },
 
   onHide() {

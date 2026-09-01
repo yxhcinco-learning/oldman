@@ -17,7 +17,8 @@
 
 - [ ] 确认最终主体、名称、服务类目、备案状态和 AI 生成服务相关审核问项。
 - [ ] 在微信公众平台填写与 [数据和隐私](PRIVACY.md) 一致的用户隐私保护指引，包含微信临时 code/OpenID、设备本地文件、麦克风、腾讯云 ASR、文章/历史/对话及 DeepSeek 的目的、方式、范围和第三方处理说明。
-- [ ] 配置精确 `request` 合法域名 `https://suiyue.maicong.chat` 与 `socket` 合法域名 `wss://suiyue.maicong.chat`，不关闭正式域名/TLS 校验。
+- [x] 配置精确 `request` 合法域名 `https://suiyue.maicong.chat`，不关闭正式域名/TLS 校验（用户于 2026-09-01 提供后台配置截图）。
+- [ ] 配置精确 `socket` 合法域名 `wss://suiyue.maicong.chat`，不关闭正式域名/TLS 校验。
 - [ ] 核对当前有效的生成合成内容标识规则、强制性国家标准、微信审核材料与服务协议说明；应用分发平台如要求，明确声明提供 AI 辅助生成服务。
 - [ ] 使用不含真实用户正文、音频、OpenID、token 或秘密的截图/结构化夹具，留存消息标签、候选预览、修改记录、TXT/复制和 JSON v4 证据。
 - [ ] 在正式 AppID 下重新执行权限拒绝/恢复、隐私说明、iOS/Android 真机、合法域名和导出检查。

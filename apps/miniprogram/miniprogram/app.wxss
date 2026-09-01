@@ -20,21 +20,21 @@ page {
 view, text, button, input, textarea { box-sizing: border-box; }
 button, input, textarea { font: inherit; }
 button::after { border: 0; }
-.page-shell { min-height: 100vh; padding: 48rpx 40rpx calc(300rpx + env(safe-area-inset-bottom)); }
+.page-shell { min-height: 100vh; padding: 36rpx 32rpx calc(260rpx + env(safe-area-inset-bottom)); }
 .page-shell.without-nav { padding-bottom: calc(64rpx + env(safe-area-inset-bottom)); }
-.brand { color: var(--forest); font-family: "Noto Serif SC", "Songti SC", SimSun, serif; font-size: 32rpx; font-weight: 600; letter-spacing: 2rpx; }
-.eyebrow { margin: 0 0 16rpx; color: var(--forest-soft); font-size: 26rpx; letter-spacing: 4rpx; }
-.page-title { color: var(--forest); font-family: "Noto Serif SC", "Songti SC", SimSun, serif; font-size: 52rpx; font-weight: 600; line-height: 1.38; }
-.lead { margin-top: 20rpx; color: var(--muted); font-size: 32rpx; line-height: 1.65; }
-.primary-action, .secondary-action { min-height: 112rpx; padding: 20rpx 32rpx; border-radius: 56rpx; font-size: 34rpx; line-height: 72rpx; }
+.brand { color: var(--forest); font-family: "Noto Serif SC", "Songti SC", SimSun, serif; font-size: 29rpx; font-weight: 600; letter-spacing: 2rpx; }
+.eyebrow { margin: 0 0 12rpx; color: var(--forest-soft); font-size: 24rpx; letter-spacing: 3rpx; }
+.page-title { color: var(--forest); font-family: "Noto Serif SC", "Songti SC", SimSun, serif; font-size: 46rpx; font-weight: 600; line-height: 1.35; }
+.lead { margin-top: 14rpx; color: var(--muted); font-size: 28rpx; line-height: 1.58; }
+.primary-action, .secondary-action { min-height: 96rpx; padding: 16rpx 28rpx; border-radius: 48rpx; font-size: 30rpx; line-height: 64rpx; }
 .primary-action { background: var(--forest); color: var(--white); }
 .secondary-action { background: var(--tint); color: var(--forest); }
-.notice, .error-panel { margin-top: 28rpx; padding: 28rpx 32rpx; border-radius: 28rpx; font-size: 28rpx; line-height: 1.65; }
+.notice, .error-panel { margin-top: 24rpx; padding: 22rpx 26rpx; border-radius: 24rpx; font-size: 26rpx; line-height: 1.6; }
 .notice { background: var(--tint); color: var(--forest-soft); }
 .error-panel { background: #f5e8df; color: #6f351c; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 @media (max-width: 370px) {
-  .page-shell { padding-left: 32rpx; padding-right: 32rpx; }
-  .page-title { font-size: 48rpx; }
+  .page-shell { padding-left: 28rpx; padding-right: 28rpx; }
+  .page-title { font-size: 44rpx; }
 }

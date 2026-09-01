@@ -30,6 +30,7 @@ Page({
 
   async refresh() {
     try {
+      await miniServices().writer.flush();
       const snapshot = await miniServices().repository.load();
       const cards = snapshot.works.map(card);
       this.setData({ loading: false, cards, visible: cards.filter(item => item.deleted === this.data.recycle),

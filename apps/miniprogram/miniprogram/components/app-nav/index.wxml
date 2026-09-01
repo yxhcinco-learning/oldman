@@ -1,19 +1,19 @@
 <view class="nav-shell">
   <view class="create-row">
-    <button class="create" bindtap="createArticle" aria-label="开始写作">
+    <navigator class="create" url="/pages/editor/index" open-type="navigate" hover-class="create-pressed" bindfail="navigationFailed" aria-label="开始写作">
       <view class="create-icon"><view class="pen-line"></view></view>
       <text>开始写作</text>
-    </button>
+    </navigator>
   </view>
   <view class="tabs" role="tablist" aria-label="主导航">
-    <button class="tab {{active === 'home' ? 'active' : ''}}" data-target="home" bindtap="open" role="tab" aria-selected="{{active === 'home'}}">
+    <navigator class="tab {{active === 'home' ? 'active' : ''}}" url="/pages/home/index" open-type="reLaunch" hover-class="tab-pressed" bindfail="navigationFailed" role="tab" aria-selected="{{active === 'home'}}">
       <view class="icon flame"></view><text>热门</text>
-    </button>
-    <button class="tab {{active === 'works' ? 'active' : ''}}" data-target="works" bindtap="open" role="tab" aria-selected="{{active === 'works'}}">
+    </navigator>
+    <navigator class="tab {{active === 'works' ? 'active' : ''}}" url="/pages/works/index" open-type="reLaunch" hover-class="tab-pressed" bindfail="navigationFailed" role="tab" aria-selected="{{active === 'works'}}">
       <view class="icon paper"></view><text>文章</text>
-    </button>
-    <button class="tab {{active === 'profile' ? 'active' : ''}}" data-target="profile" bindtap="open" role="tab" aria-selected="{{active === 'profile'}}">
+    </navigator>
+    <navigator class="tab {{active === 'profile' ? 'active' : ''}}" url="/pages/profile/index" open-type="reLaunch" hover-class="tab-pressed" bindfail="navigationFailed" role="tab" aria-selected="{{active === 'profile'}}">
       <view class="icon person"></view><text>我的</text>
-    </button>
+    </navigator>
   </view>
 </view>
