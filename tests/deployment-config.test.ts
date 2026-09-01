@@ -58,6 +58,8 @@ it('protects the exact HTTPS origin while preserving same-origin API and WebSock
   expect(nginx).toContain('zone=suiyue_mini_ticket');
   expect(nginx).toContain('zone=suiyue_mini_speech');
   expect(nginx).toContain('location ^~ /api/mini/');
+  expect(nginx).toContain('location /api/ {');
+  expect(nginx).not.toContain('location ^~ /api/ {');
   const miniSpeech = /location = \/api\/mini\/speech \{([\s\S]*?)\n    \}/.exec(nginx)?.[1] ?? '';
   expect(miniSpeech).toContain('access_log off;');
   expect(miniSpeech).toContain('proxy_set_header Upgrade $http_upgrade;');
