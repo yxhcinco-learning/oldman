@@ -1,4 +1,5 @@
 .detail-page { padding-top: 0; }
+.detail-page.with-actions { padding-bottom: calc(104px + env(safe-area-inset-bottom)); }
 .detail-topbar { position: sticky; z-index: 30; top: 0; margin-right: -24px; margin-left: -24px; border-bottom: 1px solid #e4e6e1; background: #fbf9f8; }
 .detail-nav-row { position: absolute; right: 0; left: 0; display: grid; width: 100%; grid-template-columns: 48px minmax(0, 1fr) 48px; align-items: center; padding-left: 12px; }
 .detail-back { position: relative; z-index: 2; display: grid; width: 48px; min-width: 48px; height: 48px; margin: 0; padding: 0; place-items: center; background: transparent; color: #153b2e; }
@@ -21,11 +22,11 @@
 .source text { overflow-wrap: anywhere; }
 .source small { display: block; color: #717974; font-size: 14px; line-height: 22px; }
 .source b { color: #416657; font-size: 22px; font-weight: 400; }
-.start-actions { position: sticky; bottom: calc(-1 * env(safe-area-inset-bottom)); display: grid; width: 100%; min-width: 0; box-sizing: border-box; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 24px 0 0; padding: 12px 0 calc(14px + env(safe-area-inset-bottom)); background: linear-gradient(rgba(251, 249, 248, 0), #fbf9f8 12px); }
+.start-actions { position: fixed; z-index: 25; right: 24px; bottom: 0; left: 24px; display: grid; width: auto; min-width: 0; box-sizing: border-box; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 12px 0 calc(14px + env(safe-area-inset-bottom)); background: linear-gradient(rgba(251, 249, 248, 0), #fbf9f8 12px); }
 .start-actions button { display: flex; width: 100%; max-width: 100%; min-width: 0; min-height: 56px; box-sizing: border-box; margin: 0; padding: 10px 12px; align-items: center; justify-content: center; overflow: hidden; font-size: 16px; line-height: 24px; white-space: nowrap; }
 
 @media (max-width: 370px) {
   .detail-topbar { margin-right: -20px; margin-left: -20px; }
-  .start-actions { gap: 8px; }
+  .start-actions { right: 20px; left: 20px; gap: 8px; }
   .start-actions button { font-size: 15px; }
 }

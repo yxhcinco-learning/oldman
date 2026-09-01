@@ -64,7 +64,9 @@ describe('微信小程序公共工程配置', () => {
     const editor = readText('../miniprogram/pages/editor/index.wxml');
     const editorStyles = readText('../miniprogram/pages/editor/index.wxss');
     const editorController = readText('../miniprogram/pages/editor/index.ts');
+    const keyboardAvoidance = readText('../miniprogram/ui/keyboard.ts');
     const interview = readText('../miniprogram/pages/interview/index.wxml');
+    const interviewStyles = readText('../miniprogram/pages/interview/index.wxss');
     const works = readText('../miniprogram/pages/works/index.wxml');
     const worksStyles = readText('../miniprogram/pages/works/index.wxss');
     const worksController = readText('../miniprogram/pages/works/index.ts');
@@ -106,7 +108,7 @@ describe('微信小程序公共工程配置', () => {
     expect(topicDetailStyles).toMatch(/\.detail-topbar\s*\{[^}]*position:\s*sticky[^}]*top:\s*0/);
     expect(topicDetailStyles).toMatch(/\.detail-nav-row\s*\{[^}]*position:\s*absolute[^}]*grid-template-columns:\s*48px minmax\(0, 1fr\) 48px[^}]*align-items:\s*center/);
     expect(topicDetailStyles).toMatch(/\.detail-brand\s*\{[^}]*align-items:\s*center[^}]*justify-content:\s*center/);
-    expect(topicDetailStyles).toMatch(/\.start-actions\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+    expect(topicDetailStyles).toMatch(/\.start-actions\s*\{[^}]*position:\s*fixed[^}]*right:\s*24px[^}]*bottom:\s*0[^}]*left:\s*24px[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
     expect(topicDetailStyles).toMatch(/\.start-actions button\s*\{[^}]*display:\s*flex[^}]*width:\s*100%[^}]*min-width:\s*0[^}]*align-items:\s*center[^}]*justify-content:\s*center/);
     expect(worksController).toContain('selectTab(this, 1)');
     expect(editor).toContain('bindkeyboardheightchange="onKeyboardHeight"');
@@ -115,6 +117,11 @@ describe('微信小程序公共工程配置', () => {
     expect(editor).toMatch(/class="title-input"[^>]*adjust-position="false"[^>]*bindkeyboardheightchange="onKeyboardHeight"/s);
     expect(editor).toMatch(/placeholder="问小文，或提要求"[^>]*adjust-position="false"[^>]*bindkeyboardheightchange="onKeyboardHeight"/s);
     expect(interview).toMatch(/placeholder="写下回答"[^>]*adjust-position="false"[^>]*bindkeyboardheightchange="onKeyboardHeight"/s);
+    expect(editor).toMatch(/class="pending-input"[^>]*show-confirm-bar="false"/s);
+    expect(editor).toMatch(/placeholder="问小文，或提要求"[^>]*show-confirm-bar="false"/s);
+    expect(interview).toMatch(/placeholder="写下回答"[^>]*show-confirm-bar="false"/s);
+    expect(editorController).toContain('resolveKeyboardInset(reportedHeight, baselineWindowHeight, info.windowHeight, info.pixelRatio)');
+    expect(keyboardAvoidance).toContain('reported - viewportReduction');
     expect(interview).toContain('class="interview-topic"');
     expect(interview).not.toContain('<small>{{draft && draft.topicSnapshot');
     expect(editorStyles).toMatch(/\.title-dialog, \.pending-dialog\s*\{[^}]*max-height:\s*calc\(100% - 48px\)[^}]*overflow-y:\s*auto/);
@@ -127,7 +134,20 @@ describe('微信小程序公共工程配置', () => {
     expect(editorStyles).toContain('env(safe-area-inset-bottom)');
     expect(editorStyles).toContain('grid-template-columns: 48px minmax(0, 1fr) 48px');
     expect(editorStyles).toContain('.voice-side-slot');
+    expect(editorStyles).toMatch(/\.voice-side\s*\{[^}]*width:\s*64px[^}]*height:\s*48px/);
     expect(editorStyles).toMatch(/button\.mic\s*\{[^}]*max-width:\s*76px/);
+    expect(editor).toContain("'/assets/keyboard.svg'");
+    expect(editor).toContain('class="actual-wave"');
+    expect(editor).toContain('src="/assets/check.svg"');
+    expect(editor).toContain('class="edit-icon" src="/assets/pen.svg"');
+    expect(editor).not.toContain('class="edit-mark">修改');
+    expect(editorStyles).not.toContain('content: "••••"');
+    expect(editorStyles).toMatch(/\.xiaowen-header-actions\s*\{[^}]*gap:\s*8px/);
+    expect(editorStyles).toMatch(/\.xiaowen-close\s*\{[^}]*border:\s*0/);
+    expect(editor).toContain("class=\"xiaowen-send {{operationBusy || voiceBusy || !xiaowenComposer ? 'is-disabled' : ''}}\"");
+    expect(editorStyles).toMatch(/\.xiaowen-send\.is-disabled\s*\{[^}]*background:\s*#153b2e[^}]*color:\s*#fff/);
+    expect(interview).toContain("class=\"send {{saving || voiceBusy || !composer ? 'is-disabled' : ''}}\"");
+    expect(interviewStyles).toMatch(/\.send\.is-disabled\s*\{[^}]*background:\s*#153b2e[^}]*color:\s*#fff/);
     expect(editorController).toContain('onHide()');
     expect(editorController).toContain('onUnload()');
     expect(editorController).toContain('lifecycleSavePending');
@@ -150,7 +170,7 @@ describe('微信小程序公共工程配置', () => {
     expect(worksStyles).toMatch(/\.create-button\s*\{[^}]*width:\s*100%[^}]*max-width:\s*100%[^}]*min-width:\s*0/);
     const allStyles = [readText('../miniprogram/app.wxss'), navigationStyles, brandStyles,
       readText('../miniprogram/pages/home/index.wxss'), worksStyles, profileStyles,
-      topicDetailStyles, editorStyles, readText('../miniprogram/pages/interview/index.wxss'), readText('../miniprogram/pages/source/index.wxss')].join('\n');
+      topicDetailStyles, editorStyles, interviewStyles, readText('../miniprogram/pages/source/index.wxss')].join('\n');
     expect(allStyles).not.toMatch(/\d(?:\.\d+)?rpx\b/);
     expect(allStyles).toContain('scroll-view, navigator, image { box-sizing: border-box; }');
   });

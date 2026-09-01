@@ -21,10 +21,10 @@
     <view wx:if="{{error}}" class="interview-error" role="alert">{{error}}</view>
     <view wx:if="{{voicePressing || voicePhase !== 'idle'}}" class="interview-error">{{voiceText || voiceMessage || (voicePressing ? '已按住，松开结束' : '正在准备语音…')}}</view>
     <view class="composer-row">
-      <textarea value="{{composer}}" maxlength="12000" auto-height placeholder="写下回答" disabled="{{saving || voiceBusy}}"
-        adjust-position="false" cursor-spacing="20" bindinput="onComposer" bindkeyboardheightchange="onKeyboardHeight"></textarea>
-      <view class="composer-button-cell"><button class="voice {{voicePressing ? 'pressing' : ''}}" bindtouchstart="pressDictation" bindtouchend="releaseDictation" bindtouchcancel="cancelDictation" disabled="{{saving}}" aria-label="长按语音回答"><image src="/assets/mic.svg" mode="aspectFit"></image></button></view>
-      <view class="composer-button-cell"><button class="send" bindtap="sendAnswer" disabled="{{saving || voiceBusy || !composer}}">{{saving ? '保存中' : '发送'}}</button></view>
+      <textarea value="{{composer}}" maxlength="12000" auto-height placeholder="写下回答" placeholder-style="color:#858e88;line-height:30px" disabled="{{saving || voiceBusy}}"
+        adjust-position="false" show-confirm-bar="false" cursor-spacing="20" bindinput="onComposer" bindkeyboardheightchange="onKeyboardHeight"></textarea>
+      <view class="composer-button-cell"><button class="voice {{voicePressing ? 'pressing' : ''}} {{saving ? 'is-disabled' : ''}}" bindtouchstart="pressDictation" bindtouchend="releaseDictation" bindtouchcancel="cancelDictation" aria-disabled="{{saving}}" aria-label="长按语音回答"><image src="/assets/mic.svg" mode="aspectFit"></image></button></view>
+      <view class="composer-button-cell"><button class="send {{saving || voiceBusy || !composer ? 'is-disabled' : ''}}" bindtap="sendAnswer" aria-disabled="{{saving || voiceBusy || !composer}}">{{saving ? '保存中' : '发送'}}</button></view>
     </view>
   </view>
 </view>

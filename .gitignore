@@ -54,3 +54,4 @@ next-env.d.ts
 /apps/miniprogram/.wechat-devtools/
 /apps/miniprogram/preview/
 /apps/miniprogram/upload/
+/apps/miniprogram/tests/artifacts/

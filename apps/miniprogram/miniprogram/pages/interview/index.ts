@@ -3,9 +3,12 @@ import { interviewMessages, interviewQuestion, type InterviewMessage } from '../
 import { miniServices } from '../../services';
 import { HoldToDictate, type MiniSpeechState } from '../../speech/session';
 import { appendDictation } from '../../speech/dictation';
+import { resolveKeyboardInset } from '../../ui/keyboard';
 import { navigationMetrics } from '../../ui/navigation';
 
 let speechUnsubscribe: (() => void) | undefined;
+let baselineWindowHeight = 0;
+let keyboardTimer: ReturnType<typeof setTimeout> | undefined;
 const speechHold = new HoldToDictate();
 
 Page({
@@ -29,6 +32,9 @@ Page({
   },
 
   onLoad(options: Record<string, string | undefined>) {
+    if (keyboardTimer) clearTimeout(keyboardTimer);
+    keyboardTimer = undefined;
+    baselineWindowHeight = wx.getWindowInfo().windowHeight;
     speechUnsubscribe?.();
     speechUnsubscribe = miniServices().speech.subscribe(state => this.setData({ voicePhase: state.phase, voiceText: state.text, voiceMessage: state.message,
       voiceBusy: !['idle', 'error'].includes(state.phase),
@@ -63,7 +69,20 @@ Page({
   },
 
   onKeyboardHeight(event: WechatMiniprogram.TextareaKeyboardHeightChange) {
-    this.setData({ keyboardHeight: event.detail.height });
+    const reportedHeight = Math.max(0, event.detail.height);
+    if (keyboardTimer) clearTimeout(keyboardTimer);
+    if (reportedHeight === 0) {
+      this.setData({ keyboardHeight: 0 });
+      keyboardTimer = setTimeout(() => {
+        const info = wx.getWindowInfo();
+        baselineWindowHeight = Math.max(baselineWindowHeight, info.windowHeight);
+      }, 40);
+      return;
+    }
+    keyboardTimer = setTimeout(() => {
+      const info = wx.getWindowInfo();
+      this.setData({ keyboardHeight: resolveKeyboardInset(reportedHeight, baselineWindowHeight, info.windowHeight, info.pixelRatio) });
+    }, 16);
   },
 
   async sendAnswer() {
@@ -144,6 +163,8 @@ Page({
   onHide() {
     miniServices().speech.interrupt();
     speechHold.reset();
+    if (keyboardTimer) clearTimeout(keyboardTimer);
+    keyboardTimer = undefined;
     this.setData({ keyboardHeight: 0, voicePressing: false });
     const draft = this.data.draft;
     if (draft && (draft.materials.length || this.data.composer.trim())) void miniServices().writer.preserve(draft, this.data.session ?? undefined).catch(() => undefined);
@@ -154,5 +175,7 @@ Page({
     speechHold.reset();
     speechUnsubscribe?.();
     speechUnsubscribe = undefined;
+    if (keyboardTimer) clearTimeout(keyboardTimer);
+    keyboardTimer = undefined;
   },
 });

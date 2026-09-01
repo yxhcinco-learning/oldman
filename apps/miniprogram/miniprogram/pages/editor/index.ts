@@ -5,12 +5,15 @@ import type { MiniAiContext } from '../../ai/controller';
 import { miniServices } from '../../services';
 import { HoldToDictate, type MiniSpeechState } from '../../speech/session';
 import { appendDictation, stageBodyDictation } from '../../speech/dictation';
+import { resolveKeyboardInset } from '../../ui/keyboard';
 import { navigationMetrics } from '../../ui/navigation';
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let speechUnsubscribe: (() => void) | undefined;
 let lifecycleSavePending: Promise<void> | undefined;
 let draftVersion = 0;
+let baselineWindowHeight = 0;
+let keyboardTimer: ReturnType<typeof setTimeout> | undefined;
 const speechHold = new HoldToDictate();
 
 const turnStatusLabel: Record<AiTurn['status'], string> = {
@@ -61,7 +64,7 @@ Page({
     voiceText: '',
     voiceMessage: '',
     voiceElapsed: 0,
-    voiceScale: '1.00',
+    voiceBars: Array.from({ length: 12 }, () => 3),
     voiceTarget: '' as '' | 'body' | 'xiaowen',
     voiceBusy: false,
     voicePressing: false,
@@ -70,9 +73,13 @@ Page({
   onLoad(options: Record<string, string | undefined>) {
     lifecycleSavePending = undefined;
     draftVersion = 0;
+    if (keyboardTimer) clearTimeout(keyboardTimer);
+    keyboardTimer = undefined;
+    baselineWindowHeight = wx.getWindowInfo().windowHeight;
     speechUnsubscribe?.();
     speechUnsubscribe = miniServices().speech.subscribe(state => this.setData({ voicePhase: state.phase, voiceText: state.text,
-      voiceMessage: state.message, voiceElapsed: state.elapsed, voiceScale: (1 + state.level * 0.15).toFixed(2),
+      voiceMessage: state.message, voiceElapsed: state.elapsed,
+      voiceBars: Array.from({ length: 12 }, (_, index) => Math.round(3 + state.level * (7 + (index % 4) * 4))),
       voiceBusy: !['idle', 'error'].includes(state.phase),
       ...(['idle', 'error'].includes(state.phase) ? { voicePressing: false } : {}) }));
     this.setData({ xiaowenOpen: Boolean(options.xiaowen) });
@@ -133,10 +140,25 @@ Page({
   },
 
   onKeyboardHeight(event: WechatMiniprogram.TextareaKeyboardHeightChange) {
-    this.setData({ keyboardHeight: event.detail.height });
+    const reportedHeight = Math.max(0, event.detail.height);
+    if (keyboardTimer) clearTimeout(keyboardTimer);
+    if (reportedHeight === 0) {
+      this.setData({ keyboardHeight: 0 });
+      keyboardTimer = setTimeout(() => {
+        const info = wx.getWindowInfo();
+        baselineWindowHeight = Math.max(baselineWindowHeight, info.windowHeight);
+      }, 40);
+      return;
+    }
+    keyboardTimer = setTimeout(() => {
+      const info = wx.getWindowInfo();
+      this.setData({ keyboardHeight: resolveKeyboardInset(reportedHeight, baselineWindowHeight, info.windowHeight, info.pixelRatio) });
+    }, 16);
   },
 
   dismissKeyboard() {
+    if (keyboardTimer) clearTimeout(keyboardTimer);
+    keyboardTimer = undefined;
     this.setData({ keyboardHeight: 0 });
     void wx.hideKeyboard({ fail: () => undefined });
   },
@@ -455,6 +477,8 @@ Page({
   onHide() {
     miniServices().speech.interrupt();
     speechHold.reset();
+    if (keyboardTimer) clearTimeout(keyboardTimer);
+    keyboardTimer = undefined;
     this.setData({ keyboardHeight: 0, voicePressing: false });
     this.preserveAndSave();
   },
@@ -466,6 +490,8 @@ Page({
     speechUnsubscribe = undefined;
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = undefined;
+    if (keyboardTimer) clearTimeout(keyboardTimer);
+    keyboardTimer = undefined;
     this.preserveAndSave();
   },
 });

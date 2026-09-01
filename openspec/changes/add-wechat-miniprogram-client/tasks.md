@@ -33,7 +33,7 @@
 - [x] 4.4 Port the XiaoWen conversation panel, unsent in-memory composer, typed/dictated input boundary, request status, close/reopen state and short-screen fixed composer behavior
 - [x] 4.5 Implement article/interview compose requests, result explanations, full candidate preview, baseline conflict checks, apply/dismiss/undo and modification records against the shared session contract
 - [x] 4.6 Add success, failure, cancel, close-while-running, offline, stale-topic, insufficient/conflicting material and candidate-conflict tests using non-network transports
-- [ ] 4.7 Run the combined topic/interview/XiaoWen checks and four-size developer-tool regression, update any corresponding acceptance evidence, and commit the verified feature-parity stage
+- [ ] 4.7 Match the complete H5 voice-state UI, keyboard-aware title/pending/XiaoWen/interview inputs, canonical toolbar icons and fixed topic actions; then run combined topic/interview/XiaoWen checks and four-size developer-tool regression, update acceptance evidence, and commit the verified feature-parity stage
 
 ## 5. Minimal WeChat identity and business sessions
 

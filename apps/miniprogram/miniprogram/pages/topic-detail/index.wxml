@@ -1,4 +1,4 @@
-<view class="page-shell without-nav detail-page">
+<view class="page-shell without-nav detail-page {{topic && !stale ? 'with-actions' : ''}}">
   <view class="detail-topbar" style="height: {{navigationHeight}}px;">
     <view class="detail-nav-row" style="top: {{navigationRowTop}}px; height: 48px; padding-right: {{menuReserve}}px;">
       <view class="detail-back" bindtap="goBack" role="button" aria-label="返回"><view class="back-chevron"></view></view>
