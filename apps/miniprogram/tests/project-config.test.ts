@@ -52,7 +52,9 @@ describe('微信小程序公共工程配置', () => {
     const navigation = readText('../miniprogram/custom-tab-bar/index.wxml');
     const navigationStyles = readText('../miniprogram/custom-tab-bar/index.wxss');
     const brandStyles = readText('../miniprogram/components/app-brand/index.wxss');
+    const brand = readText('../miniprogram/components/app-brand/index.wxml');
     const navigationController = readText('../miniprogram/custom-tab-bar/index.ts');
+    const navigationMetrics = readText('../miniprogram/ui/navigation.ts');
     const tabSelection = readText('../miniprogram/ui/tab-bar.ts');
     const homeConfig = readText('../miniprogram/pages/home/index.json');
     const home = readText('../miniprogram/pages/home/index.wxml');
@@ -66,9 +68,12 @@ describe('微信小程序公共工程配置', () => {
     const works = readText('../miniprogram/pages/works/index.wxml');
     const worksStyles = readText('../miniprogram/pages/works/index.wxss');
     const worksController = readText('../miniprogram/pages/works/index.ts');
+    const profileStyles = readText('../miniprogram/pages/profile/index.wxss');
+    const profileController = readText('../miniprogram/pages/profile/index.ts');
 
     expect(navigationConfig.component).toBe(true);
     expect(navigation).toContain('wx:for="{{list}}"');
+    expect(navigation).toContain('wx:if="{{!hidden}}"');
     expect(navigation).toContain('bindtap="switchTab"');
     expect(works).toContain('bindtap="startWriting"');
     expect(navigationStyles).toContain('repeat(3, minmax(0, 1fr))');
@@ -80,20 +85,29 @@ describe('微信小程序公共工程配置', () => {
     expect(navigationStyles).toMatch(/\.tab\s*\{[^}]*min-height:\s*60px/);
     expect(navigationStyles).toContain('.tab.active .icon-wrap');
     expect(brandStyles).toMatch(/:host\s*\{[^}]*position:\s*sticky[^}]*top:\s*0/);
+    expect(brand).toContain('top: {{menuTop}}px; height: {{menuHeight}}px; padding-right: {{menuReserve}}px');
+    expect(navigationMetrics).toContain('wx.getMenuButtonBoundingClientRect()');
+    expect(navigationMetrics).toContain('navigationRowTop = menuTop + (menuHeight - 48) / 2');
+    expect(navigationMetrics).toContain('menuTop, menuHeight, navigationRowTop, menuReserve');
     expect(navigationController).toContain('wx.showToast');
     expect(navigationController).toContain('wx.switchTab');
     expect(tabSelection).toContain('getTabBar');
+    expect(tabSelection).toContain('setTabBarHidden');
+    expect(profileController).toContain('setTabBarHidden(this, true)');
+    expect(profileController).toContain('setTabBarHidden(this, false)');
     expect(homeConfig).not.toContain('app-nav');
     expect(home).not.toContain('<app-nav');
     expect(homeController).toContain('selectTab(this, 0)');
     expect(topicDetail).toContain('class="detail-brand"');
-    expect(topicDetail).not.toContain('padding-right: {{menuReserve}}px');
+    for (const customTopbar of [topicDetail, editor, interview]) {
+      expect(customTopbar).toContain('top: {{navigationRowTop}}px; height: 48px; padding-right: {{menuReserve}}px');
+    }
     expect(topicDetailStyles).toMatch(/\.detail-topbar\s*\{[^}]*margin-right:\s*-24px/);
     expect(topicDetailStyles).toMatch(/\.detail-topbar\s*\{[^}]*position:\s*sticky[^}]*top:\s*0/);
-    expect(topicDetailStyles).toMatch(/\.detail-brand\s*\{[^}]*position:\s*absolute[^}]*right:\s*64px[^}]*left:\s*64px/);
-    expect(topicDetailStyles).toMatch(/\.start-actions\s*\{[^}]*overflow:\s*hidden/);
+    expect(topicDetailStyles).toMatch(/\.detail-nav-row\s*\{[^}]*position:\s*absolute[^}]*grid-template-columns:\s*48px minmax\(0, 1fr\) 48px[^}]*align-items:\s*center/);
+    expect(topicDetailStyles).toMatch(/\.detail-brand\s*\{[^}]*align-items:\s*center[^}]*justify-content:\s*center/);
     expect(topicDetailStyles).toMatch(/\.start-actions\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
-    expect(topicDetailStyles).toMatch(/\.start-actions button\s*\{[^}]*width:\s*100%[^}]*min-width:\s*0[^}]*box-sizing:\s*border-box/);
+    expect(topicDetailStyles).toMatch(/\.start-actions button\s*\{[^}]*display:\s*flex[^}]*width:\s*100%[^}]*min-width:\s*0[^}]*align-items:\s*center[^}]*justify-content:\s*center/);
     expect(worksController).toContain('selectTab(this, 1)');
     expect(editor).toContain('bindkeyboardheightchange="onKeyboardHeight"');
     expect(editor).toContain('class="dialog-mask" style="bottom: {{keyboardHeight}}px"');
@@ -101,7 +115,11 @@ describe('微信小程序公共工程配置', () => {
     expect(editor).toMatch(/class="title-input"[^>]*adjust-position="false"[^>]*bindkeyboardheightchange="onKeyboardHeight"/s);
     expect(editor).toMatch(/placeholder="问小文，或提要求"[^>]*adjust-position="false"[^>]*bindkeyboardheightchange="onKeyboardHeight"/s);
     expect(interview).toMatch(/placeholder="写下回答"[^>]*adjust-position="false"[^>]*bindkeyboardheightchange="onKeyboardHeight"/s);
-    expect(editorStyles).toMatch(/\.title-dialog\s*\{[^}]*max-height:\s*calc\(100% - 48px\)[^}]*overflow-y:\s*auto/);
+    expect(interview).toContain('class="interview-topic"');
+    expect(interview).not.toContain('<small>{{draft && draft.topicSnapshot');
+    expect(editorStyles).toMatch(/\.title-dialog, \.pending-dialog\s*\{[^}]*max-height:\s*calc\(100% - 48px\)[^}]*overflow-y:\s*auto/);
+    expect(editorStyles).toMatch(/\.dialog-actions\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+    expect(editorStyles).toMatch(/\.dialog-actions button\s*\{[^}]*width:\s*100%[^}]*max-width:\s*100%[^}]*min-width:\s*0[^}]*align-items:\s*center[^}]*justify-content:\s*center/);
     expect(editorStyles).toMatch(/\.xiaowen-panel\s*\{[^}]*max-height:\s*calc\(100% - 48px\)/);
     expect(editor).not.toContain('<view class="save"');
     expect(editor).toContain('<view class="topbar-spacer"></view>');
@@ -117,10 +135,24 @@ describe('微信小程序公共工程配置', () => {
     expect(editorController).toContain('if (!saved) return');
     expect(editorController).toContain('savingVersion === draftVersion');
     expect(editorController).toContain('voicePressing: true');
+    expect(editorController).toContain('stageBodyDictation(current, text)');
+    expect(editorController).toContain('completeVoice(current)');
+    expect(editorController).not.toContain('语音文字已放入正文');
+    expect(editor).toContain('wx:elif="{{draft.pendingVoice}}"');
+    expect(editor).toContain('bindtap="discardPendingVoice"');
+    expect(editor).toContain('bindtap="completePendingVoice"');
+    expect(editor).toContain('已转成文字');
+    expect(editor).toContain('<view class="topic-heading"');
+    expect(editor).not.toContain('<button class="topic-heading"');
     expect(editorController).toContain('dismissKeyboard()');
     expect(worksController).toContain('await miniServices().writer.flush()');
     expect(worksStyles).toMatch(/\.create-dock\s*\{[^}]*right:\s*0[^}]*left:\s*0[^}]*box-sizing:\s*border-box[^}]*overflow:\s*hidden/);
     expect(worksStyles).toMatch(/\.create-button\s*\{[^}]*width:\s*100%[^}]*max-width:\s*100%[^}]*min-width:\s*0/);
+    const allStyles = [readText('../miniprogram/app.wxss'), navigationStyles, brandStyles,
+      readText('../miniprogram/pages/home/index.wxss'), worksStyles, profileStyles,
+      topicDetailStyles, editorStyles, readText('../miniprogram/pages/interview/index.wxss'), readText('../miniprogram/pages/source/index.wxss')].join('\n');
+    expect(allStyles).not.toMatch(/\d(?:\.\d+)?rpx\b/);
+    expect(allStyles).toContain('scroll-view, navigator, image { box-sizing: border-box; }');
   });
 
   it('明确说明作品的设备和 AppID 隔离边界', () => {

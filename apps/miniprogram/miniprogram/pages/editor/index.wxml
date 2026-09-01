@@ -1,10 +1,12 @@
 <view class="editor-page" style="padding-bottom: {{keyboardHeight}}px">
-  <view class="editor-topbar" style="height: {{navigationHeight}}px; padding-top: {{statusBarHeight}}px; padding-right: {{menuReserve}}px;">
-    <view class="back" bindtap="goBack" role="button" aria-label="返回">‹</view>
-    <view class="title-button {{draft && !draft.title ? 'empty' : ''}}" bindtap="openTitle" role="button" aria-label="编辑文章标题">
-      <text>{{draft && draft.title ? draft.title : '点击编辑标题'}}</text>
+  <view class="editor-topbar" style="height: {{navigationHeight}}px;">
+    <view class="editor-nav-row" style="top: {{navigationRowTop}}px; height: 48px; padding-right: {{menuReserve}}px;">
+      <view class="back" bindtap="goBack" role="button" aria-label="返回"><view class="back-chevron"></view></view>
+      <view class="title-button {{draft && !draft.title ? 'empty' : ''}}" bindtap="openTitle" role="button" aria-label="编辑文章标题">
+        <text>{{draft && draft.title ? draft.title : '点击编辑标题'}}</text>
+      </view>
+      <view class="topbar-spacer"></view>
     </view>
-    <view class="topbar-spacer"></view>
   </view>
 
   <view wx:if="{{error}}" class="editor-error" role="alert">
@@ -15,7 +17,7 @@
   <view wx:if="{{notice}}" class="editor-notice" role="status">{{notice}}</view>
 
   <view wx:if="{{draft && draft.topicSnapshot}}" class="topic-background">
-    <button class="topic-heading" bindtap="toggleTopic"><view><small>文章背景</small><strong>{{draft.topicSnapshot.title}}</strong></view><view class="topic-chevron {{topicOpen ? 'open' : ''}}"></view></button>
+    <view class="topic-heading" bindtap="toggleTopic" role="button" aria-label="{{topicOpen ? '收起文章背景' : '展开文章背景'}}"><view class="topic-heading-copy"><small>文章背景</small><strong>{{draft.topicSnapshot.title}}</strong></view><view class="topic-chevron {{topicOpen ? 'open' : ''}}"></view></view>
     <view wx:if="{{topicOpen}}" class="topic-body">
       <view>{{draft.topicSnapshot.summary}}</view>
       <view class="topic-angle" wx:for="{{draft.topicSnapshot.angles}}" wx:key="id">· {{item.title}}</view>
@@ -42,13 +44,24 @@
       <button class="xiaowen" bindtap="openXiaoWen"><image src="/assets/leaf.svg" mode="aspectFit"></image><text>小文</text></button>
     </view>
     <view wx:if="{{draft && draft.inputMode === 'voice'}}" class="voice-stage">
-      <view class="voice-copy"><view class="quiet-wave"><view></view><view></view><view></view><view></view><view></view></view><text>{{voiceTarget === 'body' && voiceText ? voiceText : body ? '正文已保留，长按麦克风继续说。' : '不着急，慢慢说。'}}</text></view>
-      <view class="voice-control-row">
-        <view class="voice-side-slot"><button class="voice-collapse" bindtap="toggleInputMode" aria-label="切换到文字输入"><view></view></button></view>
-        <button class="mic {{voicePhase}} {{voicePressing ? 'pressing' : ''}}" style="transform: scale({{voiceScale}})" bindtouchstart="pressBodyVoice" bindtouchend="releaseVoice" bindtouchcancel="cancelVoice" aria-label="长按说话，松开后文字会放入正文；不会发送给小文"><image class="mic-drawing" src="/assets/mic-white.svg" mode="aspectFit"></image><text wx:if="{{voicePhase === 'recording'}}">{{voiceElapsed}}秒</text></button>
-        <view class="voice-side-slot"></view>
+      <view class="voice-copy">
+        <view wx:if="{{voiceTarget === 'body' && voiceBusy}}" class="live-transcript">
+          <view class="transcript-meta"><text>{{voicePhase === 'recording' ? '正在聆听 · ' + voiceElapsed + ' 秒' : voicePhase === 'finishing' ? '确认中…' : '正在连接…'}}</text></view>
+          <scroll-view class="transcript-text" scroll-y>{{voiceText || voiceMessage || '正在听…'}}</scroll-view>
+        </view>
+        <view wx:elif="{{draft.pendingVoice}}" class="pending-transcript" bindtap="openPendingVoice" role="button" aria-label="修改待确认语音文字">
+          <view class="transcript-meta"><text>已转成文字</text><text class="edit-mark">修改</text></view>
+          <scroll-view class="transcript-text" scroll-y><text wx:if="{{voiceTarget === 'body' && voiceMessage}}" class="transcript-warning">{{voiceMessage}}\n</text>{{draft.pendingVoice}}</scroll-view>
+        </view>
+        <view wx:elif="{{voiceTarget === 'body' && voiceMessage}}" class="voice-message">{{voiceMessage}}</view>
+        <view wx:else class="voice-idle"><view class="quiet-wave"><view></view><view></view><view></view><view></view><view></view></view><text>不着急，慢慢说。</text></view>
       </view>
-      <view class="voice-help">{{voiceTarget === 'body' && voiceMessage ? voiceMessage : voiceTarget === 'body' && voicePressing ? '已按住，松开结束' : '按住说话'}}</view>
+      <view class="voice-control-row">
+        <view class="voice-side-slot"><button wx:if="{{!voiceBusy && draft.pendingVoice}}" class="voice-side cancel" bindtap="discardPendingVoice">取消</button><button wx:elif="{{!voiceBusy}}" class="voice-collapse" bindtap="toggleInputMode" aria-label="切换到文字输入"><view></view></button></view>
+        <button class="mic {{voicePhase}} {{voicePressing ? 'pressing' : ''}}" style="transform: scale({{voiceScale}})" bindtouchstart="pressBodyVoice" bindtouchend="releaseVoice" bindtouchcancel="cancelVoice" aria-label="长按说话，松开后成为待确认文字；不会发送给小文"><image class="mic-drawing" src="/assets/mic-white.svg" mode="aspectFit"></image><text wx:if="{{voicePhase === 'recording'}}">{{voiceElapsed}}秒</text></button>
+        <view class="voice-side-slot"><button wx:if="{{!voiceBusy && draft.pendingVoice}}" class="voice-side done" bindtap="completePendingVoice">完成</button></view>
+      </view>
+      <view class="voice-help">{{voiceTarget === 'body' && voicePressing ? '已按住，松开结束' : voiceBusy ? '请稍候…' : draft.pendingVoice ? '还想补充？可以继续按住说' : '按住说话'}}</view>
     </view>
   </view>
 
@@ -62,6 +75,16 @@
         adjust-position="false" cursor-spacing="20" bindinput="onTitleInput" bindkeyboardheightchange="onKeyboardHeight"
         confirm-type="done" bindconfirm="confirmTitle" />
       <view class="dialog-actions"><button bindtap="cancelTitle">取消</button><button class="confirm" bindtap="confirmTitle">完成</button></view>
+    </view>
+  </view>
+
+  <view wx:if="{{pendingDialog}}" class="dialog-mask" style="bottom: {{keyboardHeight}}px" catchtouchmove="noop">
+    <view class="pending-dialog" role="dialog" aria-modal="true" aria-label="修改语音文字">
+      <view class="sheet-handle"></view>
+      <view class="dialog-heading"><view class="dialog-title">修改语音文字</view><button bindtap="cancelPendingEdit" aria-label="关闭">×</button></view>
+      <textarea class="pending-input" value="{{pendingInput}}" maxlength="12000" focus cursor-spacing="20" adjust-position="false"
+        bindinput="onPendingInput" bindkeyboardheightchange="onKeyboardHeight"></textarea>
+      <view class="dialog-actions"><button bindtap="cancelPendingEdit">取消</button><button class="confirm" bindtap="confirmPendingEdit">完成修改</button></view>
     </view>
   </view>
 

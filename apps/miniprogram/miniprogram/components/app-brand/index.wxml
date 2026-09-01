@@ -1,6 +1,8 @@
-<view class="brand-bar" style="height: {{navigationHeight}}px; padding-top: {{statusBarHeight}}px; padding-right: {{menuReserve}}px;">
-  <view class="brand-mark" aria-label="岁月有声">
-    <image class="brand-icon" src="/assets/leaf.svg" mode="aspectFit"></image>
-    <text class="brand-copy">岁月有声</text>
+<view class="brand-bar" style="height: {{navigationHeight}}px;">
+  <view class="brand-row" style="top: {{menuTop}}px; height: {{menuHeight}}px; padding-right: {{menuReserve}}px;">
+    <view class="brand-mark" aria-label="岁月有声">
+      <image class="brand-icon" src="/assets/leaf.svg" mode="aspectFit"></image>
+      <text class="brand-copy">岁月有声</text>
+    </view>
   </view>
 </view>

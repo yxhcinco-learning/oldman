@@ -1,25 +1,30 @@
 .profile-hero { margin: 28px 0 32px; }
 .tool-list { display: flex; width: 100%; flex-direction: column; gap: 12px; }
 .tool-row { display: flex; width: 100%; }
-.tool { display: grid; width: 100%; max-width: none; min-height: 88px; flex: 1; margin: 0; grid-template-columns: 52px minmax(0, 1fr) 24px; align-items: center; gap: 14px; padding: 16px; border: 1rpx solid #e4e6e1; border-radius: 18px; background: #fff; color: #153b2e; text-align: left; }
+.tool { display: grid; width: 100%; max-width: none; min-height: 88px; flex: 1; margin: 0; grid-template-columns: 52px minmax(0, 1fr) 24px; align-items: center; gap: 14px; padding: 16px; border: 1px solid #e4e6e1; border-radius: 18px; background: #fff; color: #153b2e; text-align: left; }
 .tool-icon { display: grid; width: 52px; height: 52px; place-items: center; border-radius: 50%; background: #e8eee9; }
 .tool text { display: block; font-family: "Songti SC", serif; font-size: 19px; font-weight: 600; line-height: 28px; }
 .tool small { display: block; margin-top: 2px; color: #717974; font-size: 14px; line-height: 22px; }
-.tool b { color: #416657; font-size: 48rpx; font-weight: 400; }
+.tool b { color: #416657; font-size: 24px; font-weight: 400; }
 .tool[disabled] { opacity: .55; }
 .book-image { width: 24px; height: 24px; }
-.sheet-mask { position: fixed; z-index: 40; inset: 0; display: flex; align-items: flex-end; background: rgba(28,50,41,.23); backdrop-filter: blur(10rpx); }
-.backup-sheet { width: 100%; max-height: 88vh; overflow-y: auto; padding: 16rpx 48rpx calc(48rpx + env(safe-area-inset-bottom)); border-radius: 48rpx 48rpx 0 0; background: #fbf9f8; }
-.sheet-handle { width: 72rpx; height: 8rpx; margin: 0 auto 26rpx; border-radius: 8rpx; background: #c9cbc6; }
-.sheet-brand { color: #944924; font-family: "Songti SC", serif; font-size: 26rpx; line-height: 40rpx; }
-.sheet-heading { display: flex; margin-bottom: 30rpx; align-items: center; justify-content: space-between; }
-.sheet-heading view { color: #153b2e; font-family: "Songti SC", serif; font-size: 44rpx; font-weight: 600; line-height: 68rpx; }
-.sheet-heading button { display: grid; width: 96rpx; height: 96rpx; margin: -28rpx 0 0; padding: 0; place-items: center; border: 3rpx solid #416657; border-radius: 50%; background: #efeee9; color: #416657; font-size: 52rpx; font-weight: 300; line-height: 88rpx; }
-.sheet-tools { display: grid; gap: 24rpx; }
-.sheet-tools > button { display: grid; width: 100%; min-height: 168rpx; grid-template-columns: 48rpx minmax(0,1fr) 36rpx; align-items: center; gap: 20rpx; padding: 28rpx 32rpx; border-radius: 32rpx; background: #fff; color: #153b2e; text-align: left; }
-.sheet-icon { display: grid; width: 48rpx; height: 48rpx; place-items: center; color: #416657; font-size: 38rpx; line-height: 48rpx; }
+.sheet-mask { position: fixed; z-index: 40; inset: 0; display: flex; align-items: flex-end; background: rgba(28, 50, 41, .23); backdrop-filter: blur(8px); }
+.backup-sheet { width: 100%; max-height: 88vh; overflow-y: auto; padding: 12px 24px max(28px, env(safe-area-inset-bottom)); border-radius: 24px 24px 0 0; background: #fbf9f8; }
+.sheet-handle { width: 36px; height: 4px; margin: 0 auto 24px; border-radius: 5px; background: #c9cbc6; }
+.sheet-brand { color: #944924; font-family: "Songti SC", serif; font-size: 13px; line-height: 20px; }
+.sheet-heading { display: flex; margin-bottom: 28px; align-items: center; justify-content: space-between; gap: 12px; }
+.sheet-heading view { min-width: 0; color: #153b2e; font-family: "Songti SC", serif; font-size: 22px; font-weight: 600; line-height: 32px; }
+.sheet-heading button { display: grid; width: 48px; min-width: 48px; height: 48px; margin: 0; padding: 0; place-items: center; border: 0; border-radius: 50%; background: #efeee9; color: #416657; font-size: 28px; font-weight: 300; line-height: 1; }
+.sheet-tools { display: grid; gap: 12px; }
+.sheet-tools > button { display: grid; width: 100%; min-width: 0; min-height: 84px; margin: 0; grid-template-columns: 24px minmax(0, 1fr) 18px; align-items: center; gap: 10px; padding: 14px 16px; border-radius: 16px; background: #fff; color: #153b2e; text-align: left; }
+.sheet-icon { display: grid; width: 24px; height: 24px; place-items: center; color: #416657; font-size: 19px; line-height: 24px; }
 .sheet-book { width: 24px; height: 24px; opacity: .78; }
-.sheet-tools text { display: block; font-family: "Songti SC", serif; font-size: 36rpx; line-height: 52rpx; }
-.sheet-tools small { display: block; color: #717974; font-size: 28rpx; line-height: 42rpx; }
-.sheet-tools b { color: #416657; font-size: 44rpx; font-weight: 400; }
-.sheet-note { display: grid; gap: 16rpx; margin-top: 32rpx; color: #717974; font-size: 26rpx; line-height: 44rpx; }
+.sheet-tools text { display: block; font-family: "Songti SC", serif; font-size: 18px; line-height: 26px; }
+.sheet-tools small { display: block; color: #717974; font-size: 14px; line-height: 21px; }
+.sheet-tools b { color: #416657; font-size: 22px; font-weight: 400; }
+.sheet-note { display: grid; gap: 8px; margin-top: 16px; color: #717974; font-size: 13px; line-height: 22px; }
+
+@media (max-width: 370px) {
+  .backup-sheet { padding-right: 20px; padding-left: 20px; }
+  .sheet-tools > button { padding-right: 14px; padding-left: 14px; }
+}

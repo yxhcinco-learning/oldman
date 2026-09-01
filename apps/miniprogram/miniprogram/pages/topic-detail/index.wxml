@@ -1,13 +1,16 @@
 <view class="page-shell without-nav detail-page">
-  <view class="detail-topbar" style="height: {{navigationHeight}}px; padding-top: {{statusBarHeight}}px;">
-    <view class="detail-back" bindtap="goBack" role="button" aria-label="返回">‹</view>
-    <view class="detail-brand" style="top: {{statusBarHeight}}px; height: {{navigationBarHeight}}px;">岁月有声</view>
+  <view class="detail-topbar" style="height: {{navigationHeight}}px;">
+    <view class="detail-nav-row" style="top: {{navigationRowTop}}px; height: 48px; padding-right: {{menuReserve}}px;">
+      <view class="detail-back" bindtap="goBack" role="button" aria-label="返回"><view class="back-chevron"></view></view>
+      <view class="detail-brand">岁月有声</view>
+      <view class="detail-spacer"></view>
+    </view>
   </view>
   <view wx:if="{{loading}}" class="topic-state">正在读取话题…</view>
   <view wx:elif="{{error && !topic}}" class="error-panel" role="alert">{{error}}</view>
   <view wx:elif="{{topic}}">
     <view class="page-title detail-title">{{topic.title}}</view>
-    <view class="topic-meta"><text>{{topic.kind === 'current' ? '近期' : topic.kind === 'periodic' ? '时令' : '持续关注'}}</text><text>更新于 {{topic.updatedAt}}</text></view>
+    <view class="topic-meta"><text>{{topic.kind === 'current' ? '近期' : topic.kind === 'periodic' ? '时令' : '持续关注'}}</text><text>更新于 {{updatedLabel}}</text></view>
     <view wx:if="{{corrected}}" class="correction"><view>内容更正</view><text>{{topic.correctionNote}}</text></view>
     <view wx:if="{{stale}}" class="error-panel">这个话题已过有效期，只保留阅读，不再从这里创建文章。</view>
     <view wx:if="{{error}}" class="error-panel">{{error}}</view>

@@ -1,4 +1,4 @@
-import { emptyDraft, isTopicCurrent, snapshotTopic, type WritingTopic } from '../../domain/core';
+import { emptyDraft, formatTime, isTopicCurrent, snapshotTopic, type WritingTopic } from '../../domain/core';
 import { miniTopics } from '../../network/topics';
 import { miniServices } from '../../services';
 import { navigationMetrics } from '../../ui/navigation';
@@ -11,6 +11,7 @@ Page({
     loading: true,
     error: '',
     topic: null as WritingTopic | null,
+    updatedLabel: '',
     corrected: false,
     stale: false,
     sources: [] as Array<{ id: string; title: string; publisher: string; route: string }>,
@@ -31,7 +32,7 @@ Page({
     try {
       const topic = await miniTopics.detail(id);
       currentTopic = topic;
-      this.setData({ loading: false, topic, corrected: topic.status === 'corrected', stale: !isTopicCurrent(topic),
+      this.setData({ loading: false, topic, updatedLabel: formatTime(topic.updatedAt), corrected: topic.status === 'corrected', stale: !isTopicCurrent(topic),
         sources: topic.sources.map(source => ({ id: source.id, title: source.title, publisher: source.publisher,
           route: `/pages/source/index?url=${encodeURIComponent(source.url)}&title=${encodeURIComponent(source.title)}` })) });
     } catch (error) {

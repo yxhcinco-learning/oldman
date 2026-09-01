@@ -1,5 +1,6 @@
 :host { position: sticky; z-index: 30; top: 0; display: block; width: 100%; box-sizing: border-box; background: #fbf9f8; }
-.brand-bar { display: flex; width: 100%; box-sizing: border-box; align-items: center; }
+.brand-bar { position: relative; width: 100%; box-sizing: border-box; }
+.brand-row { position: absolute; right: 0; left: 0; display: flex; width: 100%; box-sizing: border-box; align-items: center; }
 .brand-mark { display: inline-flex; min-width: 0; align-items: center; gap: 8px; color: #153b2e; }
 .brand-icon { width: 23px; height: 23px; flex: 0 0 23px; }
 .brand-copy { font-size: 16px; font-weight: 600; letter-spacing: .08em; line-height: 24px; white-space: nowrap; }

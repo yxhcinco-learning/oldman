@@ -1,17 +1,22 @@
 import { miniServices } from '../../services';
-import { selectTab } from '../../ui/tab-bar';
+import { selectTab, setTabBarHidden } from '../../ui/tab-bar';
 
 Page({
   data: { menuOpen: false, busy: '', notice: '', error: '' },
 
   onShow() {
     selectTab(this, 2);
+    if (this.data.menuOpen) setTabBarHidden(this, true);
   },
 
-  openMenu() { this.setData({ menuOpen: true, notice: '', error: '' }); },
-  closeMenu() { this.setData({ menuOpen: false }); },
-  manageWorks() { void wx.reLaunch({ url: '/pages/works/index?manage=1' }); },
-  openRecycle() { void wx.reLaunch({ url: '/pages/works/index?recycle=1' }); },
+  openMenu() { setTabBarHidden(this, true); this.setData({ menuOpen: true, notice: '', error: '' }); },
+  closeMenu() { this.setData({ menuOpen: false }); setTabBarHidden(this, false); },
+  manageWorks() { setTabBarHidden(this, false); void wx.reLaunch({ url: '/pages/works/index?manage=1' }); },
+  openRecycle() { setTabBarHidden(this, false); void wx.reLaunch({ url: '/pages/works/index?recycle=1' }); },
+
+  onHide() {
+    setTabBarHidden(this, false);
+  },
 
   async exportBackup() {
     this.setData({ busy: '正在准备备份…', error: '', notice: '' });

@@ -6,9 +6,9 @@
 .section-heading { display: flex; margin-bottom: 16px; align-items: center; justify-content: space-between; }
 .section-heading view { color: #153b2e; font-family: "Songti SC", serif; font-size: 20px; font-weight: 600; line-height: 28px; }
 .section-heading text { color: #717974; font-size: 14px; line-height: 20px; }
-.empty-state { margin-top: 40rpx; padding: 44rpx 32rpx; border-radius: 28rpx; background: #fff; color: #717974; font-size: 28rpx; line-height: 1.62; text-align: center; }
-.empty-title { margin: 20rpx 0 10rpx; color: #153b2e; font-family: "Songti SC", serif; font-size: 36rpx; font-weight: 600; }
-.empty-branch { width: 96rpx; height: 48rpx; margin: 0 auto; border-top: 4rpx solid #416657; border-radius: 50%; transform: rotate(-12deg); opacity: .6; }
+.empty-state { margin-top: 20px; padding: 22px 16px; border-radius: 14px; background: #fff; color: #717974; font-size: 14px; line-height: 23px; text-align: center; }
+.empty-title { margin: 10px 0 5px; color: #153b2e; font-family: "Songti SC", serif; font-size: 18px; font-weight: 600; line-height: 28px; }
+.empty-branch { width: 48px; height: 24px; margin: 0 auto; border-top: 2px solid #416657; border-radius: 50%; transform: rotate(-12deg); opacity: .6; }
 .work-list { display: grid; gap: 16px; }
 .work-card { display: flex; min-height: 148px; gap: 20px; padding: 24px; border-radius: 16px; background: #fff; box-shadow: 0 4px 20px rgba(21, 59, 46, .04); }
 .cover { position: relative; width: 80px; min-height: 100px; flex: 0 0 80px; overflow: hidden; border-radius: 16px; background: #ece9de; color: #153b2e; font-family: "Songti SC", serif; font-size: 19px; }
@@ -20,9 +20,9 @@
 .work-bottom { display: flex; margin-top: 14px; align-items: center; justify-content: space-between; gap: 8px; }
 .saved { padding: 2px 9px; border-radius: 20px; background: #e8eee9; color: #416657; font-size: 14px; line-height: 20px; }
 .continue { display: flex; align-items: center; gap: 4px; color: #416657; font-size: 14px; line-height: 20px; white-space: nowrap; }
-.arrow { width: 16rpx; height: 16rpx; border-top: 2rpx solid currentColor; border-right: 2rpx solid currentColor; transform: rotate(45deg); }
-.remove { min-height: 72rpx; margin: 0; padding: 4rpx 16rpx; background: transparent; color: #944924; font-size: 26rpx; line-height: 64rpx; }
-.work-actions { display: flex; gap: 12rpx; margin-top: 20rpx; }
+.arrow { width: 8px; height: 8px; border-top: 1px solid currentColor; border-right: 1px solid currentColor; transform: rotate(45deg); }
+.remove { display: flex; min-height: 48px; margin: 0; padding: 8px; align-items: center; justify-content: center; background: transparent; color: #944924; font-size: 14px; line-height: 22px; }
+.work-actions { display: flex; gap: 8px; margin-top: 12px; }
 .work-actions button { max-width: none; min-width: 0; min-height: 44px; flex: 1; margin: 0; padding: 6px 12px; border-radius: 22px; background: #e8eee9; color: #153b2e; font-size: 14px; line-height: 32px; }
 .work-actions .danger { background: #f5e8df; color: #793b20; }
 .create-dock { position: fixed; z-index: 21; right: 0; bottom: calc(72px + env(safe-area-inset-bottom)); left: 0; display: flex; min-width: 0; box-sizing: border-box; overflow: hidden; padding: 8px 20px; background: linear-gradient(180deg, rgba(251,249,248,0), #fbf9f8 18%); }

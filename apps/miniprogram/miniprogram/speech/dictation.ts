@@ -1,3 +1,5 @@
+import { articleText, effectiveSegments, type Draft } from '../domain/core';
+
 export interface DictationAppendResult {
   value: string;
   accepted: string;
@@ -12,4 +14,15 @@ export function appendDictation(existing: string, dictated: string, maxLength: n
   const room = Math.max(0, maxLength - existing.length - joiner.length);
   const accepted = text.slice(0, room);
   return { value: accepted ? existing + joiner + accepted : existing, accepted, truncated: accepted.length < text.length };
+}
+
+export interface PendingBodyDictationResult extends DictationAppendResult {
+  draft: Draft;
+}
+
+/** Body dictation is staged for explicit review; it must never mutate article segments directly. */
+export function stageBodyDictation(draft: Draft, dictated: string, maxLength = 12_000): PendingBodyDictationResult {
+  const bodyLength = articleText(effectiveSegments(draft)).length;
+  const result = appendDictation(draft.pendingVoice, dictated, Math.max(0, maxLength - bodyLength), draft.pendingVoice.trim() ? ' ' : '');
+  return { ...result, draft: result.accepted ? { ...draft, pendingVoice: result.value } : draft };
 }

@@ -7,6 +7,7 @@ interface TabItem {
 Component({
   data: {
     selected: 0,
+    hidden: false,
     list: [
       { pagePath: '/pages/home/index', text: '热门', iconPath: '/assets/spark.svg' },
       { pagePath: '/pages/works/index', text: '文章', iconPath: '/assets/pen.svg' },

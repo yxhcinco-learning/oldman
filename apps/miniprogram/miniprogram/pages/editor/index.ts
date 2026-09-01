@@ -1,10 +1,10 @@
-import { ACTION_LABELS, AI_ASSISTANCE_LABEL, VERSION_LABELS, articleText, documentOf, emptyDraft, hasContent, isAppliedAiVersion,
+import { ACTION_LABELS, AI_ASSISTANCE_LABEL, VERSION_LABELS, articleText, completeVoice, documentOf, emptyDraft, hasContent, isAppliedAiVersion,
   isWorkAiAssisted, recoverSession, resultSummary, sameDocument,
   splitDraft, type AiAction, type AiTurn, type ArticleSession, type Draft } from '../../domain/core';
 import type { MiniAiContext } from '../../ai/controller';
 import { miniServices } from '../../services';
 import { HoldToDictate, type MiniSpeechState } from '../../speech/session';
-import { appendDictation } from '../../speech/dictation';
+import { appendDictation, stageBodyDictation } from '../../speech/dictation';
 import { navigationMetrics } from '../../ui/navigation';
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
@@ -28,6 +28,8 @@ Page({
     revision: 0,
     titleDialog: false,
     titleInput: '',
+    pendingDialog: false,
+    pendingInput: '',
     saving: false,
     saved: false,
     error: '',
@@ -177,12 +179,10 @@ Page({
   acceptBodyDictation(text: string) {
     const current = this.currentDraft();
     if (!current || !text.trim()) return;
-    const result = appendDictation(this.data.body, text, 12_000, '\n\n');
-    if (!result.accepted) { this.setData({ error: '正文已到12000字上限，语音文字没有写入。' }); return; }
-    const body = result.value;
-    const draft: Draft = current.inputMode === 'voice' ? { ...current, segments: splitDraft(body, current.segments) } : { ...current, textDraft: body };
-    this.updateDraft(draft);
-    this.setData({ notice: result.truncated ? '正文已到12000字上限，只放入了可容纳的语音文字。' : '语音文字已放入正文，请核对；内容会自动保存。' });
+    const result = stageBodyDictation(current, text);
+    if (!result.accepted) { this.setData({ error: '正文和待确认文字已到12000字上限，这次语音文字没有写入。' }); return; }
+    this.updateDraft(result.draft);
+    this.setData({ notice: '', error: result.truncated ? '正文和待确认文字已到12000字上限，只保留了可容纳的部分。' : '' });
   },
 
   acceptXiaoWenDictation(text: string) {
@@ -215,6 +215,44 @@ Page({
     this.dismissKeyboard();
     this.setData({ titleDialog: false, titleInput: '' });
     this.updateDraft({ ...current, title });
+  },
+
+  discardPendingVoice() {
+    const current = this.currentDraft();
+    if (!current) return;
+    this.setData({ pendingDialog: false, pendingInput: '' });
+    this.updateDraft({ ...current, pendingVoice: '', segmentEdit: null });
+  },
+
+  completePendingVoice() {
+    const current = this.currentDraft();
+    if (!current?.pendingVoice.trim()) return;
+    this.setData({ pendingDialog: false, pendingInput: '' });
+    this.updateDraft(completeVoice(current));
+  },
+
+  openPendingVoice() {
+    const pendingVoice = this.data.draft?.pendingVoice ?? '';
+    if (!pendingVoice) return;
+    this.setData({ pendingDialog: true, pendingInput: pendingVoice });
+  },
+
+  onPendingInput(event: WechatMiniprogram.TextareaInput) {
+    this.setData({ pendingInput: event.detail.value });
+  },
+
+  cancelPendingEdit() {
+    this.dismissKeyboard();
+    this.setData({ pendingDialog: false, pendingInput: '' });
+  },
+
+  confirmPendingEdit() {
+    const current = this.currentDraft();
+    if (!current) return;
+    const pendingVoice = this.data.pendingInput.slice(0, 12_000);
+    this.dismissKeyboard();
+    this.setData({ pendingDialog: false, pendingInput: '' });
+    this.updateDraft({ ...current, pendingVoice });
   },
 
   async saveNow() {

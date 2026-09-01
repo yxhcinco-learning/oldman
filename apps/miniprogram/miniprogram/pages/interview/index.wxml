@@ -1,10 +1,13 @@
 <view class="interview-page" style="padding-bottom: {{keyboardHeight}}px">
-  <view class="interview-header" style="height: {{navigationHeight}}px; padding-top: {{statusBarHeight}}px; padding-right: {{menuReserve}}px;">
-    <view class="interview-back" bindtap="closeInterview" role="button" aria-label="返回">‹</view>
-    <view class="interview-title"><text>小文采访</text><small>{{draft && draft.topicSnapshot ? draft.topicSnapshot.title : ''}}</small></view>
-    <view class="interview-close" bindtap="closeInterview" role="button">收起</view>
+  <view class="interview-header" style="height: {{navigationHeight}}px;">
+    <view class="interview-nav-row" style="top: {{navigationRowTop}}px; height: 48px; padding-right: {{menuReserve}}px;">
+      <view class="interview-back" bindtap="closeInterview" role="button" aria-label="返回"><view class="back-chevron"></view></view>
+      <view class="interview-title">小文采访</view>
+      <view class="interview-close" bindtap="closeInterview" role="button">收起</view>
+    </view>
   </view>
   <scroll-view class="messages" scroll-y scroll-into-view="current-question">
+    <view wx:if="{{draft && draft.topicSnapshot}}" class="interview-topic">聊聊：{{draft.topicSnapshot.title}}</view>
     <view class="message {{item.role}}" wx:for="{{messages}}" wx:key="id">
       <view wx:if="{{item.role === 'assistant'}}" class="avatar">文</view><view class="bubble">{{item.text}}</view>
     </view>
