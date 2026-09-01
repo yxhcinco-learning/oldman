@@ -128,10 +128,18 @@ describe('微信小程序公共工程配置', () => {
     expect(interview).toContain('<view class="interview-title">小文访谈</view>');
     expect(interview).not.toContain('class="interview-close"');
     expect(interview).toContain('<image src="/assets/leaf.svg"');
+    expect(interview).toMatch(/class="bubble interview-current-question"[^>]*>[\s\S]*class="change-question"/);
+    expect(interview).toMatch(/class="compose-link-row"[^>]*>[\s\S]*class="compose-link"/);
+    expect(interview).toMatch(/wx:if="{{hasAnswers}}" class="change-question"[^>]*role="button"/);
+    expect(interview).toMatch(/wx:if="{{hasAnswers}}" class="compose-link-row"[^>]*>[\s\S]*class="compose-link"[^>]*role="button"/);
     expect(interview).toMatch(/placeholder="回复小文"[^>]*disable-default-padding="{{true}}"[^>]*bindfocus="onComposerFocus"[^>]*bindblur="onComposerBlur"/s);
     expect(interviewController).toMatch(/onComposerBlur\(\)\s*\{[\s\S]*this\.setData\(\{ keyboardHeight: 0 \}\)/);
+    expect(interviewController).toContain('hasAnswers: answers.length > 0');
+    expect(interviewController).toContain('hasAnswers: true');
     expect(interviewStyles).toMatch(/\.interview-page\s*\{[^}]*position:\s*fixed[^}]*bottom:\s*0/);
     expect(interviewStyles).toMatch(/\.interview-topic\s*\{[^}]*margin:\s*0 0 12px/);
+    expect(interviewStyles).toMatch(/\.change-question\s*\{[^}]*justify-content:\s*flex-start[^}]*text-align:\s*left/);
+    expect(interviewStyles).toMatch(/\.compose-link-row\s*\{[^}]*justify-content:\s*flex-end/);
     expect(interviewStyles).toMatch(/\.interview-footer\s*\{[^}]*padding:\s*10px 24px max\(12px, env\(safe-area-inset-bottom\)\)/);
     expect(editorStyles).toMatch(/\.title-dialog, \.pending-dialog\s*\{[^}]*max-height:\s*calc\(100% - 48px\)[^}]*overflow-y:\s*auto/);
     expect(editorStyles).toMatch(/\.dialog-actions\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);

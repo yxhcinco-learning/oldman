@@ -20,6 +20,7 @@ Page({
     messages: [] as InterviewMessage[],
     question: '',
     questionAlternative: 0,
+    hasAnswers: false,
     composer: '',
     saving: false,
     error: '',
@@ -54,7 +55,7 @@ Page({
       miniServices().writer.seed(id, revision);
       const answers = draft.materials.filter(item => item.source === 'interview-answer');
       const memory = miniServices().conversations.read(draft.id);
-      this.setData({ draft, session, revision, messages: interviewMessages(answers), questionAlternative: 0,
+      this.setData({ draft, session, revision, messages: interviewMessages(answers), questionAlternative: 0, hasAnswers: answers.length > 0,
         question: interviewQuestion(draft.topicSnapshot, answers.length), composer: memory.composer,
         error: memory.error || snapshot.issues.map(item => item.message).join(' ') });
     } catch (error) {
@@ -113,7 +114,7 @@ Page({
       miniServices().conversations.clearComposer(draft.id);
       const answers = next.materials.filter(item => item.source === 'interview-answer');
       this.setData({ draft: next, session, revision: work?.revision ?? this.data.revision, composer: '', saving: false, questionAlternative: 0,
-        question: interviewQuestion(next.topicSnapshot!, answers.length), messages: [...this.data.messages,
+        hasAnswers: true, question: interviewQuestion(next.topicSnapshot!, answers.length), messages: [...this.data.messages,
           { id: `${material.id}-question`, role: 'assistant', text: material.question! }, { id: material.id, role: 'user', text: answer }] });
     } catch (error) {
       this.setData({ saving: false, error: error instanceof Error ? error.message : '回答尚未保存，请重试。' });

@@ -12,11 +12,11 @@
     </view>
     <view id="current-question" class="message assistant current">
       <view class="avatar"><image src="/assets/leaf.svg" mode="aspectFit"></image></view>
-      <view class="assistant-stack"><view class="bubble">{{question}}</view><button wx:if="{{draft && draft.materials.length}}" class="change-question" bindtap="changeQuestion" hover-class="none">换个问题</button></view>
+      <view class="bubble interview-current-question"><view>{{question}}</view><view wx:if="{{hasAnswers}}" class="change-question" bindtap="changeQuestion" role="button" aria-label="换个问题">换个问题</view></view>
     </view>
   </scroll-view>
   <view class="interview-footer">
-    <button wx:if="{{draft && draft.materials.length}}" class="compose-link" bindtap="composeArticle" hover-class="none">整理成文章</button>
+    <view wx:if="{{hasAnswers}}" class="compose-link-row"><view class="compose-link" bindtap="composeArticle" role="button" aria-label="整理成文章">整理成文章</view></view>
     <view wx:if="{{error}}" class="interview-error" role="alert">{{error}}</view>
     <view wx:if="{{voicePressing || voicePhase !== 'idle'}}" class="interview-error">{{voiceText || voiceMessage || (voicePressing ? '已按住，松开结束' : '正在准备语音…')}}</view>
     <view class="composer-row">
