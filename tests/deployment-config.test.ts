@@ -78,6 +78,7 @@ it('prepares, backs up and verifies the release-external identity database witho
   expect(verify).toContain('systemctl restart suiyue-gateway.service');
   expect(verify).toContain('identity database was replaced during restart');
   expect(verify).toContain('reviewed topic detail is not reachable without Basic Auth');
+  expect(verify).toContain(`-H 'Content-Type: application/json' -H "Authorization: Bearer $invalid_token" --data '{}' "$origin/api/mini/speech-ticket"`);
   expect(verify).toContain('service logs contain a forbidden sensitive marker');
   expect(verify).not.toMatch(/printenv|source \/etc\/suiyue-yousheng\/runtime\.env|cat \/etc\/suiyue-yousheng\/runtime\.env/);
 });

@@ -40,7 +40,7 @@ status="$(/usr/bin/curl -sS --max-time 10 -o "$body" -w '%{http_code}' -H 'Conte
 invalid_token="$(printf 'x%.0s' {1..43})"
 status="$(/usr/bin/curl -sS --max-time 10 -o "$body" -w '%{http_code}' -H 'Content-Type: application/json' -H "Authorization: Bearer $invalid_token" --data '{}' "$origin/api/mini/ai/turn")"
 [[ "$status" == 401 ]] || { echo "mini AI session rejection path failed" >&2; exit 2; }
-status="$(/usr/bin/curl -sS --max-time 10 -o "$body" -w '%{http_code}' -H "Authorization: Bearer $invalid_token" --data '{}' "$origin/api/mini/speech-ticket")"
+status="$(/usr/bin/curl -sS --max-time 10 -o "$body" -w '%{http_code}' -H 'Content-Type: application/json' -H "Authorization: Bearer $invalid_token" --data '{}' "$origin/api/mini/speech-ticket")"
 [[ "$status" == 401 ]] || { echo "mini speech-ticket rejection path failed" >&2; exit 2; }
 status="$(/usr/bin/curl -sS --max-time 10 -o "$body" -w '%{http_code}' -H 'Connection: Upgrade' -H 'Upgrade: websocket' "$origin/api/mini/speech?ticket=$invalid_token")"
 [[ "$status" == 401 ]] || { echo "mini speech WebSocket rejection path failed" >&2; exit 2; }
