@@ -39,8 +39,10 @@ describe('微信小程序公共工程配置', () => {
   it('在开发者工具二次构建后校验实际共享包导出', () => {
     const packageJson = readJson('../package.json');
     const prepareScript = readText('../scripts/prepare-devtool-npm.mjs');
+    const buildScript = readText('../scripts/build-devtool-npm.mjs');
     expect(packageJson.scripts).toMatchObject({ 'devtool:build-npm': 'node scripts/build-devtool-npm.mjs' });
-    expect(prepareScript).toContain('await rm(generatedCoreTarget');
+    expect(prepareScript).not.toContain('generatedCoreTarget');
+    expect(buildScript).toContain('await rm(generatedCoreTarget');
     expect(() => assertDevtoolCoreRuntime({ workFromDraft() {}, isWorkAiAssisted() {}, AI_ASSISTANCE_LABEL: 'AI' })).not.toThrow();
     expect(() => assertDevtoolCoreRuntime({ workFromDraft() {} })).toThrow(/isWorkAiAssisted/);
   });

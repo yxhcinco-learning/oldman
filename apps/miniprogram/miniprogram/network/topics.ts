@@ -4,6 +4,18 @@ import { MINI_API_ORIGIN } from './config';
 const topicListSchema = z.object({ updatedAt: z.iso.datetime(), topics: z.array(writingTopicSchema).max(20) }).strict();
 const zodParseContext = { jitless: true } as const;
 
+function parseTopicList(value: unknown) {
+  const result = topicListSchema.safeParse(value, zodParseContext);
+  if (!result.success) throw new Error('话题数据暂时无法读取，请稍后重试。');
+  return result.data;
+}
+
+function parseTopic(value: unknown) {
+  const result = writingTopicSchema.safeParse(value, zodParseContext);
+  if (!result.success) throw new Error('话题数据暂时无法读取，请稍后重试。');
+  return result.data;
+}
+
 export interface MiniHttpResponse { statusCode: number; data: unknown }
 export interface MiniHttpTransport { get(url: string, timeoutMs: number): Promise<MiniHttpResponse> }
 
@@ -31,13 +43,13 @@ export class MiniTopicClient {
     const query: string[] = [];
     if (options.kind) query.push(`kind=${encodeURIComponent(options.kind)}`);
     query.push(`limit=${Math.max(1, Math.min(20, options.limit ?? 5))}`);
-    const parsed = topicListSchema.parse(readResponse(await this.transport.get(`${this.origin}/api/topics?${query.join('&')}`, 8000)), zodParseContext);
+    const parsed = parseTopicList(readResponse(await this.transport.get(`${this.origin}/api/topics?${query.join('&')}`, 8000)));
     return selectHomeTopics(parsed.topics.filter(isReviewed), options.limit ?? 5);
   }
 
   async detail(id: string): Promise<WritingTopic> {
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) throw new Error('话题地址无效。');
-    const topic = writingTopicSchema.parse(readResponse(await this.transport.get(`${this.origin}/api/topics/${encodeURIComponent(id)}`, 8000)), zodParseContext);
+    const topic = parseTopic(readResponse(await this.transport.get(`${this.origin}/api/topics/${encodeURIComponent(id)}`, 8000)));
     if (!isReviewed(topic)) throw new Error('这个话题尚未通过审核，暂时不能展示。');
     return topic;
   }

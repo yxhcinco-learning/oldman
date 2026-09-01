@@ -54,6 +54,20 @@ describe('小程序审核话题适配', () => {
     await expect(new MiniTopicClient(new FakeTransport(new Error('当前无法连接在线服务，请检查网络后重试。'))).list())
       .rejects.toThrow('当前无法连接在线服务');
     await expect(new MiniTopicClient(new FakeTransport({ statusCode: 200, data: { topics: [{ mock: true }] } })).list())
-      .rejects.toThrow();
+      .rejects.toThrow('话题数据暂时无法读取');
+  });
+
+  it('在没有浏览器 URL 全局对象的微信运行时仍接受完整 HTTPS 来源', async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'URL');
+    Object.defineProperty(globalThis, 'URL', { configurable: true, value: undefined });
+    try {
+      await expect(new MiniTopicClient(new FakeTransport({
+        statusCode: 200,
+        data: { updatedAt: '2026-09-01T08:00:00.000Z', topics: [topic()] },
+      })).list()).resolves.toMatchObject([{ sources: [{ url: 'https://example.com/source' }] }]);
+    } finally {
+      if (descriptor) Object.defineProperty(globalThis, 'URL', descriptor);
+      else Reflect.deleteProperty(globalThis, 'URL');
+    }
   });
 });

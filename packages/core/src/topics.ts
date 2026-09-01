@@ -3,7 +3,13 @@ import { z } from 'zod';
 const zodParseContext = { jitless: true } as const;
 
 const id = z.string().min(1).max(128);
-const httpUrl = z.string().url().max(2048).refine(value => /^https?:\/\//i.test(value), '来源必须使用 HTTP(S)');
+// 微信小程序 JavaScript 运行时并不稳定提供浏览器标准 URL 构造器；
+// Zod 的 `.url()` 会因此把服务端返回的合法地址全部判为无效。
+// 这里使用不依赖宿主全局对象的完整 HTTP(S) 地址校验，服务端仍会再按 URL hostname 白名单审核来源。
+const httpUrl = z.string().trim().max(2048).refine(
+  value => /^https?:\/\/[^\s/?#]+(?:[/?#][^\s]*)?$/i.test(value),
+  '来源必须使用有效 HTTP(S) 地址',
+);
 
 export const topicSourceSchema = z.object({
   id, title: z.string().trim().min(1).max(180), publisher: z.string().trim().min(1).max(80),

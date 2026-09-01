@@ -1,13 +1,21 @@
-import { access, readFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { access, readFile, rm } from 'node:fs/promises';
+import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { runInNewContext } from 'node:vm';
 import { assertDevtoolCoreRuntime } from './devtool-runtime-check.mjs';
 
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const generatedNpmRoot = resolve(appRoot, 'miniprogram', 'miniprogram_npm');
+const generatedCoreTarget = resolve(generatedNpmRoot, '@suiyue', 'core');
 
-// 先重新生成共享包并清除可能被开发者工具缓存的旧运行包。
+const generatedChild = relative(generatedNpmRoot, generatedCoreTarget);
+if (!generatedChild || generatedChild.startsWith('..') || isAbsolute(generatedChild)) {
+  throw new Error('拒绝清理小程序运行依赖目录之外的路径');
+}
+
+// 只有显式二次构建才清除可能被开发者工具缓存的旧运行包；普通根构建不得让已打开的小程序白屏。
+await rm(generatedCoreTarget, { recursive: true, force: true });
 await import('./prepare-devtool-npm.mjs');
 
 const candidates = [
