@@ -51,6 +51,7 @@ describe('微信小程序公共工程配置', () => {
     const navigationConfig = readJson('../miniprogram/custom-tab-bar/index.json');
     const navigation = readText('../miniprogram/custom-tab-bar/index.wxml');
     const navigationStyles = readText('../miniprogram/custom-tab-bar/index.wxss');
+    const brandStyles = readText('../miniprogram/components/app-brand/index.wxss');
     const navigationController = readText('../miniprogram/custom-tab-bar/index.ts');
     const tabSelection = readText('../miniprogram/ui/tab-bar.ts');
     const homeConfig = readText('../miniprogram/pages/home/index.json');
@@ -62,6 +63,7 @@ describe('微信小程序公共工程配置', () => {
     const editorStyles = readText('../miniprogram/pages/editor/index.wxss');
     const editorController = readText('../miniprogram/pages/editor/index.ts');
     const works = readText('../miniprogram/pages/works/index.wxml');
+    const worksStyles = readText('../miniprogram/pages/works/index.wxss');
     const worksController = readText('../miniprogram/pages/works/index.ts');
 
     expect(navigationConfig.component).toBe(true);
@@ -70,10 +72,13 @@ describe('微信小程序公共工程配置', () => {
     expect(works).toContain('bindtap="startWriting"');
     expect(navigationStyles).toContain('repeat(3, minmax(0, 1fr))');
     expect(navigationStyles).toMatch(/\.tab-bar\s*\{[^}]*position:\s*fixed/);
+    expect(navigationStyles).toMatch(/\.tab-bar\s*\{[^}]*right:\s*0[^}]*left:\s*0[^}]*box-sizing:\s*border-box/);
+    expect(navigationStyles).toMatch(/\.tabs\s*\{[^}]*width:\s*100%[^}]*box-sizing:\s*border-box/);
     expect(navigationStyles).toMatch(/\.tab-bar\s*\{[^}]*height:\s*calc\(72px/);
     expect(navigationStyles).toMatch(/:host\s*\{[^}]*height:\s*0/);
     expect(navigationStyles).toMatch(/\.tab\s*\{[^}]*min-height:\s*60px/);
     expect(navigationStyles).toContain('.tab.active .icon-wrap');
+    expect(brandStyles).toMatch(/:host\s*\{[^}]*position:\s*sticky[^}]*top:\s*0/);
     expect(navigationController).toContain('wx.showToast');
     expect(navigationController).toContain('wx.switchTab');
     expect(tabSelection).toContain('getTabBar');
@@ -83,7 +88,11 @@ describe('微信小程序公共工程配置', () => {
     expect(topicDetail).toContain('class="detail-brand"');
     expect(topicDetail).not.toContain('padding-right: {{menuReserve}}px');
     expect(topicDetailStyles).toMatch(/\.detail-topbar\s*\{[^}]*margin-right:\s*-24px/);
+    expect(topicDetailStyles).toMatch(/\.detail-topbar\s*\{[^}]*position:\s*sticky[^}]*top:\s*0/);
     expect(topicDetailStyles).toMatch(/\.detail-brand\s*\{[^}]*position:\s*absolute[^}]*right:\s*64px[^}]*left:\s*64px/);
+    expect(topicDetailStyles).toMatch(/\.start-actions\s*\{[^}]*overflow:\s*hidden/);
+    expect(topicDetailStyles).toMatch(/\.start-actions\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+    expect(topicDetailStyles).toMatch(/\.start-actions button\s*\{[^}]*width:\s*100%[^}]*min-width:\s*0[^}]*box-sizing:\s*border-box/);
     expect(worksController).toContain('selectTab(this, 1)');
     expect(editor).toContain('bindkeyboardheightchange="onKeyboardHeight"');
     expect(editor).not.toContain('<view class="save"');
@@ -100,6 +109,8 @@ describe('微信小程序公共工程配置', () => {
     expect(editorController).toContain('if (!saved) return');
     expect(editorController).toContain('savingVersion === draftVersion');
     expect(worksController).toContain('await miniServices().writer.flush()');
+    expect(worksStyles).toMatch(/\.create-dock\s*\{[^}]*right:\s*0[^}]*left:\s*0[^}]*box-sizing:\s*border-box[^}]*overflow:\s*hidden/);
+    expect(worksStyles).toMatch(/\.create-button\s*\{[^}]*width:\s*100%[^}]*max-width:\s*100%[^}]*min-width:\s*0/);
   });
 
   it('明确说明作品的设备和 AppID 隔离边界', () => {
