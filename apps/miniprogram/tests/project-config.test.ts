@@ -78,13 +78,19 @@ describe('微信小程序公共工程配置', () => {
     expect(homeController).toContain('selectTab(this, 0)');
     expect(worksController).toContain('selectTab(this, 1)');
     expect(editor).toContain('bindkeyboardheightchange="onKeyboardHeight"');
+    expect(editor).not.toContain('<view class="save"');
+    expect(editor).toContain('<view class="topbar-spacer"></view>');
+    expect(editor).toContain('正在自动保存');
     expect(editorStyles).toContain('env(safe-area-inset-bottom)');
+    expect(editorStyles).toContain('grid-template-columns: 48px minmax(0, 1fr) 48px');
     expect(editorStyles).toContain('.voice-side-slot');
     expect(editorStyles).toMatch(/button\.mic\s*\{[^}]*max-width:\s*76px/);
     expect(editorController).toContain('onHide()');
     expect(editorController).toContain('onUnload()');
     expect(editorController).toContain('lifecycleSavePending');
-    expect(editorController).toContain('this.data.saved && !this.data.saving');
+    expect(editorController).toContain('await this.flushAutoSave()');
+    expect(editorController).toContain('if (!saved) return');
+    expect(editorController).toContain('savingVersion === draftVersion');
     expect(worksController).toContain('await miniServices().writer.flush()');
   });
 

@@ -1,9 +1,9 @@
 page { height: 100%; overflow: hidden; }
 .editor-page { position: relative; display: flex; height: 100vh; flex-direction: column; background: #fbf9f8; transition: padding-bottom .15s ease; }
-.editor-topbar { display: grid; flex: 0 0 auto; grid-template-columns: 48px minmax(0, 1fr) 52px; align-items: center; padding-left: 12px; border-bottom: 1px solid #e4e6e1; background: #fbf9f8; }
-.back, .save { display: flex; width: 100%; max-width: none; min-width: 0; min-height: 48px; margin: 0; padding: 4px; align-items: center; justify-content: center; background: transparent; color: #153b2e; font-size: 16px; line-height: 24px; }
+.editor-topbar { display: grid; flex: 0 0 auto; grid-template-columns: 48px minmax(0, 1fr) 48px; align-items: center; padding-left: 12px; border-bottom: 1px solid #e4e6e1; background: #fbf9f8; }
+.back { display: flex; width: 100%; max-width: none; min-width: 0; min-height: 48px; margin: 0; padding: 4px; align-items: center; justify-content: center; background: transparent; color: #153b2e; font-size: 16px; line-height: 24px; }
 .back { font-size: 29px; font-weight: 300; }
-.save { border-radius: 24px; background: #e8eee9; font-weight: 600; }
+.topbar-spacer { width: 48px; height: 48px; }
 .title-button { display: flex; width: 100%; max-width: none; min-width: 0; min-height: 48px; margin: 0; padding: 4px 8px; align-items: center; justify-content: center; overflow: hidden; background: transparent; color: #153b2e; font-family: "Songti SC", serif; font-size: 20px; font-weight: 600; line-height: 28px; }
 .title-button text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .title-button.empty { color: #416657; font-weight: 500; }

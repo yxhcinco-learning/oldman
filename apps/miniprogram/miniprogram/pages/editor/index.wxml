@@ -4,13 +4,14 @@
     <view class="title-button {{draft && !draft.title ? 'empty' : ''}}" bindtap="openTitle" role="button" aria-label="编辑文章标题">
       <text>{{draft && draft.title ? draft.title : '点击编辑标题'}}</text>
     </view>
-    <view class="save" bindtap="saveNow" role="button" aria-disabled="{{saving}}">{{saving ? '保存中' : '保存'}}</view>
+    <view class="topbar-spacer"></view>
   </view>
 
   <view wx:if="{{error}}" class="editor-error" role="alert">
     <scroll-view scroll-y class="error-copy">{{error}}</scroll-view>
     <view class="error-actions"><button bindtap="saveNow">重试保存</button><button bindtap="exportRescue">救援导出</button></view>
   </view>
+  <view class="visually-hidden" role="status">{{saving ? '正在自动保存' : saved ? '已自动保存到当前设备' : ''}}</view>
   <view wx:if="{{notice}}" class="editor-notice" role="status">{{notice}}</view>
 
   <view wx:if="{{draft && draft.topicSnapshot}}" class="topic-background">

@@ -10,6 +10,7 @@ import { navigationMetrics } from '../../ui/navigation';
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let speechUnsubscribe: (() => void) | undefined;
 let lifecycleSavePending: Promise<void> | undefined;
+let draftVersion = 0;
 const speechHold = new HoldToDictate();
 
 const turnStatusLabel: Record<AiTurn['status'], string> = {
@@ -65,6 +66,7 @@ Page({
 
   onLoad(options: Record<string, string | undefined>) {
     lifecycleSavePending = undefined;
+    draftVersion = 0;
     speechUnsubscribe?.();
     speechUnsubscribe = miniServices().speech.subscribe(state => this.setData({ voicePhase: state.phase, voiceText: state.text,
       voiceMessage: state.message, voiceElapsed: state.elapsed, voiceScale: (1 + state.level * 0.15).toFixed(2),
@@ -107,16 +109,21 @@ Page({
   },
 
   updateDraft(draft: Draft) {
+    draftVersion += 1;
     this.setData({ draft, body: draft.inputMode === 'text' ? draft.textDraft : articleText(draft.segments), saved: false, error: '' });
     this.scheduleSave();
   },
 
   scheduleSave() {
     if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => void this.saveNow(), 700);
+    saveTimer = setTimeout(() => {
+      saveTimer = undefined;
+      void this.saveNow();
+    }, 700);
   },
 
   onBodyInput(event: WechatMiniprogram.TextareaInput) {
+    draftVersion += 1;
     this.setData({ body: event.detail.value, saved: false, error: '' });
     this.scheduleSave();
   },
@@ -161,7 +168,7 @@ Page({
     const body = result.value;
     const draft: Draft = current.inputMode === 'voice' ? { ...current, segments: splitDraft(body, current.segments) } : { ...current, textDraft: body };
     this.updateDraft(draft);
-    this.setData({ notice: result.truncated ? '正文已到12000字上限，只放入了可容纳的语音文字。' : '语音文字已放入正文，请核对后保存。' });
+    this.setData({ notice: result.truncated ? '正文已到12000字上限，只放入了可容纳的语音文字。' : '语音文字已放入正文，请核对；内容会自动保存。' });
   },
 
   acceptXiaoWenDictation(text: string) {
@@ -196,16 +203,31 @@ Page({
 
   async saveNow() {
     const draft = this.currentDraft();
-    if (!draft || !hasContent(draft)) return;
-    this.setData({ saving: true, error: '', notice: '' });
+    if (!draft || !hasContent(draft)) return true;
+    const savingVersion = draftVersion;
+    this.setData({ saving: true, error: '' });
     try {
       const work = await miniServices().writer.write(draft, this.data.session ?? undefined);
-      this.setData({ draft, revision: work?.revision ?? this.data.revision, saving: false, saved: Boolean(work),
-        notice: work ? '已保存到当前设备' : '' });
+      const saved = Boolean(work) && savingVersion === draftVersion;
+      this.setData({ draft, revision: work?.revision ?? this.data.revision, saving: false, saved, error: '' });
+      return saved;
     } catch (error) {
       this.setData({ saving: false, saved: false, error: error instanceof Error ? error.message : '保存失败，当前文字仍保留在页面中。' });
       await miniServices().writer.preserve(draft, this.data.session ?? undefined).catch(() => undefined);
+      return false;
     }
+  },
+
+  async flushAutoSave() {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = undefined;
+    } else if (this.data.saving) {
+      await miniServices().writer.flush().catch(() => undefined);
+      if (this.data.saved) return true;
+    }
+    if (this.data.saved) return true;
+    return this.saveNow();
   },
 
   syncXiaoWen(draft: Draft | null, session: ArticleSession | null) {
@@ -356,19 +378,18 @@ Page({
     }).catch(error => this.setData({ operationBusy: false, xiaowenError: error instanceof Error ? error.message : '这次修改暂时无法撤销。' }));
   },
 
-  goBack() {
+  async goBack() {
+    const saved = await this.flushAutoSave();
+    if (!saved) return;
     void wx.navigateBack();
   },
 
   noop() {},
 
   preserveAndSave() {
-    if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = undefined;
-    if (this.data.saved && !this.data.saving) return;
     const draft = this.currentDraft();
     if (!draft || !hasContent(draft) || lifecycleSavePending) return;
-    lifecycleSavePending = this.saveNow().finally(() => { lifecycleSavePending = undefined; });
+    lifecycleSavePending = this.flushAutoSave().then(() => undefined).finally(() => { lifecycleSavePending = undefined; });
   },
 
   onHide() {
