@@ -2,6 +2,7 @@
 .topic-state { padding: 18px 20px; border-radius: 16px; background: #f5f3f3; color: #717974; font-size: 15px; line-height: 24px; }
 .topic-state.error-panel { margin-top: 0; background: #f5f3f3; color: #717974; }
 .state-title { color: #717974; font-size: 15px; font-weight: 400; }
+.state-help { margin: 4px 0 8px; color: #717974; font-size: 14px; line-height: 22px; }
 .topic-state button { display: inline-flex; width: auto; min-height: 48px; margin: 8px 0 0; padding: 8px 14px; align-items: center; border-radius: 24px; background: #fff; color: #153b2e; font-size: 15px; line-height: 24px; }
 .topic-list { display: grid; gap: 12px; }
 .topic-card-row { display: flex; width: 100%; }

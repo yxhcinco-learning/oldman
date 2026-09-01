@@ -17,6 +17,7 @@ export class WxHttpTransport implements MiniHttpTransport {
 
 function readResponse(response: MiniHttpResponse) {
   if (response.statusCode >= 200 && response.statusCode < 300) return response.data;
+  if (response.statusCode === 401) throw new Error('在线服务尚未开放小程序访问。');
   const value = response.data as { error?: unknown } | null;
   throw new Error(typeof value?.error === 'string' ? value.error.slice(0, 300) : '话题暂时无法打开。');
 }

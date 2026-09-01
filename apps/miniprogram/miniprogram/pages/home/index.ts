@@ -24,7 +24,10 @@ Page({
   async loadTopics() {
     this.setData({ loading: true, error: '' });
     try { this.setData({ loading: false, topics: (await miniTopics.list({ limit: 5 })).map(asCard) }); }
-    catch { this.setData({ loading: false, topics: [], error: '热门话题暂时不可用，不影响本机写作。' }); }
+    catch (error) {
+      const message = error instanceof Error && error.message ? error.message : '热门话题暂时不可用。';
+      this.setData({ loading: false, topics: [], error: message });
+    }
   },
 
   openTopic(event: WechatMiniprogram.TouchEvent) {

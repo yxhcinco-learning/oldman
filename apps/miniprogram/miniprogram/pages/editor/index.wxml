@@ -43,9 +43,9 @@
     <view wx:if="{{draft && draft.inputMode === 'voice'}}" class="voice-stage">
       <view class="voice-copy"><view class="quiet-wave"><view></view><view></view><view></view><view></view><view></view></view><text>{{voiceTarget === 'body' && voiceText ? voiceText : body ? '正文已保留，长按麦克风继续说。' : '不着急，慢慢说。'}}</text></view>
       <view class="voice-control-row">
-        <button class="voice-collapse" bindtap="toggleInputMode" aria-label="切换到文字输入"><view></view></button>
+        <view class="voice-side-slot"><button class="voice-collapse" bindtap="toggleInputMode" aria-label="切换到文字输入"><view></view></button></view>
         <button class="mic {{voicePhase}}" style="transform: scale({{voiceScale}})" bindtouchstart="pressBodyVoice" bindtouchend="releaseVoice" bindtouchcancel="cancelVoice" aria-label="长按说话，松开后文字会放入正文；不会发送给小文"><image class="mic-drawing" src="/assets/mic-white.svg" mode="aspectFit"></image><text wx:if="{{voicePhase === 'recording'}}">{{voiceElapsed}}秒</text></button>
-        <view></view>
+        <view class="voice-side-slot"></view>
       </view>
       <view class="voice-help">{{voiceTarget === 'body' && voiceMessage ? voiceMessage : '按住说话'}}</view>
     </view>

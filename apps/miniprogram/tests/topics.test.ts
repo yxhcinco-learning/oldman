@@ -47,6 +47,8 @@ describe('小程序审核话题适配', () => {
   });
 
   it('真实呈现服务、网络和格式错误且不回退到模拟数据', async () => {
+    await expect(new MiniTopicClient(new FakeTransport({ statusCode: 401, data: '<html>Authorization Required</html>' })).list())
+      .rejects.toThrow('在线服务尚未开放小程序访问');
     await expect(new MiniTopicClient(new FakeTransport({ statusCode: 503, data: { error: '话题服务维护中' } })).list())
       .rejects.toThrow('话题服务维护中');
     await expect(new MiniTopicClient(new FakeTransport(new Error('当前无法连接在线服务，请检查网络后重试。'))).list())
