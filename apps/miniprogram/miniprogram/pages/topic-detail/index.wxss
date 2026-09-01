@@ -1,7 +1,7 @@
 .detail-page { padding-top: 0; }
-.detail-topbar { display: grid; grid-template-columns: 88rpx minmax(0,1fr); align-items: center; border-bottom: 1rpx solid #e4e6e1; }
-.detail-back { display: flex; min-height: 48px; padding: 4px; align-items: center; justify-content: center; background: transparent; color: #153b2e; font-size: 29px; font-weight: 300; line-height: 36px; }
-.detail-topbar view { color: #153b2e; font-family: "Songti SC", serif; font-size: 30rpx; font-weight: 600; line-height: 48rpx; }
+.detail-topbar { position: relative; display: flex; margin-right: -24px; margin-left: -24px; padding-left: 12px; align-items: center; border-bottom: 1rpx solid #e4e6e1; }
+.detail-back { position: relative; z-index: 2; display: flex; width: 48px; min-width: 48px; min-height: 48px; padding: 4px; align-items: center; justify-content: center; background: transparent; color: #153b2e; font-size: 29px; font-weight: 300; line-height: 36px; }
+.detail-brand { position: absolute; right: 64px; left: 64px; display: flex; align-items: center; justify-content: center; overflow: hidden; color: #153b2e; font-family: "Songti SC", serif; font-size: 16px; font-weight: 600; line-height: 24px; text-overflow: ellipsis; white-space: nowrap; }
 .topic-state { padding: 48rpx 0; color: #717974; font-size: 30rpx; }
 .detail-title { margin-top: 40rpx; font-size: 44rpx; line-height: 68rpx; letter-spacing: 1rpx; }
 .topic-meta { display: flex; flex-wrap: wrap; margin-top: 12px; justify-content: space-between; gap: 8px; color: #717974; font-size: 14px; line-height: 22px; }
@@ -18,3 +18,7 @@
 .source b { color: #416657; font-size: 44rpx; font-weight: 400; }
 .start-actions { position: sticky; bottom: calc(-1 * env(safe-area-inset-bottom)); display: grid; grid-template-columns: 1fr 1fr; gap: 20rpx; margin: 48rpx -8rpx 0; padding: 24rpx 8rpx calc(28rpx + env(safe-area-inset-bottom)); background: linear-gradient(rgba(251, 249, 248, 0), #fbf9f8 24rpx); }
 .start-actions button { padding-right: 16rpx; padding-left: 16rpx; font-size: 29rpx; }
+
+@media (max-width: 370px) {
+  .detail-topbar { margin-right: -20px; margin-left: -20px; }
+}

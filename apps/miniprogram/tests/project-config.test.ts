@@ -56,6 +56,8 @@ describe('微信小程序公共工程配置', () => {
     const homeConfig = readText('../miniprogram/pages/home/index.json');
     const home = readText('../miniprogram/pages/home/index.wxml');
     const homeController = readText('../miniprogram/pages/home/index.ts');
+    const topicDetail = readText('../miniprogram/pages/topic-detail/index.wxml');
+    const topicDetailStyles = readText('../miniprogram/pages/topic-detail/index.wxss');
     const editor = readText('../miniprogram/pages/editor/index.wxml');
     const editorStyles = readText('../miniprogram/pages/editor/index.wxss');
     const editorController = readText('../miniprogram/pages/editor/index.ts');
@@ -78,6 +80,10 @@ describe('微信小程序公共工程配置', () => {
     expect(homeConfig).not.toContain('app-nav');
     expect(home).not.toContain('<app-nav');
     expect(homeController).toContain('selectTab(this, 0)');
+    expect(topicDetail).toContain('class="detail-brand"');
+    expect(topicDetail).not.toContain('padding-right: {{menuReserve}}px');
+    expect(topicDetailStyles).toMatch(/\.detail-topbar\s*\{[^}]*margin-right:\s*-24px/);
+    expect(topicDetailStyles).toMatch(/\.detail-brand\s*\{[^}]*position:\s*absolute[^}]*right:\s*64px[^}]*left:\s*64px/);
     expect(worksController).toContain('selectTab(this, 1)');
     expect(editor).toContain('bindkeyboardheightchange="onKeyboardHeight"');
     expect(editor).not.toContain('<view class="save"');

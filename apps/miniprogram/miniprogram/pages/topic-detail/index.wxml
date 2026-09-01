@@ -1,6 +1,7 @@
 <view class="page-shell without-nav detail-page">
-  <view class="detail-topbar" style="height: {{navigationHeight}}px; padding-top: {{statusBarHeight}}px; padding-right: {{menuReserve}}px;">
-    <view class="detail-back" bindtap="goBack" role="button" aria-label="返回">‹</view><view>岁月有声</view>
+  <view class="detail-topbar" style="height: {{navigationHeight}}px; padding-top: {{statusBarHeight}}px;">
+    <view class="detail-back" bindtap="goBack" role="button" aria-label="返回">‹</view>
+    <view class="detail-brand" style="top: {{statusBarHeight}}px; height: {{navigationBarHeight}}px;">岁月有声</view>
   </view>
   <view wx:if="{{loading}}" class="topic-state">正在读取话题…</view>
   <view wx:elif="{{error && !topic}}" class="error-panel" role="alert">{{error}}</view>
