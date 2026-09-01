@@ -68,6 +68,20 @@ Page({
     this.setData({ composer, error: '' });
   },
 
+  onComposerFocus() {
+    const info = wx.getWindowInfo();
+    baselineWindowHeight = Math.max(baselineWindowHeight, info.windowHeight);
+  },
+
+  onComposerBlur() {
+    if (keyboardTimer) clearTimeout(keyboardTimer);
+    this.setData({ keyboardHeight: 0 });
+    keyboardTimer = setTimeout(() => {
+      const info = wx.getWindowInfo();
+      baselineWindowHeight = Math.max(baselineWindowHeight, info.windowHeight);
+    }, 40);
+  },
+
   onKeyboardHeight(event: WechatMiniprogram.TextareaKeyboardHeightChange) {
     const reportedHeight = Math.max(0, event.detail.height);
     if (keyboardTimer) clearTimeout(keyboardTimer);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type TopicSnapshot, type WritingMaterial } from '../miniprogram/domain/core';
-import { FIRST_INTERVIEW_QUESTION, interviewMessages, interviewQuestion } from '../miniprogram/interview/flow';
+import { FIRST_INTERVIEW_INTRO, FIRST_INTERVIEW_QUESTION, interviewMessages, interviewQuestion } from '../miniprogram/interview/flow';
 import { ConversationMemory } from '../miniprogram/state/conversation-memory';
 
 const topic: TopicSnapshot = {
@@ -13,6 +13,12 @@ const topic: TopicSnapshot = {
 };
 
 describe('小程序采访与小文页面状态', () => {
+  it('首次采访使用与 H5 一致的两条精简开场消息', () => {
+    expect(FIRST_INTERVIEW_INTRO).toBe('您好，我是小文，您的写作助手。接下来我们围绕这个话题聊一聊。');
+    expect(FIRST_INTERVIEW_QUESTION).toBe('先请您简单介绍一下自己吧。');
+    expect(interviewMessages([])).toEqual([{ id: 'intro', role: 'assistant', text: FIRST_INTERVIEW_INTRO }]);
+  });
+
   it('一次推进一个问题并能只替换当前问题', () => {
     expect(interviewQuestion(topic, 0)).toBe(FIRST_INTERVIEW_QUESTION);
     expect(interviewQuestion(topic, 1)).toBe(topic.starterQuestion);
@@ -24,7 +30,7 @@ describe('小程序采访与小文页面状态', () => {
     const material: WritingMaterial = { id: 'answer-1', source: 'interview-answer', text: '我小时候住在那里。',
       question: FIRST_INTERVIEW_QUESTION, createdAt: '2026-09-01T08:00:00.000Z', selected: true };
     expect(interviewMessages([material]).map(item => [item.role, item.text])).toEqual([
-      ['assistant', expect.stringContaining('一次问一个问题')], ['assistant', FIRST_INTERVIEW_QUESTION], ['user', '我小时候住在那里。'],
+      ['assistant', FIRST_INTERVIEW_INTRO], ['assistant', FIRST_INTERVIEW_QUESTION], ['user', '我小时候住在那里。'],
     ]);
   });
 

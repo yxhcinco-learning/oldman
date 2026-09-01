@@ -1,24 +1,26 @@
 page { height: 100%; overflow: hidden; }
-.interview-page { display: flex; width: 100%; height: 100vh; overflow: hidden; flex-direction: column; background: #fbf9f8; transition: padding-bottom .15s ease; }
+.interview-page { position: fixed; top: 0; right: 0; bottom: 0; left: 0; display: flex; width: 100%; overflow: hidden; flex-direction: column; background: #fbf9f8; transition: padding-bottom .12s ease; }
 .interview-header { position: relative; z-index: 20; flex: 0 0 auto; border-bottom: 1px solid #e4e6e1; background: #fbf9f8; }
-.interview-nav-row { position: absolute; right: 0; left: 0; display: grid; width: 100%; grid-template-columns: 48px minmax(0, 1fr) 48px; align-items: center; padding-left: 12px; }
-.interview-title { display: flex; min-width: 0; height: 48px; align-items: center; justify-content: center; overflow: hidden; color: #153b2e; font-family: "Songti SC", serif; font-size: 18px; font-weight: 600; line-height: 26px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
-.interview-back, .interview-close { display: grid; width: 48px; height: 48px; margin: 0; padding: 0; place-items: center; background: transparent; color: #153b2e; font-size: 14px; line-height: 20px; }
+.interview-nav-row { position: absolute; right: 0; left: 0; display: flex; width: 100%; align-items: center; padding-left: 12px; }
+.interview-title { display: flex; min-width: 0; height: 48px; align-items: center; overflow: hidden; color: #153b2e; font-family: "Noto Serif SC", "Songti SC", SimSun, serif; font-size: 22px; font-weight: 400; line-height: 32px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+.interview-back { display: grid; width: 48px; height: 48px; flex: 0 0 48px; margin: 0; padding: 0; place-items: center; background: transparent; color: #153b2e; }
 .back-chevron { width: 11px; height: 11px; border-bottom: 2px solid currentColor; border-left: 2px solid currentColor; transform: rotate(45deg); }
-.interview-close { border-radius: 24px; background: #e8eee9; font-weight: 600; }
-.messages { min-height: 0; flex: 1; padding: 20px 24px 32px; }
-.interview-topic { margin: 0 0 10px 40px; overflow: hidden; color: #944924; font-size: 14px; line-height: 22px; text-overflow: ellipsis; white-space: nowrap; }
-.message { display: flex; margin-bottom: 14px; align-items: flex-start; gap: 8px; }
+.messages { width: 100%; min-height: 0; flex: 1; padding: 20px 24px 24px; }
+.interview-topic { margin: 0 0 12px; overflow: hidden; color: #944924; font-size: 14px; line-height: 22px; text-overflow: ellipsis; white-space: nowrap; }
+.message { display: flex; margin-bottom: 10px; align-items: flex-start; gap: 10px; }
 .message.user { justify-content: flex-end; }
-.avatar { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; border-radius: 50%; background: #e6eddf; color: #416657; font-family: "Songti SC", serif; font-size: 14px; }
-.bubble { max-width: calc(100% - 42px); padding: 13px 15px; border-radius: 0 16px 16px 16px; background: #fff; color: #1b1c1c; font-size: 16px; line-height: 27px; overflow-wrap: anywhere; }
+.avatar { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; border-radius: 50%; background: #e6eddf; color: #416657; }
+.avatar image { width: 20px; height: 20px; }
+.bubble { max-width: calc(100% - 42px); padding: 13px 15px; border-radius: 0 16px 16px 16px; background: #fff; color: #1b1c1c; font-size: 18px; line-height: 30px; overflow-wrap: anywhere; white-space: pre-wrap; }
 .message.user .bubble { border-radius: 16px 0 16px 16px; background: #153b2e; color: #f6f8f2; }
-.current { padding-bottom: 12px; }
+.assistant-stack { min-width: 0; max-width: calc(100% - 42px); }
+.assistant-stack .bubble { max-width: 100%; }
+.current { padding-bottom: 8px; }
 .change-question { display: flex; min-height: 48px; margin: 8px 0 0; padding: 8px 0; align-items: center; background: transparent; color: #416657; font-size: 15px; line-height: 24px; text-align: left; text-decoration: underline; }
-.interview-footer { z-index: 10; flex: 0 0 auto; min-height: 110px; padding: 8px 14px max(10px, env(safe-area-inset-bottom)); border-top: 1px solid #e4e6e1; background: #fbf9f8; }
+.interview-footer { position: relative; z-index: 10; width: 100%; flex: 0 0 auto; padding: 10px 24px max(12px, env(safe-area-inset-bottom)); border-top: 1px solid #e4e6e1; background: #fbf9f8; }
 .compose-link { display: flex; min-height: 44px; margin: 0 0 2px auto; padding: 6px 10px; align-items: center; background: transparent; color: #416657; font-size: 15px; line-height: 22px; }
 .composer-row { display: grid; width: 100%; min-width: 0; grid-template-columns: minmax(0, 1fr) 48px 72px; align-items: end; gap: 8px; }
-.composer-row textarea { display: block; width: 100%; height: 52px; min-height: 52px; max-height: 148px; margin: 0; padding: 10px 12px; overflow-y: auto; border: 1px solid #e4e6e1; border-radius: 16px; background: #fff; color: #1b1c1c; font-size: 18px; line-height: 30px; }
+.composer-row textarea { display: block; width: 100%; height: 52px; min-height: 52px; max-height: 148px; margin: 0; padding: 10px 12px; overflow-y: auto; border: 1px solid #e4e6e1; border-radius: 16px; background: #fff; color: #1b1c1c; font-size: 18px; line-height: 30px; vertical-align: middle; }
 .composer-button-cell { display: flex; min-width: 0; align-items: flex-end; }
 .voice, .send { display: flex; width: 100%; min-width: 0; height: 48px; min-height: 48px; max-height: 48px; flex: 1; margin: 0; padding: 8px; align-items: center; justify-content: center; border-radius: 24px; font-size: 16px; line-height: 24px; }
 .voice { background: #e8eee9; color: #153b2e; transition: background .1s ease, transform .1s ease; }
@@ -26,11 +28,11 @@ page { height: 100%; overflow: hidden; }
 .voice image { width: 22px; height: 22px; }
 .send { background: #153b2e; color: #fff; }
 .voice.is-disabled, .send.is-disabled { pointer-events: none; }
-.send.is-disabled { background: #153b2e; color: #fff; opacity: .35; }
+.send.is-disabled { background: #9caaa2; color: #fff; opacity: 1; }
 .voice.is-disabled { background: #e8eee9; color: #153b2e; opacity: .45; }
 .interview-error { max-height: 60px; margin-bottom: 8px; overflow-y: auto; color: #6f351c; font-size: 13px; line-height: 20px; }
 
 @media (max-width: 370px) {
   .messages { padding-right: 20px; padding-left: 20px; }
-  .interview-footer { padding-right: 12px; padding-left: 12px; }
+  .interview-footer { padding-right: 20px; padding-left: 20px; }
 }

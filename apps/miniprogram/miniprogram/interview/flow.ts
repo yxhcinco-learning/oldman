@@ -1,7 +1,7 @@
 import type { TopicSnapshot, WritingMaterial } from '../domain/core';
 
-export const FIRST_INTERVIEW_INTRO = '您好，我是小文，您的写作助手。我会围绕这个话题一次问一个问题。您的回答先保存在当前设备，整理结果也要由您确认后才会进入正文。';
-export const FIRST_INTERVIEW_QUESTION = '第一次见面，先简单介绍一下自己吧。怎么称呼您，过去主要做什么？';
+export const FIRST_INTERVIEW_INTRO = '您好，我是小文，您的写作助手。接下来我们围绕这个话题聊一聊。';
+export const FIRST_INTERVIEW_QUESTION = '先请您简单介绍一下自己吧。';
 
 export interface InterviewMessage { id: string; role: 'assistant' | 'user'; text: string }
 
