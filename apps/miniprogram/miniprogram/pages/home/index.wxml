@@ -1,24 +1,25 @@
 <view class="page-shell home-page">
-  <view class="brand">岁月有声</view>
+  <app-brand></app-brand>
   <view class="hero">
-    <view class="eyebrow">值得慢慢说的事</view>
-    <view class="page-title">热门</view>
-    <view class="lead">从一件正在发生、一个熟悉时节，或一段长久牵挂开始。</view>
+    <view class="eyebrow">最近大家在聊</view>
+    <view class="page-title">热门话题<text class="period">。</text></view>
+    <view class="lead">有些新鲜事，也会勾起旧日见闻。</view>
   </view>
-  <view wx:if="{{loading}}" class="topic-state">正在读取经审核的话题…</view>
+  <view wx:if="{{loading}}" class="topic-state">正在加载热门话题…</view>
   <view wx:elif="{{error}}" class="topic-state error-panel" role="alert">
-    <view class="state-title">{{error}}</view>
-    <view class="state-copy">你仍可使用下方“开始写作”，作品会保存到本机。</view>
-    <button bindtap="loadTopics">重新加载话题</button>
+    <view class="state-title">热门话题暂时没有加载出来。</view>
+    <button bindtap="loadTopics">重新加载</button>
   </view>
-  <view wx:elif="{{topics.length === 0}}" class="topic-state">目前没有可展示的审核话题。这里不会用演示内容代替。</view>
+  <view wx:elif="{{topics.length === 0}}" class="topic-state">暂时没有新内容。</view>
   <view class="topic-list" wx:else>
-    <button class="topic-card" wx:for="{{topics}}" wx:key="id" data-id="{{item.id}}" bindtap="openTopic">
-      <view class="topic-meta"><text>{{item.kind}}</text><text wx:if="{{item.corrected}}">已更正</text><text wx:if="{{item.stale}}">内容已过期</text></view>
-      <view class="topic-title">{{item.title}}</view>
-      <view class="topic-summary">{{item.summary}}</view>
-      <view class="topic-more">了解详情 <text>›</text></view>
-    </button>
+    <view class="topic-card-row" wx:for="{{topics}}" wx:key="id">
+      <button class="topic-card" data-id="{{item.id}}" bindtap="openTopic">
+        <view class="topic-meta"><text>{{item.kind}}</text><text wx:if="{{item.corrected}}">已更正</text><text wx:if="{{item.stale}}">内容已过期</text></view>
+        <view class="topic-title">{{item.title}}</view>
+        <view class="topic-summary">{{item.summary}}</view>
+        <view class="topic-more">了解详情 <view class="arrow"></view></view>
+      </button>
+    </view>
   </view>
 </view>
 <app-nav active="home"></app-nav>

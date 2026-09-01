@@ -45,15 +45,18 @@ describe('微信小程序公共工程配置', () => {
     const editor = readText('../miniprogram/pages/editor/index.wxml');
     const editorStyles = readText('../miniprogram/pages/editor/index.wxss');
     const editorController = readText('../miniprogram/pages/editor/index.ts');
+    const works = readText('../miniprogram/pages/works/index.wxml');
     const worksController = readText('../miniprogram/pages/works/index.ts');
 
-    expect(navigation.match(/open-type="reLaunch"/g)).toHaveLength(3);
-    expect(navigation).toContain('url="/pages/editor/index" open-type="navigate"');
+    expect(navigation.match(/bindtap="navigate"/g)).toHaveLength(3);
+    expect(works).toContain('bindtap="startWriting"');
     expect(navigationStyles).toContain('repeat(3, minmax(0, 1fr))');
     expect(navigationStyles).toMatch(/:host\s*\{[^}]*position:\s*fixed/);
-    expect(navigationStyles).toMatch(/:host\s*\{[^}]*height:\s*calc\(238rpx/);
-    expect(navigationStyles).toMatch(/\.tab\s*\{[^}]*min-height:\s*10[4-9]rpx/);
+    expect(navigationStyles).toMatch(/:host\s*\{[^}]*height:\s*calc\(72px/);
+    expect(navigationStyles).toMatch(/\.tab\s*\{[^}]*min-height:\s*60px/);
+    expect(navigationStyles).toContain('.tab.active .icon-wrap');
     expect(navigationController).toContain('wx.showToast');
+    expect(navigationController).toContain('wx.reLaunch');
     expect(editor).toContain('bindkeyboardheightchange="onKeyboardHeight"');
     expect(editorStyles).toContain('env(safe-area-inset-bottom)');
     expect(editorController).toContain('onHide()');

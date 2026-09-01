@@ -3,12 +3,14 @@ import { interviewMessages, interviewQuestion, type InterviewMessage } from '../
 import { miniServices } from '../../services';
 import { HoldToDictate, type MiniSpeechState } from '../../speech/session';
 import { appendDictation } from '../../speech/dictation';
+import { navigationMetrics } from '../../ui/navigation';
 
 let speechUnsubscribe: (() => void) | undefined;
 const speechHold = new HoldToDictate();
 
 Page({
   data: {
+    ...navigationMetrics(),
     draft: null as Draft | null,
     session: null as ArticleSession | null,
     revision: 0,

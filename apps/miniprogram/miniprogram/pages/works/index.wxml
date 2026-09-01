@@ -1,13 +1,16 @@
 <view class="page-shell works-page">
-  <view class="brand">岁月有声</view>
-  <view class="heading-row">
-    <view>
-      <view class="eyebrow">本机作品</view>
-      <view class="page-title">{{recycle ? '回收站' : '我的作品'}}</view>
+  <app-brand></app-brand>
+  <view class="works-hero">
+    <view class="works-intro">
+      <view class="eyebrow">{{recycle ? '恢复误删的作品' : manage ? '管理本机作品' : '日子慢慢过，文字慢慢写'}}</view>
+      <view class="page-title">{{recycle ? '回收站' : '我的作品'}}<text class="period">。</text></view>
+      <view wx:if="{{!recycle && !manage}}" class="lead">把生活，留在字里行间。</view>
     </view>
-    <button class="recycle-toggle" bindtap="toggleRecycle">{{recycle ? '返回作品' : '回收站'}}</button>
+    <image wx:if="{{!recycle && !manage}}" class="letter-drawing" src="/assets/letter.svg" mode="aspectFit"></image>
+    <view wx:else class="manage-close" bindtap="finishManage" role="button">完成</view>
   </view>
   <view wx:if="{{issue}}" class="error-panel" role="alert">{{issue}}</view>
+  <view wx:if="{{!recycle && !manage}}" class="section-heading"><view>最近写下</view><text>{{visible.length}} 篇作品</text></view>
   <view wx:if="{{loading}}" class="empty-state">正在读取本机作品…</view>
   <view wx:elif="{{visible.length === 0}}" class="empty-state">
     <view class="empty-branch"></view>
@@ -16,7 +19,7 @@
   </view>
   <view class="work-list" wx:else>
     <view class="work-card" wx:for="{{visible}}" wx:key="id" data-id="{{item.id}}" bindtap="continueWriting">
-      <view class="cover"><text>{{item.initial}}</text><view></view></view>
+      <view class="cover"><image src="{{item.cover}}" mode="aspectFill"></image><text>{{item.initial}}</text></view>
       <view class="work-copy">
         <view class="work-title">{{item.title}}</view>
         <view class="work-meta">{{item.meta}}</view>
@@ -24,10 +27,15 @@
           <button data-id="{{item.id}}" data-revision="{{item.revision}}" catchtap="restore">恢复</button>
           <button class="danger" data-id="{{item.id}}" data-revision="{{item.revision}}" catchtap="permanentlyDelete">永久删除</button>
         </view>
-        <button wx:else class="continue" data-id="{{item.id}}" bindtap="continueWriting">继续写</button>
+        <view wx:elif="{{manage}}" class="work-bottom"><view class="saved">已保存</view><button class="remove" data-id="{{item.id}}" data-revision="{{item.revision}}" catchtap="moveToRecycle">移入回收站</button></view>
+        <view wx:else class="work-bottom"><view class="saved">已保存</view><view class="continue">继续写 <view class="arrow"></view></view></view>
       </view>
-      <button wx:if="{{!recycle}}" class="trash" data-id="{{item.id}}" data-revision="{{item.revision}}" catchtap="moveToRecycle" aria-label="移入回收站">移除</button>
     </view>
   </view>
+</view>
+<view wx:if="{{!recycle && !manage}}" class="create-dock">
+  <button class="create-button" bindtap="startWriting" hover-class="create-pressed" aria-label="开始写作">
+    <image class="create-mic" src="/assets/mic-white.svg" mode="aspectFit"></image><text>开始写作</text>
+  </button>
 </view>
 <app-nav active="works"></app-nav>

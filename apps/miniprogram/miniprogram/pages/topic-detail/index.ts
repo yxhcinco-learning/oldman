@@ -1,17 +1,23 @@
 import { emptyDraft, isTopicCurrent, snapshotTopic, type WritingTopic } from '../../domain/core';
 import { miniTopics } from '../../network/topics';
 import { miniServices } from '../../services';
+import { navigationMetrics } from '../../ui/navigation';
 
 let currentTopic: WritingTopic | null = null;
 
 Page({
   data: {
+    ...navigationMetrics(),
     loading: true,
     error: '',
     topic: null as WritingTopic | null,
     corrected: false,
     stale: false,
     sources: [] as Array<{ id: string; title: string; publisher: string; route: string }>,
+  },
+
+  goBack() {
+    wx.navigateBack({ fail: () => void wx.reLaunch({ url: '/pages/home/index' }) });
   },
 
   onLoad(options: Record<string, string | undefined>) {

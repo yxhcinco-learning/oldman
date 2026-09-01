@@ -1,19 +1,13 @@
 <view class="nav-shell">
-  <view class="create-row">
-    <navigator class="create" url="/pages/editor/index" open-type="navigate" hover-class="create-pressed" bindfail="navigationFailed" aria-label="开始写作">
-      <view class="create-icon"><view class="pen-line"></view></view>
-      <text>开始写作</text>
-    </navigator>
-  </view>
   <view class="tabs" role="tablist" aria-label="主导航">
-    <navigator class="tab {{active === 'home' ? 'active' : ''}}" url="/pages/home/index" open-type="reLaunch" hover-class="tab-pressed" bindfail="navigationFailed" role="tab" aria-selected="{{active === 'home'}}">
-      <view class="icon flame"></view><text>热门</text>
-    </navigator>
-    <navigator class="tab {{active === 'works' ? 'active' : ''}}" url="/pages/works/index" open-type="reLaunch" hover-class="tab-pressed" bindfail="navigationFailed" role="tab" aria-selected="{{active === 'works'}}">
-      <view class="icon paper"></view><text>文章</text>
-    </navigator>
-    <navigator class="tab {{active === 'profile' ? 'active' : ''}}" url="/pages/profile/index" open-type="reLaunch" hover-class="tab-pressed" bindfail="navigationFailed" role="tab" aria-selected="{{active === 'profile'}}">
-      <view class="icon person"></view><text>我的</text>
-    </navigator>
+    <view class="tab {{active === 'home' ? 'active' : ''}}" data-url="/pages/home/index" bindtap="navigate" hover-class="tab-pressed" role="tab" aria-selected="{{active === 'home'}}">
+      <view class="icon-wrap"><image class="icon" src="/assets/spark.svg" mode="aspectFit"></image></view><text>热门</text>
+    </view>
+    <view class="tab {{active === 'works' ? 'active' : ''}}" data-url="/pages/works/index" bindtap="navigate" hover-class="tab-pressed" role="tab" aria-selected="{{active === 'works'}}">
+      <view class="icon-wrap"><image class="icon" src="/assets/pen.svg" mode="aspectFit"></image></view><text>文章</text>
+    </view>
+    <view class="tab {{active === 'profile' ? 'active' : ''}}" data-url="/pages/profile/index" bindtap="navigate" hover-class="tab-pressed" role="tab" aria-selected="{{active === 'profile'}}">
+      <view class="icon-wrap"><image class="icon" src="/assets/book.svg" mode="aspectFit"></image></view><text>我的</text>
+    </view>
   </view>
 </view>

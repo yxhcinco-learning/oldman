@@ -8,20 +8,27 @@ interface WorkCard {
   revision: number;
   deleted: boolean;
   initial: string;
+  cover: string;
 }
 
 function card(work: Work): WorkCard {
+  const cover = ['bike', 'home', 'train'][[...work.id].reduce((sum, char) => sum + (char.codePointAt(0) || 0), 0) % 3];
   return { id: work.id, title: work.title, initial: [...work.title][0] ?? '文', revision: work.revision, deleted: Boolean(work.deletedAt),
-    meta: `${formatTime(work.updatedAt)} · ${countWords(work.segments)} 字 · 已保存到本机` };
+    cover: `/assets/story-${cover}.svg`, meta: `${formatTime(work.updatedAt)} · ${countWords(work.segments)} 字` };
 }
 
 Page({
   data: {
     loading: true,
     recycle: false,
+    manage: false,
     cards: [] as WorkCard[],
     visible: [] as WorkCard[],
     issue: '',
+  },
+
+  onLoad(options: Record<string, string | undefined>) {
+    this.setData({ recycle: options.recycle === '1', manage: options.manage === '1' });
   },
 
   onShow() {
@@ -45,9 +52,21 @@ Page({
     this.setData({ recycle, visible: this.data.cards.filter(item => item.deleted === recycle) });
   },
 
+  finishManage() {
+    void wx.reLaunch({ url: '/pages/works/index' });
+  },
+
+  startWriting() {
+    wx.navigateTo({ url: '/pages/editor/index', fail: error => {
+      const issue = error.errMsg || '写作页暂时无法打开，请重试。';
+      this.setData({ issue });
+      wx.showToast({ title: '写作页暂时无法打开，请重试', icon: 'none' });
+    } });
+  },
+
   continueWriting(event: WechatMiniprogram.TouchEvent) {
     const id = String(event.currentTarget.dataset.id);
-    if (this.data.recycle) return;
+    if (this.data.recycle || this.data.manage) return;
     void wx.navigateTo({ url: `/pages/editor/index?id=${encodeURIComponent(id)}` });
   },
 

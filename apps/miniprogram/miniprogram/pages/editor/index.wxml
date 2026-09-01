@@ -1,10 +1,10 @@
 <view class="editor-page" style="padding-bottom: {{keyboardHeight}}px">
-  <view class="editor-topbar">
-    <button class="back" bindtap="goBack" aria-label="返回">‹</button>
-    <button class="title-button {{draft && !draft.title ? 'empty' : ''}}" bindtap="openTitle">
+  <view class="editor-topbar" style="height: {{navigationHeight}}px; padding-top: {{statusBarHeight}}px; padding-right: {{menuReserve}}px;">
+    <view class="back" bindtap="goBack" role="button" aria-label="返回">‹</view>
+    <view class="title-button {{draft && !draft.title ? 'empty' : ''}}" bindtap="openTitle" role="button" aria-label="编辑文章标题">
       <text>{{draft && draft.title ? draft.title : '点击编辑标题'}}</text>
-    </button>
-    <button class="save" bindtap="saveNow" disabled="{{saving}}">{{saving ? '保存中' : '保存'}}</button>
+    </view>
+    <view class="save" bindtap="saveNow" role="button" aria-disabled="{{saving}}">{{saving ? '保存中' : '保存'}}</view>
   </view>
 
   <view wx:if="{{error}}" class="editor-error" role="alert">
@@ -14,9 +14,8 @@
   <view wx:if="{{notice}}" class="editor-notice" role="status">{{notice}}</view>
 
   <view wx:if="{{draft && draft.topicSnapshot}}" class="topic-background">
-    <button class="topic-heading" bindtap="toggleTopic"><text>文章背景</text><text>{{topicOpen ? '收起' : '展开'}}</text></button>
+    <button class="topic-heading" bindtap="toggleTopic"><view><small>文章背景</small><strong>{{draft.topicSnapshot.title}}</strong></view><view class="topic-chevron {{topicOpen ? 'open' : ''}}"></view></button>
     <view wx:if="{{topicOpen}}" class="topic-body">
-      <view class="topic-name">{{draft.topicSnapshot.title}}</view>
       <view>{{draft.topicSnapshot.summary}}</view>
       <view class="topic-angle" wx:for="{{draft.topicSnapshot.angles}}" wx:key="id">· {{item.title}}</view>
       <navigator class="topic-source" wx:for="{{topicSources}}" wx:key="id" url="{{item.route}}">{{item.title}} ›</navigator>
@@ -33,42 +32,51 @@
     </scroll-view>
   </view>
 
-  <view class="editor-toolbar" style="bottom: {{keyboardHeight}}px">
-    <button class="mode" bindtap="toggleInputMode" aria-label="{{draft && draft.inputMode === 'text' ? '切换到语音输入' : '切换到文字输入'}}">
-      <view class="mode-icon">{{draft && draft.inputMode === 'text' ? '声' : '字'}}</view>
-    </button>
-    <view class="toolbar-line"></view>
-    <button class="xiaowen" bindtap="openXiaoWen"><view class="leaf">◇</view><text>小文</text></button>
-  </view>
-
-  <view wx:if="{{draft && draft.inputMode === 'voice'}}" class="voice-stage" style="bottom: {{keyboardHeight + 136}}px">
-    <view class="voice-copy">{{voiceTarget === 'body' && voiceText ? voiceText : body ? '正文已保留，长按麦克风继续说。' : '不着急，慢慢说。'}}</view>
-    <button class="mic {{voicePhase}}" style="transform: scale({{voiceScale}})" bindtouchstart="pressBodyVoice" bindtouchend="releaseVoice" bindtouchcancel="cancelVoice" aria-label="长按录音">{{voicePhase === 'recording' ? voiceElapsed + '秒' : '麦'}}</button>
-    <view class="voice-help">{{voiceTarget === 'body' && voiceMessage ? voiceMessage : '长按说话，松开后文字会放入正文；不会发送给小文'}}</view>
+  <view class="editor-dock {{draft && draft.inputMode === 'voice' ? 'voice' : 'text'}}">
+    <view class="editor-toolbar">
+      <button class="mode" bindtap="toggleInputMode" aria-label="{{draft && draft.inputMode === 'text' ? '切换到语音输入' : '切换到文字输入'}}">
+        <view class="mode-icon {{draft && draft.inputMode === 'text' ? 'mic-mode' : 'keyboard-mode'}}"></view>
+      </button>
+      <view class="toolbar-line"></view>
+      <button class="xiaowen" bindtap="openXiaoWen"><image src="/assets/leaf.svg" mode="aspectFit"></image><text>小文</text></button>
+    </view>
+    <view wx:if="{{draft && draft.inputMode === 'voice'}}" class="voice-stage">
+      <view class="voice-copy"><view class="quiet-wave"><view></view><view></view><view></view><view></view><view></view></view><text>{{voiceTarget === 'body' && voiceText ? voiceText : body ? '正文已保留，长按麦克风继续说。' : '不着急，慢慢说。'}}</text></view>
+      <view class="voice-control-row">
+        <button class="voice-collapse" bindtap="toggleInputMode" aria-label="切换到文字输入"><view></view></button>
+        <button class="mic {{voicePhase}}" style="transform: scale({{voiceScale}})" bindtouchstart="pressBodyVoice" bindtouchend="releaseVoice" bindtouchcancel="cancelVoice" aria-label="长按说话，松开后文字会放入正文；不会发送给小文"><image class="mic-drawing" src="/assets/mic-white.svg" mode="aspectFit"></image><text wx:if="{{voicePhase === 'recording'}}">{{voiceElapsed}}秒</text></button>
+        <view></view>
+      </view>
+      <view class="voice-help">{{voiceTarget === 'body' && voiceMessage ? voiceMessage : '按住说话'}}</view>
+    </view>
   </view>
 
   <view wx:if="{{titleDialog}}" class="dialog-mask" catchtouchmove="noop">
     <view class="title-dialog" role="dialog" aria-modal="true" aria-label="编辑文章标题">
-      <view class="dialog-title">文章标题</view>
+      <view class="sheet-handle"></view>
+      <view class="dialog-brand">岁月有声</view>
+      <view class="dialog-heading"><view class="dialog-title">编辑标题</view><button bindtap="cancelTitle" aria-label="关闭">×</button></view>
+      <view class="input-label">文章标题</view>
       <input class="title-input" value="{{titleInput}}" maxlength="120" focus select-text-on-focus placeholder="输入标题"
         bindinput="onTitleInput" confirm-type="done" bindconfirm="confirmTitle" />
-      <view class="dialog-actions"><button bindtap="cancelTitle">取消</button><button class="confirm" bindtap="confirmTitle">确定</button></view>
+      <view class="dialog-actions"><button bindtap="cancelTitle">取消</button><button class="confirm" bindtap="confirmTitle">完成</button></view>
     </view>
   </view>
 
   <view wx:if="{{xiaowenOpen}}" class="xiaowen-mask" catchtouchmove="noop">
     <view class="xiaowen-panel" role="dialog" aria-modal="true" aria-label="小文文章会话">
+      <view class="sheet-handle"></view>
+      <view class="xiaowen-brand">岁月有声</view>
       <view class="xiaowen-header">
-        <button wx:if="{{xiaowenView !== 'chat'}}" class="xiaowen-back" bindtap="backToConversation" aria-label="返回小文对话">‹</button>
-        <view class="xiaowen-title"><text>{{xiaowenView === 'preview' ? candidateTitle : xiaowenView === 'history' ? '修改记录' : '小文'}}</text><small>{{xiaowenView === 'chat' ? '文章伙伴' : '所有内容保存在本机'}}</small></view>
+        <view wx:if="{{xiaowenView !== 'chat'}}" class="xiaowen-back" bindtap="backToConversation" role="button" aria-label="返回小文对话">‹</view>
+        <view class="xiaowen-title"><text>{{xiaowenView === 'preview' ? candidateTitle : xiaowenView === 'history' ? '修改记录' : '小文'}}</text><small wx:if="{{xiaowenView !== 'chat'}}">所有内容保存在本机</small></view>
         <view class="xiaowen-header-actions">
-          <button wx:if="{{xiaowenView === 'chat'}}" bindtap="showHistory" aria-label="查看修改记录">记录</button>
-          <button bindtap="closeXiaoWen">收起小文</button>
+          <view wx:if="{{xiaowenView === 'chat'}}" class="history-button" bindtap="showHistory" role="button" aria-label="查看修改记录"><image class="book-image" src="/assets/book.svg" mode="aspectFit"></image></view>
+          <view class="xiaowen-close" bindtap="closeXiaoWen" role="button" aria-label="收起小文">×</view>
         </view>
       </view>
 
       <scroll-view wx:if="{{xiaowenView === 'chat'}}" class="xiaowen-messages" scroll-y scroll-into-view="xiaowen-end">
-        <view class="assistant-message"><view class="assistant-avatar">文</view><view>我可以听你说说想怎么调整文章。只有在你发送后才会请求在线服务；完整候选也要由你确认后才会进入正文。</view></view>
         <view class="xiaowen-turn" wx:for="{{xiaowenTurns}}" wx:key="id">
           <view class="xiaowen-user-message">{{item.prompt}}</view>
           <view class="xiaowen-answer-row">
@@ -115,7 +123,7 @@
       <view wx:if="{{xiaowenView === 'chat'}}" class="xiaowen-composer">
         <textarea value="{{xiaowenComposer}}" maxlength="2000" auto-height placeholder="问小文，或提要求" disabled="{{operationBusy || voiceBusy}}" bindinput="onXiaoWenInput"></textarea>
         <view wx:if="{{voiceTarget === 'xiaowen' && voicePhase !== 'idle'}}" class="xiaowen-speech-status">{{voiceText || voiceMessage || '正在准备语音…'}}</view>
-        <view class="xiaowen-button-cell"><button class="xiaowen-voice" bindtouchstart="pressXiaoWenVoice" bindtouchend="releaseVoice" bindtouchcancel="cancelVoice" disabled="{{operationBusy}}" aria-label="长按语音输入">声</button></view>
+        <view class="xiaowen-button-cell"><button class="xiaowen-voice" bindtouchstart="pressXiaoWenVoice" bindtouchend="releaseVoice" bindtouchcancel="cancelVoice" disabled="{{operationBusy}}" aria-label="长按语音输入"><image src="/assets/mic.svg" mode="aspectFit"></image></button></view>
         <view class="xiaowen-button-cell"><button class="xiaowen-send" bindtap="sendXiaoWen" disabled="{{operationBusy || voiceBusy || !xiaowenComposer}}">{{operationBusy ? '处理中' : '发送'}}</button></view>
       </view>
       <view wx:elif="{{xiaowenView === 'preview' && candidateStatus === 'ready'}}" class="candidate-actions">

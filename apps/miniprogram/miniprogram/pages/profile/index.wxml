@@ -1,25 +1,33 @@
 <view class="page-shell profile-page">
-  <view class="brand">岁月有声</view>
-  <view class="eyebrow profile-eyebrow">无需注册</view>
-  <view class="page-title">我的</view>
+  <app-brand></app-brand>
+  <view class="profile-hero">
+    <view class="eyebrow">本机内容</view>
+    <view class="page-title">我的<text class="period">。</text></view>
+    <view class="lead">文章和资料，默认保存在这台设备上。</view>
+  </view>
   <view class="tool-list">
-    <view class="tool-row"><button class="tool" bindtap="openWorks"><view class="tool-icon">文</view><view><text>作品与回收站</text><small>管理这台设备上的文章</small></view><b>›</b></button></view>
-    <view class="tool-row"><button class="tool" bindtap="exportBackup" disabled="{{busy}}"><view class="tool-icon">备</view><view><text>导出全部备份</text><small>保存为兼容网页端的 JSON 文件</small></view><b>›</b></button></view>
-    <view class="tool-row"><button class="tool" bindtap="importBackup" disabled="{{busy}}"><view class="tool-icon">入</view><view><text>从备份导入</text><small>完整校验后创建副本，不覆盖原作品</small></view><b>›</b></button></view>
-  </view>
-  <view wx:if="{{busy}}" class="notice">{{busy}}</view>
-  <view wx:if="{{notice}}" class="notice" role="status">{{notice}}</view>
-  <view wx:if="{{error}}" class="error-panel" role="alert">{{error}}</view>
-  <view class="storage-note">
-    <view class="note-title">只保存在本机</view>
-    <view>“已保存”表示作品已经写入当前微信用户、当前小程序 AppID 和这台设备的本地文件，不是云备份。</view>
-    <view>换设备、换微信用户、清理小程序或更换 AppID 后，原数据可能无法读取。请定期手工导出备份；微信身份和在线会话不会写入作品备份。</view>
-  </view>
-  <view class="storage-note privacy-note">
-    <view class="note-title">在线功能怎样使用数据</view>
-    <view>打开小程序时只用微信临时 code 建立内部会话，不请求手机号、头像或昵称；服务端身份库不保存作品。</view>
-    <view>只有您长按语音时才会申请隐私与麦克风权限，并把当次音频经岁月有声服务发送腾讯云转成文字；原音不写入作品文件。拒绝后仍可打字。</view>
-    <view>只有您明确发送给小文时，才会先提示并在同意后把当前文章、相关记录、对话及本轮必要素材经岁月有声服务发送 DeepSeek。AI 输出会标明“AI 辅助生成 · 请核对”，候选仍需确认。</view>
+    <view class="tool-row"><button class="tool" bindtap="openMenu"><view class="tool-icon"><image class="book-image" src="/assets/book.svg" mode="aspectFit"></image></view><view><text>作品与备份</text><small>管理、导出或恢复这台设备上的文章</small></view><b>›</b></button></view>
   </view>
 </view>
 <app-nav active="profile"></app-nav>
+
+<view wx:if="{{menuOpen}}" class="sheet-mask" bindtap="closeMenu" catchtouchmove="noop">
+  <view class="backup-sheet" catchtap="noop" role="dialog" aria-modal="true" aria-label="作品与备份">
+    <view class="sheet-handle"></view>
+    <view class="sheet-brand">岁月有声</view>
+    <view class="sheet-heading"><view>作品与备份</view><button bindtap="closeMenu" aria-label="关闭">×</button></view>
+    <view class="sheet-tools">
+      <button bindtap="manageWorks"><view class="sheet-icon"><image class="sheet-book" src="/assets/book.svg" mode="aspectFit"></image></view><view><text>管理作品</text><small>导出、复制或移入回收站</small></view><b>›</b></button>
+      <button bindtap="openRecycle"><view class="sheet-icon undo-icon">↶</view><view><text>回收站</text><small>恢复误删的作品</small></view><b>›</b></button>
+      <button bindtap="exportBackup" disabled="{{busy}}"><view class="sheet-icon">→</view><view><text>导出全部备份</text><small>保存为 JSON 文件</small></view><b>›</b></button>
+      <button bindtap="importBackup" disabled="{{busy}}"><view class="sheet-icon">✓</view><view><text>从备份恢复副本</text><small>不会覆盖现有作品</small></view><b>›</b></button>
+    </view>
+    <view wx:if="{{busy}}" class="notice">{{busy}}</view>
+    <view wx:if="{{notice}}" class="notice" role="status">{{notice}}</view>
+    <view wx:if="{{error}}" class="error-panel" role="alert">{{error}}</view>
+    <view class="sheet-note">
+      <view>作品只保存在本机；“已保存”表示已写入当前微信用户、当前小程序 AppID 和这台设备，不是云备份。清理小程序数据或更换 AppID 后可能丢失，请定期手工导出备份。</view>
+      <view>小程序不请求手机号、头像或昵称。长按语音时当次音频会经岁月有声服务发送腾讯云转写；只有明确发送给小文并同意后，必要内容才会发送 DeepSeek，候选仍需确认。</view>
+    </view>
+  </view>
+</view>

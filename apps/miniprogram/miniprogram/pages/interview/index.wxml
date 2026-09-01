@@ -1,7 +1,8 @@
 <view class="interview-page" style="padding-bottom: {{keyboardHeight}}px">
-  <view class="interview-header">
-    <view><text>小文采访</text><small>{{draft && draft.topicSnapshot ? draft.topicSnapshot.title : ''}}</small></view>
-    <button bindtap="closeInterview">收起小文</button>
+  <view class="interview-header" style="height: {{navigationHeight}}px; padding-top: {{statusBarHeight}}px; padding-right: {{menuReserve}}px;">
+    <view class="interview-back" bindtap="closeInterview" role="button" aria-label="返回">‹</view>
+    <view class="interview-title"><text>小文采访</text><small>{{draft && draft.topicSnapshot ? draft.topicSnapshot.title : ''}}</small></view>
+    <view class="interview-close" bindtap="closeInterview" role="button">收起</view>
   </view>
   <scroll-view class="messages" scroll-y scroll-into-view="current-question">
     <view class="message {{item.role}}" wx:for="{{messages}}" wx:key="id">
@@ -12,14 +13,14 @@
       <view><view class="bubble">{{question}}</view><button wx:if="{{draft && draft.materials.length}}" class="change-question" bindtap="changeQuestion">换个问题</button></view>
     </view>
   </scroll-view>
-  <view class="interview-footer" style="bottom: {{keyboardHeight}}px">
+  <view class="interview-footer">
     <button wx:if="{{draft && draft.materials.length}}" class="compose-link" bindtap="composeArticle">整理成文章</button>
     <view wx:if="{{error}}" class="interview-error" role="alert">{{error}}</view>
     <view wx:if="{{voicePhase !== 'idle'}}" class="interview-error">{{voiceText || voiceMessage || '正在准备语音…'}}</view>
     <view class="composer-row">
       <textarea value="{{composer}}" maxlength="12000" auto-height placeholder="写下回答" disabled="{{saving || voiceBusy}}"
         bindinput="onComposer" bindkeyboardheightchange="onKeyboardHeight"></textarea>
-      <view class="composer-button-cell"><button class="voice" bindtouchstart="pressDictation" bindtouchend="releaseDictation" bindtouchcancel="cancelDictation" disabled="{{saving}}" aria-label="长按语音回答">声</button></view>
+      <view class="composer-button-cell"><button class="voice" bindtouchstart="pressDictation" bindtouchend="releaseDictation" bindtouchcancel="cancelDictation" disabled="{{saving}}" aria-label="长按语音回答"><image src="/assets/mic.svg" mode="aspectFit"></image></button></view>
       <view class="composer-button-cell"><button class="send" bindtap="sendAnswer" disabled="{{saving || voiceBusy || !composer}}">{{saving ? '保存中' : '发送'}}</button></view>
     </view>
   </view>

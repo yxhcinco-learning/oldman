@@ -1,11 +1,12 @@
 import { miniServices } from '../../services';
 
 Page({
-  data: { busy: '', notice: '', error: '' },
+  data: { menuOpen: false, busy: '', notice: '', error: '' },
 
-  openWorks() {
-    void wx.reLaunch({ url: '/pages/works/index' });
-  },
+  openMenu() { this.setData({ menuOpen: true, notice: '', error: '' }); },
+  closeMenu() { this.setData({ menuOpen: false }); },
+  manageWorks() { void wx.reLaunch({ url: '/pages/works/index?manage=1' }); },
+  openRecycle() { void wx.reLaunch({ url: '/pages/works/index?recycle=1' }); },
 
   async exportBackup() {
     this.setData({ busy: '正在准备备份…', error: '', notice: '' });
@@ -26,4 +27,6 @@ Page({
       this.setData({ busy: '', error: error instanceof Error ? error.message : '备份导入失败，本机原作品未改变。' });
     }
   },
+
+  noop() {},
 });

@@ -1,14 +1,16 @@
 <view class="page-shell without-nav detail-page">
+  <view class="detail-topbar" style="height: {{navigationHeight}}px; padding-top: {{statusBarHeight}}px; padding-right: {{menuReserve}}px;">
+    <view class="detail-back" bindtap="goBack" role="button" aria-label="返回">‹</view><view>岁月有声</view>
+  </view>
   <view wx:if="{{loading}}" class="topic-state">正在读取话题…</view>
   <view wx:elif="{{error && !topic}}" class="error-panel" role="alert">{{error}}</view>
   <view wx:elif="{{topic}}">
-    <view class="topic-meta"><text>{{topic.kind === 'current' ? '近期' : topic.kind === 'periodic' ? '时令' : '持续关注'}}</text><text>更新于 {{topic.updatedAt}}</text></view>
     <view class="page-title detail-title">{{topic.title}}</view>
+    <view class="topic-meta"><text>{{topic.kind === 'current' ? '近期' : topic.kind === 'periodic' ? '时令' : '持续关注'}}</text><text>更新于 {{topic.updatedAt}}</text></view>
     <view wx:if="{{corrected}}" class="correction"><view>内容更正</view><text>{{topic.correctionNote}}</text></view>
     <view wx:if="{{stale}}" class="error-panel">这个话题已过有效期，只保留阅读，不再从这里创建文章。</view>
     <view wx:if="{{error}}" class="error-panel">{{error}}</view>
     <view class="section">
-      <view class="section-title">话题摘要</view>
       <view class="section-copy">{{topic.summary}}</view>
     </view>
     <view class="section">

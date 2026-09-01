@@ -9,3 +9,5 @@
 - AppSecret 只允许写入服务器运行环境，绝不能出现在本目录、客户端包、日志或仓库中。
 
 用微信开发者工具导入本目录即可。AppSecret 尚未配置时，本地写作仍可使用；微信身份、AI 和语音接口会明确显示暂不可用，不会伪造成功状态。
+
+当前借用 AppID 的后台已由用户确认配置精确的 `request` 合法域名 `https://suiyue.maicong.chat` 和 `socket` 合法域名 `wss://suiyue.maicong.chat`。这只属于本机开发/体验配置；正式 AppID 到位后仍需重新核对合法域名、隐私指引、备案与类目。

@@ -5,6 +5,7 @@ import type { MiniAiContext } from '../../ai/controller';
 import { miniServices } from '../../services';
 import { HoldToDictate, type MiniSpeechState } from '../../speech/session';
 import { appendDictation } from '../../speech/dictation';
+import { navigationMetrics } from '../../ui/navigation';
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let speechUnsubscribe: (() => void) | undefined;
@@ -19,6 +20,7 @@ const actionEditLabel = (action: AiAction) => action === 'compose' ? '整理' : 
 
 Page({
   data: {
+    ...navigationMetrics(),
     draft: null as Draft | null,
     session: null as ArticleSession | null,
     body: '',
