@@ -36,7 +36,7 @@ export interface MiniRecorderHandlers {
   start(): void;
   frame(data: ArrayBuffer, last: boolean): void;
   stop(): void;
-  error(): void;
+  error(message?: string): void;
   interrupted(): void;
 }
 
@@ -169,7 +169,7 @@ export class MiniSpeechSession {
           start: () => this.onRecorderStart(epoch),
           frame: frame => this.onRecorderFrame(epoch, frame),
           stop: () => this.onRecorderStop(epoch),
-          error: () => this.fail(epoch, '麦克风录音失败，已收到的文字会放入输入框。'),
+          error: message => this.fail(epoch, message || '麦克风录音失败，已收到的文字会放入输入框。'),
           interrupted: () => this.fail(epoch, '录音被系统中断，已收到的文字会放入输入框。'),
         });
       } catch { this.recorderActive = false; this.fail(epoch, '麦克风暂时无法启动，请继续使用文字输入。'); }
@@ -299,7 +299,7 @@ export class MiniSpeechSession {
 export class HoldToDictate {
   private timer?: ReturnType<typeof setTimeout>;
   private started = false;
-  constructor(private readonly delayMs = 350) {}
+  constructor(private readonly delayMs = 180) {}
   press(start: () => void) {
     this.reset();
     this.timer = setTimeout(() => { this.timer = undefined; this.started = true; start(); }, this.delayMs);
@@ -342,7 +342,8 @@ export class WxMiniSpeechTicketPlatform implements MiniSpeechTicketPlatform {
   issue(token: string): Promise<AuthenticatedMiniResponse<unknown>> {
     return new Promise((resolve, reject) => wx.request({
       url: `${this.origin}/api/mini/speech-ticket`, method: 'POST', timeout: 8000, dataType: '其他', responseType: 'text',
-      header: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+      data: {},
+      header: { Accept: 'application/json', Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       success: result => {
         if (typeof result.data !== 'string' || result.data.length > 16 * 1024) { reject(new Error('语音准备响应无法核对，请重试。')); return; }
         try { resolve({ statusCode: result.statusCode, data: JSON.parse(result.data) as unknown }); }
@@ -386,7 +387,17 @@ export class WxMiniRecorder implements MiniRecorder {
     manager.onStart(() => this.handlers?.start());
     manager.onFrameRecorded(result => this.handlers?.frame(result.frameBuffer, result.isLastFrame));
     manager.onStop(() => { const handlers = this.handlers; this.handlers = undefined; handlers?.stop(); });
-    manager.onError(() => { const handlers = this.handlers; this.handlers = undefined; handlers?.error(); });
+    manager.onError(error => {
+      const handlers = this.handlers;
+      this.handlers = undefined;
+      const detail = typeof error.errMsg === 'string' ? error.errMsg : '';
+      const message = /bad request|parameter|invalid/i.test(detail)
+        ? '手机暂未接受录音参数，请重试，或继续使用文字输入。'
+        : /permission|auth|denied/i.test(detail)
+          ? '麦克风未获允许，请在小程序设置中开启，或继续使用文字输入。'
+          : '麦克风录音失败，已收到的文字会放入输入框。';
+      handlers?.error(message);
+    });
     manager.onInterruptionBegin(() => this.handlers?.interrupted());
   }
   private ensureManager() {

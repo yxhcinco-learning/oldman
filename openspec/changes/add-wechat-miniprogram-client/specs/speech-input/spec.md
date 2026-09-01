@@ -25,7 +25,11 @@
 小程序语音 SHALL 在用户长按、隐私同意、麦克风授权、有效 ticket 和 WSS ready 后使用全局 `RecorderManager` 采集 16 kHz、单声道、PCM 分片；客户端 MUST 以完整 PCM16 采样边界缓冲和发送任意回调大小，不得假设每帧固定长度或把压缩音频冒充现有上游协议。
 
 #### Scenario: Start a held recording
-- **WHEN** 用户持续长按达到阈值且授权、ticket 与 Socket 均准备完成
+- **WHEN** 用户按下语音按钮
+- **THEN** 界面立即给出已按住反馈；持续 180 毫秒后才进入授权、ticket 与 Socket 准备流程，短于该阈值的触摸不请求权限或在线服务
+
+#### Scenario: Start a held recording after the threshold
+- **WHEN** 用户持续长按达到 180 毫秒且授权、ticket 与 Socket 均准备完成
 - **THEN** 小程序启动有限时长的 PCM 录音、从本地分片计算反馈音量并向当前 WSS 发送偶数字节音频，正文在最终结果前不自动写入
 
 #### Scenario: Release before permission or socket readiness

@@ -197,12 +197,12 @@ describe('小程序实时听写会话', () => {
 describe('长按语音手势', () => {
   it('短按不请求权限，达到阈值才启动，松手停止且取消手势丢弃', () => {
     vi.useFakeTimers();
-    const gesture = new HoldToDictate(350);
+    const gesture = new HoldToDictate();
     const start = vi.fn(); const stop = vi.fn(); const cancel = vi.fn();
-    gesture.press(start); vi.advanceTimersByTime(200); gesture.release(stop);
+    gesture.press(start); vi.advanceTimersByTime(179); gesture.release(stop);
     expect(start).not.toHaveBeenCalled(); expect(stop).not.toHaveBeenCalled();
-    gesture.press(start); vi.advanceTimersByTime(350); expect(start).toHaveBeenCalledOnce(); gesture.release(stop); expect(stop).toHaveBeenCalledOnce();
-    gesture.press(start); vi.advanceTimersByTime(350); gesture.cancel(cancel); expect(cancel).toHaveBeenCalledOnce();
+    gesture.press(start); vi.advanceTimersByTime(180); expect(start).toHaveBeenCalledOnce(); gesture.release(stop); expect(stop).toHaveBeenCalledOnce();
+    gesture.press(start); vi.advanceTimersByTime(180); gesture.cancel(cancel); expect(cancel).toHaveBeenCalledOnce();
   });
 });
 

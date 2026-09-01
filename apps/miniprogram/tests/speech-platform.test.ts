@@ -43,7 +43,7 @@ describe('微信语音平台适配', () => {
     await new WxMiniSpeechTicketPlatform('https://mini.example').issue('business-token');
     new WxMiniSpeechSocketFactory('https://mini.example').connect('speech-ticket'.padEnd(43, 'x'));
     expect(requestCalls[0]).toMatchObject({ url: 'https://mini.example/api/mini/speech-ticket', method: 'POST',
-      header: { Accept: 'application/json', Authorization: 'Bearer business-token' } });
+      data: {}, header: { Accept: 'application/json', Authorization: 'Bearer business-token', 'Content-Type': 'application/json' } });
     expect(socketCalls[0]?.url).toBe(`wss://mini.example/api/mini/speech?ticket=${'speech-ticket'.padEnd(43, 'x')}`);
     expect(String(socketCalls[0]?.url)).not.toContain('business-token');
   });
@@ -70,6 +70,11 @@ describe('微信语音平台适配', () => {
     expect(handlers.frame).toHaveBeenCalledWith(expect.any(ArrayBuffer), true);
     expect(handlers.stop).toHaveBeenCalledOnce();
     expect(JSON.stringify(handlers)).not.toContain('ignored.pcm');
+
+    const rejected: MiniRecorderHandlers = { start: vi.fn(), frame: vi.fn(), stop: vi.fn(), error: vi.fn(), interrupted: vi.fn() };
+    adapter.start(options, rejected);
+    listeners.error?.({ errMsg: 'operateRecorder:fail bad request' } as never);
+    expect(rejected.error).toHaveBeenCalledWith(expect.stringContaining('未接受录音参数'));
   });
 
   it('未真正开始录音前不获取 RecorderManager', () => {

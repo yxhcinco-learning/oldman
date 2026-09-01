@@ -62,6 +62,7 @@ Page({
     voiceScale: '1.00',
     voiceTarget: '' as '' | 'body' | 'xiaowen',
     voiceBusy: false,
+    voicePressing: false,
   },
 
   onLoad(options: Record<string, string | undefined>) {
@@ -70,7 +71,8 @@ Page({
     speechUnsubscribe?.();
     speechUnsubscribe = miniServices().speech.subscribe(state => this.setData({ voicePhase: state.phase, voiceText: state.text,
       voiceMessage: state.message, voiceElapsed: state.elapsed, voiceScale: (1 + state.level * 0.15).toFixed(2),
-      voiceBusy: !['idle', 'error'].includes(state.phase) }));
+      voiceBusy: !['idle', 'error'].includes(state.phase),
+      ...(['idle', 'error'].includes(state.phase) ? { voicePressing: false } : {}) }));
     this.setData({ xiaowenOpen: Boolean(options.xiaowen) });
     void this.open(typeof options.id === 'string' ? decodeURIComponent(options.id) : undefined, options.xiaowen === 'compose');
   },
@@ -132,10 +134,16 @@ Page({
     this.setData({ keyboardHeight: event.detail.height });
   },
 
+  dismissKeyboard() {
+    this.setData({ keyboardHeight: 0 });
+    void wx.hideKeyboard({ fail: () => undefined });
+  },
+
   toggleInputMode() {
     const current = this.currentDraft();
     if (!current) return;
     const inputMode = current.inputMode === 'text' ? 'voice' : 'text';
+    if (inputMode === 'voice') this.dismissKeyboard();
     const draft: Draft = inputMode === 'voice' ? { ...current, inputMode: 'voice', segments: splitDraft(this.data.body, current.segments) }
       : { ...current, inputMode, textDraft: articleText(current.segments) };
     this.updateDraft(draft);
@@ -147,18 +155,24 @@ Page({
   },
 
   pressBodyVoice() {
-    this.setData({ voiceTarget: 'body', notice: '', error: '' });
+    this.setData({ voiceTarget: 'body', voicePressing: true, notice: '', error: '' });
     speechHold.press(() => void miniServices().speech.start(text => this.acceptBodyDictation(text)));
   },
 
   pressXiaoWenVoice() {
     if (this.data.operationBusy) return;
-    this.setData({ voiceTarget: 'xiaowen', xiaowenError: '' });
+    this.setData({ voiceTarget: 'xiaowen', voicePressing: true, xiaowenError: '' });
     speechHold.press(() => void miniServices().speech.start(text => this.acceptXiaoWenDictation(text)));
   },
 
-  releaseVoice() { speechHold.release(() => void miniServices().speech.stop()); },
-  cancelVoice() { speechHold.cancel(() => miniServices().speech.cancel()); },
+  releaseVoice() {
+    this.setData({ voicePressing: false });
+    speechHold.release(() => void miniServices().speech.stop());
+  },
+  cancelVoice() {
+    this.setData({ voicePressing: false });
+    speechHold.cancel(() => miniServices().speech.cancel());
+  },
 
   acceptBodyDictation(text: string) {
     const current = this.currentDraft();
@@ -190,6 +204,7 @@ Page({
   },
 
   cancelTitle() {
+    this.dismissKeyboard();
     this.setData({ titleDialog: false, titleInput: '' });
   },
 
@@ -197,6 +212,7 @@ Page({
     const current = this.currentDraft();
     if (!current) return;
     const title = this.data.titleInput.slice(0, 120);
+    this.dismissKeyboard();
     this.setData({ titleDialog: false, titleInput: '' });
     this.updateDraft({ ...current, title });
   },
@@ -267,12 +283,14 @@ Page({
       void wx.redirectTo({ url: `/pages/interview/index?id=${encodeURIComponent(draft.id)}` });
       return;
     }
+    this.dismissKeyboard();
     this.setData({ xiaowenOpen: true, xiaowenView: 'chat', notice: '' });
   },
 
   closeXiaoWen() {
     if (this.data.voiceTarget === 'xiaowen') miniServices().speech.interrupt('小文已收起，已收到的语音文字会保留在输入框。');
-    this.setData({ xiaowenOpen: false });
+    this.dismissKeyboard();
+    this.setData({ xiaowenOpen: false, voicePressing: false });
   },
   toggleTopic() { this.setData({ topicOpen: !this.data.topicOpen }); },
   onXiaoWenInput(event: WechatMiniprogram.TextareaInput) {
@@ -331,6 +349,7 @@ Page({
     const turn = this.data.session?.turns.find(item => item.id === turnId);
     const base = this.data.session?.versions.find(version => version.id === turn?.inputVersionId);
     if (!draft || !turn?.result?.body || !base) return;
+    this.dismissKeyboard();
     this.setData({ xiaowenView: 'preview', selectedTurnId: turnId,
       candidateTitle: turn.action === 'compose' ? '看看整理后的文章' : '看看调整后的全文',
       candidateSummary: resultSummary(turn.result, base.body), candidateBody: turn.result.body, candidateOriginalBody: base.body,
@@ -340,7 +359,10 @@ Page({
 
   toggleCandidateOriginal() { this.setData({ candidateShowOriginal: !this.data.candidateShowOriginal }); },
   backToConversation() { this.setData({ xiaowenView: 'chat', selectedTurnId: '', xiaowenError: '' }); },
-  showHistory() { this.setData({ xiaowenView: 'history', xiaowenError: '' }); },
+  showHistory() {
+    this.dismissKeyboard();
+    this.setData({ xiaowenView: 'history', xiaowenError: '' });
+  },
 
   async applyCandidate() {
     const draft = this.currentDraft();
@@ -394,6 +416,8 @@ Page({
 
   onHide() {
     miniServices().speech.interrupt();
+    speechHold.reset();
+    this.setData({ keyboardHeight: 0, voicePressing: false });
     this.preserveAndSave();
   },
 

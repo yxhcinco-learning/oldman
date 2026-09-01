@@ -62,6 +62,7 @@ describe('微信小程序公共工程配置', () => {
     const editor = readText('../miniprogram/pages/editor/index.wxml');
     const editorStyles = readText('../miniprogram/pages/editor/index.wxss');
     const editorController = readText('../miniprogram/pages/editor/index.ts');
+    const interview = readText('../miniprogram/pages/interview/index.wxml');
     const works = readText('../miniprogram/pages/works/index.wxml');
     const worksStyles = readText('../miniprogram/pages/works/index.wxss');
     const worksController = readText('../miniprogram/pages/works/index.ts');
@@ -95,6 +96,13 @@ describe('微信小程序公共工程配置', () => {
     expect(topicDetailStyles).toMatch(/\.start-actions button\s*\{[^}]*width:\s*100%[^}]*min-width:\s*0[^}]*box-sizing:\s*border-box/);
     expect(worksController).toContain('selectTab(this, 1)');
     expect(editor).toContain('bindkeyboardheightchange="onKeyboardHeight"');
+    expect(editor).toContain('class="dialog-mask" style="bottom: {{keyboardHeight}}px"');
+    expect(editor).toContain('class="xiaowen-mask" style="bottom: {{keyboardHeight}}px"');
+    expect(editor).toMatch(/class="title-input"[^>]*adjust-position="false"[^>]*bindkeyboardheightchange="onKeyboardHeight"/s);
+    expect(editor).toMatch(/placeholder="问小文，或提要求"[^>]*adjust-position="false"[^>]*bindkeyboardheightchange="onKeyboardHeight"/s);
+    expect(interview).toMatch(/placeholder="写下回答"[^>]*adjust-position="false"[^>]*bindkeyboardheightchange="onKeyboardHeight"/s);
+    expect(editorStyles).toMatch(/\.title-dialog\s*\{[^}]*max-height:\s*calc\(100% - 48px\)[^}]*overflow-y:\s*auto/);
+    expect(editorStyles).toMatch(/\.xiaowen-panel\s*\{[^}]*max-height:\s*calc\(100% - 48px\)/);
     expect(editor).not.toContain('<view class="save"');
     expect(editor).toContain('<view class="topbar-spacer"></view>');
     expect(editor).toContain('正在自动保存');
@@ -108,6 +116,8 @@ describe('微信小程序公共工程配置', () => {
     expect(editorController).toContain('await this.flushAutoSave()');
     expect(editorController).toContain('if (!saved) return');
     expect(editorController).toContain('savingVersion === draftVersion');
+    expect(editorController).toContain('voicePressing: true');
+    expect(editorController).toContain('dismissKeyboard()');
     expect(worksController).toContain('await miniServices().writer.flush()');
     expect(worksStyles).toMatch(/\.create-dock\s*\{[^}]*right:\s*0[^}]*left:\s*0[^}]*box-sizing:\s*border-box[^}]*overflow:\s*hidden/);
     expect(worksStyles).toMatch(/\.create-button\s*\{[^}]*width:\s*100%[^}]*max-width:\s*100%[^}]*min-width:\s*0/);

@@ -49,6 +49,7 @@ button.voice-collapse { display: grid; width: 48px; min-width: 48px; max-width: 
 .voice-collapse view { width: 8px; height: 8px; border-right: 1px solid #416657; border-bottom: 1px solid #416657; transform: rotate(45deg) translate(-2px,-2px); }
 button.mic { position: relative; display: grid; width: 76px; min-width: 76px; max-width: 76px; height: 76px; min-height: 76px; max-height: 76px; flex: 0 0 76px; margin: 0 4px; place-items: center; padding: 0; border: 4px solid #fff; border-radius: 50%; background: #153b2e; color: #fff; font-size: 16px; line-height: 68px; box-shadow: 0 4px 20px rgba(21, 59, 46, .12); }
 .mic { transition: transform .12s ease, background .12s ease; }
+.mic.pressing { box-shadow: 0 0 0 8rpx rgba(65, 102, 87, .18), 0 4px 20px rgba(21, 59, 46, .12); }
 .mic.permission, .mic.ticket, .mic.connecting, .mic.finishing { background: #416657; }
 .mic.error { background: #6f351c; }
 .mic-drawing { width: 28px; height: 28px; }
@@ -60,8 +61,8 @@ button.mic { position: relative; display: grid; width: 76px; min-width: 76px; ma
 .error-copy { max-height: 120rpx; }
 .error-actions { display: flex; gap: 12rpx; margin-top: 12rpx; }
 .error-actions button { min-height: 88rpx; padding: 12rpx 22rpx; border-radius: 44rpx; background: #fff; color: #6f351c; font-size: 27rpx; line-height: 64rpx; }
-.dialog-mask { position: fixed; z-index: 30; inset: 0; display: flex; align-items: flex-end; background: rgba(15, 29, 24, .2); backdrop-filter: blur(8rpx); }
-.title-dialog { width: 100%; padding: 16rpx 48rpx calc(32rpx + env(safe-area-inset-bottom)); border-radius: 48rpx 48rpx 0 0; background: #fbf9f8; }
+.dialog-mask { position: fixed; z-index: 30; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: flex-end; background: rgba(15, 29, 24, .2); backdrop-filter: blur(8rpx); transition: bottom .15s ease; }
+.title-dialog { width: 100%; max-height: calc(100% - 48px); padding: 16rpx 48rpx calc(32rpx + env(safe-area-inset-bottom)); overflow-y: auto; border-radius: 48rpx 48rpx 0 0; background: #fbf9f8; }
 .sheet-handle { width: 72rpx; height: 8rpx; margin: 0 auto 26rpx; border-radius: 8rpx; background: #c9cbc6; }
 .dialog-brand, .xiaowen-brand { color: #944924; font-family: "Songti SC", serif; font-size: 26rpx; line-height: 40rpx; }
 .dialog-heading { display: flex; align-items: center; justify-content: space-between; }
@@ -72,8 +73,8 @@ button.mic { position: relative; display: grid; width: 76px; min-width: 76px; ma
 .dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 20rpx; margin-top: 28rpx; }
 .dialog-actions button { min-height: 104rpx; border-radius: 52rpx; background: #e8eee9; color: #153b2e; font-size: 32rpx; line-height: 72rpx; }
 .dialog-actions .confirm { background: #e8eee9; color: #153b2e; }
-.xiaowen-mask { position: fixed; z-index: 28; inset: 0; display: flex; align-items: flex-end; background: rgba(15, 29, 24, .2); backdrop-filter: blur(8rpx); }
-.xiaowen-panel { display: flex; width: 100%; height: min(72vh, 1240rpx); max-height: calc(100vh - 32rpx); flex-direction: column; padding: 16rpx 48rpx calc(16rpx + env(safe-area-inset-bottom)); border-radius: 48rpx 48rpx 0 0; background: #fbf9f8; }
+.xiaowen-mask { position: fixed; z-index: 28; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: flex-end; background: rgba(15, 29, 24, .2); backdrop-filter: blur(8rpx); transition: bottom .15s ease; }
+.xiaowen-panel { display: flex; width: 100%; height: min(72vh, 1240rpx); max-height: calc(100% - 48px); flex-direction: column; padding: 16rpx 48rpx calc(16rpx + env(safe-area-inset-bottom)); border-radius: 48rpx 48rpx 0 0; background: #fbf9f8; }
 .xiaowen-panel > .sheet-handle { margin-bottom: 20rpx; }
 .xiaowen-header { display: flex; min-height: 96rpx; align-items: center; justify-content: space-between; }
 .xiaowen-title { min-width: 120rpx; flex: 1; }
@@ -127,7 +128,8 @@ button.mic { position: relative; display: grid; width: 76px; min-width: 76px; ma
 .xiaowen-voice, .xiaowen-send { min-height: 96rpx; padding: 12rpx; border-radius: 48rpx; font-size: 28rpx; line-height: 72rpx; }
 .xiaowen-button-cell { display: flex; min-width: 0; }
 .xiaowen-voice, .xiaowen-send { min-width: 0; flex: 1; margin: 0; }
-.xiaowen-voice { background: #e8eee9; color: #153b2e; }
+.xiaowen-voice { background: #e8eee9; color: #153b2e; transition: background .1s ease, transform .1s ease; }
+.xiaowen-voice.pressing { background: #d7e3da; transform: scale(.94); }
 .xiaowen-voice image { width: 22px; height: 22px; }
 .xiaowen-send { background: #153b2e; color: #fff; }
 .xiaowen-send[disabled] { opacity: .45; }

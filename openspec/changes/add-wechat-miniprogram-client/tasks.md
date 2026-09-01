@@ -87,7 +87,7 @@
 - [x] 10.3 After explicit deployment authorization and the user's manual secret/domain/privacy configuration, deploy one verified server release and test real WeChat code exchange with a non-sensitive account; record request count and non-secret result
 - [ ] 10.4 After bounded paid-call authorization, run at most the necessary short DeepSeek and Tencent ASR samples through the mini routes, recording actual counts, results and approximate cost separately without storing user content or audio
 - [ ] 10.5 On physical iOS WeChat, record keyboard/safe-area, long-press and permission denial/recovery, realtime/final speech, background interruption, source link, local restart recovery and backup import/export results
-- [ ] 10.6 On physical Android WeChat, record keyboard/safe-area, long-press and permission denial/recovery, realtime/final speech, background interruption, source link, local restart recovery and backup import/export results
+- [ ] 10.6 On physical Android WeChat, record keyboard/safe-area (including title and XiaoWen sheets), immediate 180 ms long-press feedback and permission denial/recovery, realtime/final speech, background interruption, source link, local restart recovery and backup import/export results
 - [ ] 10.7 Before switching away from the temporary AppID, export a non-sensitive test backup; when the final AppID is available, verify empty isolated startup and explicit import-as-copy without identity/token migration
 - [ ] 10.8 Confirm the final AppID subject, name, category, filing, request/socket domains, privacy guide and AI labeling materials; keep upload/review/release pending until the user separately authorizes each external step
 

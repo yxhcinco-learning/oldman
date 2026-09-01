@@ -45,26 +45,27 @@
       <view class="voice-copy"><view class="quiet-wave"><view></view><view></view><view></view><view></view><view></view></view><text>{{voiceTarget === 'body' && voiceText ? voiceText : body ? '正文已保留，长按麦克风继续说。' : '不着急，慢慢说。'}}</text></view>
       <view class="voice-control-row">
         <view class="voice-side-slot"><button class="voice-collapse" bindtap="toggleInputMode" aria-label="切换到文字输入"><view></view></button></view>
-        <button class="mic {{voicePhase}}" style="transform: scale({{voiceScale}})" bindtouchstart="pressBodyVoice" bindtouchend="releaseVoice" bindtouchcancel="cancelVoice" aria-label="长按说话，松开后文字会放入正文；不会发送给小文"><image class="mic-drawing" src="/assets/mic-white.svg" mode="aspectFit"></image><text wx:if="{{voicePhase === 'recording'}}">{{voiceElapsed}}秒</text></button>
+        <button class="mic {{voicePhase}} {{voicePressing ? 'pressing' : ''}}" style="transform: scale({{voiceScale}})" bindtouchstart="pressBodyVoice" bindtouchend="releaseVoice" bindtouchcancel="cancelVoice" aria-label="长按说话，松开后文字会放入正文；不会发送给小文"><image class="mic-drawing" src="/assets/mic-white.svg" mode="aspectFit"></image><text wx:if="{{voicePhase === 'recording'}}">{{voiceElapsed}}秒</text></button>
         <view class="voice-side-slot"></view>
       </view>
-      <view class="voice-help">{{voiceTarget === 'body' && voiceMessage ? voiceMessage : '按住说话'}}</view>
+      <view class="voice-help">{{voiceTarget === 'body' && voiceMessage ? voiceMessage : voiceTarget === 'body' && voicePressing ? '已按住，松开结束' : '按住说话'}}</view>
     </view>
   </view>
 
-  <view wx:if="{{titleDialog}}" class="dialog-mask" catchtouchmove="noop">
+  <view wx:if="{{titleDialog}}" class="dialog-mask" style="bottom: {{keyboardHeight}}px" catchtouchmove="noop">
     <view class="title-dialog" role="dialog" aria-modal="true" aria-label="编辑文章标题">
       <view class="sheet-handle"></view>
       <view class="dialog-brand">岁月有声</view>
       <view class="dialog-heading"><view class="dialog-title">编辑标题</view><button bindtap="cancelTitle" aria-label="关闭">×</button></view>
       <view class="input-label">文章标题</view>
       <input class="title-input" value="{{titleInput}}" maxlength="120" focus select-text-on-focus placeholder="输入标题"
-        bindinput="onTitleInput" confirm-type="done" bindconfirm="confirmTitle" />
+        adjust-position="false" cursor-spacing="20" bindinput="onTitleInput" bindkeyboardheightchange="onKeyboardHeight"
+        confirm-type="done" bindconfirm="confirmTitle" />
       <view class="dialog-actions"><button bindtap="cancelTitle">取消</button><button class="confirm" bindtap="confirmTitle">完成</button></view>
     </view>
   </view>
 
-  <view wx:if="{{xiaowenOpen}}" class="xiaowen-mask" catchtouchmove="noop">
+  <view wx:if="{{xiaowenOpen}}" class="xiaowen-mask" style="bottom: {{keyboardHeight}}px" catchtouchmove="noop">
     <view class="xiaowen-panel" role="dialog" aria-modal="true" aria-label="小文文章会话">
       <view class="sheet-handle"></view>
       <view class="xiaowen-brand">岁月有声</view>
@@ -122,9 +123,10 @@
       </scroll-view>
 
       <view wx:if="{{xiaowenView === 'chat'}}" class="xiaowen-composer">
-        <textarea value="{{xiaowenComposer}}" maxlength="2000" auto-height placeholder="问小文，或提要求" disabled="{{operationBusy || voiceBusy}}" bindinput="onXiaoWenInput"></textarea>
-        <view wx:if="{{voiceTarget === 'xiaowen' && voicePhase !== 'idle'}}" class="xiaowen-speech-status">{{voiceText || voiceMessage || '正在准备语音…'}}</view>
-        <view class="xiaowen-button-cell"><button class="xiaowen-voice" bindtouchstart="pressXiaoWenVoice" bindtouchend="releaseVoice" bindtouchcancel="cancelVoice" disabled="{{operationBusy}}" aria-label="长按语音输入"><image src="/assets/mic.svg" mode="aspectFit"></image></button></view>
+        <textarea value="{{xiaowenComposer}}" maxlength="2000" auto-height placeholder="问小文，或提要求" disabled="{{operationBusy || voiceBusy}}"
+          adjust-position="false" cursor-spacing="20" bindinput="onXiaoWenInput" bindkeyboardheightchange="onKeyboardHeight"></textarea>
+        <view wx:if="{{voiceTarget === 'xiaowen' && (voicePressing || voicePhase !== 'idle')}}" class="xiaowen-speech-status">{{voiceText || voiceMessage || (voicePressing ? '已按住，松开结束' : '正在准备语音…')}}</view>
+        <view class="xiaowen-button-cell"><button class="xiaowen-voice {{voiceTarget === 'xiaowen' && voicePressing ? 'pressing' : ''}}" bindtouchstart="pressXiaoWenVoice" bindtouchend="releaseVoice" bindtouchcancel="cancelVoice" disabled="{{operationBusy}}" aria-label="长按语音输入"><image src="/assets/mic.svg" mode="aspectFit"></image></button></view>
         <view class="xiaowen-button-cell"><button class="xiaowen-send" bindtap="sendXiaoWen" disabled="{{operationBusy || voiceBusy || !xiaowenComposer}}">{{operationBusy ? '处理中' : '发送'}}</button></view>
       </view>
       <view wx:elif="{{xiaowenView === 'preview' && candidateStatus === 'ready'}}" class="candidate-actions">

@@ -25,12 +25,14 @@ Page({
     voiceText: '',
     voiceMessage: '',
     voiceBusy: false,
+    voicePressing: false,
   },
 
   onLoad(options: Record<string, string | undefined>) {
     speechUnsubscribe?.();
     speechUnsubscribe = miniServices().speech.subscribe(state => this.setData({ voicePhase: state.phase, voiceText: state.text, voiceMessage: state.message,
-      voiceBusy: !['idle', 'error'].includes(state.phase) }));
+      voiceBusy: !['idle', 'error'].includes(state.phase),
+      ...(['idle', 'error'].includes(state.phase) ? { voicePressing: false } : {}) }));
     void this.open(options.id ? decodeURIComponent(options.id) : '');
   },
 
@@ -95,12 +97,18 @@ Page({
 
   pressDictation() {
     if (this.data.saving) return;
-    this.setData({ error: '' });
+    this.setData({ error: '', voicePressing: true });
     speechHold.press(() => void miniServices().speech.start(text => this.acceptDictation(text)));
   },
 
-  releaseDictation() { speechHold.release(() => void miniServices().speech.stop()); },
-  cancelDictation() { speechHold.cancel(() => miniServices().speech.cancel()); },
+  releaseDictation() {
+    this.setData({ voicePressing: false });
+    speechHold.release(() => void miniServices().speech.stop());
+  },
+  cancelDictation() {
+    this.setData({ voicePressing: false });
+    speechHold.cancel(() => miniServices().speech.cancel());
+  },
 
   acceptDictation(text: string) {
     const draft = this.data.draft;
@@ -135,6 +143,8 @@ Page({
 
   onHide() {
     miniServices().speech.interrupt();
+    speechHold.reset();
+    this.setData({ keyboardHeight: 0, voicePressing: false });
     const draft = this.data.draft;
     if (draft && (draft.materials.length || this.data.composer.trim())) void miniServices().writer.preserve(draft, this.data.session ?? undefined).catch(() => undefined);
   },
