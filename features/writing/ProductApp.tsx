@@ -15,9 +15,15 @@ import { snapshotTopic, type WritingTopic } from '../../lib/domain/topics';
 import { externalArticleText } from '../../lib/domain/article-ai';
 import { topicTransport as defaultTopicTransport, type TopicTransport } from '../topics/client';
 import { TopicDetail } from '../topics/TopicDetail';
+import { reportProductEvent, type OperationReporter } from '../operations/client';
 
 type Menu = 'library' | 'works' | 'trash' | Work | null;
-export function ProductApp({ repository, aiTransport, topicTransport = defaultTopicTransport }: { repository?: WorkRepository; aiTransport?: AiTransport; topicTransport?: TopicTransport }) {
+export function ProductApp({ repository, aiTransport, topicTransport = defaultTopicTransport, operationReporter = reportProductEvent }: {
+  repository?: WorkRepository;
+  aiTransport?: AiTransport;
+  topicTransport?: TopicTransport;
+  operationReporter?: OperationReporter;
+}) {
   const [workspace] = useState(() => new Workspace(repository ?? new IndexedWorkRepository()));
   const state = useSyncExternalStore(workspace.subscribe, workspace.getSnapshot, workspace.getSnapshot);
   const [assistant] = useState(() => new ArticleAiController(workspace, aiTransport));
@@ -35,6 +41,7 @@ export function ProductApp({ repository, aiTransport, topicTransport = defaultTo
   const file = useRef<HTMLInputElement>(null);
   const shell = useRef<HTMLElement>(null);
   const assistantOpenRef = useRef(false);
+  useEffect(() => operationReporter('app.opened'), [operationReporter]);
   useEffect(() => { void workspace.initialize(); return () => { workspace.dispose(); void assistant.cancel(); }; }, [workspace, assistant]);
   const loadTopics = useCallback(() => {
     topicTransport.list({ limit: 5 }).then(value => { setTopics(value); setTopicsStatus('ready'); }).catch(() => setTopicsStatus('error'));
@@ -77,7 +84,11 @@ export function ProductApp({ repository, aiTransport, topicTransport = defaultTo
     return () => document.removeEventListener('visibilitychange', checkpoint);
   }, [workspace]);
   useEffect(() => { if (notice) { const timer = setTimeout(() => setNotice(''), 3500); return () => clearTimeout(timer); } }, [notice]);
-  const backup = () => { download('岁月有声-备份.json', makeBackup(state.works, state.draft, state.sessions), 'application/json'); setNotice('已发起备份下载，请妥善保管文件'); };
+  const backup = () => {
+    download('岁月有声-备份.json', makeBackup(state.works, state.draft, state.sessions), 'application/json');
+    operationReporter('backup.exported');
+    setNotice('已发起备份下载，请妥善保管文件');
+  };
   const finish = async () => {
     if (busy) return;
     setBusy(true); await assistant.cancel(); assistantOpenRef.current = false; setAssistantOpen(false); setAssistantComposer({ workId: null, prompt: '' }); setAssistantStatus('idle');
@@ -93,6 +104,7 @@ export function ProductApp({ repository, aiTransport, topicTransport = defaultTo
     setSelectedTopic(null);
     setHomeSurface(mode === 'normal' ? 'works' : 'topics');
     await workspace.newWork({ topicSnapshot: snapshotTopic(topic), topicWritingMode: mode });
+    operationReporter(mode === 'normal' ? 'writing.started.topic' : 'writing.started.interview');
     if (mode === 'interview') { assistantOpenRef.current = true; setAssistantStatus('idle'); setAssistantOpen(true); }
   };
   const closeAssistant = () => {
@@ -118,7 +130,7 @@ export function ProductApp({ repository, aiTransport, topicTransport = defaultTo
   const menuWorks = state.works.filter(work => Boolean(work.deletedAt) === (menu === 'trash'));
   return <main className="stage"><section ref={shell} className={`phone-shell ${state.draft ? 'app-view editor-screen' : 'home-screen'}`} aria-label="岁月有声写作应用">
     {state.loading ? <div className="loading-state" role="status">正在打开本机作品…</div> : state.draft ? <Editor draft={state.draft} latestTopic={latestTopic} update={draft => { void workspace.update(draft); }} onSave={() => void finish()} onBack={() => void finish()} onAssistant={openAssistant} onInterview={() => { void workspace.update({ ...state.draft!, topicWritingMode: 'interview' }); openAssistant(); }} assistantStatus={assistantStatus} saveStatus={state.saveStatus} /> :
-      <WorksHome works={state.works} topics={topics} topicsStatus={topicsStatus} surface={homeSurface} onSurface={setHomeSurface} onRetryTopics={() => { setTopicsStatus('loading'); loadTopics(); }} onTopic={setSelectedTopic} onNew={() => { setHomeSurface('works'); void workspace.newWork(); }} onOpen={work => { setHomeSurface('works'); void workspace.open(work); }} onMenu={() => setMenu('library')} />}
+      <WorksHome works={state.works} topics={topics} topicsStatus={topicsStatus} surface={homeSurface} onSurface={setHomeSurface} onRetryTopics={() => { setTopicsStatus('loading'); loadTopics(); }} onTopic={topic => { setSelectedTopic(topic); operationReporter('topic.opened'); }} onNew={() => { setHomeSurface('works'); operationReporter('writing.started.blank'); void workspace.newWork(); }} onOpen={work => { setHomeSurface('works'); void workspace.open(work); }} onMenu={() => setMenu('library')} />}
     {state.error && <div className="storage-error" role="alert"><p>{state.error}</p><div>{state.draft && <button type="button" onClick={() => void workspace.update(state.draft!)}>重试保存</button>}<button type="button" onClick={backup}>导出当前备份</button></div></div>}
     {notice && <div className={`toast ${state.draft ? state.draft.segmentEdit ? 'segment' : `editor ${state.draft.inputMode}` : 'home'}`} role="status">{notice}</div>}
     <input ref={file} hidden type="file" accept=".json,application/json" aria-label="选择备份文件" onChange={async e => {
@@ -129,7 +141,7 @@ export function ProductApp({ repository, aiTransport, topicTransport = defaultTo
       setMenu(null);
       if (selected.size > MAX_BACKUP_BYTES) { setNotice('备份超过 10MB，未导入'); return; }
       setBusy(true);
-      try { const count = await workspace.import(await selected.text()); setNotice(`已恢复 ${count} 篇副本，原作品未改变`); }
+      try { const count = await workspace.import(await selected.text()); operationReporter('backup.imported'); setNotice(`已恢复 ${count} 篇副本，原作品未改变`); }
       catch (error) { setNotice(error instanceof Error ? error.message : '导入失败，原作品未改变'); }
       finally { setBusy(false); }
     }} />

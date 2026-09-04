@@ -4,13 +4,14 @@ import WebSocket from 'ws';
 import { signedAsrUrl, parseTencentResult, type AsrEngineModel, type Credentials } from './tencent';
 import { TranscriptAccumulator, type SpeechEvent } from '../features/speech/protocol';
 import { registerArticleAi, type AiGatewayOptions } from './article-ai';
-import { defaultOperationLogger, operationDuration, type OperationLogger } from './operations';
+import { defaultOperationLogger, OperationMonitor, operationDuration, type OperationLogger } from './operations';
 import { registerTopics } from './topics';
 import type { TopicStore } from './topic-store';
 import { registerMiniAuth, type MiniAuthGatewayOptions } from './mini-auth';
 import { SpeechTicketError, SpeechTicketStore } from './speech-ticket-store';
 import { MiniIdentityError } from './mini-identity-store';
 import { registerTopicAdmin, type TopicAdminGatewayOptions } from './topic-admin-api';
+import { registerOperationalEvents } from './operational-events';
 
 export interface GatewayOptions {
   credentials?: Credentials; origin: string; maxConnections?: number; maxDurationMs?: number; maxBytes?: number;
@@ -21,24 +22,35 @@ export interface GatewayOptions {
   topicAdmin?: Omit<TopicAdminGatewayOptions, 'origin' | 'store' | 'operations'>;
   topicAi?: NonNullable<TopicAdminGatewayOptions['ai']>;
   operations?: OperationLogger;
+  operationMonitor?: OperationMonitor;
+  eventRequestsPerMinute?: number;
   miniAuth?: Omit<MiniAuthGatewayOptions, 'operations'>;
   speechTickets?: SpeechTicketStore;
 }
 export async function createGateway(options: GatewayOptions) {
   const app = Fastify({ logger: false, bodyLimit: 64 * 1024 });
-  const operations = options.operations ?? defaultOperationLogger;
+  const monitor = options.operationMonitor ?? new OperationMonitor();
+  const sink = options.operations ?? defaultOperationLogger;
+  const operations: OperationLogger = entry => { monitor.record(entry); sink(entry); };
+  const capabilities = () => ({
+    aiConfigured: Boolean(options.ai?.configuration),
+    speechConfigured: Boolean(options.credentials),
+    topicsConfigured: Boolean(options.topics),
+    topicAiConfigured: Boolean(options.topicAi?.configuration),
+    topicAdminConfigured: Boolean(options.topicAdmin?.auth),
+    miniIdentityConfigured: Boolean(options.miniAuth?.service),
+  });
   registerArticleAi(app, { ...options.ai, origin: options.origin, operations, miniAuthService: options.miniAuth?.service });
   registerTopics(app, { origin: options.origin, store: options.topics, operations });
-  registerTopicAdmin(app, { ...options.topicAdmin, origin: options.origin, store: options.topics, operations, ai: options.topicAi });
+  registerTopicAdmin(app, { ...options.topicAdmin, origin: options.origin, store: options.topics, operations, ai: options.topicAi, monitor, capabilities });
   registerMiniAuth(app, { ...options.miniAuth, operations });
+  registerOperationalEvents(app, { origin: options.origin, operations, requestsPerMinute: options.eventRequestsPerMinute });
   const active = new Set<WebSocket>();
   const speechTickets = options.speechTickets ?? new SpeechTicketStore();
   await app.register(websocket, { options: { maxPayload: 64 * 1024 } });
   app.get('/api/health', async (request, reply) => {
     const startedAt = performance.now();
-    const result = { status: 'ok', aiConfigured: Boolean(options.ai?.configuration), speechConfigured: Boolean(options.credentials), topicsConfigured: Boolean(options.topics),
-      topicAiConfigured: Boolean(options.topicAi?.configuration), topicAdminConfigured: Boolean(options.topicAdmin?.auth),
-      miniIdentityConfigured: Boolean(options.miniAuth?.service) };
+    const result = { status: 'ok', ...capabilities() };
     operations({ requestId: request.id, action: 'health', status: 200, durationMs: operationDuration(startedAt) });
     return reply.header('Cache-Control', 'no-store').send(result);
   });

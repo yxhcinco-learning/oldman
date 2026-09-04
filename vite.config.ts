@@ -15,6 +15,7 @@ export default defineConfig({
       '/api/ai': { target: gatewayTarget, changeOrigin: true },
       '/api/topics': { target: gatewayTarget, changeOrigin: true },
       '/api/admin': { target: gatewayTarget, changeOrigin: true },
+      '/api/operations/events': { target: gatewayTarget, changeOrigin: true },
     },
     ...(isCodexSeatbeltSandbox ? { watch: { useFsEvents: false, usePolling: true } } : {}),
   },

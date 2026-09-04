@@ -111,6 +111,20 @@ describe('topic administrator credentials and sessions', () => {
 });
 
 describe('authenticated editorial API', () => {
+  it('exposes only aggregate current-process monitoring to an authenticated administrator', async () => {
+    const { app } = await setup();
+    expect((await app.inject('/api/admin/monitoring')).statusCode).toBe(401);
+    const session = await login(app);
+    const response = await app.inject({ url: '/api/admin/monitoring', headers: { cookie: session.cookie } });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      capabilities: { topicsConfigured: true, topicAdminConfigured: true, topicAiConfigured: false },
+      metrics: { uptimeSeconds: expect.any(Number), lifetime: { requests: expect.any(Number) }, actions: expect.any(Array) },
+    });
+    expect(response.body).not.toContain(session.cookie);
+    expect(response.body).not.toContain('requestId');
+  });
+
   it('requires origin, JSON, CSRF and an optimistic precondition', async () => {
     const { app } = await setup();
     const session = await login(app);

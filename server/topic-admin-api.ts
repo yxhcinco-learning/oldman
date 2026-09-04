@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { topicEditableContentSchema, topicGenerationRequestSchema, topicPlacementSchema, writingTopicSchema } from '../lib/domain/topics';
-import { defaultOperationLogger, operationDuration, type OperationLogger } from './operations';
+import { defaultOperationLogger, OperationMonitor, operationDuration, type OperationLogger } from './operations';
 import { TopicAdminAuthError, TopicAdminAuthService, type AuthenticatedTopicAdmin } from './topic-admin-auth';
 import { callDeepSeekTopicCandidate, TopicAiError } from './topic-ai';
 import type { AiConfiguration } from './article-ai';
@@ -38,6 +38,15 @@ export interface TopicAdminGatewayOptions {
   store?: TopicStore;
   auth?: TopicAdminAuthService;
   operations?: OperationLogger;
+  monitor?: OperationMonitor;
+  capabilities?: () => {
+    aiConfigured: boolean;
+    speechConfigured: boolean;
+    topicsConfigured: boolean;
+    topicAiConfigured: boolean;
+    topicAdminConfigured: boolean;
+    miniIdentityConfigured: boolean;
+  };
   now?: () => number;
   loginAttemptsPerWindow?: number;
   loginWindowMs?: number;
@@ -148,6 +157,18 @@ export function registerTopicAdmin(app: FastifyInstance, options: TopicAdminGate
     catch { finish(request, startedAt, 'topic.admin.session', 401, 'csrf_rejected'); return reply.code(401).send({ error: '后台会话无效或已过期。' }); }
     finish(request, startedAt, 'topic.admin.session', 200);
     return reply.send({ authenticated: true, username: admin.username, csrfToken, expiresAt: admin.expiresAt });
+  });
+
+  app.get('/api/admin/monitoring', async (request, reply) => {
+    const startedAt = performance.now();
+    const admin = guard(request, reply, false);
+    if (!admin) { finish(request, startedAt, 'topic.admin.monitoring', reply.statusCode, reply.statusCode === 503 ? 'not_configured' : 'unauthorized'); return; }
+    if (!options.monitor || !options.capabilities) {
+      finish(request, startedAt, 'topic.admin.monitoring', 503, 'not_configured');
+      return reply.code(503).send({ error: '运行监控尚未配置。' });
+    }
+    finish(request, startedAt, 'topic.admin.monitoring', 200);
+    return reply.send({ capabilities: options.capabilities(), metrics: options.monitor.snapshot() });
   });
 
   app.delete('/api/admin/auth/session', async (request, reply) => {

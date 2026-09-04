@@ -4,7 +4,7 @@ import { createGateway } from '../server/gateway';
 import { emptyDraft } from '../lib/domain/writing';
 import { newSession } from '../lib/domain/article-ai';
 import { buildAiRequest } from '../features/ai/protocol';
-import type { OperationEntry } from '../server/operations';
+import { OperationMonitor, type OperationEntry } from '../server/operations';
 
 const origin = 'https://suiyue.maicong.chat';
 const secret = 'test-only-secret-never-log';
@@ -74,4 +74,47 @@ it('uses fixed error categories for rejected origins and sanitized upstream fail
   expect(entries.map(entry => entry.errorCategory)).toEqual(['origin_rejected', 'upstream_auth']);
   expect(JSON.stringify(entries)).not.toContain('private upstream response');
   expect(JSON.stringify(entries)).not.toContain(privateText);
+});
+
+it('keeps bounded lifetime and rolling aggregate metrics without request identifiers', () => {
+  let now = Date.parse('2026-09-04T08:00:00.000Z');
+  const monitor = new OperationMonitor(() => now);
+  monitor.record({ requestId: 'private-request-one', action: 'ai.regular', status: 200, durationMs: 42, tokens: { input: 20, output: 5 } });
+  monitor.record({ requestId: 'private-request-two', action: 'ai.regular', status: 502, durationMs: 900, errorCategory: 'upstream_network' });
+  now += 16 * 60_000;
+  monitor.record({ requestId: 'private-request-three', action: 'topics.list', status: 404, durationMs: 12, errorCategory: 'not_found' });
+  const snapshot = monitor.snapshot();
+
+  expect(snapshot.lifetime).toMatchObject({ requests: 3, successes: 1, clientErrors: 1, serverErrors: 1, inputTokens: 20, outputTokens: 5 });
+  expect(snapshot.last15Minutes).toMatchObject({ requests: 1, clientErrors: 1 });
+  expect(snapshot.last60Minutes.requests).toBe(3);
+  expect(snapshot.actions.find(action => action.action === 'ai.regular')).toMatchObject({ requests: 2, p95DurationMs: 1_000,
+    errors: { upstream_network: 1 } });
+  expect(JSON.stringify(snapshot)).not.toContain('private-request');
+
+  now += 61 * 60_000;
+  expect(monitor.snapshot().last60Minutes.requests).toBe(0);
+  expect(monitor.snapshot().lifetime.requests).toBe(3);
+});
+
+it('accepts only strict anonymous product events and applies the global rate limit', async () => {
+  const entries: OperationEntry[] = [];
+  const app = await createGateway({ origin, operations: entry => entries.push(entry), eventRequestsPerMinute: 2 });
+  gateways.push(app);
+  const request = (payload: Record<string, unknown>, requestOrigin = origin, contentType = 'application/json') => app.inject({ method: 'POST', url: '/api/operations/events',
+    headers: { origin: requestOrigin, 'content-type': contentType }, payload });
+
+  expect((await request({ event: 'app.opened' })).statusCode).toBe(204);
+  expect((await request({ event: 'topic.opened', topicId: 'must-not-be-accepted' })).statusCode).toBe(400);
+  expect((await request({ event: 'writing.started.blank' })).statusCode).toBe(429);
+  expect((await request({ event: 'app.opened' }, 'https://foreign.example')).statusCode).toBe(403);
+  expect((await request({ event: 'app.opened' }, origin, 'text/plain')).statusCode).toBe(415);
+  expect(entries.map(entry => [entry.action, entry.status, entry.errorCategory])).toEqual([
+    ['event.app.opened', 204, undefined],
+    ['event.report', 400, 'invalid_event'],
+    ['event.report', 429, 'rate_limited'],
+    ['event.report', 403, 'origin_rejected'],
+    ['event.report', 415, 'content_type'],
+  ]);
+  expect(JSON.stringify(entries)).not.toContain('must-not-be-accepted');
 });
