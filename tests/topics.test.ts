@@ -107,6 +107,8 @@ describe('topic runtime configuration', () => {
   it('uses an ignored local data directory in development and requires production configuration', () => {
     expect(loadTopicRuntime({ NODE_ENV: 'development' }, 'fixture-workspace').configuration?.databasePath)
       .toBe(resolve('fixture-workspace', '.data', 'topics.sqlite'));
+    expect(loadTopicRuntime({ NODE_ENV: 'development', SUIYUE_TOPICS_DB_PATH: '.data/custom-topics.sqlite' }, 'fixture-workspace').configuration?.databasePath)
+      .toBe(resolve('fixture-workspace', '.data/custom-topics.sqlite'));
     expect(loadTopicRuntime({ NODE_ENV: 'production' })).toEqual({ problem: '话题数据库路径未配置，热门与后台已关闭。' });
     expect(loadTopicRuntime({ NODE_ENV: 'production', SUIYUE_TOPICS_DB_PATH: 'relative.sqlite' }).problem).toContain('绝对路径');
   });

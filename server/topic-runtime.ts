@@ -23,10 +23,12 @@ export function loadTopicRuntime(
   if (!configuredPath && production) {
     return { problem: '话题数据库路径未配置，热门与后台已关闭。' };
   }
-  const databasePath = configuredPath || resolve(cwd, '.data', 'topics.sqlite');
-  if (!isAbsolute(databasePath)) {
+  if (production && configuredPath && !isAbsolute(configuredPath)) {
     return { problem: '话题数据库路径必须是绝对路径，热门与后台已关闭。' };
   }
+  const databasePath = configuredPath
+    ? (isAbsolute(configuredPath) ? configuredPath : resolve(cwd, configuredPath))
+    : resolve(cwd, '.data', 'topics.sqlite');
   return { configuration: { databasePath } };
 }
 
