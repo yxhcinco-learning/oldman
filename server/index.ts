@@ -35,7 +35,7 @@ if (topicRuntime && topicAdminLoad.configuration) {
 const gateway = await createGateway({ credentials, origin: runtime.origin,
   engineModel, maxConnections: Math.max(1, Math.min(5, Number(process.env.ASR_MAX_CONNECTIONS) || 2)), ai: { configuration: aiConfiguration },
   ...(miniIdentity ? { miniAuth: { service: miniIdentity.service } } : {}), ...(topicRuntime ? { topics: topicRuntime.store } : {}),
-  ...(topicAdmin ? { topicAdmin: { auth: topicAdmin } } : {}) });
+  ...(topicAdmin ? { topicAdmin: { auth: topicAdmin } } : {}), ...(aiConfiguration ? { topicAi: { configuration: aiConfiguration } } : {}) });
 gateway.addHook('onClose', async () => { miniIdentity?.close(); topicRuntime?.close(); });
 try {
   await gateway.listen({ host: runtime.host, port: runtime.port });

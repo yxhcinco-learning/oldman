@@ -19,6 +19,7 @@ export interface GatewayOptions {
   ai?: Omit<AiGatewayOptions, 'origin'>;
   topics?: TopicStore;
   topicAdmin?: Omit<TopicAdminGatewayOptions, 'origin' | 'store' | 'operations'>;
+  topicAi?: NonNullable<TopicAdminGatewayOptions['ai']>;
   operations?: OperationLogger;
   miniAuth?: Omit<MiniAuthGatewayOptions, 'operations'>;
   speechTickets?: SpeechTicketStore;
@@ -28,7 +29,7 @@ export async function createGateway(options: GatewayOptions) {
   const operations = options.operations ?? defaultOperationLogger;
   registerArticleAi(app, { ...options.ai, origin: options.origin, operations, miniAuthService: options.miniAuth?.service });
   registerTopics(app, { origin: options.origin, store: options.topics, operations });
-  registerTopicAdmin(app, { ...options.topicAdmin, origin: options.origin, store: options.topics, operations });
+  registerTopicAdmin(app, { ...options.topicAdmin, origin: options.origin, store: options.topics, operations, ai: options.topicAi });
   registerMiniAuth(app, { ...options.miniAuth, operations });
   const active = new Set<WebSocket>();
   const speechTickets = options.speechTickets ?? new SpeechTicketStore();
@@ -36,7 +37,7 @@ export async function createGateway(options: GatewayOptions) {
   app.get('/api/health', async (request, reply) => {
     const startedAt = performance.now();
     const result = { status: 'ok', aiConfigured: Boolean(options.ai?.configuration), speechConfigured: Boolean(options.credentials), topicsConfigured: Boolean(options.topics),
-      topicAdminConfigured: Boolean(options.topicAdmin?.auth),
+      topicAiConfigured: Boolean(options.topicAi?.configuration), topicAdminConfigured: Boolean(options.topicAdmin?.auth),
       miniIdentityConfigured: Boolean(options.miniAuth?.service) };
     operations({ requestId: request.id, action: 'health', status: 200, durationMs: operationDuration(startedAt) });
     return reply.header('Cache-Control', 'no-store').send(result);

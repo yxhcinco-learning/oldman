@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { topicEditableContentSchema, topicPlacementSchema, writingTopicSchema } from '../lib/domain/topics';
+import { topicEditableContentSchema, topicGenerationRequestSchema, topicPlacementSchema, writingTopicSchema } from '../lib/domain/topics';
 import { defaultOperationLogger, operationDuration, type OperationLogger } from './operations';
 import { TopicAdminAuthError, TopicAdminAuthService, type AuthenticatedTopicAdmin } from './topic-admin-auth';
+import { callDeepSeekTopicCandidate, TopicAiError } from './topic-ai';
+import type { AiConfiguration } from './article-ai';
 import { TopicStore, TopicStoreError } from './topic-store';
 
 const SESSION_COOKIE = 'suiyue_topic_admin';
@@ -39,6 +41,7 @@ export interface TopicAdminGatewayOptions {
   now?: () => number;
   loginAttemptsPerWindow?: number;
   loginWindowMs?: number;
+  ai?: { configuration?: AiConfiguration; fetch?: typeof fetch; timeoutMs?: number };
 }
 
 const contentTypeIsJson = (request: FastifyRequest) => request.headers['content-type']?.split(';', 1)[0].trim().toLowerCase() === 'application/json';
@@ -83,6 +86,7 @@ export function registerTopicAdmin(app: FastifyInstance, options: TopicAdminGate
   const rateWindow = options.loginWindowMs ?? 15 * 60_000;
   const rateLimit = options.loginAttemptsPerWindow ?? 5;
   const buckets = new Map<string, RateBucket>();
+  let generationActive = false;
 
   app.addHook('onSend', async (request, reply, payload) => {
     if (request.url.startsWith('/api/admin/')) reply.header('Cache-Control', 'no-store');
@@ -288,6 +292,47 @@ export function registerTopicAdmin(app: FastifyInstance, options: TopicAdminGate
     const admin = guard(request, reply, false);
     if (!admin) return;
     return reply.send({ generations: options.store!.listGenerations() });
+  });
+
+  app.post('/api/admin/topic-generations', async (request, reply) => {
+    const admin = guard(request, reply, true);
+    if (!admin) return;
+    const parsed = topicGenerationRequestSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? '候选引子无效。' });
+    const generation = options.store!.startGeneration({ topicId: null, revision: null, brief: parsed.data.brief, urls: parsed.data.urls,
+      webSearchEnabled: parsed.data.webSearchEnabled, model: options.ai?.configuration?.model ?? 'deepseek-v4-flash', createdBy: admin.username });
+    if (!options.ai?.configuration) {
+      options.store!.finishGeneration(generation.id, { status: 'failed', errorCategory: 'not_configured' });
+      return reply.code(503).send({ error: '话题 AI 尚未配置，您仍可手工新建草稿。', generationId: generation.id });
+    }
+    if (generationActive) {
+      options.store!.finishGeneration(generation.id, { status: 'failed', errorCategory: 'busy' });
+      return reply.code(429).send({ error: '已有候选正在生成，请等待完成。', generationId: generation.id });
+    }
+    generationActive = true;
+    const controller = new AbortController();
+    const cancel = () => controller.abort();
+    request.raw.once('aborted', cancel);
+    try {
+      const result = await callDeepSeekTopicCandidate(parsed.data, options.ai.configuration, {
+        fetch: options.ai.fetch, timeoutMs: options.ai.timeoutMs, signal: controller.signal, generatedAt: new Date(clock()).toISOString(),
+      });
+      const now = new Date(clock()).toISOString();
+      const id = `topic-${now.slice(0, 10).replaceAll('-', '')}-${randomUUID().slice(0, 8)}`;
+      const topic = writingTopicSchema.parse({ id, revision: 1, status: 'candidate', ...result.content,
+        updatedAt: now, publishedAt: null, reviewedBy: null, reviewedAt: null });
+      const stored = options.store!.createEditable(topic, admin.username, parsed.data.brief);
+      options.store!.finishGeneration(generation.id, { status: 'succeeded', topicId: id, revision: 1,
+        inputTokens: result.usage?.input, outputTokens: result.usage?.output, searchCalls: result.searchCalls });
+      return reply.code(201).send({ generation: options.store!.listGenerations().find(item => item.id === generation.id), topic: stored });
+    } catch (error) {
+      const failure = error instanceof TopicAiError ? error : new TopicAiError(503, 'upstream_invalid_response', '候选无法保存，请改用手工草稿。');
+      options.store!.finishGeneration(generation.id, { status: failure.category === 'cancelled' ? 'cancelled' : 'failed', errorCategory: failure.category });
+      return reply.code(failure.status === 499 ? 408 : failure.status).send({ error: failure.message, generationId: generation.id });
+    } finally {
+      generationActive = false;
+      request.raw.off('aborted', cancel);
+    }
   });
 
   app.get('/api/admin/audit', async (request, reply) => {

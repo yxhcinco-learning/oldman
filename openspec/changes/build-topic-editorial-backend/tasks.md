@@ -23,10 +23,10 @@
 
 ## 4. DeepSeek topic candidate generation
 
-- [ ] 4.1 Implement a separate DeepSeek Responses adapter using structured topic output and optional `web_search` without altering article Chat Completions
-- [ ] 4.2 Add the authenticated generation endpoint with text/link validation, link-only search requirement, one-request concurrency, cancellation, usage/search accounting, fixed failures and manual-draft fallback
-- [ ] 4.3 Add non-network contract tests for text, links, combined input, search enabled/disabled, zero sources, invalid URLs, malformed output, timeout, cancellation, concurrency and no retry
-- [ ] 4.4 Run focused AI/admin checks, full check/build, verify no test made a paid request and commit the verified generation stage
+- [x] 4.1 Implement a separate DeepSeek Responses adapter using structured topic output and optional `web_search` without altering article Chat Completions
+- [x] 4.2 Add the authenticated generation endpoint with text/link validation, link-only search requirement, one-request concurrency, cancellation, usage/search accounting, fixed failures and manual-draft fallback
+- [x] 4.3 Add non-network contract tests for text, links, combined input, search enabled/disabled, zero sources, invalid URLs, malformed output, timeout, cancellation, concurrency and no retry
+- [x] 4.4 Run focused AI/admin checks, full check/build, verify no test made a paid request and commit the verified generation stage
 
 ## 5. Editorial console
 
