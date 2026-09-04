@@ -5,6 +5,8 @@ const ADMIN_ID = 'primary-topic-editor';
 const HASH_PREFIX = 'scrypt';
 const SESSION_BYTES = 32;
 const DEFAULT_SESSION_MS = 12 * 60 * 60 * 1000;
+const MIN_PASSWORD_LENGTH = 6;
+const MAX_PASSWORD_LENGTH = 1024;
 const SCRYPT_OPTIONS = { N: 16_384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 } as const;
 
 interface ParsedPasswordHash {
@@ -74,7 +76,9 @@ function parsePasswordHash(value: string): ParsedPasswordHash | undefined {
 }
 
 export function createTopicAdminPasswordHash(password: string) {
-  if (password.length < 12 || password.length > 1024) throw new Error('管理员密码长度必须为 12–1024 个字符');
+  if (password.length < MIN_PASSWORD_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
+    throw new Error(`管理员密码长度必须为 ${MIN_PASSWORD_LENGTH}–${MAX_PASSWORD_LENGTH} 个字符`);
+  }
   const salt = randomBytes(16);
   const passwordDigest = scryptSync(password, salt, 64, SCRYPT_OPTIONS);
   return [HASH_PREFIX, SCRYPT_OPTIONS.N, SCRYPT_OPTIONS.r, SCRYPT_OPTIONS.p, salt.toString('base64url'), passwordDigest.toString('base64url')].join('$');
@@ -82,7 +86,7 @@ export function createTopicAdminPasswordHash(password: string) {
 
 export function verifyTopicAdminPassword(password: string, encoded: string) {
   const parsed = parsePasswordHash(encoded);
-  if (!parsed || password.length > 1024) return false;
+  if (!parsed || password.length < MIN_PASSWORD_LENGTH || password.length > MAX_PASSWORD_LENGTH) return false;
   const actual = scryptSync(password, parsed.salt, parsed.digest.length, SCRYPT_OPTIONS);
   return timingSafeEqual(actual, parsed.digest);
 }

@@ -49,6 +49,13 @@ async function login(app: Awaited<ReturnType<typeof createGateway>>, password = 
 
 describe('topic administrator credentials and sessions', () => {
   it('creates and verifies the documented scrypt format without storing plaintext', () => {
+    const shortestPassword = 'x'.repeat(6);
+    const shortestHash = createTopicAdminPasswordHash(shortestPassword);
+    expect(verifyTopicAdminPassword(shortestPassword, shortestHash)).toBe(true);
+    expect(() => createTopicAdminPasswordHash('x'.repeat(5))).toThrow('管理员密码长度必须为 6–1024 个字符');
+    expect(() => createTopicAdminPasswordHash('x'.repeat(1024))).not.toThrow();
+    expect(() => createTopicAdminPasswordHash('x'.repeat(1025))).toThrow('管理员密码长度必须为 6–1024 个字符');
+    expect(verifyTopicAdminPassword('x'.repeat(5), shortestHash)).toBe(false);
     expect(PASSWORD_HASH).toMatch(/^scrypt\$16384\$8\$1\$/);
     expect(PASSWORD_HASH).not.toContain(PASSWORD);
     expect(verifyTopicAdminPassword(PASSWORD, PASSWORD_HASH)).toBe(true);

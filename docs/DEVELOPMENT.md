@@ -54,7 +54,7 @@ CI 对 push 和可选 PR 运行 npm ci、check、build 和依赖审计；CI 不�
 - `npm run check`：类型、Lint、测试、规范与边界校验。
 - `npm run build`：本地 Vinext 构建，不发布。
 - `npm run test:speech:live`：无参数只读本地状态，不产生语音。显式 `-- --pcm 文件.pcm` 且本地允许标记开启时才做最多 30 秒的真实联调；可加 `--expect 非敏感测试句`。按上述费用规则判断是否执行；不自动购买/充值。详见 SPEECH-SETUP。
-- `npm run admin:hash-password`：仅在交互式终端读取一次不可回显的后台密码，输出 scrypt 散列；密码不得放在命令参数、聊天、仓库或日志中。
+- `npm run admin:hash-password`：仅在交互式终端读取一次不可回显的 6–1024 字符后台密码，输出 scrypt 散列；六位只是允许的最低值，面向公网时仍应使用更长且唯一的密码。密码不得放在命令参数、聊天、仓库或日志中。
 - `npm run test:topic-ai:live`：默认因 `ALLOW_PAID_TOPIC_AI_TEST=0` 拒绝联网；只有显式改为 `1` 时才用固定非敏感引子做一个顶层 Responses + web search 请求，无自动重试。执行前估算费用，结果只记录模型、请求/搜索次数、token 和固定状态。
 
 默认仅绑定回环地址。不把开发服务暴露到局域网/互联网；手机真实麦克风和键盘在后续可信 HTTPS 环境验证。
