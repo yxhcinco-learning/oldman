@@ -73,15 +73,19 @@ Linux 网关 MUST 使用 `ASR_CREDENTIAL_SOURCE=project` 从 root-only 服务端
 - **THEN** 内容只在该客户端本地恢复，备份由客户端显式交给用户；服务器不创建文章、聊天、音频或备份副本
 
 ### Requirement: Evidence-based controlled public verification
-部署 MUST 在激活前确认回滚路径并运行相应 check/build；激活后 MUST 分别验证网页访问控制与同源能力、小程序换码与业务鉴权、TLS、静态资源、健康/status、两类 WebSocket、文字保存/恢复/备份、服务重启和失败路径。真实微信换码、DeepSeek/ASR 调用 MUST 使用少量非敏感短样本并记录次数；测试替身、配置状态、开发者工具或 WebSocket 握手不得冒充公网真实上游和 iOS/Android 真机成功。
+部署 MUST 在激活前确认回滚路径并运行相应 check/build；激活后 MUST 分别验证网页访问控制与同源能力、小程序换码与业务鉴权、TLS、静态资源、健康/status、两类 WebSocket、文字保存/恢复/备份、服务重启和失败路径。真实微信换码、DeepSeek/ASR 调用 MUST 使用少量非敏感短样本并记录次数；测试替身、配置状态、开发者工具或 WebSocket 握手不得冒充公网真实上游或真实 Android 微信成功，未执行的 iOS 验证不得冒充通过。
 
 #### Scenario: Complete automated and bounded live checks
 - **WHEN** 公网入口和服务已启动且外部账户可用并已授权低成本联调
-- **THEN** 自动检查覆盖成功与拒绝路径，微信换码使用限定测试账号，AI 各代表性动作至多使用一次短样本，ASR 每个平台仅使用必要短音频，并记录实际调用次数、结果和费用边界
+- **THEN** 自动检查覆盖成功与拒绝路径，微信换码使用限定测试账号，AI 各代表性动作至多使用一次短样本，ASR 在当前纳入验收的平台仅使用必要短音频，并记录实际调用次数、结果和费用边界
 
 #### Scenario: Provider or device check cannot complete
-- **WHEN** 微信后台配置、外部服务余额/权限/网络失败，或验收需要真实 iOS/Android 微信的麦克风、系统键盘和后台切换
+- **WHEN** 微信后台配置、外部服务余额/权限/网络失败，或当前验收需要的真实 Android 微信麦克风、系统键盘和后台切换无法完成
 - **THEN** 停止重复付费调用，保持服务可回滚并将项目列为未完成，不以 mock、桌面尺寸、开发者工具或合成音频替代
+
+#### Scenario: iOS device is outside the current acceptance gate
+- **WHEN** 当前没有可用 iOS 设备且产品负责人明确只要求记录未验证状态
+- **THEN** 验收记录 MUST 明确 iOS 未验证，不得声称 iOS 兼容性通过，也不得仅因缺少 iOS 设备阻塞当前 Android 范围的归档
 
 #### Scenario: Upload or submission was not authorized
 - **WHEN** 本地实现与体验版检查完成但用户没有明确授权上传、提审或发布

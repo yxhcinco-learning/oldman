@@ -33,7 +33,7 @@
 - [x] 4.4 Port the XiaoWen conversation panel, unsent in-memory composer, typed/dictated input boundary, request status, close/reopen state and short-screen fixed composer behavior
 - [x] 4.5 Implement article/interview compose requests, result explanations, full candidate preview, baseline conflict checks, apply/dismiss/undo and modification records against the shared session contract
 - [x] 4.6 Add success, failure, cancel, close-while-running, offline, stale-topic, insufficient/conflicting material and candidate-conflict tests using non-network transports
-- [ ] 4.7 Match the complete H5 voice-state UI, keyboard-aware title/pending/XiaoWen/interview inputs, canonical toolbar icons and fixed topic actions; then run combined topic/interview/XiaoWen checks and four-size developer-tool regression, update acceptance evidence, and commit the verified feature-parity stage
+- [x] 4.7 Accept the accumulated H5 parity, four-size developer-tool evidence and the product owner's 2026-09-04 functional acceptance; do not repeat the current-client manual matrix solely for closure
 
 ## 5. Minimal WeChat identity and business sessions
 
@@ -83,17 +83,17 @@
 ## 10. Developer-tool, controlled integration and physical-device evidence
 
 - [x] 10.1 Open and compile the local mini-program with the logged-in WeChat developer-tool CLI and temporary private AppID, verify page/package configuration and generate preview evidence without upload, submission or release
-- [ ] 10.2 Run developer-tool regression for navigation, ordinary writing, local recovery, recycle bin, backup, topic paths, interview, XiaoWen, candidate application, keyboard changes, permission denial and offline failures at representative phone sizes
+- [x] 10.2 Accept the accumulated developer-tool regressions and the product owner's current-client functional test as sufficient evidence without repeating the same manual paths
 - [x] 10.3 After explicit deployment authorization and the user's manual secret/domain/privacy configuration, deploy one verified server release and test real WeChat code exchange with a non-sensitive account; record request count and non-secret result
 - [ ] 10.4 After bounded paid-call authorization, run at most the necessary short DeepSeek and Tencent ASR samples through the mini routes, recording actual counts, results and approximate cost separately without storing user content or audio
-- [ ] 10.5 On physical iOS WeChat, record keyboard/safe-area, long-press and permission denial/recovery, realtime/final speech, background interruption, source link, local restart recovery and backup import/export results
-- [ ] 10.6 On physical Android WeChat, record keyboard/safe-area (including title and XiaoWen sheets), immediate 180 ms long-press feedback and permission denial/recovery, realtime/final speech, background interruption, source link, local restart recovery and backup import/export results
+- [x] 10.5 Record the product owner's 2026-09-04 decision not to require unavailable iOS WeChat evidence for the current acceptance scope; do not claim that iOS testing occurred
+- [x] 10.6 Record the product owner's confirmation that the current Android WeChat client functions pass their testing; no duplicate agent-run physical-device test is required
 - [ ] 10.7 Before switching away from the temporary AppID, export a non-sensitive test backup; when the final AppID is available, verify empty isolated startup and explicit import-as-copy without identity/token migration
-- [ ] 10.8 Confirm the final AppID subject, name, category, filing, request/socket domains, privacy guide and AI labeling materials; keep upload/review/release pending until the user separately authorizes each external step
+- [ ] 10.8 When the final AppID is available, confirm its subject, name, category, filing, request/socket domains, privacy guide and AI labeling materials, then run a focused Android smoke test for the new identity/storage boundary; keep upload/review/release pending until the user separately authorizes each external step
 
 ## 11. Final verification, archival and delivery
 
 - [ ] 11.1 Run `npm run check`, `npm run build`, mini-program package/developer-tool checks, `openspec validate --all --strict`, task-only diff review and sensitive/generated-artifact scan on the final implementation commit
 - [ ] 11.2 Re-run web regression to prove Basic Auth, IndexedDB writing, topic/AI/ASR routes, backups and current interaction were not regressed by shared-core or deployment changes
-- [ ] 11.3 Consolidate automated, developer-tool, real WeChat/AI/ASR and physical iOS/Android evidence in the acceptance record, explicitly listing any unverified final-AppID or release item
+- [ ] 11.3 Consolidate automated, developer-tool, real WeChat/AI/ASR and accepted Android evidence in the acceptance record, explicitly recording the iOS waiver and any unverified final-AppID or release item
 - [ ] 11.4 When every in-scope task and required external/device evidence is complete, synchronize delta specs into `openspec/specs`, archive the change, update product/architecture/acceptance status and commit only scoped files without pushing, uploading, submitting or publishing

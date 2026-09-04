@@ -2,7 +2,7 @@
 
 帮助长辈把想说的话写下来。正式工程位于本仓库根目录，采用已确认的 Echoes of Time 设计：暖白纸面、森林绿、书信插画与轻盈排版；现行规则见 [设计规范](DESIGN-SYSTEM.md)，本机启动路径见下方说明。
 
-真实功能：精选议题与来源、直接写或小文采访、可折叠事件背景；文字/语音写作、本机保存恢复、回收站、TXT 导出和 JSON 备份恢复。腾讯云语音网关已完成本机真实链路联调；本次议题采访的手机键盘与语音仍待真机验收。
+真实功能：精选议题与来源、直接写或小文采访、可折叠事件背景；文字/语音写作、本机保存恢复、回收站、TXT 导出和 JSON 备份恢复。腾讯云语音网关已完成本机真实链路联调；当前功能及 Android 实际使用已由产品负责人确认，iOS 未验证且不作为本次归档门槛。
 
 文章 AI 已接入 DeepSeek V4 Flash：常规优化、润色、文章问答、对话式改文，以及采访的单问题追问和所选素材整理。采访回答先作为本机素材保存，整理结果仍须查看全文并确认后才进入正文。精简、扩写和配图尚未开放。
 
@@ -32,7 +32,7 @@ npm run dev
 - [AI 开发约定](AGENTS.md)、[开发与验收](docs/DEVELOPMENT.md)
 - [隐私与数据边界](docs/PRIVACY.md)、[工程迁移与清理](docs/CLEANUP.md)
 - [本地验收与待办记录](docs/ACCEPTANCE.md)
-- 当前 OpenSpec change ID：`add-topic-guided-writing`、`promote-xiaowen-writing-companion`（这是规范变更标识，不是 Git 分支名）
+- 当前 OpenSpec change ID：`add-wechat-miniprogram-client`（这是规范变更标识，不是 Git 分支名；正式 AppID 尚未取得，因此变更保持活动）
 
 ```powershell
 npm run check

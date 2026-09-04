@@ -43,4 +43,4 @@
 
 ## 交付
 
-唯一正式源码位于当前仓库根目录，本机路径见开发说明；项目统一称“岁月有声”或“正式版”，远程为用户指定且允许 Public 的 oldman 仓库。已停用本地 GPT Sites 发布接入，不修改远端站点。本机开发仍固定 localhost:3001；受控公网测试固定为 `https://suiyue.maicong.chat`，使用独立 IndexedDB，不自动上传或迁移 localhost 文章。真实手机录音与键盘必须在该可信 HTTPS 环境另行记录，桌面模拟或合成音频不能替代。
+唯一正式源码位于当前仓库根目录，本机路径见开发说明；项目统一称“岁月有声”或“正式版”，远程为用户指定且允许 Public 的 oldman 仓库。已停用本地 GPT Sites 发布接入，不修改远端站点。本机开发仍固定 localhost:3001；受控公网测试固定为 `https://suiyue.maicong.chat`，使用独立 IndexedDB，不自动上传或迁移 localhost 文章。当前功能及 Android 实际使用已由产品负责人确认；iOS 未验证且不作为本次归档门槛。正式小程序 AppID 到位后仍需针对新的身份、本地存储与平台配置边界做 Android 聚焦复核，桌面模拟或合成音频不能替代。
