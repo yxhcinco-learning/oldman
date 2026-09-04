@@ -28,6 +28,7 @@
     "check": "npm run typecheck && npm run lint && npm test && npm run spec:check && npm run security:check",
     "security:check": "node scripts/check-boundaries.mjs",
     "test:speech:live": "node --env-file-if-exists=.env.local scripts/speech-live-check.mjs",
+    "test:topic-ai:live": "node --env-file-if-exists=.env.local --import tsx scripts/topic-ai-live-check.mjs",
     "admin:hash-password": "node --import tsx scripts/hash-topic-admin-password.mjs"
   },
   "dependencies": {

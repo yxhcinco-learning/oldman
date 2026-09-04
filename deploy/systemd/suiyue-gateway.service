@@ -1,5 +1,5 @@
 [Unit]
-Description=Suiyue Yousheng AI and speech gateway
+Description=Suiyue Yousheng content, identity, speech and AI gateway
 After=network-online.target
 Wants=network-online.target
 StartLimitIntervalSec=60s

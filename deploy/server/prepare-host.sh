@@ -19,8 +19,8 @@ fi
 install -d -m 0755 -o root -g root /opt/suiyue-yousheng /opt/suiyue-yousheng/releases /etc/suiyue-yousheng /var/www/letsencrypt
 install -d -m 0700 -o suiyue -g suiyue /var/lib/suiyue-yousheng
 install -d -m 0700 -o root -g root /var/lib/suiyue-yousheng/backups /var/lib/suiyue-yousheng/failed
-[[ "$(realpath /var/lib/suiyue-yousheng)" == "/var/lib/suiyue-yousheng" ]] || { echo "identity directory is unsafe" >&2; exit 2; }
-[[ "$(stat -c '%a:%U:%G' /var/lib/suiyue-yousheng)" == "700:suiyue:suiyue" ]] || { echo "identity directory must be 0700 suiyue:suiyue" >&2; exit 2; }
+[[ "$(realpath /var/lib/suiyue-yousheng)" == "/var/lib/suiyue-yousheng" ]] || { echo "application data directory is unsafe" >&2; exit 2; }
+[[ "$(stat -c '%a:%U:%G' /var/lib/suiyue-yousheng)" == "700:suiyue:suiyue" ]] || { echo "application data directory must be 0700 suiyue:suiyue" >&2; exit 2; }
 
 enabled=/etc/nginx/sites-enabled/suiyue-yousheng.conf
 if [[ -e "$enabled" && ! -L "$enabled" ]]; then

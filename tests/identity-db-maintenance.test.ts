@@ -15,14 +15,14 @@ afterEach(async () => {
   for (const directory of directories.splice(0)) await rm(directory, { recursive: true, force: true });
 });
 
-describe('身份数据库部署维护', () => {
+describe('SQLite 数据库部署维护', () => {
   it('完整性检查、在线备份和失败迁移恢复都保留可核对副本', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'suiyue-identity-maintenance-'));
     directories.push(directory);
     const databasePath = join(directory, 'auth.sqlite');
     const backupPath = join(directory, 'backup.sqlite');
     const quarantinePrefix = join(directory, 'failed-release');
-    const script = fileURLToPath(new URL('../deploy/server/identity-db.mjs', import.meta.url));
+    const script = fileURLToPath(new URL('../deploy/server/sqlite-db.mjs', import.meta.url));
 
     const database = new DatabaseSync(databasePath);
     database.exec('CREATE TABLE users (id TEXT PRIMARY KEY) STRICT; PRAGMA user_version = 1;');
@@ -42,5 +42,19 @@ describe('身份数据库部署维护', () => {
     const quarantined = new DatabaseSync(`${quarantinePrefix}.sqlite`, { readOnly: true });
     expect(quarantined.prepare('SELECT COUNT(*) AS count FROM users').get()).toEqual({ count: 2 });
     quarantined.close();
+  });
+
+  it('拒绝由旧发布版本读取更高 schema，同时保留兼容入口', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'suiyue-schema-ceiling-'));
+    directories.push(directory);
+    const databasePath = join(directory, 'topics.sqlite');
+    const script = fileURLToPath(new URL('../deploy/server/sqlite-db.mjs', import.meta.url));
+    const compatibilityScript = fileURLToPath(new URL('../deploy/server/identity-db.mjs', import.meta.url));
+    const database = new DatabaseSync(databasePath);
+    database.exec('CREATE TABLE fixtures (id TEXT PRIMARY KEY) STRICT; PRAGMA user_version = 2;');
+    database.close();
+
+    await expect(execute(process.execPath, [script, 'check', databasePath, '1'])).rejects.toMatchObject({ code: 2 });
+    await expect(execute(process.execPath, [compatibilityScript, 'check', databasePath, '2'])).resolves.toMatchObject({ stdout: expect.stringContaining('schema 2') });
   });
 });
