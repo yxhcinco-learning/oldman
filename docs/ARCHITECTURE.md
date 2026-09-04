@@ -7,12 +7,13 @@
 - features/speech：正文长按与小文点按控制、音频采集及语音事件。
 - features/ai：文章助手界面、会话请求控制、上下文选取与共享协议。
 - features/topics：议题读取、详情展示及写作入口；不抓取或保存第三方全文。
+- features/topic-admin：独立内部后台的登录、候选编辑、预览、修订、排期、生成记录与审计界面；不进入用户导航。
 - features/demo：历史模拟交互，只接收深副本和退出回调，保留独立测试；正式产品不导入。
 - lib/domain：Work、Draft、Segment、ArticleSession、ArticleVersion、AiTurn 与纯函数。
 - lib/storage：WorkRepository、IndexedDB、版本化备份。
 - packages/core：网页、小程序和测试共享的领域、备份、AI 来源与协议纯逻辑，不引用 DOM、Node 或 `wx`。
 - apps/miniprogram：WXML/WXSS/TypeScript 原生客户端，本地聚合文件、微信网络、录音与文件适配器独立于网页 UI。
-- server：仅回环地址的 Fastify 网关，承载 WebSocket ASR、HTTP 文章 AI、只读议题及最小微信身份/业务会话。
+- server：仅回环地址的 Fastify 网关，承载 WebSocket ASR、HTTP 文章 AI、SQLite 话题读写、DeepSeek 话题候选及微信/管理员会话。
 
 ## ADR-001 保留工具链
 
@@ -78,19 +79,27 @@ AI 标识采用保守的作品历史谓词：只有明确应用的完整候选�
 
 ## ADR-007 受控公网测试运行时
 
-2026-08-30 用户授权在既有腾讯云 Lighthouse 上进行临时、小范围公网测试。固定 Origin 为 `https://suiyue.maicong.chat`：Nginx 在 80/443 终止 TLS，网页 `/`、原 `/api/ai/*` 和原 `/api/speech` 继续受 Basic Auth 与浏览器 Origin 约束；只对精确话题列表、安全 ID 形状的话题详情、`/api/mini/auth/wechat`、`/api/mini/ai/turn`、`/api/mini/speech-ticket` 和小程序 WSS 关闭 Basic Auth并分层限流，未列出的 API 拒绝。前端与网关使用专用 `suiyue` 用户、独立 3011/3012 回环端口、systemd 服务和版本化 release；不开放应用端口，不复用或停止服务器上的其他项目。
+2026-08-30 用户授权在既有腾讯云 Lighthouse 上进行临时、小范围公网测试。固定 Origin 为 `https://suiyue.maicong.chat`：Nginx 在 80/443 终止 TLS，用户网页 `/`、原 `/api/ai/*` 和原 `/api/speech` 继续受 Basic Auth 与浏览器 Origin 约束；精确话题只读接口和明确列出的小程序接口关闭 Basic Auth。未来激活话题后台时，`/admin/topics`、其不可变前端静态资源和 `/api/admin/*` 同样绕过 Basic Auth，但由应用自身的管理员会话、精确 Origin、CSRF、JSON Content-Type 和限流保护；未列出的 API 继续拒绝。前端与网关使用专用 `suiyue` 用户、独立 3011/3012 回环端口、systemd 服务和版本化 release；不开放应用端口，不复用或停止服务器上的其他项目。
 
-阶段性访问保护和简单 IP 限流只在 Nginx；产品不新增可见账号、邀请码或管理后台。Linux 网关从同一个 root-only 环境文件读取腾讯云、DeepSeek、微信 AppID/AppSecret 和身份库路径；微信三项只有同时通过固定形状与绝对路径校验才装配服务，缺失或无效时只把小程序身份失败关闭，网页和本地写作不回退假身份。最小 SQLite 库位于 release 外的 `/var/lib/suiyue-yousheng/auth.sqlite`，目录仅 `suiyue` 可写；systemd 只放行该目录。激活前停止网关、做 `quick_check` 和 SQLite 在线备份，失败迁移的库转入 root-only 隔离目录并恢复迁移前副本；普通代码回滚不删除或覆盖身份库。
+用户端不新增可见账号或邀请码；内部话题后台采用单一管理员配置。Linux 网关从同一个 root-only 环境文件读取腾讯云、DeepSeek、微信 AppID/AppSecret、管理员用户名/scrypt 散列及数据库路径；缺失或无效时只关闭对应在线能力，网页本机写作不回退假身份或假话题。身份库与话题库分别位于 release 外的 `/var/lib/suiyue-yousheng/auth.sqlite` 和 `/var/lib/suiyue-yousheng/topics.sqlite`，目录仅 `suiyue` 可写；systemd 只放行该目录。激活前停止网关，对两库执行 `quick_check`、schema 上限检查和 SQLite 在线备份；失败迁移把两库的失败态分别移入 root-only 隔离目录，再恢复迁移前副本。普通代码回滚只核对兼容性，不删除、覆盖或降级数据库。
 
-Fastify 保持原始请求日志关闭，只输出 requestId、动作、状态、耗时、可用 token 数和固定错误类别；Nginx 关闭该站点 access log，小程序语音 ticket 位置再次显式关闭访问日志，错误日志沿用服务器 logrotate，systemd stdout/stderr 由 journald 轮转。`/api/health` 只增加 `miniIdentityConfigured` 布尔值，不显示 AppID、路径、OpenID 或秘密。
+Fastify 保持原始请求日志关闭，只输出 requestId、动作、状态、耗时、可用 token 数和固定错误类别；Nginx 关闭该站点 access log，小程序语音 ticket 位置再次显式关闭访问日志，错误日志沿用服务器 logrotate，systemd stdout/stderr 由 journald 轮转。`/api/health` 只报告 `miniIdentityConfigured`、`topicsConfigured`、`topicAiConfigured`、`topicAdminConfigured` 等布尔值，不显示账号、AppID、路径、OpenID 或秘密。
 
 每个浏览器 Origin 继续拥有独立 IndexedDB。公网域名首次访问为空库；localhost 或其他域名文章只能由用户显式导出 JSON、再在目标浏览器恢复为副本，服务器不接收备份或文章同步。部署、验证和回滚见 [受控公网部署](DEPLOYMENT.md)；产品协议仍由 ADR-002、ADR-003 和 ADR-006 管理。
 
 ## ADR-008 精选议题与写作素材
 
-首页议题来自服务端人工审核目录，分为近期、时令和慢议题，列表最多返回20条、“热门”页最多展示5条，不做无限流。`WorksHome` 内部状态只切换固定底部“文章 / 热门 / 我的”三个展示面，不改变存储或网络状态；“我的”只调用既有作品与备份对话框，不引入账号模型。每条话题包含摘要、有效期、来源链接、内部编辑判断、可选角度和审核/更正版本；前台隐藏 `whyItMatters`，标题使用内容式表述，并把命令式角度转换为中性“大家也在关心”切面。发布接口只读，自动化只能形成候选，不能绕过人工发布。来源域名受允许清单约束，服务端不接收用户正文，也不复制第三方全文。
+首页议题来自服务端 SQLite 人工审核库，分为近期、时令和慢议题；公开列表只返回当前有效的五个显式首页席位，按 1–5 排序，可少于五条，不做自动混排、补位或无限流。`WorksHome` 内部状态只切换固定底部“文章 / 热门 / 我的”三个展示面，不改变存储或网络状态；“我的”只调用既有作品与备份对话框，不引入账号模型。每条话题包含摘要、有效期、0–5 条来源链接、内部编辑判断、可选角度和审核/更正版本；前台隐藏 `whyItMatters`，来源为空时不渲染来源区。发布接口只读，AI 只能形成候选，不能绕过人工发布；来源由编辑逐项审核，不再由域名白名单决定发布资格。服务端不接收用户正文，也不复制第三方全文。
 
 用户开始写作时把议题复制为本机快照，离线仍可查看；服务端出现更新时只提示比较，用户确认后才替换快照。议题背景、作者正文、采访回答和 AI 候选使用不同字段与状态：背景不自动插入正文，聊天发送后回答默认保留为本机素材，只有用户点击“整理成文章”才提交这些回答生成候选，候选仍需显式采用。内容维护规则见 [议题内容策略](TOPIC-CONTENT-POLICY.md)。
+
+## ADR-009 话题编辑数据库与审核闭环
+
+话题运行时使用独立 `topics.sqlite`，schema v1 采用 WAL、外键、严格表、事务和启动 `quick_check`。数据模型包含话题、不可变修订、AI 生成记录、首页席位、管理员、后台会话和审计。状态沿用 `draft / candidate / rejected / published / corrected / archived`；草稿与候选通过 `editVersion` 乐观并发原地编辑，发布后只能追加更高修订。席位记录修订、开始和结束时间，同一席位时间段重叠在事务内返回冲突；公开查询按当前时间判断 `publishedAt`、有效期、归档与席位，无常驻定时器。首次空库幂等导入 21 条种子并固化原选择规则的五个席位，静态目录随后只作迁移夹具；库损坏、配置失败或未来 schema 一律返回 503，不回退种子。
+
+管理员用户名与 scrypt 密码散列来自服务端环境。登录签发随机 Cookie，数据库只保存 token/CSRF 散列；HttpOnly、SameSite、生产 Secure、精确 Origin、CSRF、登录限流、过期、退出和凭据指纹轮换共同保护会话。所有后台写请求还要求 JSON 与修订前置条件，过期页面返回 409。审计只记录操作者、动作、实体、时间和非敏感差异摘要。
+
+话题 AI 使用独立 DeepSeek Responses 适配器，文章小文继续使用 Chat Completions。编辑输入 0–6000 字、0–5 个 HTTP(S) 链接且至少一项；链接存在时强制联网，纯文本可关闭联网。一次按钮操作最多一个顶层请求、并发一、无自动重试，结构化输出只创建 `candidate`；记录模型、token、联网与搜索调用数和固定错误类别，不保存思维链或上游原始响应。来源、日期和事实都可由编辑修改或删除，无来源仍可发布。
 
 ### 历史回退来源
 
