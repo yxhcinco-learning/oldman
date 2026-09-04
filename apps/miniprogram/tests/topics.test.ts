@@ -24,15 +24,15 @@ class FakeTransport implements MiniHttpTransport {
 }
 
 describe('小程序审核话题适配', () => {
-  it('只返回已审核话题并保留更正与过期数据供界面标记', async () => {
+  it('只返回已审核话题并保持服务端席位顺序', async () => {
     const reviewed = topic({ status: 'corrected', correctionNote: '来源日期已更正。' });
     const expired = topic({ id: 'expired-topic', kind: 'current', expiresAt: '2026-09-01T00:00:00.000Z' });
     const candidate = topic({ id: 'candidate-topic', status: 'candidate', publishedAt: null, reviewedBy: null, reviewedAt: null });
     const transport = new FakeTransport({ statusCode: 200, data: { updatedAt: '2026-09-01T08:00:00.000Z', topics: [candidate, reviewed, expired] } });
     const result = await new MiniTopicClient(transport, 'https://example.test').list({ limit: 5 });
-    expect(result.map(item => item.id)).toEqual(['expired-topic', 'old-courtyard']);
-    expect(result[1]?.correctionNote).toBe('来源日期已更正。');
-    expect(isTopicCurrent(result[0]!, new Date('2026-09-01T08:00:00.000Z'))).toBe(false);
+    expect(result.map(item => item.id)).toEqual(['old-courtyard', 'expired-topic']);
+    expect(result[0]?.correctionNote).toBe('来源日期已更正。');
+    expect(isTopicCurrent(result[1]!, new Date('2026-09-01T08:00:00.000Z'))).toBe(false);
     expect(transport.requests).toEqual([{ url: 'https://example.test/api/topics?limit=5', timeoutMs: 8000 }]);
   });
 

@@ -1,4 +1,4 @@
-import { selectHomeTopics, writingTopicSchema, z, type TopicKind, type WritingTopic } from '../domain/core';
+import { writingTopicSchema, z, type TopicKind, type WritingTopic } from '../domain/core';
 import { MINI_API_ORIGIN } from './config';
 
 const topicListSchema = z.object({ updatedAt: z.iso.datetime(), topics: z.array(writingTopicSchema).max(20) }).strict();
@@ -44,7 +44,7 @@ export class MiniTopicClient {
     if (options.kind) query.push(`kind=${encodeURIComponent(options.kind)}`);
     query.push(`limit=${Math.max(1, Math.min(20, options.limit ?? 5))}`);
     const parsed = parseTopicList(readResponse(await this.transport.get(`${this.origin}/api/topics?${query.join('&')}`, 8000)));
-    return selectHomeTopics(parsed.topics.filter(isReviewed), options.limit ?? 5);
+    return parsed.topics.filter(isReviewed).slice(0, options.limit ?? 5);
   }
 
   async detail(id: string): Promise<WritingTopic> {

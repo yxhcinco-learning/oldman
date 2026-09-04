@@ -18,7 +18,7 @@ const transport = (topics: WritingTopic[], detail = topics[0]): TopicTransport =
 });
 const openTopics = async () => { fireEvent.click(await screen.findByRole('tab', { name: '热门' })); };
 
-it('keeps the five-card home selection mixed across current, periodic and slow topics', () => {
+it('keeps the legacy selector available for old snapshots while new clients preserve server order', () => {
   const selected = selectHomeTopics(REVIEWED_TOPIC_CATALOG, 5);
   expect(selected).toHaveLength(5);
   expect(new Set(selected.map(topic => topic.kind))).toEqual(new Set(['current', 'periodic', 'slow']));
@@ -33,7 +33,7 @@ it('keeps every published title and visible facet free of assignment-style copy'
 });
 
 it('separates popular topics from articles and presents them as content instead of writing assignments', async () => {
-  const topics = REVIEWED_TOPIC_CATALOG.slice(0, 6);
+  const topics = REVIEWED_TOPIC_CATALOG.slice(0, 5);
   render(<ProductApp repository={repository()} topicTransport={transport(topics)} />);
   expect(await screen.findByRole('heading', { name: '热门话题', level: 1 })).toBeInTheDocument();
   expect(screen.getByRole('tab', { name: '热门' })).toHaveAttribute('aria-selected', 'true');
@@ -50,6 +50,16 @@ it('separates popular topics from articles and presents them as content instead 
   const source = within(dialog).getByRole('link');
   expect(source).toHaveAttribute('href', topics[0].sources[0].url);
   expect(source).toHaveAttribute('target', '_blank');
+});
+
+it('hides the complete source section when an editor publishes no sources', async () => {
+  const topic = { ...REVIEWED_TOPIC_CATALOG[0], sources: [] };
+  render(<ProductApp repository={repository()} topicTransport={transport([topic])} />);
+  await openTopics();
+  fireEvent.click(await screen.findByRole('button', { name: new RegExp(topic.title) }));
+  const dialog = screen.getByRole('dialog', { name: topic.title });
+  expect(within(dialog).queryByRole('heading', { name: '消息来源' })).not.toBeInTheDocument();
+  expect(within(dialog).queryByText(/暂无来源|编辑整理/)).not.toBeInTheDocument();
 });
 
 it('starts normal writing with a saved background snapshot and never inserts it into the body', async () => {

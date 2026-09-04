@@ -8,11 +8,11 @@
 
 ## 2. Runtime and public topic contract
 
-- [ ] 2.1 Add topic runtime configuration with a Git-ignored development database, production absolute-path validation and fail-closed health flags
-- [ ] 2.2 Replace the in-memory public queue with the SQLite store so list results follow active slot order and detail respects publication, expiry and archive time
-- [ ] 2.3 Update H5 and mini clients to trust server order and render topics with no source section while preserving topic snapshots and old backups
-- [ ] 2.4 Add public API and client regressions for zero-to-five topics, no-source detail, schedule boundaries, unavailable storage and unchanged local writing paths
-- [ ] 2.5 Run focused public/shared/mini checks, full check/build and commit the verified public-runtime stage
+- [x] 2.1 Add topic runtime configuration with a Git-ignored development database, production absolute-path validation and fail-closed health flags
+- [x] 2.2 Replace the in-memory public queue with the SQLite store so list results follow active slot order and detail respects publication, expiry and archive time
+- [x] 2.3 Update H5 and mini clients to trust server order and render topics with no source section while preserving topic snapshots and old backups
+- [x] 2.4 Add public API and client regressions for zero-to-five topics, no-source detail, schedule boundaries, unavailable storage and unchanged local writing paths
+- [x] 2.5 Run focused public/shared/mini checks, full check/build and commit the verified public-runtime stage
 
 ## 3. Independent admin authentication and editorial API
 

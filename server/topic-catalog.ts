@@ -1,9 +1,4 @@
-import { isTopicCurrent, writingTopicSchema, type TopicKind, type WritingTopic } from '../lib/domain/topics';
-
-export const ALLOWED_TOPIC_SOURCE_HOSTS = new Set([
-  'www.moe.gov.cn', 'www.bjwmb.gov.cn', 'edu.sh.gov.cn', 'lgj.mofcom.gov.cn', 'www.cq.gov.cn',
-  'www.cac.gov.cn', 'www.shanghai.gov.cn', 'www.digitalchina.gov.cn', 'zzkj.zhengzhou.gov.cn', 'www.shpt.gov.cn',
-]);
+import { writingTopicSchema, type WritingTopic } from '../lib/domain/topics';
 
 const reviewedAt = '2026-08-31T08:00:00.000Z';
 const editor = '岁月有声内容编辑';
@@ -48,52 +43,3 @@ export const REVIEWED_TOPIC_CATALOG: WritingTopic[] = [
   topic({ id: 'teach-what-you-know', kind: 'slow', title: '把一生所学讲出来，也是一种退休生活', summary: '老年教育和基层文化活动越来越重视能者为师、知识分享和学习成果展示，为退休专业人员提供继续贡献经验的方式。', whyItMatters: '不是所有经验都适合写成教程，但一个判断、一套做事方法或一段失败经历都值得留下。', updatedAt: reviewedAt, expiresAt: null, sources: [shanghaiLearning, putuoAging], angles: angles('写一条年轻时没人教、后来自己悟出的经验', '谈怎样分享经验而不变成说教', '写一次学生或后辈反过来教会自己的事'), starterQuestion: '如果只给年轻同行留下一条经验，您最想说什么？', tags: ['经验传承', '职业', '退休生活'] }),
   topic({ id: 'technology-needs-human-judgment', kind: 'slow', title: '工具越来越聪明，人的判断依然重要', summary: '人工智能正在进入教育、文旅和日常服务。它能够提高效率，但责任、价值取舍和对具体人的理解仍需要使用者判断。', whyItMatters: '目标用户长期承担过专业责任，适合从真实决策而不是抽象口号讨论人机关系。', updatedAt: reviewedAt, expiresAt: null, sources: [moeAi, digitalTourism], angles: angles('写一次不能只按流程处理的工作决定', '谈经验判断与数据建议发生冲突时怎么办', '给第一次使用AI的人提一条原则'), starterQuestion: '您的工作中，有没有一次“按规定做还不够”，必须靠经验判断？', tags: ['人工智能', '职业判断', '责任'] }),
 ];
-
-export function validateTopicSourceHosts(topicValue: WritingTopic, allowlist = ALLOWED_TOPIC_SOURCE_HOSTS) {
-  const blocked = topicValue.sources.find(item => !allowlist.has(new URL(item.url).hostname));
-  if (blocked) throw new Error(`来源不在允许清单：${blocked.publisher}`);
-  return topicValue;
-}
-
-export class TopicEditorialQueue {
-  private records = new Map<string, WritingTopic>();
-  constructor(values: WritingTopic[] = REVIEWED_TOPIC_CATALOG) {
-    for (const value of values) this.records.set(`${value.id}:${value.revision}`, validateTopicSourceHosts(writingTopicSchema.parse(value)));
-  }
-  private latestPublished(id: string) {
-    return [...this.records.values()].filter(item => item.id === id && ['published', 'corrected'].includes(item.status))
-      .sort((a, b) => b.revision - a.revision)[0];
-  }
-  listPublished(options: { now?: Date; kind?: TopicKind; limit?: number } = {}) {
-    const now = options.now ?? new Date();
-    const limit = Math.min(Math.max(options.limit ?? 20, 1), 20);
-    const latest = new Map<string, WritingTopic>();
-    for (const item of this.records.values()) {
-      if (!isTopicCurrent(item, now) || options.kind && item.kind !== options.kind) continue;
-      const previous = latest.get(item.id);
-      if (!previous || item.revision > previous.revision) latest.set(item.id, item);
-    }
-    return [...latest.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.title.localeCompare(b.title, 'zh-CN')).slice(0, limit);
-  }
-  getPublished(id: string, now = new Date()) { return this.listPublished({ now, limit: 20 }).find(item => item.id === id); }
-  submit(value: WritingTopic) {
-    const parsed = validateTopicSourceHosts(writingTopicSchema.parse(value));
-    if (!['draft', 'candidate'].includes(parsed.status)) throw new Error('只有草稿或候选可以进入审核队列');
-    this.records.set(`${parsed.id}:${parsed.revision}`, parsed); return parsed;
-  }
-  reject(id: string, revision: number) {
-    const current = this.records.get(`${id}:${revision}`); if (!current || !['draft', 'candidate'].includes(current.status)) throw new Error('没有可拒绝的候选');
-    const next = writingTopicSchema.parse({ ...current, status: 'rejected' }); this.records.set(`${id}:${revision}`, next); return next;
-  }
-  publish(id: string, revision: number, reviewer: string, at = new Date().toISOString()) {
-    const current = this.records.get(`${id}:${revision}`); if (!current || !['draft', 'candidate'].includes(current.status)) throw new Error('没有可发布的候选');
-    const next = validateTopicSourceHosts(writingTopicSchema.parse({ ...current, status: 'published', publishedAt: at, updatedAt: at, reviewedBy: reviewer, reviewedAt: at }));
-    this.records.set(`${id}:${revision}`, next); return next;
-  }
-  correct(value: WritingTopic) {
-    const latest = this.latestPublished(value.id);
-    if (!latest || value.revision <= latest.revision) throw new Error('更正修订号必须增加');
-    const parsed = validateTopicSourceHosts(writingTopicSchema.parse({ ...value, status: 'corrected' }));
-    this.records.set(`${parsed.id}:${parsed.revision}`, parsed); return parsed;
-  }
-}

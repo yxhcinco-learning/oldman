@@ -21,7 +21,7 @@
       <view class="section-title">大家也在关心</view>
       <view class="angle" wx:for="{{topic.angles}}" wx:key="id"><view class="angle-dot"></view><text>{{item.title}}</text></view>
     </view>
-    <view class="section">
+    <view class="section" wx:if="{{sources.length > 0}}">
       <view class="section-title">信息来源</view>
       <navigator class="source" wx:for="{{sources}}" wx:key="id" url="{{item.route}}">
         <view><text>{{item.title}}</text><small>{{item.publisher}}</small></view><b>›</b>

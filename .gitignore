@@ -32,6 +32,7 @@ yarn-error.log*
 .env*
 !.env.example
 /backups/
+/.data/
 /test-results/
 *.wav
 *.pcm

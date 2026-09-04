@@ -78,7 +78,7 @@ describe('小程序鉴权 AI 网关', () => {
     expect(operations.map(entry => entry.action)).toEqual(['mini.ai.regular', 'ai.regular']);
   });
 
-  it('对每个内部用户限制并发与频率，同时保持审核话题公开只读', async () => {
+  it('对每个内部用户限制并发与频率，同时让未配置的话题库独立失败关闭', async () => {
     const { store, service } = identity();
     let release: (value: Response) => void = () => {};
     const firstResponse = new Promise<Response>(resolve => { release = resolve; });
@@ -95,7 +95,7 @@ describe('小程序鉴权 AI 网关', () => {
     expect((await app.inject({ method: 'POST', url: '/api/mini/ai/turn', headers, payload: payload() })).statusCode).toBe(429);
     release(upstreamResponse());
     expect((await first).statusCode).toBe(200);
-    expect((await app.inject('/api/topics?limit=1')).statusCode).toBe(200);
+    expect((await app.inject('/api/topics?limit=1')).statusCode).toBe(503);
   });
 
   it('身份服务未配置时也不会触发付费上游', async () => {

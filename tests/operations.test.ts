@@ -28,7 +28,7 @@ it('reports health without secrets and emits only bounded operational fields', a
   const response = await app.inject('/api/health');
   expect(response.statusCode).toBe(200);
   expect(response.headers['cache-control']).toBe('no-store');
-  expect(response.json()).toEqual({ status: 'ok', aiConfigured: true, speechConfigured: true, miniIdentityConfigured: false });
+  expect(response.json()).toEqual({ status: 'ok', aiConfigured: true, speechConfigured: true, topicsConfigured: false, miniIdentityConfigured: false });
   expect(response.body).not.toContain(secret);
   expect(entries).toHaveLength(1);
   expect(Object.keys(entries[0]).sort()).toEqual(['action', 'durationMs', 'requestId', 'status']);

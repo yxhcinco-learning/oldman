@@ -6,7 +6,7 @@ import { TranscriptAccumulator, type SpeechEvent } from '../features/speech/prot
 import { registerArticleAi, type AiGatewayOptions } from './article-ai';
 import { defaultOperationLogger, operationDuration, type OperationLogger } from './operations';
 import { registerTopics } from './topics';
-import type { TopicEditorialQueue } from './topic-catalog';
+import type { TopicStore } from './topic-store';
 import { registerMiniAuth, type MiniAuthGatewayOptions } from './mini-auth';
 import { SpeechTicketError, SpeechTicketStore } from './speech-ticket-store';
 import { MiniIdentityError } from './mini-identity-store';
@@ -16,7 +16,7 @@ export interface GatewayOptions {
   engineModel?: AsrEngineModel;
   connect?: (url: string) => WebSocket;
   ai?: Omit<AiGatewayOptions, 'origin'>;
-  topics?: TopicEditorialQueue;
+  topics?: TopicStore;
   operations?: OperationLogger;
   miniAuth?: Omit<MiniAuthGatewayOptions, 'operations'>;
   speechTickets?: SpeechTicketStore;
@@ -25,14 +25,14 @@ export async function createGateway(options: GatewayOptions) {
   const app = Fastify({ logger: false, bodyLimit: 64 * 1024 });
   const operations = options.operations ?? defaultOperationLogger;
   registerArticleAi(app, { ...options.ai, origin: options.origin, operations, miniAuthService: options.miniAuth?.service });
-  registerTopics(app, { origin: options.origin, queue: options.topics, operations });
+  registerTopics(app, { origin: options.origin, store: options.topics, operations });
   registerMiniAuth(app, { ...options.miniAuth, operations });
   const active = new Set<WebSocket>();
   const speechTickets = options.speechTickets ?? new SpeechTicketStore();
   await app.register(websocket, { options: { maxPayload: 64 * 1024 } });
   app.get('/api/health', async (request, reply) => {
     const startedAt = performance.now();
-    const result = { status: 'ok', aiConfigured: Boolean(options.ai?.configuration), speechConfigured: Boolean(options.credentials),
+    const result = { status: 'ok', aiConfigured: Boolean(options.ai?.configuration), speechConfigured: Boolean(options.credentials), topicsConfigured: Boolean(options.topics),
       miniIdentityConfigured: Boolean(options.miniAuth?.service) };
     operations({ requestId: request.id, action: 'health', status: 200, durationMs: operationDuration(startedAt) });
     return reply.header('Cache-Control', 'no-store').send(result);
