@@ -1,7 +1,7 @@
 ## 1. Product validation and content contract
 
 - [x] 1.1 Select the first target cohort and three to five topic columns, then create at least twenty manually reviewed topic cards covering current, periodic and slow topics
-- [ ] 1.2 Run a small target-user pilot comparing summary-only, angle-assisted and experience-question topic cards; record topic-to-input, draft completion, interview exit and source-trust evidence
+- [x] 1.2 Record the product owner's 2026-09-04 decision to remove the planned target-user pilot from this change's acceptance scope; retain the historical pilot plan without claiming participant evidence
 - [x] 1.3 Confirm the user-facing names for normal writing, guided interview, pause, switch and explicit composition without presenting a second assistant or generic chat product
 - [x] 1.4 Define allowed information sources, summary/link rights, correction procedure, review states and publication responsibilities before enabling any automated ingestion
 
@@ -47,10 +47,10 @@
 - [x] 7.1 Update product, design-system and architecture documents only when the corresponding behavior is implemented, keeping planned direction distinct from current status
 - [x] 7.2 Add automated success, failure, cancel, offline, stale-source, storage-conflict and backup tests using reviewed fixtures and non-network AI transports
 - [x] 7.3 Run `npm run check`, `npm run build`, OpenSpec validation and task-only diff/sensitive-output review
-- [ ] 7.4 Run browser regression for feed, topic detail, both writing paths, switching, interview composition and source updates at 360×640, 390×844, 430×932 and 1280×900
-- [ ] 7.5 Record physical iOS Safari and Android Chrome evidence for system keyboard, dictation, background switching, source links and local recovery; do not substitute desktop emulation
-- [ ] 7.6 If explicitly approved, run only bounded non-sensitive real topic/AI integration calls, record sources, request count and approximate cost separately, and do not use them in routine CI
-- [ ] 7.7 After requirements and evidence pass, synchronize delta specs, archive the change and commit only scoped files without pushing or publishing
+- [x] 7.4 Accept the recorded four-size browser regressions and the product owner's 2026-09-04 functional acceptance as closing evidence; do not repeat the manual matrix solely for archival
+- [x] 7.5 Record the product owner's Android physical-device acceptance and explicit decision not to require unavailable iOS evidence for this change; do not claim that iOS testing occurred
+- [x] 7.6 Record that no additional real topic/AI integration call is required for this change and do not claim an unmade paid call
+- [x] 7.7 Synchronize delta specs, archive the change and commit only scoped files without pushing or publishing
 
 ## 8. Content framing and conversational interview refinement
 
