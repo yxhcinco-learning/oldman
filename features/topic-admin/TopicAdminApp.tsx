@@ -13,10 +13,15 @@ type Generation = { id: string; topicId: string | null; revision: number | null;
 type Audit = { id: string; actor: string; action: string; entity: string; entityId: string; summary: Record<string, unknown>; createdAt: string };
 type OperationMetric = { requests: number; successes: number; clientErrors: number; serverErrors: number; inputTokens: number; outputTokens: number;
   averageDurationMs: number; p95DurationMs: number; errors: Record<string, number> };
+type AiCostMetric = { inputTokens: number; outputTokens: number; usedTokens: number; reservedTokens: number; limitTokens: number;
+  remainingTokens: number; estimatedCny: number | null };
+type SpeechCostMetric = { usedSeconds: number; reservedSeconds: number; limitSeconds: number; remainingSeconds: number; estimatedCny: number | null };
 type MonitoringData = {
-  capabilities: Record<'aiConfigured' | 'speechConfigured' | 'topicsConfigured' | 'topicAiConfigured' | 'topicAdminConfigured' | 'miniIdentityConfigured', boolean>;
+  capabilities: Record<'aiConfigured' | 'speechConfigured' | 'topicsConfigured' | 'topicAiConfigured' | 'topicAdminConfigured' | 'miniIdentityConfigured' | 'costGovernanceConfigured', boolean>;
   metrics: { startedAt: string; generatedAt: string; uptimeSeconds: number; lifetime: OperationMetric; last15Minutes: OperationMetric;
     last60Minutes: OperationMetric; actions: Array<OperationMetric & { action: string; lastSeenAt: string }> };
+  costGovernance: null | { day: string; timezone: 'Asia/Shanghai'; generatedAt: string; resetsAt: string;
+    articleAi: AiCostMetric; topicAi: AiCostMetric; speech: SpeechCostMetric };
 };
 
 const statusLabel: Record<WritingTopic['status'], string> = {
@@ -31,14 +36,14 @@ const actionLabel: Record<string, string> = {
 const operationLabel: Record<string, string> = {
   health: '健康检查', 'topics.list': '热门列表', 'topics.detail': '话题详情', 'ai.regular': '小文常规修改', 'ai.polish': '小文润色',
   'ai.compose': '小文创作', 'ai.chat': '小文对话', 'ai.question': '小文提问', 'ai.interview': '小文采访',
-  'topic.admin.monitoring': '后台监控刷新', 'topic.admin.login': '后台登录', 'topic.admin.session': '后台会话',
+  'topic.admin.monitoring': '后台监控刷新', 'topic.admin.login': '后台登录', 'topic.admin.session': '后台会话', 'topic.ai.generate': '话题候选生成',
   'event.app.opened': '打开应用', 'event.topic.opened': '查看话题', 'event.writing.started.blank': '开始空白写作',
   'event.writing.started.topic': '开始话题写作', 'event.writing.started.interview': '开始采访写作',
   'event.backup.exported': '导出备份', 'event.backup.imported': '导入备份', 'event.report': '事件入口拒绝',
 };
 const capabilityLabel: Record<keyof MonitoringData['capabilities'], string> = {
   aiConfigured: '文章 AI', speechConfigured: '语音', topicsConfigured: '话题库', topicAiConfigured: '话题 AI',
-  topicAdminConfigured: '后台登录', miniIdentityConfigured: '小程序身份',
+  topicAdminConfigured: '后台登录', miniIdentityConfigured: '小程序身份', costGovernanceConfigured: '用量保护',
 };
 
 const viewMeta: Record<AdminView, { label: string; description: string }> = {
@@ -478,6 +483,27 @@ const formatUptime = (seconds: number) => {
   const days = Math.floor(seconds / 86_400); const hours = Math.floor(seconds % 86_400 / 3_600); const minutes = Math.floor(seconds % 3_600 / 60);
   return [days ? `${days} 天` : '', hours ? `${hours} 小时` : '', `${minutes} 分钟`].filter(Boolean).join(' ');
 };
+const formatCount = (value: number) => new Intl.NumberFormat('zh-CN').format(value);
+const formatSpeech = (seconds: number) => seconds >= 3600
+  ? `${(seconds / 3600).toFixed(seconds % 3600 ? 1 : 0)} 小时`
+  : seconds >= 60 ? `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒` : `${seconds} 秒`;
+
+function CostCard({ title, used, reserved, limit, remaining, detail, estimatedCny, unit }: {
+  title: string; used: number; reserved: number; limit: number; remaining: number; detail: string; estimatedCny: number | null; unit: 'token' | 'seconds';
+}) {
+  const total = used + reserved;
+  const ratio = limit > 0 ? Math.min(100, Math.round(total / limit * 100)) : 100;
+  const format = unit === 'seconds' ? formatSpeech : formatCount;
+  const state = limit === 0 ? '已停用' : remaining === 0 ? '已用完' : ratio >= 80 ? '接近上限' : '正常';
+  return <article className={styles.costCard}>
+    <div className={styles.costCardTop}><span>{title}</span><b data-state={state}>{state}</b></div>
+    <strong>{format(used)}</strong>
+    <p>{detail}{reserved > 0 ? ` · 处理中预留 ${format(reserved)}` : ''}</p>
+    <progress aria-label={`${title}预算使用率`} max={Math.max(1, limit)} value={limit === 0 ? 1 : Math.min(limit, total)} />
+    <div className={styles.costMeta}><span>剩余 {format(remaining)}</span><span>上限 {format(limit)}</span></div>
+    <small>{estimatedCny === null ? '未配置费用估算' : `今日估算约 ¥${estimatedCny.toFixed(4)}`}</small>
+  </article>;
+}
 
 function MonitoringPanel({ request }: { request: Request }) {
   const [data, setData] = useState<MonitoringData | null>(null);
@@ -497,13 +523,31 @@ function MonitoringPanel({ request }: { request: Request }) {
   const errors = data?.metrics.actions.flatMap(action => Object.entries(action.errors).map(([category, count]) => ({ action: action.action, category, count })))
     .sort((left, right) => right.count - left.count) ?? [];
   return <section className={`${styles.pageStack} ${styles.monitoring}`}>
-    <PageHeader title="运行监控" description="仅显示当前网关进程的匿名聚合数据，服务重启后清零。" actions={
+    <PageHeader title="运行监控" description="查看当前进程状态，以及跨服务重启保留的今日付费用量。" actions={
       <button className={styles.secondaryButton} type="button" disabled={loading} onClick={() => void load()}>{loading ? '刷新中…' : '立即刷新'}</button>} />
     {error && <div className={styles.error} role="alert">{error}</div>}
     {data && <>
       <div className={styles.runtimeBar}><div><span className={styles.liveDot} />当前进程运行正常</div><span>启动于 {displayTime(data.metrics.startedAt)} · 已运行 {formatUptime(data.metrics.uptimeSeconds)}</span><span>更新于 {displayTime(data.metrics.generatedAt)}</span></div>
       <div className={styles.capabilities}>{Object.entries(data.capabilities).map(([key, configured]) => <span className={configured ? styles.capabilityOn : styles.capabilityOff} key={key}>
         <i aria-hidden="true" />{capabilityLabel[key as keyof MonitoringData['capabilities']]}<b>{configured ? '已配置' : '未配置'}</b></span>)}</div>
+      {data.costGovernance ? <section className={styles.costPanel} aria-labelledby="cost-governance-title">
+        <div className={styles.costHeading}><div><span>跨重启保留</span><h2 id="cost-governance-title">今日付费用量</h2>
+          <p>{data.costGovernance.day} · 上海时区 · {displayTime(data.costGovernance.resetsAt)} 重置</p></div><em>供应商控制台为账单依据</em></div>
+        <div className={styles.costGrid}>
+          <CostCard title="文章 AI" used={data.costGovernance.articleAi.usedTokens} reserved={data.costGovernance.articleAi.reservedTokens}
+            limit={data.costGovernance.articleAi.limitTokens} remaining={data.costGovernance.articleAi.remainingTokens}
+            detail={`输入 ${formatCount(data.costGovernance.articleAi.inputTokens)} · 输出 ${formatCount(data.costGovernance.articleAi.outputTokens)}`}
+            estimatedCny={data.costGovernance.articleAi.estimatedCny} unit="token" />
+          <CostCard title="话题 AI" used={data.costGovernance.topicAi.usedTokens} reserved={data.costGovernance.topicAi.reservedTokens}
+            limit={data.costGovernance.topicAi.limitTokens} remaining={data.costGovernance.topicAi.remainingTokens}
+            detail={`输入 ${formatCount(data.costGovernance.topicAi.inputTokens)} · 输出 ${formatCount(data.costGovernance.topicAi.outputTokens)}`}
+            estimatedCny={data.costGovernance.topicAi.estimatedCny} unit="token" />
+          <CostCard title="实时语音" used={data.costGovernance.speech.usedSeconds} reserved={data.costGovernance.speech.reservedSeconds}
+            limit={data.costGovernance.speech.limitSeconds} remaining={data.costGovernance.speech.remainingSeconds}
+            detail="网页与小程序共用" estimatedCny={data.costGovernance.speech.estimatedCny} unit="seconds" />
+        </div>
+        <p className={styles.costNotice}>这里只保存匿名日汇总，不保存文章、引子、链接、音频、转写或用户轨迹。金额按运维填写的单价估算，不含缓存、峰谷、资源包和阶梯价。</p>
+      </section> : <div className={styles.costUnavailable}><b>用量保护未配置</b><span>AI 与语音付费调用已关闭；本机文字写作和内容管理仍可使用。</span></div>}
       <div className={styles.metricGrid}>
         <article><span>近 15 分钟请求</span><strong>{data.metrics.last15Minutes.requests}</strong><small>近 60 分钟 {data.metrics.last60Minutes.requests}</small></article>
         <article><span>近 15 分钟成功率</span><strong>{successRate(data.metrics.last15Minutes)}</strong><small>成功 {data.metrics.last15Minutes.successes} 次</small></article>

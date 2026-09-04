@@ -19,7 +19,7 @@ const json = (value: unknown, status = 200) => Response.json(value, { status });
 
 afterEach(() => vi.unstubAllGlobals());
 
-function dashboardFetch(options: { authenticatedInitially?: boolean; topic?: WritingTopic } = {}) {
+function dashboardFetch(options: { authenticatedInitially?: boolean; topic?: WritingTopic; costScenario?: 'normal' | 'limited' | 'unavailable' } = {}) {
   let loggedIn = options.authenticatedInitially ?? false;
   let current = stored(options.topic);
   const calls: Array<{ url: string; init?: RequestInit }> = [];
@@ -31,7 +31,8 @@ function dashboardFetch(options: { authenticatedInitially?: boolean; topic?: Wri
     if (url === '/api/admin/topic-generations' && method === 'GET') return json({ generations: [] });
     if (url === '/api/admin/audit') return json({ entries: [] });
     if (url === '/api/admin/monitoring') return json({
-      capabilities: { aiConfigured: true, speechConfigured: true, topicsConfigured: true, topicAiConfigured: true, topicAdminConfigured: true, miniIdentityConfigured: false },
+      capabilities: { aiConfigured: true, speechConfigured: true, topicsConfigured: true, topicAiConfigured: true, topicAdminConfigured: true,
+        miniIdentityConfigured: false, costGovernanceConfigured: options.costScenario !== 'unavailable' },
       metrics: {
         startedAt: '2026-09-04T08:00:00.000Z', generatedAt: '2026-09-04T08:30:00.000Z', uptimeSeconds: 1800,
         lifetime: { requests: 12, successes: 11, clientErrors: 0, serverErrors: 1, inputTokens: 120, outputTokens: 40, averageDurationMs: 90, p95DurationMs: 250, errors: { upstream_network: 1 } },
@@ -39,6 +40,17 @@ function dashboardFetch(options: { authenticatedInitially?: boolean; topic?: Wri
         last60Minutes: { requests: 12, successes: 11, clientErrors: 0, serverErrors: 1, inputTokens: 120, outputTokens: 40, averageDurationMs: 90, p95DurationMs: 250, errors: { upstream_network: 1 } },
         actions: [{ action: 'event.app.opened', requests: 5, successes: 5, clientErrors: 0, serverErrors: 0, inputTokens: 0, outputTokens: 0,
           averageDurationMs: 3, p95DurationMs: 10, errors: {}, lastSeenAt: '2026-09-04T08:29:00.000Z' }],
+      },
+      costGovernance: options.costScenario === 'unavailable' ? null : options.costScenario === 'limited' ? {
+        day: '2026-09-04', timezone: 'Asia/Shanghai', generatedAt: '2026-09-04T08:30:00.000Z', resetsAt: '2026-09-04T16:00:00.000Z',
+        articleAi: { inputTokens: 0, outputTokens: 0, usedTokens: 0, reservedTokens: 0, limitTokens: 0, remainingTokens: 0, estimatedCny: null },
+        topicAi: { inputTokens: 60, outputTokens: 20, usedTokens: 80, reservedTokens: 0, limitTokens: 100, remainingTokens: 20, estimatedCny: null },
+        speech: { usedSeconds: 30, reservedSeconds: 0, limitSeconds: 30, remainingSeconds: 0, estimatedCny: null },
+      } : {
+        day: '2026-09-04', timezone: 'Asia/Shanghai', generatedAt: '2026-09-04T08:30:00.000Z', resetsAt: '2026-09-04T16:00:00.000Z',
+        articleAi: { inputTokens: 12000, outputTokens: 3000, usedTokens: 15000, reservedTokens: 0, limitTokens: 1000000, remainingTokens: 985000, estimatedCny: 0.063 },
+        topicAi: { inputTokens: 2100, outputTokens: 700, usedTokens: 2800, reservedTokens: 6000, limitTokens: 1100000, remainingTokens: 1091200, estimatedCny: null },
+        speech: { usedSeconds: 95, reservedSeconds: 0, limitSeconds: 7200, remainingSeconds: 7105, estimatedCny: 0.084444 },
       },
     });
     if (url === `/api/admin/topics/${current.topic.id}/revisions` && method === 'GET') return json({ revisions: [current] });
@@ -118,5 +130,27 @@ it('shows protected current-process metrics and capability status in the monitor
   expect(await screen.findByText('5', { selector: 'strong' })).toBeInTheDocument();
   expect(screen.getByText('打开应用')).toBeInTheDocument();
   expect(screen.getByText('小程序身份').parentElement).toHaveTextContent('未配置');
-  expect(screen.getByText(/服务重启后清零/)).toBeInTheDocument();
+  expect(screen.getByText('用量保护').parentElement).toHaveTextContent('已配置');
+  expect(screen.getByRole('heading', { name: '今日付费用量' })).toBeInTheDocument();
+  expect(screen.getByText('15,000')).toBeInTheDocument();
+  expect(screen.getByText(/处理中预留 6,000/)).toBeInTheDocument();
+  expect(screen.getByText('未配置费用估算')).toBeInTheDocument();
+  expect(screen.getByText(/供应商控制台为账单依据/)).toBeInTheDocument();
+  expect(screen.getByText(/跨服务重启保留/)).toBeInTheDocument();
+});
+
+it('labels disabled, near-limit, exhausted and unavailable cost protection states', async () => {
+  dashboardFetch({ authenticatedInitially: true, costScenario: 'limited' });
+  const first = render(<TopicAdminApp />);
+  fireEvent.click(within(await screen.findByRole('navigation', { name: '后台栏目' })).getByRole('button', { name: '运行监控' }));
+  expect(await screen.findByText('已停用')).toBeInTheDocument();
+  expect(screen.getByText('接近上限')).toBeInTheDocument();
+  expect(screen.getByText('已用完')).toBeInTheDocument();
+  first.unmount();
+
+  dashboardFetch({ authenticatedInitially: true, costScenario: 'unavailable' });
+  render(<TopicAdminApp />);
+  fireEvent.click(within(await screen.findByRole('navigation', { name: '后台栏目' })).getByRole('button', { name: '运行监控' }));
+  expect(await screen.findByText('用量保护未配置')).toBeInTheDocument();
+  expect(screen.getByText(/AI 与语音付费调用已关闭/)).toBeInTheDocument();
 });

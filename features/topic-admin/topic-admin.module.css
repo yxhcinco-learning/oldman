@@ -216,6 +216,31 @@
 .capabilityOff i { background: #94a3b8; }
 .capabilityOn b, .capabilityOff b { color: #047857; font-size: 10px; }
 .capabilityOff b { color: #64748b; }
+.costPanel { overflow: hidden; border: 1px solid #dbe3ec; border-radius: 9px; background: #fff; }
+.costHeading { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 15px 17px 13px; border-bottom: 1px solid #edf1f5; }
+.costHeading > div > span { color: #2563eb; font-size: 9px; font-weight: 750; letter-spacing: .08em; }
+.costHeading h2 { margin: 3px 0 2px; color: #172033; font-size: 16px; }
+.costHeading p { margin: 0; color: #64748b; font-size: 10px; }
+.costHeading em { padding: 5px 8px; border-radius: 5px; background: #fff7ed; color: #9a3412; font-size: 9px; font-style: normal; font-weight: 650; }
+.costGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 14px 17px; }
+.costCard { min-width: 0; padding: 13px 14px; border: 1px solid #e3e8ef; border-radius: 7px; background: #f8fafc; }
+.costCardTop { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.costCardTop > span { color: #334155; font-size: 11px; font-weight: 700; }
+.costCardTop b { padding: 3px 6px; border-radius: 10px; background: #ecfdf5; color: #047857; font-size: 9px; }
+.costCardTop b[data-state="接近上限"] { background: #fff7ed; color: #c2410c; }
+.costCardTop b[data-state="已用完"], .costCardTop b[data-state="已停用"] { background: #fef2f2; color: #b91c1c; }
+.costCard > strong { display: block; margin-top: 8px; overflow: hidden; color: #0f172a; font-size: 21px; letter-spacing: -.03em; text-overflow: ellipsis; }
+.costCard > p { min-height: 15px; margin: 2px 0 9px; overflow: hidden; color: #64748b; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.costCard progress { display: block; width: 100%; height: 6px; overflow: hidden; border: 0; border-radius: 4px; appearance: none; background: #e2e8f0; }
+.costCard progress::-webkit-progress-bar { border-radius: 4px; background: #e2e8f0; }
+.costCard progress::-webkit-progress-value { border-radius: 4px; background: #2563eb; }
+.costCard progress::-moz-progress-bar { border-radius: 4px; background: #2563eb; }
+.costMeta { display: flex; justify-content: space-between; gap: 10px; margin-top: 6px; color: #64748b; font-size: 9px; }
+.costCard > small { display: block; margin-top: 7px; color: #94a3b8; font-size: 9px; }
+.costNotice { margin: 0; padding: 10px 17px 12px; border-top: 1px solid #edf1f5; background: #fbfcfe; color: #64748b; font-size: 9px; line-height: 15px; }
+.costUnavailable { display: flex; align-items: center; gap: 12px; padding: 13px 15px; border: 1px solid #fed7aa; border-radius: 7px; background: #fff7ed; }
+.costUnavailable b { color: #9a3412; font-size: 11px; }
+.costUnavailable span { color: #7c2d12; font-size: 10px; }
 .metricGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .metricGrid article { display: grid; gap: 4px; padding: 15px 16px; border: 1px solid #e3e8ef; border-radius: 8px; background: #fff; }
 .metricGrid span { color: #64748b; font-size: 11px; font-weight: 600; }
@@ -254,6 +279,7 @@
   .newGrid, .historyGrid { grid-template-columns: 1fr; }
   .historyList { max-height: none; }
   .quickSection { display: grid; }
+  .costGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 760px) {
@@ -316,6 +342,12 @@
   .scheduleForm > button { min-height: 44px; }
   .runtimeBar { align-items: flex-start; flex-direction: column; gap: 6px; }
   .runtimeBar span:last-child { margin-left: 0; }
+  .costHeading { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .costGrid { grid-template-columns: 1fr; padding: 12px; }
+  .costCard { padding: 13px; }
+  .costCard > p { white-space: normal; }
+  .costNotice { padding-inline: 12px; }
+  .costUnavailable { align-items: flex-start; flex-direction: column; gap: 4px; }
   .metricGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .metricGrid article { padding: 13px; }
   .metricGrid strong { font-size: 22px; }
