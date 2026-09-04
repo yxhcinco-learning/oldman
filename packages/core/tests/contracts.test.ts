@@ -34,6 +34,9 @@ describe('跨平台核心契约', () => {
     const bundle = parseBackupBundle(makeBackup([workFromDraft(draft)]));
     expect(bundle.works[0]?.draft.segments[0]?.text).toBe('记得那年夏天。');
     expect(bundle.sessions).toEqual([]);
+    const noSourceSnapshot = snapshotTopic({ ...topicFixture, sources: [] });
+    const noSource = workFromDraft(emptyDraft({ topicSnapshot: noSourceSnapshot }));
+    expect(parseBackupBundle(makeBackup([noSource])).works[0]?.draft.topicSnapshot?.sources).toEqual([]);
   });
 
   it('在禁止动态代码生成的微信式运行时完成共享校验', () => {

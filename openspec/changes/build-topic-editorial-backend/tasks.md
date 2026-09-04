@@ -1,10 +1,10 @@
 ## 1. Contracts and storage foundation
 
-- [ ] 1.1 Relax shared topic/source and snapshot schemas to allow zero sources, add explicit placement and editorial DTO schemas, and cover backward-compatible backup parsing
-- [ ] 1.2 Implement the independent SQLite topic store with strict migrations, integrity checks, revision concurrency, generation/audit records and five-slot scheduling
-- [ ] 1.3 Add the idempotent 21-topic seed migration and preserve the current first five topics as explicit placements without retaining a runtime seed fallback
-- [ ] 1.4 Add deterministic store tests for migration, restart, rollback, immutable publication/correction, overlapping slots, time visibility, archive and database failures
-- [ ] 1.5 Run focused domain/store checks, validate OpenSpec, inspect the scoped diff and commit the verified storage stage
+- [x] 1.1 Relax shared topic/source and snapshot schemas to allow zero sources, add explicit placement and editorial DTO schemas, and cover backward-compatible backup parsing
+- [x] 1.2 Implement the independent SQLite topic store with strict migrations, integrity checks, revision concurrency, generation/audit records and five-slot scheduling
+- [x] 1.3 Add the idempotent 21-topic seed migration and preserve the current first five topics as explicit placements without retaining a runtime seed fallback
+- [x] 1.4 Add deterministic store tests for migration, restart, rollback, immutable publication/correction, overlapping slots, time visibility, archive and database failures
+- [x] 1.5 Run focused domain/store checks, validate OpenSpec, inspect the scoped diff and commit the verified storage stage
 
 ## 2. Runtime and public topic contract
 
