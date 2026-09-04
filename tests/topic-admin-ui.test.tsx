@@ -1,0 +1,77 @@
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, expect, it, vi } from 'vitest';
+import { TopicAdminApp } from '../features/topic-admin/TopicAdminApp';
+import type { WritingTopic } from '../lib/domain/topics';
+
+const baseTopic = (status: WritingTopic['status'] = 'candidate'): WritingTopic => ({
+  id: 'community-meals', revision: 1, status, kind: 'current', title: '社区食堂多了，晚年生活也有了新的饭桌',
+  summary: '越来越多社区尝试提供面向老年人的助餐服务，一顿饭也连接着生活便利、邻里交往和个人选择。',
+  whyItMatters: '亲历者可以从一顿具体的饭写起，表达对便利、口味、尊严和邻里关系的真实判断。',
+  updatedAt: '2026-09-04T08:00:00.000Z', publishedAt: status === 'published' ? '2026-09-04T08:00:00.000Z' : null,
+  expiresAt: null, sources: [], angles: [{ id: 'angle-1', title: '一顿饭的变化', prompt: '社区食堂出现前后，吃饭这件事发生过什么变化' }],
+  starterQuestion: '您第一次走进社区食堂时，最先注意到的是什么？', tags: ['社区生活'],
+  reviewedBy: status === 'published' ? 'editor' : null, reviewedAt: status === 'published' ? '2026-09-04T08:00:00.000Z' : null,
+});
+
+const session = { authenticated: true, username: 'editor', csrfToken: 'csrf-for-ui-tests', expiresAt: '2026-09-04T20:00:00.000Z' };
+const stored = (topic = baseTopic()) => ({ topic, editVersion: 3, editorBrief: '一顿社区食堂的饭' });
+const json = (value: unknown, status = 200) => Response.json(value, { status });
+
+afterEach(() => vi.unstubAllGlobals());
+
+function dashboardFetch(options: { authenticatedInitially?: boolean; topic?: WritingTopic } = {}) {
+  let loggedIn = options.authenticatedInitially ?? false;
+  let current = stored(options.topic);
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const mock = vi.fn<typeof fetch>(async (input, init) => {
+    const url = String(input); const method = init?.method ?? 'GET'; calls.push({ url, init });
+    if (url === '/api/admin/auth/session' && method === 'GET') return loggedIn ? json(session) : json({ error: '后台会话无效或已过期。' }, 401);
+    if (url === '/api/admin/auth/login') { loggedIn = true; return json(session); }
+    if (url === '/api/admin/topics' && method === 'GET') return json({ topics: [current], placements: [] });
+    if (url === '/api/admin/topic-generations' && method === 'GET') return json({ generations: [] });
+    if (url === '/api/admin/audit') return json({ entries: [] });
+    if (url === `/api/admin/topics/${current.topic.id}/revisions` && method === 'GET') return json({ revisions: [current] });
+    if (url === `/api/admin/topics/${current.topic.id}/revisions/1` && method === 'PATCH') {
+      const body = JSON.parse(String(init?.body)); current = { ...current, editVersion: 4, topic: { ...current.topic, ...body.content } }; return json(current);
+    }
+    throw new Error(`Unexpected admin request: ${method} ${url}`);
+  });
+  vi.stubGlobal('fetch', mock);
+  return { calls, mock };
+}
+
+it('logs in, loads the editorial shell and preserves optimistic editing plus source-free preview', async () => {
+  const { calls } = dashboardFetch();
+  render(<TopicAdminApp />);
+  expect(await screen.findByRole('heading', { name: '话题编辑台' })).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('用户名'), { target: { value: 'editor' } });
+  fireEvent.change(screen.getByLabelText('密码'), { target: { value: 'local password' } });
+  fireEvent.click(screen.getByRole('button', { name: '登录' }));
+  expect(await screen.findByRole('navigation', { name: '后台栏目' })).toBeInTheDocument();
+  fireEvent.click(await screen.findByRole('button', { name: /社区食堂多了/ }));
+  const preview = await screen.findByText('用户端预览');
+  const previewPanel = preview.closest('aside')!;
+  expect(within(previewPanel).queryByText('消息来源')).not.toBeInTheDocument();
+  const title = screen.getByLabelText('标题');
+  fireEvent.change(title, { target: { value: '社区食堂里的一顿饭，连接起新的邻里生活' } });
+  fireEvent.click(screen.getByRole('button', { name: '保存' }));
+  expect(await screen.findByRole('status')).toHaveTextContent('编辑已保存');
+  const patch = calls.find(call => call.init?.method === 'PATCH');
+  expect(new Headers(patch?.init?.headers).get('If-Match')).toBe('3');
+  expect(JSON.parse(String(patch?.init?.body)).content.title).toContain('新的邻里生活');
+});
+
+it('keeps generation, scheduling and emergency takedown reachable in the compact console', async () => {
+  dashboardFetch({ authenticatedInitially: true, topic: baseTopic('published') });
+  render(<TopicAdminApp />);
+  const navigation = await screen.findByRole('navigation', { name: '后台栏目' });
+  fireEvent.click(within(navigation).getByRole('button', { name: '生成与新建' }));
+  expect(screen.getByRole('button', { name: '生成一套候选' })).toBeDisabled();
+  expect(screen.getByLabelText('允许 DeepSeek 联网搜索')).toBeChecked();
+  fireEvent.click(within(navigation).getByRole('button', { name: '五席排期' }));
+  expect(screen.getByRole('heading', { name: '首页五席时间表' })).toBeInTheDocument();
+  expect(screen.getAllByRole('heading', { name: /席位 [1-5]/ })).toHaveLength(5);
+  fireEvent.click(within(navigation).getByRole('button', { name: '话题' }));
+  fireEvent.click(await screen.findByRole('button', { name: /社区食堂多了/ }));
+  await waitFor(() => expect(screen.getByRole('button', { name: '紧急下线' })).toBeEnabled());
+});

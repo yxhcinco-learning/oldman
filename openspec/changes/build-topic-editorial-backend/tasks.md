@@ -30,11 +30,11 @@
 
 ## 5. Editorial console
 
-- [ ] 5.1 Build `/admin/topics` login and authenticated shell with status/kind/search filters, session expiry handling and no product-navigation exposure
-- [ ] 5.2 Build seed generation and manual draft flows, candidate editor, source editing, public preview, save-conflict recovery and generation history
-- [ ] 5.3 Build publish/correction/reject/archive actions, five-slot schedule view, overlap feedback, revision history and non-sensitive audit view
-- [ ] 5.4 Add responsive Echoes-aligned admin styling and UI regressions for desktop and 390px mobile, including keyboard, focus, failure, empty and busy states
-- [ ] 5.5 Run admin browser regression at 1280×900, 1440×900 and 390×844, full check/build, inspect captures and commit the verified console stage
+- [x] 5.1 Build `/admin/topics` login and authenticated shell with status/kind/search filters, session expiry handling and no product-navigation exposure
+- [x] 5.2 Build seed generation and manual draft flows, candidate editor, source editing, public preview, save-conflict recovery and generation history
+- [x] 5.3 Build publish/correction/reject/archive actions, five-slot schedule view, overlap feedback, revision history and non-sensitive audit view
+- [x] 5.4 Add responsive Echoes-aligned admin styling and UI regressions for desktop and 390px mobile, including keyboard, focus, failure, empty and busy states
+- [x] 5.5 Run admin browser regression at 1280×900, 1440×900 and 390×844, full check/build, inspect captures and commit the verified console stage
 
 ## 6. Deployment, documentation and completion
 
