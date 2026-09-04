@@ -380,9 +380,9 @@ function MonitoringPanel({ request }: { request: Request }) {
     finally { setLoading(false); }
   }, [request]);
   useEffect(() => {
-    void load();
+    const initial = window.setTimeout(() => void load(), 0);
     const timer = window.setInterval(() => void load(), 30_000);
-    return () => window.clearInterval(timer);
+    return () => { window.clearTimeout(initial); window.clearInterval(timer); };
   }, [load]);
   const errors = data?.metrics.actions.flatMap(action => Object.entries(action.errors).map(([category, count]) => ({ action: action.action, category, count })))
     .sort((left, right) => right.count - left.count) ?? [];

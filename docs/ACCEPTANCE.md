@@ -275,3 +275,10 @@ OpenSpec change `productize-local-writing` 的28项任务均已完成，18条增
 - `unify-editor-input-presentation`：6 项任务及既有自动化/浏览器验收证据齐全，4 条要求已同步至 [正式输入展示规范](../openspec/specs/editor-presentation/spec.md)，变更移入 [归档目录](../openspec/changes/archive/2026-08-28-unify-editor-input-presentation/)。相关设计与验收链接同步更新。
 - OpenSpec change `productize-local-writing`：上述 3 项继续待办。本地 `main` 已包含完整开发历史，但没有远端推送/CI 或真机验收的新证据；残余备份/配置目录和停用缓存仍存在，未为归档而推送或变更任务范围。
 - 本轮仅变更文档与规范归档；OpenSpec 严格校验、模块边界、归档完整性和差异检查通过，26 份 Markdown 的 29 处本地链接有效。4 条正式要求与归档增量一致，原提案、设计、规范和元数据保留；不重新运行应用测试、构建、浏览器或计费语音联调，不将历史证据表述为本次重新执行。
+
+## 隐私型运营监控与后台工作台（2026-09-04）
+
+- H5 只发送七个固定、无属性的低频事件；网关严格校验 Origin、JSON、256B body、schema 和全局分钟上限。失败 transport 在 390×844 新浏览器数据空间中被显式阻断后，“开始写作”仍进入编辑器，保存与小文控件可见，页面无横向溢出。
+- `OperationMonitor` 只聚合当前进程的固定动作、15/60 分钟窗口、状态、延迟直方图、token 和固定错误类别；快照不含 requestId、IP、Header、Body、话题/作品 ID 或原始事件，重启清零。未登录 `/api/admin/monitoring` 返回 401，登录后只返回能力布尔值与聚合。
+- 后台改为白色顶栏、浅灰画布、216px 侧栏、系统无衬线和紧凑列表/表单。真实 Chromium 在 1280×900 验证监控概览/动作表/错误空态，在 1440×900 验证话题列表、编辑表单与用户端预览并排，在 390×844 验证顶部栏目、话题选择、单列表单和紧急下线；三者 `scrollWidth` 均等于 viewport 宽度。
+- 定向 25 项测试通过；完整 `npm run check` 通过网页 300 项、共享核心 3 项和小程序 73 项，并通过类型、Lint、严格 OpenSpec 与敏感边界扫描。`npm run build` 的 core、Vinext 五阶段和小程序工程检查通过。未调用 DeepSeek、腾讯 ASR、微信或其他付费/外部服务，未连接、推送或更新受控服务器。
