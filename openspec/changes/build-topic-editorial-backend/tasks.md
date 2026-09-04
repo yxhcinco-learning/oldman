@@ -16,10 +16,10 @@
 
 ## 3. Independent admin authentication and editorial API
 
-- [ ] 3.1 Implement single-admin scrypt configuration, interactive password-hash generation, hashed persistent sessions, CSRF, origin/content-type checks, expiry, logout, rotation and login throttling
-- [ ] 3.2 Implement authenticated admin topic list/detail, manual draft, optimistic edit, reject, correction, atomic publish/schedule, slot adjustment, archive, generation-history and audit endpoints
-- [ ] 3.3 Add authentication and API tests for success, generic login failure, throttling, cookie flags, expiry, rotation, unauthorized/CSRF/origin/content-type rejection, 409 conflicts and log redaction
-- [ ] 3.4 Run focused admin checks, full check/build, sensitive-output inspection and commit the verified admin API stage
+- [x] 3.1 Implement single-admin scrypt configuration, interactive password-hash generation, hashed persistent sessions, CSRF, origin/content-type checks, expiry, logout, rotation and login throttling
+- [x] 3.2 Implement authenticated admin topic list/detail, manual draft, optimistic edit, reject, correction, atomic publish/schedule, slot adjustment, archive, generation-history and audit endpoints
+- [x] 3.3 Add authentication and API tests for success, generic login failure, throttling, cookie flags, expiry, rotation, unauthorized/CSRF/origin/content-type rejection, 409 conflicts and log redaction
+- [x] 3.4 Run focused admin checks, full check/build, sensitive-output inspection and commit the verified admin API stage
 
 ## 4. DeepSeek topic candidate generation
 

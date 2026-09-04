@@ -419,9 +419,26 @@ export class TopicStore {
     });
   }
 
-  listPlacements(): Array<TopicPlacement & { id: string }> {
-    const rows = this.database.prepare('SELECT id, slot, topic_id, revision, starts_at, ends_at FROM topic_home_placements ORDER BY starts_at, slot').all() as unknown as PlacementRow[];
+  listPlacements(slot?: number): Array<TopicPlacement & { id: string }> {
+    const rows = (slot === undefined
+      ? this.database.prepare('SELECT id, slot, topic_id, revision, starts_at, ends_at FROM topic_home_placements ORDER BY starts_at, slot').all()
+      : this.database.prepare('SELECT id, slot, topic_id, revision, starts_at, ends_at FROM topic_home_placements WHERE slot = ? ORDER BY starts_at').all(slot)) as unknown as PlacementRow[];
     return rows.map(row => ({ id: row.id, slot: row.slot, topicId: row.topic_id, revision: row.revision, startsAt: row.starts_at, endsAt: row.ends_at }));
+  }
+
+  addPlacement(placementValue: TopicPlacement, actor: string) {
+    const placement = topicPlacementSchema.parse(placementValue);
+    return this.transaction(() => {
+      const revision = this.revisionRow(placement.topicId, placement.revision);
+      if (!revision || !FORMAL_STATUSES.has(revision.status)) throw new TopicStoreError('invalid_state', '只能排期正式修订');
+      if (this.overlaps(placement.slot, placement.startsAt, placement.endsAt)) throw new TopicStoreError('conflict', '该首页席位在所选时间已有内容');
+      const id = randomUUID();
+      this.database.prepare(`INSERT INTO topic_home_placements
+        (id, slot, topic_id, revision, starts_at, ends_at, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(id, placement.slot, placement.topicId, placement.revision, placement.startsAt, placement.endsAt, actor, this.now().toISOString());
+      this.audit(actor, 'topic.schedule.create', 'topic-placement', id, { slot: placement.slot, startsAt: placement.startsAt, endsAt: placement.endsAt });
+      return { id, ...placement };
+    });
   }
 
   replacePlacement(placementId: string, placementValue: TopicPlacement, actor: string) {
@@ -447,13 +464,20 @@ export class TopicStore {
     });
   }
 
-  archive(id: string, actor: string) {
+  archive(id: string, revision: number, actor: string) {
     return this.transaction(() => {
       const now = this.now().toISOString();
+      const current = this.revisionRow(id, revision);
+      const latest = this.latestFormalRow(id);
+      if (!current || !latest) throw new TopicStoreError('not_found', '话题不存在或已下线');
+      if (!FORMAL_STATUSES.has(current.status) || latest.revision !== revision) throw new TopicStoreError('conflict', '只能下线最新的正式修订');
       const result = this.database.prepare('UPDATE topics SET archived_at = ? WHERE id = ? AND archived_at IS NULL').run(now, id);
       if (!result.changes) throw new TopicStoreError('not_found', '话题不存在或已下线');
       this.database.prepare('DELETE FROM topic_home_placements WHERE topic_id = ? AND (ends_at IS NULL OR ends_at > ?)').run(id, now);
-      this.audit(actor, 'topic.archive', 'topic', id, {});
+      const archived = writingTopicSchema.parse({ ...this.hydrate(current).topic, revision: this.nextRevision(id), status: 'archived', updatedAt: now });
+      this.insertRevision(archived, actor);
+      this.audit(actor, 'topic.archive', 'topic-revision', `${id}:${archived.revision}`, { fromRevision: revision });
+      return this.getRevision(id, archived.revision)!;
     });
   }
 

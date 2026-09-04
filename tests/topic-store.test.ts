@@ -88,7 +88,8 @@ describe('话题 SQLite 仓储', () => {
     expect(store.getRevision('topic-two', 1)?.topic.status).toBe('candidate');
     const correction = store.createCorrection('topic-one', 'editor');
     expect(correction.topic).toMatchObject({ revision: 2, status: 'candidate', correctionNote: '请填写更正说明' });
-    store.archive('topic-one', 'editor');
+    const archived = store.archive('topic-one', 1, 'editor');
+    expect(archived.topic).toMatchObject({ revision: 3, status: 'archived' });
     expect(store.getPublished('topic-one', new Date('2026-10-15T00:00:00.000Z'))).toBeUndefined();
     expect(store.listAudit().map(item => item.action)).toEqual(expect.arrayContaining(['topic.publish', 'topic.correct.create', 'topic.archive']));
   });

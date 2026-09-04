@@ -10,6 +10,7 @@ import type { TopicStore } from './topic-store';
 import { registerMiniAuth, type MiniAuthGatewayOptions } from './mini-auth';
 import { SpeechTicketError, SpeechTicketStore } from './speech-ticket-store';
 import { MiniIdentityError } from './mini-identity-store';
+import { registerTopicAdmin, type TopicAdminGatewayOptions } from './topic-admin-api';
 
 export interface GatewayOptions {
   credentials?: Credentials; origin: string; maxConnections?: number; maxDurationMs?: number; maxBytes?: number;
@@ -17,6 +18,7 @@ export interface GatewayOptions {
   connect?: (url: string) => WebSocket;
   ai?: Omit<AiGatewayOptions, 'origin'>;
   topics?: TopicStore;
+  topicAdmin?: Omit<TopicAdminGatewayOptions, 'origin' | 'store' | 'operations'>;
   operations?: OperationLogger;
   miniAuth?: Omit<MiniAuthGatewayOptions, 'operations'>;
   speechTickets?: SpeechTicketStore;
@@ -26,6 +28,7 @@ export async function createGateway(options: GatewayOptions) {
   const operations = options.operations ?? defaultOperationLogger;
   registerArticleAi(app, { ...options.ai, origin: options.origin, operations, miniAuthService: options.miniAuth?.service });
   registerTopics(app, { origin: options.origin, store: options.topics, operations });
+  registerTopicAdmin(app, { ...options.topicAdmin, origin: options.origin, store: options.topics, operations });
   registerMiniAuth(app, { ...options.miniAuth, operations });
   const active = new Set<WebSocket>();
   const speechTickets = options.speechTickets ?? new SpeechTicketStore();
@@ -33,6 +36,7 @@ export async function createGateway(options: GatewayOptions) {
   app.get('/api/health', async (request, reply) => {
     const startedAt = performance.now();
     const result = { status: 'ok', aiConfigured: Boolean(options.ai?.configuration), speechConfigured: Boolean(options.credentials), topicsConfigured: Boolean(options.topics),
+      topicAdminConfigured: Boolean(options.topicAdmin?.auth),
       miniIdentityConfigured: Boolean(options.miniAuth?.service) };
     operations({ requestId: request.id, action: 'health', status: 200, durationMs: operationDuration(startedAt) });
     return reply.header('Cache-Control', 'no-store').send(result);
