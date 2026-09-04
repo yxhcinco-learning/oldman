@@ -30,6 +30,17 @@ function dashboardFetch(options: { authenticatedInitially?: boolean; topic?: Wri
     if (url === '/api/admin/topics' && method === 'GET') return json({ topics: [current], placements: [] });
     if (url === '/api/admin/topic-generations' && method === 'GET') return json({ generations: [] });
     if (url === '/api/admin/audit') return json({ entries: [] });
+    if (url === '/api/admin/monitoring') return json({
+      capabilities: { aiConfigured: true, speechConfigured: true, topicsConfigured: true, topicAiConfigured: true, topicAdminConfigured: true, miniIdentityConfigured: false },
+      metrics: {
+        startedAt: '2026-09-04T08:00:00.000Z', generatedAt: '2026-09-04T08:30:00.000Z', uptimeSeconds: 1800,
+        lifetime: { requests: 12, successes: 11, clientErrors: 0, serverErrors: 1, inputTokens: 120, outputTokens: 40, averageDurationMs: 90, p95DurationMs: 250, errors: { upstream_network: 1 } },
+        last15Minutes: { requests: 5, successes: 5, clientErrors: 0, serverErrors: 0, inputTokens: 20, outputTokens: 8, averageDurationMs: 42, p95DurationMs: 50, errors: {} },
+        last60Minutes: { requests: 12, successes: 11, clientErrors: 0, serverErrors: 1, inputTokens: 120, outputTokens: 40, averageDurationMs: 90, p95DurationMs: 250, errors: { upstream_network: 1 } },
+        actions: [{ action: 'event.app.opened', requests: 5, successes: 5, clientErrors: 0, serverErrors: 0, inputTokens: 0, outputTokens: 0,
+          averageDurationMs: 3, p95DurationMs: 10, errors: {}, lastSeenAt: '2026-09-04T08:29:00.000Z' }],
+      },
+    });
     if (url === `/api/admin/topics/${current.topic.id}/revisions` && method === 'GET') return json({ revisions: [current] });
     if (url === `/api/admin/topics/${current.topic.id}/revisions/1` && method === 'PATCH') {
       const body = JSON.parse(String(init?.body)); current = { ...current, editVersion: 4, topic: { ...current.topic, ...body.content } }; return json(current);
@@ -68,10 +79,22 @@ it('keeps generation, scheduling and emergency takedown reachable in the compact
   fireEvent.click(within(navigation).getByRole('button', { name: '生成与新建' }));
   expect(screen.getByRole('button', { name: '生成一套候选' })).toBeDisabled();
   expect(screen.getByLabelText('允许 DeepSeek 联网搜索')).toBeChecked();
-  fireEvent.click(within(navigation).getByRole('button', { name: '五席排期' }));
+  fireEvent.click(within(navigation).getByRole('button', { name: '首页排期' }));
   expect(screen.getByRole('heading', { name: '首页五席时间表' })).toBeInTheDocument();
   expect(screen.getAllByRole('heading', { name: /席位 [1-5]/ })).toHaveLength(5);
-  fireEvent.click(within(navigation).getByRole('button', { name: '话题' }));
+  fireEvent.click(within(navigation).getByRole('button', { name: '话题内容' }));
   fireEvent.click(await screen.findByRole('button', { name: /社区食堂多了/ }));
   await waitFor(() => expect(screen.getByRole('button', { name: '紧急下线' })).toBeEnabled());
+});
+
+it('shows protected current-process metrics and capability status in the monitoring workspace', async () => {
+  dashboardFetch({ authenticatedInitially: true });
+  render(<TopicAdminApp />);
+  const navigation = await screen.findByRole('navigation', { name: '后台栏目' });
+  fireEvent.click(within(navigation).getByRole('button', { name: '运行监控' }));
+  expect(await screen.findByRole('heading', { name: '运行监控' })).toBeInTheDocument();
+  expect(await screen.findByText('5', { selector: 'strong' })).toBeInTheDocument();
+  expect(screen.getByText('打开应用')).toBeInTheDocument();
+  expect(screen.getByText('小程序身份').parentElement).toHaveTextContent('未配置');
+  expect(screen.getByText(/服务重启后清零/)).toBeInTheDocument();
 });

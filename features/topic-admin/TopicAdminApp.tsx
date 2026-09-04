@@ -4,12 +4,19 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { TopicEditableContent, TopicKind, TopicPlacement, WritingTopic } from '../../lib/domain/topics';
 import styles from './topic-admin.module.css';
 
-type AdminView = 'topics' | 'new' | 'schedule' | 'history';
+type AdminView = 'topics' | 'new' | 'schedule' | 'history' | 'monitoring';
 type StoredRevision = { topic: WritingTopic; editVersion: number; editorBrief: string };
 type Placement = TopicPlacement & { id: string };
 type Generation = { id: string; topicId: string | null; revision: number | null; brief: string; urls: string[]; webSearchEnabled: boolean;
   model: string; status: string; inputTokens?: number; outputTokens?: number; searchCalls?: number; errorCategory?: string; createdAt: string; completedAt?: string };
 type Audit = { id: string; actor: string; action: string; entity: string; entityId: string; summary: Record<string, unknown>; createdAt: string };
+type OperationMetric = { requests: number; successes: number; clientErrors: number; serverErrors: number; inputTokens: number; outputTokens: number;
+  averageDurationMs: number; p95DurationMs: number; errors: Record<string, number> };
+type MonitoringData = {
+  capabilities: Record<'aiConfigured' | 'speechConfigured' | 'topicsConfigured' | 'topicAiConfigured' | 'topicAdminConfigured' | 'miniIdentityConfigured', boolean>;
+  metrics: { startedAt: string; generatedAt: string; uptimeSeconds: number; lifetime: OperationMetric; last15Minutes: OperationMetric;
+    last60Minutes: OperationMetric; actions: Array<OperationMetric & { action: string; lastSeenAt: string }> };
+};
 
 const statusLabel: Record<WritingTopic['status'], string> = {
   draft: '草稿', candidate: '待审核', rejected: '已拒绝', published: '已发布', corrected: '已更正', archived: '已下线',
@@ -19,6 +26,18 @@ const actionLabel: Record<string, string> = {
   'topic.create': '创建话题', 'topic.update': '保存编辑', 'topic.reject': '拒绝候选', 'topic.publish': '发布话题',
   'topic.correct.create': '创建更正', 'topic.archive': '提前下线', 'topic.schedule.create': '新增排期',
   'topic.schedule.update': '调整排期', 'topic.schedule.delete': '删除排期', 'admin.login': '登录后台', 'admin.logout': '退出后台',
+};
+const operationLabel: Record<string, string> = {
+  health: '健康检查', 'topics.list': '热门列表', 'topics.detail': '话题详情', 'ai.regular': '小文常规修改', 'ai.polish': '小文润色',
+  'ai.compose': '小文创作', 'ai.chat': '小文对话', 'ai.question': '小文提问', 'ai.interview': '小文采访',
+  'topic.admin.monitoring': '后台监控刷新', 'topic.admin.login': '后台登录', 'topic.admin.session': '后台会话',
+  'event.app.opened': '打开应用', 'event.topic.opened': '查看话题', 'event.writing.started.blank': '开始空白写作',
+  'event.writing.started.topic': '开始话题写作', 'event.writing.started.interview': '开始采访写作',
+  'event.backup.exported': '导出备份', 'event.backup.imported': '导入备份', 'event.report': '事件入口拒绝',
+};
+const capabilityLabel: Record<keyof MonitoringData['capabilities'], string> = {
+  aiConfigured: '文章 AI', speechConfigured: '语音', topicsConfigured: '话题库', topicAiConfigured: '话题 AI',
+  topicAdminConfigured: '后台登录', miniIdentityConfigured: '小程序身份',
 };
 
 const blankContent = (): TopicEditableContent => ({
@@ -108,15 +127,16 @@ export function TopicAdminApp() {
 
   return <main className={styles.app}>
     <header className={styles.topbar}>
-      <div><span className={styles.mark}>岁月有声</span><h1>话题编辑台</h1></div>
-      <div className={styles.account}><span>{session.username}</span><button type="button" onClick={async () => {
+      <div className={styles.brand}><span className={styles.mark}>岁月有声</span><span className={styles.brandDivider} /><div><h1>话题编辑台</h1><p>内容运营后台</p></div></div>
+      <div className={styles.account}><span className={styles.avatar} aria-hidden="true">{session.username.slice(0, 1).toUpperCase()}</span><span>{session.username}</span><button type="button" onClick={async () => {
         try { await request('/api/admin/auth/session', { method: 'DELETE', body: {} }); } finally { setSession(null); }
       }}>退出</button></div>
     </header>
     <div className={styles.workspace}>
       <nav className={styles.nav} aria-label="后台栏目">
-        {([['topics', '话题'], ['new', '生成与新建'], ['schedule', '五席排期'], ['history', '记录']] as Array<[AdminView, string]>).map(([id, label]) =>
-          <button key={id} type="button" aria-current={view === id ? 'page' : undefined} onClick={() => { setView(id); setError(''); setNotice(''); }}>{label}</button>)}
+        <span className={styles.navLabel}>工作区</span>
+        {([['topics', '话题内容', '▤'], ['new', '生成与新建', '＋'], ['schedule', '首页排期', '▦'], ['history', '生成与审计', '≡'], ['monitoring', '运行监控', '◉']] as Array<[AdminView, string, string]>).map(([id, label, icon]) =>
+          <button key={id} type="button" aria-current={view === id ? 'page' : undefined} onClick={() => { setView(id); setError(''); setNotice(''); }}><span aria-hidden="true">{icon}</span>{label}</button>)}
       </nav>
       <section className={styles.content}>
         {(notice || error) && <div role={error ? 'alert' : 'status'} className={error ? styles.error : styles.notice}>{error || notice}</div>}
@@ -128,6 +148,7 @@ export function TopicAdminApp() {
         {view === 'schedule' && <SchedulePanel topics={topics} placements={placements} busy={busy} request={request}
           onBusy={setBusy} onError={setError} onDone={() => handleResult('排期已更新。')} />}
         {view === 'history' && <HistoryPanel generations={generations} audits={audits} />}
+        {view === 'monitoring' && <MonitoringPanel request={request} />}
       </section>
     </div>
   </main>;
@@ -340,4 +361,60 @@ function HistoryPanel({ generations, audits }: { generations: Generation[]; audi
       <div className={styles.historyList}>{audits.map(item => <article key={item.id}><div><b>{actionLabel[item.action] ?? item.action}</b><time>{displayTime(item.createdAt)}</time></div>
         <p>{item.entityId}</p><small>{item.actor} · {Object.entries(item.summary).map(([key, value]) => `${key}: ${String(value ?? '—')}`).join(' · ') || '无敏感详情'}</small></article>)}
         {!audits.length && <p className={styles.empty}>还没有操作记录。</p>}</div></section></div>;
+}
+
+const successRate = (metric: OperationMetric) => metric.requests ? `${Math.round(metric.successes / metric.requests * 100)}%` : '—';
+const formatUptime = (seconds: number) => {
+  const days = Math.floor(seconds / 86_400); const hours = Math.floor(seconds % 86_400 / 3_600); const minutes = Math.floor(seconds % 3_600 / 60);
+  return [days ? `${days} 天` : '', hours ? `${hours} 小时` : '', `${minutes} 分钟`].filter(Boolean).join(' ');
+};
+
+function MonitoringPanel({ request }: { request: Request }) {
+  const [data, setData] = useState<MonitoringData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { setData(await request<MonitoringData>('/api/admin/monitoring')); setError(''); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : '监控数据暂时无法读取。'); }
+    finally { setLoading(false); }
+  }, [request]);
+  useEffect(() => {
+    void load();
+    const timer = window.setInterval(() => void load(), 30_000);
+    return () => window.clearInterval(timer);
+  }, [load]);
+  const errors = data?.metrics.actions.flatMap(action => Object.entries(action.errors).map(([category, count]) => ({ action: action.action, category, count })))
+    .sort((left, right) => right.count - left.count) ?? [];
+  return <section className={styles.monitoring}>
+    <div className={styles.pageHeading}><div><h2>运行监控</h2><p>仅显示当前网关进程的匿名聚合数据，服务重启后清零。</p></div>
+      <button className={styles.secondaryButton} type="button" disabled={loading} onClick={() => void load()}>{loading ? '刷新中…' : '立即刷新'}</button></div>
+    {error && <div className={styles.error} role="alert">{error}</div>}
+    {data && <>
+      <div className={styles.runtimeBar}><div><span className={styles.liveDot} />当前进程运行正常</div><span>启动于 {displayTime(data.metrics.startedAt)} · 已运行 {formatUptime(data.metrics.uptimeSeconds)}</span><span>更新于 {displayTime(data.metrics.generatedAt)}</span></div>
+      <div className={styles.capabilities}>{Object.entries(data.capabilities).map(([key, configured]) => <span className={configured ? styles.capabilityOn : styles.capabilityOff} key={key}>
+        <i aria-hidden="true" />{capabilityLabel[key as keyof MonitoringData['capabilities']]}<b>{configured ? '已配置' : '未配置'}</b></span>)}</div>
+      <div className={styles.metricGrid}>
+        <article><span>近 15 分钟请求</span><strong>{data.metrics.last15Minutes.requests}</strong><small>近 60 分钟 {data.metrics.last60Minutes.requests}</small></article>
+        <article><span>近 15 分钟成功率</span><strong>{successRate(data.metrics.last15Minutes)}</strong><small>成功 {data.metrics.last15Minutes.successes} 次</small></article>
+        <article><span>近 15 分钟服务错误</span><strong>{data.metrics.last15Minutes.serverErrors}</strong><small>客户端拒绝 {data.metrics.last15Minutes.clientErrors}</small></article>
+        <article><span>进程累计 token</span><strong>{data.metrics.lifetime.inputTokens + data.metrics.lifetime.outputTokens}</strong><small>输入 {data.metrics.lifetime.inputTokens} · 输出 {data.metrics.lifetime.outputTokens}</small></article>
+      </div>
+      <div className={styles.monitorGrid}>
+        <section className={styles.dataPanel}><div className={styles.dataPanelTitle}><div><h3>动作汇总</h3><p>固定动作名，不包含请求内容或用户标识</p></div><span>{data.metrics.actions.length} 类</span></div>
+          <div className={styles.tableScroll}><table><thead><tr><th>动作</th><th>请求</th><th>成功率</th><th>P95</th><th>最近发生</th></tr></thead><tbody>
+            {data.metrics.actions.map(action => <tr key={action.action}><td><b>{operationLabel[action.action] ?? action.action}</b><small>{action.action}</small></td><td>{action.requests}</td>
+              <td>{successRate(action)}</td><td>{action.p95DurationMs} ms</td><td>{displayTime(action.lastSeenAt)}</td></tr>)}
+            {!data.metrics.actions.length && <tr><td colSpan={5} className={styles.tableEmpty}>当前进程还没有操作记录。</td></tr>}
+          </tbody></table></div>
+        </section>
+        <section className={styles.dataPanel}><div className={styles.dataPanelTitle}><div><h3>错误分类</h3><p>仅保留固定分类与累计次数</p></div><span>{errors.reduce((total, item) => total + item.count, 0)} 次</span></div>
+          <div className={styles.errorList}>{errors.map(item => <article key={`${item.action}:${item.category}`}><div><b>{item.category}</b><span>{item.count}</span></div><small>{operationLabel[item.action] ?? item.action}</small></article>)}
+            {!errors.length && <div className={styles.healthyEmpty}><span>✓</span><b>当前没有错误记录</b><p>系统只保存聚合次数，不保存原始请求。</p></div>}
+          </div>
+        </section>
+      </div>
+    </>}
+    {!data && loading && <div className={styles.loadingPanel}>正在读取当前进程指标…</div>}
+  </section>;
 }
