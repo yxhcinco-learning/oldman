@@ -21,10 +21,10 @@ const topicCandidateOutputSchema = z.object({
   angles: z.array(z.object({ id: z.string().min(1).max(128), title: z.string().trim().min(1).max(60), prompt: z.string().trim().min(1).max(300) }).strict()).min(1).max(4),
   starterQuestion: z.string().trim().min(5).max(300),
   tags: z.array(z.string().trim().min(1).max(32)).min(1).max(8),
-  suggestedExpiresAt: z.iso.datetime().nullable(),
+  suggestedExpiresAt: z.iso.datetime({ offset: true }).nullable(),
   sources: z.array(z.object({
     id: z.string().min(1).max(128), title: z.string().trim().min(1).max(180), publisher: z.string().trim().min(1).max(80),
-    url: z.string().trim().max(2048).refine(value => /^https?:\/\/[^\s/?#]+(?:[/?#][^\s]*)?$/i.test(value)), publishedAt: z.iso.datetime(),
+    url: z.string().trim().max(2048).refine(value => /^https?:\/\/[^\s/?#]+(?:[/?#][^\s]*)?$/i.test(value)), publishedAt: z.iso.datetime({ offset: true }),
   }).strict()).max(5),
 }).strict();
 
@@ -76,6 +76,12 @@ angles 提供 1–4 个相关切面，starterQuestion 是采访首问。来源�
 function requestInput(value: TopicGenerationRequest, generatedAt: string) {
   return JSON.stringify({ generatedAt, brief: value.brief, urls: value.urls, webSearchEnabled: value.webSearchEnabled,
     instruction: value.urls.length ? '逐一阅读编辑提供的链接，核对其中与候选直接相关的信息。' : '根据文字引子形成候选；联网开启时可按需补充搜索。' });
+}
+
+function parseCandidateText(value: string) {
+  const trimmed = value.trim();
+  const fenced = /^```(?:json)?\s*\r?\n([\s\S]*?)\r?\n```$/i.exec(trimmed);
+  return JSON.parse(fenced?.[1] ?? trimmed);
 }
 
 async function readLimitedJson(response: Response): Promise<unknown> {
@@ -139,12 +145,13 @@ export async function callDeepSeekTopicCandidate(
       .find(part => part.type === 'output_text' && typeof part.text === 'string')?.text;
     if (!outputText) throw new TopicAiError(502, 'upstream_invalid_response', 'DeepSeek 未返回候选正文。');
     let output: z.infer<typeof topicCandidateOutputSchema>;
-    try { output = topicCandidateOutputSchema.parse(JSON.parse(outputText)); }
+    try { output = topicCandidateOutputSchema.parse(parseCandidateText(outputText)); }
     catch { throw new TopicAiError(502, 'upstream_invalid_response', 'DeepSeek 返回的候选字段无效。'); }
     let content: TopicEditableContent;
     try {
       content = topicEditableContentSchema.parse({ kind: output.kind, title: output.title, summary: output.summary,
-        whyItMatters: output.editorJudgment, expiresAt: output.suggestedExpiresAt, sources: output.sources,
+        whyItMatters: output.editorJudgment, expiresAt: output.suggestedExpiresAt ? new Date(output.suggestedExpiresAt).toISOString() : null,
+        sources: output.sources.map(source => ({ ...source, publishedAt: new Date(source.publishedAt).toISOString() })),
         angles: output.angles, starterQuestion: output.starterQuestion, tags: output.tags });
     } catch { throw new TopicAiError(502, 'upstream_invalid_response', 'DeepSeek 返回的候选字段无效。'); }
     const input = raw.usage?.input_tokens;

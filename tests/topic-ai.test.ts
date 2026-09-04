@@ -62,6 +62,19 @@ describe('DeepSeek Responses topic adapter', () => {
     expect(offlineBody).not.toHaveProperty('tools');
   });
 
+  it('accepts schema-valid offset timestamps and a provider JSON fence, then normalizes UTC', async () => {
+    const candidate = output({
+      suggestedExpiresAt: '2026-10-31T23:59:59+08:00',
+      sources: [{ id: 'source-1', title: '公开页面', publisher: '示例机构', url: 'https://example.com/story', publishedAt: '2026-09-04T08:30:00+08:00' }],
+    });
+    const transport = vi.fn<typeof fetch>(async () => Response.json({ status: 'completed', output: [
+      { type: 'message', content: [{ type: 'output_text', text: `\`\`\`json\n${JSON.stringify(candidate)}\n\`\`\`` }] },
+    ], usage: { input_tokens: 1, output_tokens: 1 } }));
+    const result = await callDeepSeekTopicCandidate(request(), configuration, { fetch: transport });
+    expect(result.content.expiresAt).toBe('2026-10-31T15:59:59.000Z');
+    expect(result.content.sources[0]?.publishedAt).toBe('2026-09-04T00:30:00.000Z');
+  });
+
   it('rejects malformed output, timeout and cancellation without retrying', async () => {
     const malformed = vi.fn<typeof fetch>(async () => response({ title: '字段不完整' }));
     await expect(callDeepSeekTopicCandidate(request(), configuration, { fetch: malformed })).rejects
