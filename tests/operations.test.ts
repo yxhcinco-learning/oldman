@@ -109,6 +109,8 @@ it('accepts only strict anonymous product events and applies the global rate lim
   expect((await request({ event: 'writing.started.blank' })).statusCode).toBe(429);
   expect((await request({ event: 'app.opened' }, 'https://foreign.example')).statusCode).toBe(403);
   expect((await request({ event: 'app.opened' }, origin, 'text/plain')).statusCode).toBe(415);
+  expect((await app.inject({ method: 'POST', url: '/api/operations/events', headers: { origin, 'content-type': 'application/json' },
+    payload: JSON.stringify({ event: 'app.opened', padding: 'x'.repeat(300) }) })).statusCode).toBe(413);
   expect(entries.map(entry => [entry.action, entry.status, entry.errorCategory])).toEqual([
     ['event.app.opened', 204, undefined],
     ['event.report', 400, 'invalid_event'],

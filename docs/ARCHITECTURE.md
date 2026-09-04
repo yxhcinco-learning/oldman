@@ -83,7 +83,7 @@ AI 标识采用保守的作品历史谓词：只有明确应用的完整候选�
 
 用户端不新增可见账号或邀请码；内部话题后台采用单一管理员配置。Linux 网关从同一个 root-only 环境文件读取腾讯云、DeepSeek、微信 AppID/AppSecret、管理员用户名/scrypt 散列及数据库路径；缺失或无效时只关闭对应在线能力，网页本机写作不回退假身份或假话题。身份库与话题库分别位于 release 外的 `/var/lib/suiyue-yousheng/auth.sqlite` 和 `/var/lib/suiyue-yousheng/topics.sqlite`，目录仅 `suiyue` 可写；systemd 只放行该目录。激活前停止网关，对两库执行 `quick_check`、schema 上限检查和 SQLite 在线备份；失败迁移把两库的失败态分别移入 root-only 隔离目录，再恢复迁移前副本。普通代码回滚只核对兼容性，不删除、覆盖或降级数据库。
 
-Fastify 保持原始请求日志关闭，只输出 requestId、动作、状态、耗时、可用 token 数和固定错误类别；Nginx 关闭该站点 access log，小程序语音 ticket 位置再次显式关闭访问日志，错误日志沿用服务器 logrotate，systemd stdout/stderr 由 journald 轮转。`/api/health` 只报告 `miniIdentityConfigured`、`topicsConfigured`、`topicAiConfigured`、`topicAdminConfigured` 等布尔值，不显示账号、AppID、路径、OpenID 或秘密。
+Fastify 保持原始请求日志关闭，只输出 requestId、动作、状态、耗时、可用 token 数和固定错误类别；同一安全日志 sink 前的 `OperationMonitor` 丢弃 requestId，只按固定动作在内存聚合生命周期与最近 15/60 分钟的计数、状态、延迟直方图、token 和错误类别。管理员会话保护的 `/api/admin/monitoring` 提供该快照与能力布尔值，重启即清空，不建立行为数据库。Nginx 关闭该站点 access log，小程序语音 ticket 和匿名事件位置再次显式关闭访问日志，错误日志沿用服务器 logrotate，systemd stdout/stderr 由 journald 轮转。`/api/health` 契约保持只报告配置布尔值，不显示账号、AppID、路径、OpenID 或秘密。
 
 每个浏览器 Origin 继续拥有独立 IndexedDB。公网域名首次访问为空库；localhost 或其他域名文章只能由用户显式导出 JSON、再在目标浏览器恢复为副本，服务器不接收备份或文章同步。部署、验证和回滚见 [受控公网部署](DEPLOYMENT.md)；产品协议仍由 ADR-002、ADR-003 和 ADR-006 管理。
 
@@ -100,6 +100,12 @@ Fastify 保持原始请求日志关闭，只输出 requestId、动作、状态�
 管理员用户名与 scrypt 密码散列来自服务端环境。登录签发随机 Cookie，数据库只保存 token/CSRF 散列；HttpOnly、SameSite、生产 Secure、精确 Origin、CSRF、登录限流、过期、退出和凭据指纹轮换共同保护会话。所有后台写请求还要求 JSON 与修订前置条件，过期页面返回 409。审计只记录操作者、动作、实体、时间和非敏感差异摘要。
 
 话题 AI 使用独立 DeepSeek Responses 适配器，文章小文继续使用 Chat Completions。编辑输入 0–6000 字、0–5 个 HTTP(S) 链接且至少一项；链接存在时强制联网，纯文本可关闭联网。一次按钮操作最多一个顶层请求、并发一、无自动重试，结构化输出只创建 `candidate`；记录模型、token、联网与搜索调用数和固定错误类别，不保存思维链或上游原始响应。来源、日期和事实都可由编辑修改或删除，无来源仍可发布。
+
+## ADR-010 隐私型运营事件与当前进程监控
+
+H5 的运营 transport 只接受共享枚举中的七个低频动作，并发送严格的 `{ event }`；不存在通用 metadata、客户端队列、标识 Cookie 或自动重试。`/api/operations/events` 要求精确 Origin、JSON、256B body、严格 schema 与全局分钟上限；未来 Nginx 精确路由继续继承 H5 Basic Auth，并增加不进入应用聚合的 IP 限流。写作、备份等本地动作先按原流程完成，事件失败被隔离。
+
+后台以当前进程快照回答“是否被使用、在线请求是否正常”，不回答“谁做了什么”。固定动作最多 128 类，分钟窗口最多 60 桶，延迟使用固定直方图区间，错误类别每项有界；不保存 requestId、IP、Header、Body、话题/作品 ID 或原始事件。需要跨重启历史、外部告警或第三方分析时必须另立规范，不能直接扩大该接口。
 
 ### 历史回退来源
 

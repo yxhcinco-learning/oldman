@@ -81,6 +81,8 @@ CI 对 push 和可选 PR 运行 npm ci、check、build 和依赖审计；CI 不�
 
 话题生成继续复用服务端 DeepSeek Key，但走独立 Responses API；文章小文仍走 Chat Completions。纯文字可关闭联网，任何链接都会强制联网。生成按钮一次只产生一套 `candidate`，失败不重试也不发布；完全手工草稿始终可用。普通测试注入假 transport，不读取 Key 或调用付费服务。
 
+后台“运行监控”读取 `/api/admin/monitoring`，只显示当前网关进程的匿名聚合；页面每 30 秒和手动刷新，离开页面即停止定时器。H5 的 `/api/operations/events` 只接受共享枚举中的 `{ event }`，本地开发由 Vite 精确代理到网关。测试事件 transport 时应注入失败 fetch 并确认本地操作仍成功；不得为测试加入正文、ID、URL、任意 metadata 或真实外部分析服务。
+
 ### Linux 运行配置
 
 生产网关从 `/etc/suiyue-yousheng/runtime.env` 读取配置，文件必须为 `0600 root:root`。Linux 只允许 `ASR_CREDENTIAL_SOURCE=project`，完整的 `TENCENT_ASR_SECRET_ID` / `TENCENT_ASR_SECRET_KEY`（以及同批 STS 凭据需要的 Token）、DeepSeek Key、微信 AppSecret、后台用户名与 scrypt 散列只在服务端环境文件；不得复制 Windows `windows-user` 方式、放入 release、客户端、镜像、命令输出或日志。公网 `TENCENT_ASR_ENGINE_MODEL_TYPE=16k_zh` 以匹配当前体验包；以后确认中英模型额度后可修改变量并仅重启网关。`ASR_ALLOWED_ORIGIN` 必须精确为最终 HTTPS Origin，改域名/协议/端口会创建另一份浏览器数据空间。

@@ -33,6 +33,7 @@ it('protects the exact HTTPS origin while preserving same-origin API and WebSock
   expect(nginx).toContain('location = /admin/topics');
   expect(nginx).toContain('location ^~ /_next/static/');
   expect(nginx).toContain('location ^~ /api/admin/');
+  expect(nginx).toContain('location = /api/operations/events');
   expect(nginx).toContain('location = /api/topics');
   expect(nginx).toContain('location ~ ^/api/topics/[a-z0-9]+(?:-[a-z0-9]+)*$');
   expect(nginx).toContain('proxy_pass http://127.0.0.1:3012;');
@@ -63,6 +64,7 @@ it('protects the exact HTTPS origin while preserving same-origin API and WebSock
   expect(nginx).toContain('zone=suiyue_mini_ticket');
   expect(nginx).toContain('zone=suiyue_mini_speech');
   expect(nginx).toContain('zone=suiyue_topic_admin');
+  expect(nginx).toContain('zone=suiyue_events');
   expect(nginx).toContain('location ^~ /api/mini/');
   expect(nginx).toContain('location /api/ {');
   expect(nginx).not.toContain('location ^~ /api/ {');
@@ -70,6 +72,10 @@ it('protects the exact HTTPS origin while preserving same-origin API and WebSock
   expect(miniSpeech).toContain('access_log off;');
   expect(miniSpeech).toContain('proxy_set_header Upgrade $http_upgrade;');
   expect(miniSpeech).not.toContain('proxy_set_header Origin');
+  const operationsEvents = /location = \/api\/operations\/events \{([\s\S]*?)\n    \}/.exec(nginx)?.[1] ?? '';
+  expect(operationsEvents).toContain('access_log off;');
+  expect(operationsEvents).toContain('proxy_set_header Origin $http_origin;');
+  expect(operationsEvents).not.toContain('auth_basic off;');
 });
 
 it('prepares, backs up and verifies both release-external databases without printing configuration values', () => {

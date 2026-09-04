@@ -30,7 +30,10 @@ it.each(['serve', 'build'] as const)('loads the %s configuration without hosted 
   expect(names.some(name => /^(?:cloudflare:|vite-plugin-cloudflare|sites[:/-])|openai.*sites/i.test(name))).toBe(false);
   expect(loaded!.config.server).toMatchObject({
     host: 'localhost', port: 3001, strictPort: true,
-    proxy: { '/api/speech': { target: 'http://127.0.0.1:3002', ws: true, changeOrigin: true } },
+    proxy: {
+      '/api/speech': { target: 'http://127.0.0.1:3002', ws: true, changeOrigin: true },
+      '/api/operations/events': { target: 'http://127.0.0.1:3002', changeOrigin: true },
+    },
   });
 });
 

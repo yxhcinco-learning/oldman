@@ -5,7 +5,7 @@
 ## 固定拓扑与文件
 
 - Lighthouse：`lhins-pg6lbxtx`（`ap-guangzhou`），只保留公网 80/443；SSH/TAT 管理边界不由本项目扩大。
-- Nginx：TLS、安全头、按 IP 限流；用户网页 `/`、原 `/api/ai/*`、`/api/health`、`/api/speech/status` 和原 `/api/speech` 保持 Basic Auth。精确 `/api/topics`、安全 ID 形状的 `/api/topics/<id>`、已列出的小程序接口关闭 Basic Auth；`/admin/topics`、`/_next/static/*` 和 `/api/admin/*` 也关闭 Basic Auth，但后台页面由应用登录保护，管理 API 继续校验会话、精确 Origin、CSRF 和 JSON。未列出的 `/api/mini/*` 和其他 API 拒绝。
+- Nginx：TLS、安全头、按 IP 限流；用户网页 `/`、原 `/api/ai/*`、`/api/health`、`/api/speech/status`、原 `/api/speech` 和精确 `/api/operations/events` 保持 Basic Auth。匿名事件位置关闭 access log、保留 Origin 并使用独立 IP 限流；精确 `/api/topics`、安全 ID 形状的 `/api/topics/<id>`、已列出的小程序接口关闭 Basic Auth。`/admin/topics`、`/_next/static/*` 和 `/api/admin/*` 也关闭 Basic Auth，但后台页面由应用登录保护，管理 API 继续校验会话、精确 Origin、CSRF 和 JSON。未列出的 `/api/mini/*` 和其他 API 拒绝。
 - systemd：`suiyue-web.service` 与 `suiyue-gateway.service`，专用无登录用户 `suiyue`，异常重启并响应 SIGTERM；网关在 `ProtectSystem=strict` 下只额外写入 `/var/lib/suiyue-yousheng`。
 - release：`/opt/suiyue-yousheng/releases/<version>`；`current` 为活动版本，`previous` 为上次成功版本。
 - 秘密：`/etc/suiyue-yousheng/runtime.env`，必须 `0600 root:root`；Basic Auth 文件 `/etc/nginx/suiyue-yousheng.htpasswd`，必须 `0640 root:www-data`。两者都不在 Git 或 release。
@@ -40,17 +40,17 @@
 
 - 回环健康：`curl -fsS http://127.0.0.1:3012/api/health` 和 `curl -fsS http://127.0.0.1:3011/`。网关健康只报告 AI、ASR、微信身份与话题能力是否配置，不能证明上游成功；激活话题后台必须看到 `miniIdentityConfigured`、`topicsConfigured`、`topicAiConfigured`、`topicAdminConfigured` 均为 true。公网 `/api/health` 仍受 Basic Auth，响应不包含路径、账号或秘密。
 - 进程：`systemctl status suiyue-web suiyue-gateway`；只重启这两个 unit，不重启主机或其他项目。
-- 安全日志：`journalctl -u suiyue-web -u suiyue-gateway`。网关事件仅允许 requestId、action、status、durationMs、tokens、errorCategory；该 Nginx 站点 access log 关闭，小程序 ticket WSS 位置再次显式关闭，error log 使用 `/var/log/nginx/suiyue-yousheng-error.log` 并由现有 Nginx logrotate 处理；journald 使用服务器容量/轮转策略和 unit 级速率限制。检查脚本只报告是否命中禁止标记，不输出可疑原行。
+- 安全日志与监控：`journalctl -u suiyue-web -u suiyue-gateway`。单条网关日志仅允许 requestId、action、status、durationMs、tokens、errorCategory；后台“运行监控”只读取当前进程内不含 requestId 的 15/60 分钟和生命周期聚合，重启清空。该 Nginx 站点 access log 关闭，小程序 ticket WSS 与匿名事件位置再次显式关闭，error log 使用 `/var/log/nginx/suiyue-yousheng-error.log` 并由现有 Nginx logrotate 处理；journald 使用服务器容量/轮转策略和 unit 级速率限制。检查脚本只报告是否命中禁止标记，不输出可疑原行。
 - 证书：现有 `certbot.timer` 自动续期；部署后运行只读续期配置检查，并在不影响其他证书的前提下验证 dry-run 或现有计时器状态。
 
 ## 验收与费用
 
-公网依次验证无认证用户网页401仍带认证挑战和无缓存恢复页、有效认证首页、内部恢复地址不可直接访问、公开话题不弹 Basic、后台页面可加载但管理数据必须登录、错误后台密码/Origin/CSRF/JSON 拒绝、有效后台登录和退出、无效业务 token 的AI/语音票据401、无效 ticket 的WSS 401、未列出API 404、HTTPS/证书/安全头、状态接口、两库重启后 inode/完整性、文字新建保存刷新及JSON备份。有效微信换码只允许一次非敏感体验账号并且输出不得出现 OpenID/code/token。用户端浏览器覆盖 360×640、390×844、430×932 和桌面；后台覆盖1280×900、1440×900和390×844，并检查焦点与横向溢出。
+公网依次验证无认证用户网页401仍带认证挑战和无缓存恢复页、有效认证首页、匿名事件无 Basic Auth 时 401/带认证后严格 schema 与限流、内部恢复地址不可直接访问、公开话题不弹 Basic、后台页面可加载但管理数据和运行监控必须登录、错误后台密码/Origin/CSRF/JSON 拒绝、有效后台登录和退出、无效业务 token 的AI/语音票据401、无效 ticket 的WSS 401、未列出API 404、HTTPS/证书/安全头、状态接口、两库重启后 inode/完整性、文字新建保存刷新及JSON备份。有效微信换码只允许一次非敏感体验账号并且输出不得出现 OpenID/code/token。用户端浏览器覆盖 360×640、390×844、430×932 和桌面；后台覆盖1280×900、1440×900和390×844，并检查焦点与横向溢出。
 
 DeepSeek 的常规优化、润色和文字追问各最多一次非敏感短样本；话题候选只允许一次明确开启的 Responses + web search 样本，并记录顶层请求数、搜索调用数、token 和估算费用。不测试精简、扩写、配图。ASR 只有在准备了短的非敏感 PCM 时最多一次真实合成音频；状态成功或 WebSocket Upgrade 不等于真实转写。遇鉴权、余额或网络错误停止重复调用，不自动充值或购买。真实 iOS/安卓麦克风、系统键盘、后台和网络切换必须由持有设备的用户另行记录。
 
 ## 数据与回滚
 
-域名、协议和端口是 IndexedDB Origin 的一部分；微信用户、AppID 和设备共同决定小程序本地文件空间。公网或临时 AppID 首次访问是空库，其他位置文章不会自动迁移，需用户手工导出 JSON 并恢复为副本。服务器不接收文章库、备份、聊天或原音；身份库只保存最小微信身份与会话哈希，话题库保存编辑内容、修订、生成元数据、席位、后台会话散列和审计。
+域名、协议和端口是 IndexedDB Origin 的一部分；微信用户、AppID 和设备共同决定小程序本地文件空间。公网或临时 AppID 首次访问是空库，其他位置文章不会自动迁移，需用户手工导出 JSON 并恢复为副本。服务器不接收文章库、备份、聊天或原音；身份库只保存最小微信身份与会话哈希，话题库保存编辑内容、修订、生成元数据、席位、后台会话散列和审计。七类匿名运营事件只形成当前网关进程内的有界计数，不写入这两个数据库或 release，代码/进程回滚可直接清空。
 
 回滚前记录当前与 previous 的解析路径。正常回滚运行 `bash deploy/server/rollback.sh /opt/suiyue-yousheng/releases/<verified-version>`：先对身份库和话题库做完整性/schema 上限检查，再切换 `current`、重启两个服务并复查；脚本不恢复、不删除也不覆盖数据。若旧代码无法启动则自动切回原 release，两库保持原样。激活期间发生迁移失败时才使用本次两个 root-only 备份分别恢复，失败迁移文件留在 `failed/` 供诊断。首次部署没有上一版本时，停止并禁用两个岁月有声服务、恢复该站点部署前 Nginx 状态并在 `nginx -t` 后 reload；保留 release、两库及备份、秘密、证书和 DNS 供恢复，除非用户另行授权删除。
