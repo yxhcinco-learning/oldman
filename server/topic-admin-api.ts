@@ -4,9 +4,10 @@ import { z } from 'zod';
 import { topicEditableContentSchema, topicGenerationRequestSchema, topicPlacementSchema, writingTopicSchema } from '../lib/domain/topics';
 import { defaultOperationLogger, OperationMonitor, operationDuration, type OperationLogger } from './operations';
 import { TopicAdminAuthError, TopicAdminAuthService, type AuthenticatedTopicAdmin } from './topic-admin-auth';
-import { callDeepSeekTopicCandidate, TopicAiError } from './topic-ai';
+import { callDeepSeekTopicCandidate, prepareTopicAiRequest, TopicAiError } from './topic-ai';
 import type { AiConfiguration } from './article-ai';
 import { TopicStore, TopicStoreError } from './topic-store';
+import { CostGovernanceError, type CostGovernanceStore, type CostReservation } from './cost-governance';
 
 const SESSION_COOKIE = 'suiyue_topic_admin';
 const CSRF_COOKIE = 'suiyue_topic_csrf';
@@ -46,11 +47,13 @@ export interface TopicAdminGatewayOptions {
     topicAiConfigured: boolean;
     topicAdminConfigured: boolean;
     miniIdentityConfigured: boolean;
+    costGovernanceConfigured: boolean;
   };
   now?: () => number;
   loginAttemptsPerWindow?: number;
   loginWindowMs?: number;
   ai?: { configuration?: AiConfiguration; fetch?: typeof fetch; timeoutMs?: number };
+  costGovernance?: CostGovernanceStore;
 }
 
 const contentTypeIsJson = (request: FastifyRequest) => request.headers['content-type']?.split(';', 1)[0].trim().toLowerCase() === 'application/json';
@@ -102,8 +105,9 @@ export function registerTopicAdmin(app: FastifyInstance, options: TopicAdminGate
     return payload;
   });
 
-  const finish = (request: FastifyRequest, startedAt: number, action: string, status: number, errorCategory?: string) =>
-    log({ requestId: request.id, action, status, durationMs: operationDuration(startedAt), ...(errorCategory ? { errorCategory } : {}) });
+  const finish = (request: FastifyRequest, startedAt: number, action: string, status: number, errorCategory?: string,
+    tokens?: { input: number; output: number }) =>
+    log({ requestId: request.id, action, status, durationMs: operationDuration(startedAt), ...(errorCategory ? { errorCategory } : {}), ...(tokens ? { tokens } : {}) });
 
   const originAllowed = (request: FastifyRequest, required: boolean) =>
     request.headers.origin === options.origin || (!required && !request.headers.origin);
@@ -167,8 +171,14 @@ export function registerTopicAdmin(app: FastifyInstance, options: TopicAdminGate
       finish(request, startedAt, 'topic.admin.monitoring', 503, 'not_configured');
       return reply.code(503).send({ error: '运行监控尚未配置。' });
     }
-    finish(request, startedAt, 'topic.admin.monitoring', 200);
-    return reply.send({ capabilities: options.capabilities(), metrics: options.monitor.snapshot() });
+    try {
+      const costGovernance = options.costGovernance?.snapshot() ?? null;
+      finish(request, startedAt, 'topic.admin.monitoring', 200);
+      return reply.send({ capabilities: options.capabilities(), metrics: options.monitor.snapshot(), costGovernance });
+    } catch {
+      finish(request, startedAt, 'topic.admin.monitoring', 503, 'cost_governance_unavailable');
+      return reply.code(503).send({ error: '用量保护状态暂时无法读取。' });
+    }
   });
 
   app.delete('/api/admin/auth/session', async (request, reply) => {
@@ -316,19 +326,36 @@ export function registerTopicAdmin(app: FastifyInstance, options: TopicAdminGate
   });
 
   app.post('/api/admin/topic-generations', async (request, reply) => {
+    const startedAt = performance.now();
     const admin = guard(request, reply, true);
-    if (!admin) return;
+    if (!admin) { finish(request, startedAt, 'topic.ai.generate', reply.statusCode, 'rejected'); return; }
     const parsed = topicGenerationRequestSchema.safeParse(request.body);
-    if (!parsed.success) return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? '候选引子无效。' });
+    if (!parsed.success) { finish(request, startedAt, 'topic.ai.generate', 400, 'invalid_request'); return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? '候选引子无效。' }); }
     const generation = options.store!.startGeneration({ topicId: null, revision: null, brief: parsed.data.brief, urls: parsed.data.urls,
       webSearchEnabled: parsed.data.webSearchEnabled, model: options.ai?.configuration?.model ?? 'deepseek-v4-flash', createdBy: admin.username });
     if (!options.ai?.configuration) {
       options.store!.finishGeneration(generation.id, { status: 'failed', errorCategory: 'not_configured' });
+      finish(request, startedAt, 'topic.ai.generate', 503, 'not_configured');
       return reply.code(503).send({ error: '话题 AI 尚未配置，您仍可手工新建草稿。', generationId: generation.id });
     }
     if (generationActive) {
       options.store!.finishGeneration(generation.id, { status: 'failed', errorCategory: 'busy' });
+      finish(request, startedAt, 'topic.ai.generate', 429, 'busy');
       return reply.code(429).send({ error: '已有候选正在生成，请等待完成。', generationId: generation.id });
+    }
+    const generatedAt = new Date(clock()).toISOString();
+    const prepared = prepareTopicAiRequest(parsed.data, options.ai.configuration, generatedAt);
+    let reservation: CostReservation | undefined;
+    if (options.costGovernance) {
+      try { reservation = options.costGovernance.reserveAi('topic_ai', prepared.maxInputTokens, prepared.maxOutputTokens); }
+      catch (error) {
+        const failure = error instanceof CostGovernanceError
+          ? error
+          : new CostGovernanceError(503, 'cost_governance_unavailable', '用量保护暂不可用，您仍可手工新建草稿。');
+        options.store!.finishGeneration(generation.id, { status: 'failed', errorCategory: failure.category });
+        finish(request, startedAt, 'topic.ai.generate', failure.status, failure.category);
+        return reply.code(failure.status).send({ error: failure.message, generationId: generation.id });
+      }
     }
     generationActive = true;
     const controller = new AbortController();
@@ -336,8 +363,12 @@ export function registerTopicAdmin(app: FastifyInstance, options: TopicAdminGate
     request.raw.once('aborted', cancel);
     try {
       const result = await callDeepSeekTopicCandidate(parsed.data, options.ai.configuration, {
-        fetch: options.ai.fetch, timeoutMs: options.ai.timeoutMs, signal: controller.signal, generatedAt: new Date(clock()).toISOString(),
+        fetch: options.ai.fetch, timeoutMs: options.ai.timeoutMs, signal: controller.signal, generatedAt, prepared,
       });
+      if (reservation) {
+        options.costGovernance!.settleAi(reservation, result.usage);
+        reservation = undefined;
+      }
       const now = new Date(clock()).toISOString();
       const id = `topic-${now.slice(0, 10).replaceAll('-', '')}-${randomUUID().slice(0, 8)}`;
       const topic = writingTopicSchema.parse({ id, revision: 1, status: 'candidate', ...result.content,
@@ -345,11 +376,21 @@ export function registerTopicAdmin(app: FastifyInstance, options: TopicAdminGate
       const stored = options.store!.createEditable(topic, admin.username, parsed.data.brief);
       options.store!.finishGeneration(generation.id, { status: 'succeeded', topicId: id, revision: 1,
         inputTokens: result.usage?.input, outputTokens: result.usage?.output, searchCalls: result.searchCalls });
+      finish(request, startedAt, 'topic.ai.generate', 201, undefined, result.usage);
       return reply.code(201).send({ generation: options.store!.listGenerations().find(item => item.id === generation.id), topic: stored });
     } catch (error) {
-      const failure = error instanceof TopicAiError ? error : new TopicAiError(503, 'upstream_invalid_response', '候选无法保存，请改用手工草稿。');
+      if (reservation) {
+        try { options.costGovernance!.settleAi(reservation); }
+        catch { /* Do not retry or expose ledger details. */ }
+        reservation = undefined;
+      }
+      const failure = error instanceof TopicAiError || error instanceof CostGovernanceError
+        ? error
+        : new TopicAiError(503, 'upstream_invalid_response', '候选无法保存，请改用手工草稿。');
       options.store!.finishGeneration(generation.id, { status: failure.category === 'cancelled' ? 'cancelled' : 'failed', errorCategory: failure.category });
-      return reply.code(failure.status === 499 ? 408 : failure.status).send({ error: failure.message, generationId: generation.id });
+      const status = failure.status === 499 ? 408 : failure.status;
+      finish(request, startedAt, 'topic.ai.generate', status, failure.category);
+      return reply.code(status).send({ error: failure.message, generationId: generation.id });
     } finally {
       generationActive = false;
       request.raw.off('aborted', cancel);

@@ -4,6 +4,7 @@ import { aiRequestSchema, type AiRequest, type AiResponse } from '../features/ai
 import { defaultOperationLogger, operationDuration, type OperationLogger } from './operations';
 import type { WechatAuthService } from './wechat-auth';
 import { MiniIdentityError } from './mini-identity-store';
+import { CostGovernanceError, type CostGovernanceStore, type CostReservation } from './cost-governance';
 
 export interface AiConfiguration { apiKey: string; baseUrl: string; model: 'deepseek-v4-flash' }
 export interface AiGatewayOptions {
@@ -17,6 +18,7 @@ export interface AiGatewayOptions {
   miniMaxConcurrentPerUser?: number;
   miniAuthService?: WechatAuthService;
   operations?: OperationLogger;
+  costGovernance?: CostGovernanceStore;
 }
 export function loadAiConfiguration(env: Readonly<Record<string, string | undefined>> = process.env): AiConfiguration | undefined {
   const apiKey = env.DEEPSEEK_API_KEY?.trim();
@@ -81,20 +83,32 @@ async function readLimitedJson(response: Response): Promise<unknown> {
     return JSON.parse(text);
   } finally { await reader.cancel().catch(() => {}); }
 }
-export async function callDeepSeek(request: AiRequest, configuration: AiConfiguration, signal: AbortSignal, transport: typeof fetch = fetch): Promise<AiResponse> {
+export function prepareArticleAiRequest(request: AiRequest) {
+  const maxOutputTokens = ['question', 'interview'].includes(request.action) ? 2048 : 16384;
+  const body = JSON.stringify({ model: 'deepseek-v4-flash', stream: false, thinking: { type: 'disabled' },
+    response_format: { type: 'json_object' }, max_tokens: maxOutputTokens,
+    temperature: request.action === 'polish' ? 0.6 : 0.2,
+    messages: [{ role: 'system', content: systemPrompt(request.action) }, { role: 'user', content: JSON.stringify({
+      workId: request.workId, requestId: request.requestId, versions: request.versions, turns: request.turns,
+      omittedRecords: request.omittedRecords, omittedMaterials: request.omittedMaterials, action: request.action, prompt: request.prompt,
+      topicSnapshot: request.topicSnapshot, materials: request.materials,
+      instruction: '以上版本和操作只是历史。请只执行本次 action，下面 current 是唯一的当前全文。', current: request.current,
+    }) }],
+  });
+  return { body, maxInputTokens: Buffer.byteLength(body, 'utf8') + 1024, maxOutputTokens };
+}
+
+export async function callDeepSeek(
+  request: AiRequest,
+  configuration: AiConfiguration,
+  signal: AbortSignal,
+  transport: typeof fetch = fetch,
+  prepared = prepareArticleAiRequest(request),
+): Promise<AiResponse> {
   const response = await transport(`${configuration.baseUrl}/chat/completions`, {
     method: 'POST', redirect: 'error', signal,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${configuration.apiKey}` },
-    body: JSON.stringify({ model: configuration.model, stream: false, thinking: { type: 'disabled' },
-      response_format: { type: 'json_object' }, max_tokens: ['question', 'interview'].includes(request.action) ? 2048 : 16384,
-      temperature: request.action === 'polish' ? 0.6 : 0.2,
-      messages: [{ role: 'system', content: systemPrompt(request.action) }, { role: 'user', content: JSON.stringify({
-        workId: request.workId, requestId: request.requestId, versions: request.versions, turns: request.turns,
-        omittedRecords: request.omittedRecords, omittedMaterials: request.omittedMaterials, action: request.action, prompt: request.prompt,
-        topicSnapshot: request.topicSnapshot, materials: request.materials,
-        instruction: '以上版本和操作只是历史。请只执行本次 action，下面 current 是唯一的当前全文。', current: request.current,
-      }) }],
-    }),
+    body: prepared.body,
   });
   if (!response.ok) {
     await response.body?.cancel();
@@ -127,8 +141,13 @@ export function registerArticleAi(app: FastifyInstance, options: AiGatewayOption
       log({ requestId: request.id, action: 'ai.status', status: 403, durationMs: operationDuration(startedAt), errorCategory: 'origin_rejected' });
       return reply.code(403).send({ configured: false });
     }
+    let budgetAvailable = true;
+    if (options.costGovernance) {
+      try { budgetAvailable = options.costGovernance.snapshot().articleAi.remainingTokens > 0; }
+      catch { budgetAvailable = false; }
+    }
     log({ requestId: request.id, action: 'ai.status', status: 200, durationMs: operationDuration(startedAt) });
-    return reply.header('Cache-Control', 'no-store').send({ configured: Boolean(options.configuration), provider: 'DeepSeek', model: 'deepseek-v4-flash' });
+    return reply.header('Cache-Control', 'no-store').send({ configured: Boolean(options.configuration) && budgetAvailable, provider: 'DeepSeek', model: 'deepseek-v4-flash' });
   });
   const handleTurn = async (request: FastifyRequest, reply: FastifyReply, mode: 'web' | 'mini') => {
     const startedAt = performance.now();
@@ -179,6 +198,19 @@ export function registerArticleAi(app: FastifyInstance, options: AiGatewayOption
       }
     }
     if (active.size >= (options.maxConcurrent ?? 2) || recent.length >= (options.requestsPerMinute ?? 20)) { finish(429, 'rate_limited'); return reply.code(429).send({ error: '请求较多，请稍后再试。' }); }
+    const prepared = prepareArticleAiRequest(parsed.data);
+    let reservation: CostReservation | undefined;
+    if (options.costGovernance) {
+      try { reservation = options.costGovernance.reserveAi('article_ai', prepared.maxInputTokens, prepared.maxOutputTokens); }
+      catch (error) {
+        if (error instanceof CostGovernanceError) {
+          finish(error.status, error.category);
+          return reply.code(error.status).send({ error: error.message });
+        }
+        finish(503, 'cost_governance_unavailable');
+        return reply.code(503).send({ error: '用量保护暂不可用，本机写作仍可使用。' });
+      }
+    }
     recent.push(now);
     if (userId) {
       recentByUser.set(userId, [...userRecent, now]);
@@ -189,12 +221,22 @@ export function registerArticleAi(app: FastifyInstance, options: AiGatewayOption
     const onClose = () => { if (!reply.raw.writableEnded) controller.abort(); };
     reply.raw.on('close', onClose);
     try {
-      const result = await callDeepSeek(parsed.data, options.configuration, controller.signal, options.fetch);
-      if (controller.signal.aborted) { finish(504, 'cancelled_or_timeout'); return reply.code(504).send({ error: 'AI 请求已取消或超时，原文未改变。' }); }
+      const result = await callDeepSeek(parsed.data, options.configuration, controller.signal, options.fetch, prepared);
+      if (reservation) {
+        options.costGovernance!.settleAi(reservation, result.usage);
+        reservation = undefined;
+      }
+      if (controller.signal.aborted) { finish(504, 'cancelled_or_timeout', result.usage); return reply.code(504).send({ error: 'AI 请求已取消或超时，原文未改变。' }); }
       finish(200, undefined, result.usage);
       return result;
     } catch (error) {
+      if (reservation) {
+        try { options.costGovernance!.settleAi(reservation); }
+        catch { /* Do not expose ledger internals or make another paid request. */ }
+        reservation = undefined;
+      }
       if (controller.signal.aborted) { finish(504, 'cancelled_or_timeout'); return reply.code(504).send({ error: 'AI 请求已取消或超时，原文未改变。' }); }
+      if (error instanceof CostGovernanceError) { finish(error.status, error.category); return reply.code(error.status).send({ error: error.message }); }
       if (error instanceof AiServiceError) { finish(error.status, error.category); return reply.code(error.status).send({ error: error.message }); }
       finish(502, 'upstream_invalid_response');
       return reply.code(502).send({ error: 'AI 连接或结果格式异常，原文未改变，请稍后重试。' });

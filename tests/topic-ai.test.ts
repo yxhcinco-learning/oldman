@@ -4,6 +4,7 @@ import type { TopicGenerationRequest } from '../lib/domain/topics';
 import { createGateway } from '../server/gateway';
 import { createTopicAdminPasswordHash, TopicAdminAuthService } from '../server/topic-admin-auth';
 import { callDeepSeekTopicCandidate, TopicAiError } from '../server/topic-ai';
+import { CostGovernanceStore } from '../server/cost-governance';
 import { TopicStore } from '../server/topic-store';
 
 const configuration = { apiKey: 'test-topic-ai-secret', baseUrl: 'https://api.deepseek.com', model: 'deepseek-v4-flash' as const };
@@ -95,12 +96,12 @@ describe('DeepSeek Responses topic adapter', () => {
   });
 });
 
-async function adminGateway(transport?: typeof fetch) {
+async function adminGateway(transport?: typeof fetch, costGovernance?: CostGovernanceStore) {
   const store = new TopicStore({ path: ':memory:', now: () => now });
   const auth = new TopicAdminAuthService(store, { username: 'editor', passwordHash: createTopicAdminPasswordHash('candidate generation password'),
     secureCookie: false, sessionDurationMs: 60 * 60_000 }, () => now);
   const app = await createGateway({ origin: ORIGIN, topics: store, topicAdmin: { auth, now: () => now.getTime() },
-    topicAi: { configuration, fetch: transport, timeoutMs: 5000 } });
+    topicAi: { configuration, fetch: transport, timeoutMs: 5000 }, costGovernance });
   resources.push({ app, store });
   await app.ready();
   const login = await app.inject({ method: 'POST', url: '/api/admin/auth/login', headers: { origin: ORIGIN, 'content-type': 'application/json' },
@@ -112,7 +113,8 @@ async function adminGateway(transport?: typeof fetch) {
 describe('authenticated topic generation endpoint', () => {
   it('stores one candidate plus model, usage and web-search accounting', async () => {
     const transport = vi.fn<typeof fetch>(async () => response(output(), 1));
-    const { app, store, headers } = await adminGateway(transport);
+    const costs = new CostGovernanceStore(':memory:', { articleAiDailyTokens: 1, topicAiDailyTokens: 1_100_000, speechDailySeconds: 1 });
+    const { app, store, headers } = await adminGateway(transport, costs);
     const result = await app.inject({ method: 'POST', url: '/api/admin/topic-generations', headers, payload: request({
       urls: ['https://example.com/community-meals'],
     }) });
@@ -121,6 +123,20 @@ describe('authenticated topic generation endpoint', () => {
       outputTokens: 123, searchCalls: 1 }, topic: { topic: { status: 'candidate', sources: [] } } });
     expect(store.statistics()).toMatchObject({ topics: 1, revisions: 1, generations: 1 });
     expect(transport).toHaveBeenCalledOnce();
+    expect(costs.snapshot().topicAi).toMatchObject({ inputTokens: 321, outputTokens: 123, reservedTokens: 0 });
+    costs.close();
+  });
+
+  it('records budget exhaustion before any topic provider call and leaves manual work available', async () => {
+    const transport = vi.fn<typeof fetch>(async () => response());
+    const costs = new CostGovernanceStore(':memory:', { articleAiDailyTokens: 1, topicAiDailyTokens: 1_005_999, speechDailySeconds: 1 });
+    const { app, store, headers } = await adminGateway(transport, costs);
+    const result = await app.inject({ method: 'POST', url: '/api/admin/topic-generations', headers, payload: request() });
+    expect(result.statusCode).toBe(429);
+    expect(result.json().error).toContain('今日话题 AI 额度');
+    expect(transport).not.toHaveBeenCalled();
+    expect(store.listGenerations()[0]).toMatchObject({ status: 'failed', errorCategory: 'daily_budget_exhausted' });
+    costs.close();
   });
 
   it('enforces one concurrent top-level request and records a fixed failure without retry', async () => {

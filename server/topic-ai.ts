@@ -64,6 +64,13 @@ export interface TopicAiCallOptions {
   timeoutMs?: number;
   signal?: AbortSignal;
   generatedAt?: string;
+  prepared?: PreparedTopicAiRequest;
+}
+
+export interface PreparedTopicAiRequest {
+  body: string;
+  maxInputTokens: number;
+  maxOutputTokens: 6000;
 }
 
 const instructions = `你是“岁月有声”的内部选题助理。输入只包含编辑提供的引子文字、链接、联网开关和生成时间。
@@ -76,6 +83,18 @@ angles 提供 1–4 个相关切面，starterQuestion 是采访首问。来源�
 function requestInput(value: TopicGenerationRequest, generatedAt: string) {
   return JSON.stringify({ generatedAt, brief: value.brief, urls: value.urls, webSearchEnabled: value.webSearchEnabled,
     instruction: value.urls.length ? '逐一阅读编辑提供的链接，核对其中与候选直接相关的信息。' : '根据文字引子形成候选；联网开启时可按需补充搜索。' });
+}
+
+export function prepareTopicAiRequest(requestValue: TopicGenerationRequest, configuration: AiConfiguration, generatedAt: string): PreparedTopicAiRequest {
+  const request = topicGenerationRequestSchema.parse(requestValue);
+  const web = request.webSearchEnabled;
+  const body = JSON.stringify({
+    model: configuration.model, instructions, input: requestInput(request, generatedAt),
+    max_output_tokens: 6000, temperature: 0.2,
+    text: { format: { type: 'json_schema', name: 'topic_candidate', schema: candidateJsonSchema } },
+    ...(web ? { tools: [{ type: 'web_search' }], tool_choice: request.urls.length ? { type: 'web_search' } : 'auto' } : { tool_choice: 'none' }),
+  });
+  return { body, maxInputTokens: web ? 1_000_000 : Buffer.byteLength(body, 'utf8') + 1024, maxOutputTokens: 6000 };
 }
 
 function parseCandidateText(value: string) {
@@ -111,23 +130,18 @@ export async function callDeepSeekTopicCandidate(
   configuration: AiConfiguration,
   options: TopicAiCallOptions = {},
 ): Promise<TopicCandidateGeneration> {
-  const request = topicGenerationRequestSchema.parse(requestValue);
+  topicGenerationRequestSchema.parse(requestValue);
   const controller = new AbortController();
   let timedOut = false;
   const abort = () => controller.abort(options.signal?.reason);
   options.signal?.addEventListener('abort', abort, { once: true });
   const timer = setTimeout(() => { timedOut = true; controller.abort(); }, options.timeoutMs ?? 90_000);
   try {
-    const web = request.webSearchEnabled;
+    const prepared = options.prepared ?? prepareTopicAiRequest(requestValue, configuration, options.generatedAt ?? new Date().toISOString());
     const response = await (options.fetch ?? fetch)(`${configuration.baseUrl}/responses`, {
       method: 'POST', redirect: 'error', signal: controller.signal,
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${configuration.apiKey}` },
-      body: JSON.stringify({
-        model: configuration.model, instructions, input: requestInput(request, options.generatedAt ?? new Date().toISOString()),
-        max_output_tokens: 6000, temperature: 0.2,
-        text: { format: { type: 'json_schema', name: 'topic_candidate', schema: candidateJsonSchema } },
-        ...(web ? { tools: [{ type: 'web_search' }], tool_choice: request.urls.length ? { type: 'web_search' } : 'auto' } : { tool_choice: 'none' }),
-      }),
+      body: prepared.body,
     });
     if (!response.ok) {
       await response.body?.cancel();

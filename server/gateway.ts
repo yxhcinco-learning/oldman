@@ -1,4 +1,4 @@
-import Fastify, { type FastifyRequest } from 'fastify';
+import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import websocket from '@fastify/websocket';
 import WebSocket from 'ws';
 import { signedAsrUrl, parseTencentResult, type AsrEngineModel, type Credentials } from './tencent';
@@ -12,6 +12,7 @@ import { SpeechTicketError, SpeechTicketStore } from './speech-ticket-store';
 import { MiniIdentityError } from './mini-identity-store';
 import { registerTopicAdmin, type TopicAdminGatewayOptions } from './topic-admin-api';
 import { registerOperationalEvents } from './operational-events';
+import { CostGovernanceError, type CostGovernanceStore, type CostReservation } from './cost-governance';
 
 export interface GatewayOptions {
   credentials?: Credentials; origin: string; maxConnections?: number; maxDurationMs?: number; maxBytes?: number;
@@ -26,6 +27,7 @@ export interface GatewayOptions {
   eventRequestsPerMinute?: number;
   miniAuth?: Omit<MiniAuthGatewayOptions, 'operations'>;
   speechTickets?: SpeechTicketStore;
+  costGovernance?: CostGovernanceStore;
 }
 export async function createGateway(options: GatewayOptions) {
   const app = Fastify({ logger: false, bodyLimit: 64 * 1024 });
@@ -39,14 +41,18 @@ export async function createGateway(options: GatewayOptions) {
     topicAiConfigured: Boolean(options.topicAi?.configuration),
     topicAdminConfigured: Boolean(options.topicAdmin?.auth),
     miniIdentityConfigured: Boolean(options.miniAuth?.service),
+    costGovernanceConfigured: Boolean(options.costGovernance),
   });
-  registerArticleAi(app, { ...options.ai, origin: options.origin, operations, miniAuthService: options.miniAuth?.service });
+  registerArticleAi(app, { ...options.ai, origin: options.origin, operations, miniAuthService: options.miniAuth?.service, costGovernance: options.costGovernance });
   registerTopics(app, { origin: options.origin, store: options.topics, operations });
-  registerTopicAdmin(app, { ...options.topicAdmin, origin: options.origin, store: options.topics, operations, ai: options.topicAi, monitor, capabilities });
+  registerTopicAdmin(app, { ...options.topicAdmin, origin: options.origin, store: options.topics, operations, ai: options.topicAi,
+    costGovernance: options.costGovernance, monitor, capabilities });
   registerMiniAuth(app, { ...options.miniAuth, operations });
   registerOperationalEvents(app, { origin: options.origin, operations, requestsPerMinute: options.eventRequestsPerMinute });
   const active = new Set<WebSocket>();
   const speechTickets = options.speechTickets ?? new SpeechTicketStore();
+  const speechReservations = new Map<string, CostReservation>();
+  const configuredSpeechSeconds = Math.max(1, Math.ceil((options.maxDurationMs ?? 300_000) / 1_000));
   await app.register(websocket, { options: { maxPayload: 64 * 1024 } });
   app.get('/api/health', async (request, reply) => {
     const startedAt = performance.now();
@@ -60,8 +66,13 @@ export async function createGateway(options: GatewayOptions) {
       operations({ requestId: request.id, action: 'speech.status', status: 403, durationMs: operationDuration(startedAt), errorCategory: 'origin_rejected' });
       return reply.code(403).send({ configured: false });
     }
+    let budgetSeconds = configuredSpeechSeconds;
+    if (options.costGovernance) {
+      try { budgetSeconds = Math.min(configuredSpeechSeconds, options.costGovernance.snapshot().speech.remainingSeconds); }
+      catch { budgetSeconds = 0; }
+    }
     operations({ requestId: request.id, action: 'speech.status', status: 200, durationMs: operationDuration(startedAt) });
-    return { configured: Boolean(options.credentials), provider: '腾讯云', maxSeconds: 300 };
+    return { configured: Boolean(options.credentials) && budgetSeconds > 0, provider: '腾讯云', maxSeconds: Math.max(0, budgetSeconds) };
   });
   app.post('/api/mini/speech-ticket', async (request, reply) => {
     const startedAt = performance.now();
@@ -100,8 +111,28 @@ export async function createGateway(options: GatewayOptions) {
     }
   });
 
+  const reserveSpeechBudget = (request: FastifyRequest, reply: FastifyReply, action: 'speech.session' | 'mini.speech.session', startedAt: number) => {
+    if (!options.costGovernance) return undefined;
+    try {
+      const reservation = options.costGovernance.reserveSpeech(configuredSpeechSeconds);
+      speechReservations.set(request.id, reservation);
+      return undefined;
+    } catch (error) {
+      const failure = error instanceof CostGovernanceError
+        ? error
+        : new CostGovernanceError(503, 'cost_governance_unavailable', '用量保护暂不可用，请继续使用文字输入。');
+      operations({ requestId: request.id, action, status: failure.status, durationMs: operationDuration(startedAt), errorCategory: failure.category });
+      const message = failure.category === 'daily_budget_exhausted'
+        ? '今日语音额度已用完，请明天再试；您可以继续使用文字输入。'
+        : '用量保护暂不可用，请继续使用文字输入。';
+      return reply.code(failure.status).send({ error: message });
+    }
+  };
+
   const speechSession = (socket: WebSocket, request: FastifyRequest, action: 'speech.session' | 'mini.speech.session') => {
     const startedAt = performance.now();
+    const reservation = speechReservations.get(request.id);
+    speechReservations.delete(request.id);
     let finalStatus = 499;
     let finalCategory: string | undefined = 'client_closed';
     let logged = false;
@@ -113,7 +144,10 @@ export async function createGateway(options: GatewayOptions) {
     active.add(socket);
     let upstream: WebSocket;
     try { upstream = (options.connect ?? (url => new WebSocket(url, { handshakeTimeout: 8000, maxPayload: 1024 * 1024 })))(signedAsrUrl(options.credentials!, { engineModel: options.engineModel })); }
-    catch { finalStatus = 502; finalCategory = 'upstream_create'; active.delete(socket); socket.send(JSON.stringify({ type: 'error', message: '无法创建语音连接，请检查本地配置' })); socket.close(1011); finishLog(); return; }
+    catch {
+      if (reservation) { try { options.costGovernance!.release(reservation); } catch { /* No upstream connection was created. */ } }
+      finalStatus = 502; finalCategory = 'upstream_create'; active.delete(socket); socket.send(JSON.stringify({ type: 'error', message: '无法创建语音连接，请检查本地配置' })); socket.close(1011); finishLog(); return;
+    }
     const accumulator = new TranscriptAccumulator();
     let ready = false, ended = false, completed = false, released = false, bytes = 0;
     let finishTimer: ReturnType<typeof setTimeout> | undefined;
@@ -123,6 +157,10 @@ export async function createGateway(options: GatewayOptions) {
       released = true; active.delete(socket); clearTimeout(maxTimer); clearTimeout(readyTimer); clearTimeout(finishTimer);
       if (upstream.readyState === WebSocket.CONNECTING) upstream.terminate();
       else if (upstream.readyState === WebSocket.OPEN) upstream.close();
+      if (reservation) {
+        try { options.costGovernance!.settleSpeech(reservation, Math.ceil(operationDuration(startedAt) / 1_000)); }
+        catch { finalStatus = 503; finalCategory = 'cost_governance_unavailable'; }
+      }
       finishLog();
     };
     const fail = (message: string, category = 'upstream_unavailable') => { if (completed || released) return; finalStatus = 502; finalCategory = category; send({ type: 'error', message }); socket.close(1011, 'Recognition unavailable'); release(); };
@@ -134,7 +172,7 @@ export async function createGateway(options: GatewayOptions) {
       finishTimer = setTimeout(() => fail('识别收尾超时，已收到的文字已保留', 'upstream_finish_timeout'), 10000);
     };
     const readyTimer = setTimeout(() => fail('语音连接超时，请稍后重试', 'upstream_ready_timeout'), 10000);
-    const maxTimer = setTimeout(() => { send({ type: 'limit' }); end(); }, options.maxDurationMs ?? 300_000);
+    const maxTimer = setTimeout(() => { send({ type: 'limit' }); end(); }, reservation ? reservation.speechSeconds * 1_000 : options.maxDurationMs ?? 300_000);
     upstream.on('message', data => {
       if (released) return;
       try {
@@ -183,6 +221,7 @@ export async function createGateway(options: GatewayOptions) {
         operations({ requestId: request.id, action: 'speech.session', status: 429, durationMs: operationDuration(startedAt), errorCategory: 'connection_limited' });
         return reply.code(429).send({ error: '录音连接已满' });
       }
+      return reserveSpeechBudget(request, reply, 'speech.session', startedAt);
     },
   }, (socket, request) => speechSession(socket, request, 'speech.session'));
   app.get('/api/mini/speech', {
@@ -201,8 +240,15 @@ export async function createGateway(options: GatewayOptions) {
       }
       try { speechTickets.consume((query as { ticket: string }).ticket); }
       catch { return fail(401, 'ticket_rejected', '语音连接已失效，请重试。'); }
+      return reserveSpeechBudget(request, reply, 'mini.speech.session', startedAt);
     },
   }, (socket, request) => speechSession(socket, request, 'mini.speech.session'));
-  app.addHook('preClose', async () => { for (const socket of active) socket.close(1001); });
+  app.addHook('preClose', async () => {
+    for (const socket of active) socket.close(1001);
+    for (const reservation of speechReservations.values()) {
+      try { options.costGovernance?.release(reservation); } catch { /* No upstream session was created. */ }
+    }
+    speechReservations.clear();
+  });
   return app;
 }
