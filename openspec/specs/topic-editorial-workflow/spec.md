@@ -72,7 +72,11 @@
 - **THEN** 热门列表少于五条并保持其他席位相对顺序，不按类型、时间或行为数据补齐
 
 ### Requirement: Independent single-editor administration
-后台 SHALL 使用独立单编辑身份、服务端会话和 CSRF 防护；密码、会话、Cookie、密钥和用户文章 MUST 不进入审计或操作日志。
+后台 SHALL 使用独立单编辑身份、服务端会话和 CSRF 防护；管理员密码 MUST 为 6–1024 个字符并只以 scrypt 散列进入服务端配置，密码、会话、Cookie、密钥和用户文章 MUST 不进入审计或操作日志。
+
+#### Scenario: Generate the shortest valid credential
+- **WHEN** 管理员在交互式散列工具中输入六个字符的密码
+- **THEN** 系统生成既有 scrypt 格式的散列且不回显明文，并拒绝五个字符或超过 1024 个字符的输入
 
 #### Scenario: Establish and end an admin session
 - **WHEN** 配置有效管理员凭据并通过独立登录页认证
