@@ -19,6 +19,7 @@ done
 data_dir=/var/lib/suiyue-yousheng
 identity_db="$data_dir/auth.sqlite"
 topics_db="$data_dir/topics.sqlite"
+usage_db="$data_dir/usage.sqlite"
 [[ "$(realpath "$data_dir" 2>/dev/null || true)" == "$data_dir" ]] || { echo "application data directory is unsafe" >&2; exit 2; }
 [[ "$(stat -c '%a:%U:%G' "$data_dir" 2>/dev/null || true)" == "700:suiyue:suiyue" ]] || { echo "application data directory must be 0700 suiyue:suiyue" >&2; exit 2; }
 [[ "$(stat -c '%a:%U:%G' "$data_dir/backups" 2>/dev/null || true)" == "700:root:root" ]] || { echo "backup directory must be 0700 root:root" >&2; exit 2; }
@@ -29,6 +30,10 @@ topics_db="$data_dir/topics.sqlite"
 [[ "$(grep -Ec '^TOPIC_ADMIN_PASSWORD_HASH=scrypt\$16384\$8\$1\$[A-Za-z0-9_-]{22}\$[A-Za-z0-9_-]{86}$' /etc/suiyue-yousheng/runtime.env)" == 1 ]] || { echo "topic administrator password hash is not configured" >&2; exit 2; }
 grep -Fxq "SUIYUE_AUTH_DB_PATH=$identity_db" /etc/suiyue-yousheng/runtime.env || { echo "identity database path is not configured" >&2; exit 2; }
 grep -Fxq "SUIYUE_TOPICS_DB_PATH=$topics_db" /etc/suiyue-yousheng/runtime.env || { echo "topics database path is not configured" >&2; exit 2; }
+grep -Fxq "SUIYUE_USAGE_DB_PATH=$usage_db" /etc/suiyue-yousheng/runtime.env || { echo "usage database path is not configured" >&2; exit 2; }
+for setting in ARTICLE_AI_DAILY_TOKEN_LIMIT TOPIC_AI_DAILY_TOKEN_LIMIT ASR_DAILY_SECONDS_LIMIT; do
+  grep -Eq "^${setting}=(0|[1-9][0-9]*)$" /etc/suiyue-yousheng/runtime.env || { echo "paid usage limit is not configured" >&2; exit 2; }
+done
 
 cd "$release_dir"
 /usr/bin/npm ci --no-audit --no-fund
@@ -53,11 +58,13 @@ migration_attempted=0
 gateway_was_active=0
 identity_backup=""
 topics_backup=""
+usage_backup=""
 release_name="${release_dir##*/}"
 [[ "$release_name" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "release name is unsafe" >&2; exit 2; }
 database_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 identity_quarantine="$data_dir/failed/${release_name}-${database_stamp}-auth"
 topics_quarantine="$data_dir/failed/${release_name}-${database_stamp}-topics"
+usage_quarantine="$data_dir/failed/${release_name}-${database_stamp}-usage"
 
 secure_database_files() {
   local database_path="$1"
@@ -81,6 +88,7 @@ rollback_on_error() {
     systemctl stop suiyue-gateway.service
     restore_database "$identity_backup" "$identity_db" "$identity_quarantine"
     restore_database "$topics_backup" "$topics_db" "$topics_quarantine"
+    restore_database "$usage_backup" "$usage_db" "$usage_quarantine"
     find "$data_dir/failed" -maxdepth 1 -type f -name "${release_name}-${database_stamp}-*.sqlite*" -exec chown root:root {} + -exec chmod 0600 {} +
   fi
   if [[ "$activated" == 1 ]]; then
@@ -101,7 +109,7 @@ if systemctl is-active --quiet suiyue-gateway.service; then
   gateway_was_active=1
   systemctl stop suiyue-gateway.service
 fi
-for database_path in "$identity_db" "$topics_db"; do
+for database_path in "$identity_db" "$topics_db" "$usage_db"; do
   if [[ -e "$database_path" && ( ! -f "$database_path" || -L "$database_path" ) ]]; then
     echo "application database is unsafe" >&2
     rollback_on_error 2
@@ -121,6 +129,13 @@ if [[ -e "$topics_db" ]]; then
   chown root:root "$topics_backup"
   chmod 0600 "$topics_backup"
 fi
+if [[ -e "$usage_db" ]]; then
+  /usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check "$usage_db" 1
+  usage_backup="$data_dir/backups/${release_name}-${database_stamp}-usage.sqlite"
+  /usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" backup "$usage_db" "$usage_backup"
+  chown root:root "$usage_backup"
+  chmod 0600 "$usage_backup"
+fi
 
 install -m 0644 -o root -g root "$release_dir/deploy/systemd/suiyue-web.service" /etc/systemd/system/suiyue-web.service
 install -m 0644 -o root -g root "$release_dir/deploy/systemd/suiyue-gateway.service" /etc/systemd/system/suiyue-gateway.service
@@ -135,11 +150,14 @@ grep -Fq '"miniIdentityConfigured":true' <<<"$health"
 grep -Fq '"topicsConfigured":true' <<<"$health"
 grep -Fq '"topicAiConfigured":true' <<<"$health"
 grep -Fq '"topicAdminConfigured":true' <<<"$health"
+grep -Fq '"costGovernanceConfigured":true' <<<"$health"
 /usr/bin/curl -fsS --max-time 5 http://127.0.0.1:3011/ >/dev/null
 /usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check "$identity_db" 1
 /usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check "$topics_db" 1
+/usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check "$usage_db" 1
 secure_database_files "$identity_db"
 secure_database_files "$topics_db"
+secure_database_files "$usage_db"
 activated=0
 migration_attempted=0
 trap - ERR

@@ -73,6 +73,12 @@ CI 对 push 和可选 PR 运行 npm ci、check、build 和依赖审计；CI 不�
 
 真实联调请用非敏感短文、先估算次数与费用，并记录实际结果；一次“配置正常”或 mock 成功不能代替模型效果。首轮测试见 [文章 AI 验收](ARTICLE-AI-ACCEPTANCE.md)，对话改文的一次真实调用及核心事实漂移反例见 [对话改文验收](CONVERSATIONAL-REWRITE-ACCEPTANCE.md)，同一发送请求的回答/候选联调见 [统一发送验收](AI-UNIFIED-SEND-ACCEPTANCE.md)。文章 AI 接口本身没有用户账号认证，公网测试仍必须由 Nginx 的 HTTPS 访问保护包裹；话题后台另有独立应用会话。所有应用端口都不得直接开放。
 
+### AI / 语音用量保护
+
+开发环境默认使用 Git 忽略的 `.data/usage.sqlite`，也可用 `SUIYUE_USAGE_DB_PATH` 指定路径。三项上限分别是 `ARTICLE_AI_DAILY_TOKEN_LIMIT=1000000`、`TOPIC_AI_DAILY_TOKEN_LIMIT=1100000`、`ASR_DAILY_SECONDS_LIMIT=7200`，按上海自然日重置；设置为 0 会停用对应付费能力。文章 AI、话题 AI 分池，网页和小程序语音共用同一池。系统在连接上游前原子预留，成功按实际 usage/秒数结算，无法确认的失败、取消或跨重启遗留按上界保守结算，因此后台数字宁可略高也不能漏记未知费用。
+
+`DEEPSEEK_ESTIMATED_INPUT_CNY_PER_MILLION`、`DEEPSEEK_ESTIMATED_OUTPUT_CNY_PER_MILLION` 和 `TENCENT_ASR_ESTIMATED_CNY_PER_HOUR` 都是可选非负单价。未配置时后台只显示用量；配置后金额仍只是估算，不包含缓存、峰谷、Responses 搜索续推、资源包、阶梯价或供应商规则调整，不能替代 DeepSeek/腾讯云控制台账单。常规测试使用假 transport 和临时 SQLite，不读取真实 Key、不建立腾讯连接。
+
 ### 话题数据库与内部后台
 
 开发环境默认使用 Git 忽略的 `.data/topics.sqlite`，也可用 `SUIYUE_TOPICS_DB_PATH` 指定独立路径；生产值必须是 `/var/lib/suiyue-yousheng/topics.sqlite` 这一类绝对路径。首次空库会幂等导入 21 条种子并建立五个显式席位，此后运行时只读数据库，不回退静态目录。启动执行 schema 版本和 `quick_check`；损坏、配置错误或未来版本关闭热门与后台并返回 503，不影响本机作品、文章 AI 或语音。
@@ -81,7 +87,7 @@ CI 对 push 和可选 PR 运行 npm ci、check、build 和依赖审计；CI 不�
 
 话题生成继续复用服务端 DeepSeek Key，但走独立 Responses API；文章小文仍走 Chat Completions。纯文字可关闭联网，任何链接都会强制联网。生成按钮一次只产生一套 `candidate`，失败不重试也不发布；完全手工草稿始终可用。普通测试注入假 transport，不读取 Key 或调用付费服务。
 
-后台“运行监控”读取 `/api/admin/monitoring`，只显示当前网关进程的匿名聚合；页面每 30 秒和手动刷新，离开页面即停止定时器。H5 的 `/api/operations/events` 只接受共享枚举中的 `{ event }`，本地开发由 Vite 精确代理到网关。测试事件 transport 时应注入失败 fetch 并确认本地操作仍成功；不得为测试加入正文、ID、URL、任意 metadata 或真实外部分析服务。
+后台“运行监控”读取 `/api/admin/monitoring`：运营请求指标是当前网关进程匿名聚合、重启清零；三类付费用量来自独立日账本、跨重启保留。页面每 30 秒和手动刷新，离开页面即停止定时器。H5 的 `/api/operations/events` 只接受共享枚举中的 `{ event }`，本地开发由 Vite 精确代理到网关。测试事件 transport 时应注入失败 fetch 并确认本地操作仍成功；不得为测试加入正文、ID、URL、任意 metadata 或真实外部分析服务。
 
 ### Linux 运行配置
 
@@ -89,7 +95,7 @@ CI 对 push 和可选 PR 运行 npm ci、check、build 和依赖审计；CI 不�
 
 小程序身份要求 `WECHAT_MINIPROGRAM_APP_ID`、`WECHAT_MINIPROGRAM_APP_SECRET` 与 `SUIYUE_AUTH_DB_PATH=/var/lib/suiyue-yousheng/auth.sqlite` 三项同时有效；缺一项或格式无效时 `/api/mini/*` 失败关闭，健康信息只显示 `miniIdentityConfigured=false`，不回显具体值。AppSecret 由用户手工填入上述服务器文件，代码、检查命令和验收记录只报告是否配置。开发机可在忽略的 `.env.local` 使用独立绝对临时库路径做离线 transport 测试，但常规检查不放真实 AppID/AppSecret、不调用 `code2Session`。
 
-话题生产配置还必须包含 `SUIYUE_TOPICS_DB_PATH=/var/lib/suiyue-yousheng/topics.sqlite`、有效管理员用户名与 scrypt 散列。激活脚本只检查字段形状而不打印值；健康接口只暴露 `topicsConfigured`、`topicAiConfigured`、`topicAdminConfigured` 布尔值。未来部署前必须为身份库和话题库同时完成备份、恢复和 schema 上限演练。
+话题生产配置还必须包含 `SUIYUE_TOPICS_DB_PATH=/var/lib/suiyue-yousheng/topics.sqlite`、有效管理员用户名与 scrypt 散列。付费用量生产配置必须包含 `SUIYUE_USAGE_DB_PATH=/var/lib/suiyue-yousheng/usage.sqlite` 和三项每日上限；路径、上限或数据库无效时 AI/语音失败关闭，本机能力继续可用。激活脚本只检查字段形状而不打印值；健康接口只暴露 `topicsConfigured`、`topicAiConfigured`、`topicAdminConfigured`、`costGovernanceConfigured` 等布尔值。未来部署前必须为身份库、话题库和用量库同时完成备份、恢复和 schema 上限演练。
 
 本机微信开发者工具在共享核心变更后执行 `npm run devtool:build-npm --workspace @suiyue/miniprogram`。该命令先重建 `@suiyue/core`、移除会被工具按版本复用的旧 `miniprogram_npm` 包，再调用本机 CLI 构建 npm，并校验开发者工具实际加载的运行包包含当前关键导出。它只做本地 npm 二次构建，不预览上传、不提审、不发布；找不到 CLI 时可用 `WECHAT_DEVTOOLS_CLI_PATH` 指向其绝对路径。
 
@@ -101,7 +107,7 @@ CI 对 push 和可选 PR 运行 npm ci、check、build 和依赖审计；CI 不�
 
 数据库 `suiyue-yousheng` v3：works、recovery、articleSessions。v3 在作品草稿中增加可选议题快照、采访素材和模式字段，v1/v2 以缺省值惰性归一化，不新建 store、不改写原正文。输入异步串行写入；“已保存到本机”只在事务成功后显示。手动保存/返回等待最新写入；多标签冲突拒绝过期修订并保留内存内容供导出。
 
-服务器 `topics.sqlite` 与上述浏览器作品库完全独立，只保存编辑话题、不可变修订、生成元数据、五席排期、管理员/会话散列和审计。部署工具对 `auth.sqlite` 与 `topics.sqlite` 分别做一致性检查、在线备份和失败迁移恢复；正常代码回滚只校验 schema，不回写数据。话题库不进入用户 JSON 备份，用户作品也不进入话题库。
+服务器 `topics.sqlite` 与上述浏览器作品库完全独立，只保存编辑话题、不可变修订、生成元数据、五席排期、管理员/会话散列和审计；`usage.sqlite` 只保存按日匿名用量和活动预留。部署工具对 `auth.sqlite`、`topics.sqlite` 与 `usage.sqlite` 分别做一致性检查、在线备份和失败迁移恢复；正常代码回滚只校验 schema，不回写数据。服务器三库都不进入用户 JSON 备份，用户作品也不进入服务器数据库。
 
 不设额外常驻保存工具行：保存中复用页头按钮，成功提供读屏状态和手动保存反馈，失败有持续提示与重试/导出。退出前点保存等待成功。操作系统强制终止、断电或浏览器杀进程仍可能丢掉最后尚未提交的输入，不能宣传零丢失。
 
@@ -117,7 +123,7 @@ CI 对 push 和可选 PR 运行 npm ci、check、build 和依赖审计；CI 不�
 4. 固定底部“热门 / 文章 / 我的”三页导航、人工席位顺序、少于五条及有/无来源详情；内容区顶部不重复页签，话题服务 503 不阻塞作品；“直接写”不插入背景文字；首次采访开场不请求 AI，空采访退出不留空作品，有回答或处理中退出进入文章；旧快照、更新比较与显式采用。
 5. 小文普通会话保持不变；采访首问、聊天式单问题追问、换题、关闭暂停与重开恢复；文字/语音回答只存素材；整理、澄清或候选、放弃/应用/撤销；错误/取消保留输入且不改正文。
 6. 长按 180ms、短按、授权中松手、取消、后台、断网、迟到结果、5 分钟结束。
-7. 用户端 360×640、390×844、430×932 与桌面；议题卡、可选来源、背景与采访操作可达，无裁切、无横向溢出。后台 1280×900、1440×900、390×844 覆盖登录、筛选、候选/手稿、预览、排期、冲突、修订/生成/审计与紧急下线。
+7. 用户端 360×640、390×844、430×932 与桌面；议题卡、可选来源、背景与采访操作可达，无裁切、无横向溢出。后台 1280×900、1440×900、390×844 覆盖登录、筛选、候选/手稿、预览、排期、冲突、修订/生成/审计、紧急下线，以及正常/零额度/接近上限/已用完/账本失败的成本视图。
 
 真机验收记录机型、OS/浏览器版本、HTTPS 地址、权限、键盘遮挡、后台和网络切换。桌面模拟不能替代。
 

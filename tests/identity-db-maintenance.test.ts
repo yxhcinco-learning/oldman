@@ -16,32 +16,34 @@ afterEach(async () => {
 });
 
 describe('SQLite 数据库部署维护', () => {
-  it('完整性检查、在线备份和失败迁移恢复都保留可核对副本', async () => {
+  it('三库完整性检查、在线备份和失败迁移恢复都保留可核对副本', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'suiyue-identity-maintenance-'));
     directories.push(directory);
-    const databasePath = join(directory, 'auth.sqlite');
-    const backupPath = join(directory, 'backup.sqlite');
-    const quarantinePrefix = join(directory, 'failed-release');
     const script = fileURLToPath(new URL('../deploy/server/sqlite-db.mjs', import.meta.url));
 
-    const database = new DatabaseSync(databasePath);
-    database.exec('CREATE TABLE users (id TEXT PRIMARY KEY) STRICT; PRAGMA user_version = 1;');
-    database.prepare('INSERT INTO users (id) VALUES (?)').run('non-sensitive-fixture');
-    database.close();
+    for (const name of ['auth', 'topics', 'usage']) {
+      const databasePath = join(directory, `${name}.sqlite`);
+      const backupPath = join(directory, `${name}-backup.sqlite`);
+      const quarantinePrefix = join(directory, `failed-${name}`);
+      const database = new DatabaseSync(databasePath);
+      database.exec('CREATE TABLE fixtures (id TEXT PRIMARY KEY) STRICT; PRAGMA user_version = 1;');
+      database.prepare('INSERT INTO fixtures (id) VALUES (?)').run(`${name}-non-sensitive-fixture`);
+      database.close();
 
-    await execute(process.execPath, [script, 'check', databasePath]);
-    await execute(process.execPath, [script, 'backup', databasePath, backupPath]);
-    const changed = new DatabaseSync(databasePath);
-    changed.prepare('INSERT INTO users (id) VALUES (?)').run('post-migration-fixture');
-    changed.close();
-    await execute(process.execPath, [script, 'restore', backupPath, databasePath, quarantinePrefix]);
+      await execute(process.execPath, [script, 'check', databasePath]);
+      await execute(process.execPath, [script, 'backup', databasePath, backupPath]);
+      const changed = new DatabaseSync(databasePath);
+      changed.prepare('INSERT INTO fixtures (id) VALUES (?)').run(`${name}-post-migration-fixture`);
+      changed.close();
+      await execute(process.execPath, [script, 'restore', backupPath, databasePath, quarantinePrefix]);
 
-    const restored = new DatabaseSync(databasePath, { readOnly: true });
-    expect(restored.prepare('SELECT COUNT(*) AS count FROM users').get()).toEqual({ count: 1 });
-    restored.close();
-    const quarantined = new DatabaseSync(`${quarantinePrefix}.sqlite`, { readOnly: true });
-    expect(quarantined.prepare('SELECT COUNT(*) AS count FROM users').get()).toEqual({ count: 2 });
-    quarantined.close();
+      const restored = new DatabaseSync(databasePath, { readOnly: true });
+      expect(restored.prepare('SELECT COUNT(*) AS count FROM fixtures').get(), name).toEqual({ count: 1 });
+      restored.close();
+      const quarantined = new DatabaseSync(`${quarantinePrefix}.sqlite`, { readOnly: true });
+      expect(quarantined.prepare('SELECT COUNT(*) AS count FROM fixtures').get(), name).toEqual({ count: 2 });
+      quarantined.close();
+    }
   });
 
   it('拒绝由旧发布版本读取更高 schema，同时保留兼容入口', async () => {

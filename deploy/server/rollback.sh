@@ -15,11 +15,13 @@ case "$current_target" in /opt/suiyue-yousheng/releases/*) ;; *) echo "current t
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 identity_db=/var/lib/suiyue-yousheng/auth.sqlite
 topics_db=/var/lib/suiyue-yousheng/topics.sqlite
+usage_db=/var/lib/suiyue-yousheng/usage.sqlite
 
 # A normal code rollback never restores, deletes or rewrites data. Refuse only
 # when the selected release's known schema ceiling cannot read the databases.
 /usr/bin/node "$script_dir/sqlite-db.mjs" check "$identity_db" 1
 /usr/bin/node "$script_dir/sqlite-db.mjs" check "$topics_db" 1
+/usr/bin/node "$script_dir/sqlite-db.mjs" check "$usage_db" 1
 rollback_on_error() {
   local status="${1:-$?}"
   trap - ERR
@@ -35,4 +37,5 @@ systemctl restart suiyue-gateway.service suiyue-web.service
 /usr/bin/curl -fsS --max-time 5 http://127.0.0.1:3011/ >/dev/null
 /usr/bin/node "$script_dir/sqlite-db.mjs" check "$identity_db" 1
 /usr/bin/node "$script_dir/sqlite-db.mjs" check "$topics_db" 1
+/usr/bin/node "$script_dir/sqlite-db.mjs" check "$usage_db" 1
 trap - ERR

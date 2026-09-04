@@ -21,6 +21,10 @@ it('keeps application services isolated, restartable and loopback-only', () => {
   expect(read('deploy/runtime.env.example')).toContain('TENCENT_ASR_ENGINE_MODEL_TYPE=16k_zh');
   expect(read('deploy/runtime.env.example')).toContain('SUIYUE_AUTH_DB_PATH=/var/lib/suiyue-yousheng/auth.sqlite');
   expect(read('deploy/runtime.env.example')).toContain('SUIYUE_TOPICS_DB_PATH=/var/lib/suiyue-yousheng/topics.sqlite');
+  expect(read('deploy/runtime.env.example')).toContain('SUIYUE_USAGE_DB_PATH=/var/lib/suiyue-yousheng/usage.sqlite');
+  expect(read('deploy/runtime.env.example')).toContain('ARTICLE_AI_DAILY_TOKEN_LIMIT=1000000');
+  expect(read('deploy/runtime.env.example')).toContain('TOPIC_AI_DAILY_TOKEN_LIMIT=1100000');
+  expect(read('deploy/runtime.env.example')).toContain('ASR_DAILY_SECONDS_LIMIT=7200');
   expect(read('deploy/runtime.env.example')).toContain('TOPIC_ADMIN_PASSWORD_HASH=');
 });
 
@@ -78,7 +82,7 @@ it('protects the exact HTTPS origin while preserving same-origin API and WebSock
   expect(operationsEvents).not.toContain('auth_basic off;');
 });
 
-it('prepares, backs up and verifies both release-external databases without printing configuration values', () => {
+it('prepares, backs up and verifies all release-external databases without printing configuration values', () => {
   const prepare = read('deploy/server/prepare-host.sh');
   const activate = read('deploy/server/activate-release.sh');
   const rollback = read('deploy/server/rollback.sh');
@@ -86,18 +90,22 @@ it('prepares, backs up and verifies both release-external databases without prin
   expect(prepare).toContain('install -d -m 0700 -o suiyue -g suiyue /var/lib/suiyue-yousheng');
   expect(activate).toContain('deploy/server/sqlite-db.mjs" backup "$identity_db"');
   expect(activate).toContain('deploy/server/sqlite-db.mjs" backup "$topics_db"');
+  expect(activate).toContain('deploy/server/sqlite-db.mjs" backup "$usage_db"');
   expect(activate).toContain('deploy/server/sqlite-db.mjs" restore');
   expect(activate).toContain('"miniIdentityConfigured":true');
   expect(activate).toContain('"topicsConfigured":true');
   expect(activate).toContain('"topicAiConfigured":true');
   expect(activate).toContain('"topicAdminConfigured":true');
+  expect(activate).toContain('"costGovernanceConfigured":true');
   expect(activate).toContain('WECHAT_MINIPROGRAM_APP_SECRET=[^[:space:]]');
   expect(activate).toContain('TOPIC_ADMIN_PASSWORD_HASH=scrypt\\$16384');
   expect(rollback).toContain('check "$topics_db" 1');
+  expect(rollback).toContain('check "$usage_db" 1');
   expect(rollback).not.toContain(' restore ');
   expect(verify).toContain('systemctl restart suiyue-gateway.service');
   expect(verify).toContain('identity database was replaced during restart');
   expect(verify).toContain('topics database was replaced during restart');
+  expect(verify).toContain('usage database was replaced during restart');
   expect(verify).toContain('topic editorial session endpoint is not app-protected');
   expect(verify).toContain('reviewed topic detail is not reachable without Basic Auth');
   expect(verify).toContain(`-H 'Content-Type: application/json' -H "Authorization: Bearer $invalid_token" --data '{}' "$origin/api/mini/speech-ticket"`);

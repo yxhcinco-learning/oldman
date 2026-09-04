@@ -13,7 +13,7 @@
 - lib/storage：WorkRepository、IndexedDB、版本化备份。
 - packages/core：网页、小程序和测试共享的领域、备份、AI 来源与协议纯逻辑，不引用 DOM、Node 或 `wx`。
 - apps/miniprogram：WXML/WXSS/TypeScript 原生客户端，本地聚合文件、微信网络、录音与文件适配器独立于网页 UI。
-- server：仅回环地址的 Fastify 网关，承载 WebSocket ASR、HTTP 文章 AI、SQLite 话题读写、DeepSeek 话题候选及微信/管理员会话。
+- server：仅回环地址的 Fastify 网关，承载 WebSocket ASR、HTTP 文章 AI、SQLite 话题读写、DeepSeek 话题候选、微信/管理员会话及匿名付费用量账本。
 
 ## ADR-001 保留工具链
 
@@ -81,7 +81,7 @@ AI 标识采用保守的作品历史谓词：只有明确应用的完整候选�
 
 2026-08-30 用户授权在既有腾讯云 Lighthouse 上进行临时、小范围公网测试。固定 Origin 为 `https://suiyue.maicong.chat`：Nginx 在 80/443 终止 TLS，用户网页 `/`、原 `/api/ai/*` 和原 `/api/speech` 继续受 Basic Auth 与浏览器 Origin 约束；精确话题只读接口和明确列出的小程序接口关闭 Basic Auth。未来激活话题后台时，`/admin/topics`、其不可变前端静态资源和 `/api/admin/*` 同样绕过 Basic Auth，但由应用自身的管理员会话、精确 Origin、CSRF、JSON Content-Type 和限流保护；未列出的 API 继续拒绝。前端与网关使用专用 `suiyue` 用户、独立 3011/3012 回环端口、systemd 服务和版本化 release；不开放应用端口，不复用或停止服务器上的其他项目。
 
-用户端不新增可见账号或邀请码；内部话题后台采用单一管理员配置。Linux 网关从同一个 root-only 环境文件读取腾讯云、DeepSeek、微信 AppID/AppSecret、管理员用户名/scrypt 散列及数据库路径；缺失或无效时只关闭对应在线能力，网页本机写作不回退假身份或假话题。身份库与话题库分别位于 release 外的 `/var/lib/suiyue-yousheng/auth.sqlite` 和 `/var/lib/suiyue-yousheng/topics.sqlite`，目录仅 `suiyue` 可写；systemd 只放行该目录。激活前停止网关，对两库执行 `quick_check`、schema 上限检查和 SQLite 在线备份；失败迁移把两库的失败态分别移入 root-only 隔离目录，再恢复迁移前副本。普通代码回滚只核对兼容性，不删除、覆盖或降级数据库。
+用户端不新增可见账号或邀请码；内部话题后台采用单一管理员配置。Linux 网关从同一个 root-only 环境文件读取腾讯云、DeepSeek、微信 AppID/AppSecret、管理员用户名/scrypt 散列及数据库路径；缺失或无效时只关闭对应在线能力，网页本机写作不回退假身份或假话题。身份库、话题库和付费用量库分别位于 release 外的 `/var/lib/suiyue-yousheng/auth.sqlite`、`topics.sqlite` 与 `usage.sqlite`，目录仅 `suiyue` 可写；systemd 只放行该目录。激活前停止网关，对三库执行 `quick_check`、schema 上限检查和 SQLite 在线备份；失败迁移把三库的失败态分别移入 root-only 隔离目录，再恢复迁移前副本。普通代码回滚只核对兼容性，不删除、覆盖或降级数据库。
 
 Fastify 保持原始请求日志关闭，只输出 requestId、动作、状态、耗时、可用 token 数和固定错误类别；同一安全日志 sink 前的 `OperationMonitor` 丢弃 requestId，只按固定动作在内存聚合生命周期与最近 15/60 分钟的计数、状态、延迟直方图、token 和错误类别。管理员会话保护的 `/api/admin/monitoring` 提供该快照与能力布尔值，重启即清空，不建立行为数据库。Nginx 关闭该站点 access log，小程序语音 ticket 和匿名事件位置再次显式关闭访问日志，错误日志沿用服务器 logrotate，systemd stdout/stderr 由 journald 轮转。`/api/health` 契约保持只报告配置布尔值，不显示账号、AppID、路径、OpenID 或秘密。
 
@@ -105,7 +105,15 @@ Fastify 保持原始请求日志关闭，只输出 requestId、动作、状态�
 
 H5 的运营 transport 只接受共享枚举中的七个低频动作，并发送严格的 `{ event }`；不存在通用 metadata、客户端队列、标识 Cookie 或自动重试。`/api/operations/events` 要求精确 Origin、JSON、256B body、严格 schema 与全局分钟上限；未来 Nginx 精确路由继续继承 H5 Basic Auth，并增加不进入应用聚合的 IP 限流。写作、备份等本地动作先按原流程完成，事件失败被隔离。
 
-后台以当前进程快照回答“是否被使用、在线请求是否正常”，不回答“谁做了什么”。固定动作最多 128 类，分钟窗口最多 60 桶，延迟使用固定直方图区间，错误类别每项有界；不保存 requestId、IP、Header、Body、话题/作品 ID 或原始事件。需要跨重启历史、外部告警或第三方分析时必须另立规范，不能直接扩大该接口。
+后台的运营指标仍以当前进程快照回答“是否被使用、在线请求是否正常”，不回答“谁做了什么”。固定动作最多 128 类，分钟窗口最多 60 桶，延迟使用固定直方图区间，错误类别每项有界；不保存 requestId、IP、Header、Body、话题/作品 ID 或原始事件。ADR-011 只为请求前预算判断另存跨重启匿名日汇总，不把运营事件或用户轨迹写入持久层；外部告警或第三方分析仍必须另立规范。
+
+## ADR-011 AI 与语音付费用量治理
+
+文章 AI、话题 AI 和网页/小程序实时语音共用独立 `usage.sqlite`。schema v1 使用 WAL、严格表、事务、启动 `quick_check` 和未来版本拒绝；按 `Asia/Shanghai` 自然日只保存三类聚合用量及仍在途的匿名预留，不保存用户、文章、话题引子、链接、音频、转写、请求正文或请求时间线。启动时把上次崩溃遗留的预留按上界保守结算；正常完成以 DeepSeek `usage` 或实际语音秒数结算，无法确认的失败与取消同样按预留上界结算。
+
+每次付费请求必须先在 `BEGIN IMMEDIATE` 事务内预留预算，再创建 DeepSeek 请求或腾讯 WebSocket。文章请求按实际请求体 UTF-8 上界和该 action 最大输出预留；话题离线生成按本地输入上界预留，开启 `web_search` 时按搜索可能续推的保守上界预留；语音按今日余额动态缩短会话许可。文章 AI、话题 AI 和语音分别使用每日 token/token/秒上限，网页和小程序共享语音池；0 表示主动停用。预算不足在上游调用前拒绝，不影响本机写作、作品、已发布话题和后台内容管理。
+
+开发环境默认 `.data/usage.sqlite` 与明确的保守日上限；生产必须显式配置绝对路径和三项非负整数上限，否则付费能力失败关闭，`/api/health` 只报告 `costGovernanceConfigured=false`。可选 DeepSeek 输入/输出每百万 token 与腾讯语音每小时人民币单价仅生成趋势估算；由于缓存、峰谷、搜索续推、资源包、阶梯价和供应商规则会变化，供应商控制台始终是账单依据。后台受登录保护的监控页显示今日已用、在途预留、限额、余额、上海时区重置时间和可选估算，并与重启即清零的运营进程指标分区展示。
 
 ### 历史回退来源
 
