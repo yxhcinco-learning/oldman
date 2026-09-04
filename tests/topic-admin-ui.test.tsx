@@ -59,17 +59,39 @@ it('logs in, loads the editorial shell and preserves optimistic editing plus sou
   fireEvent.change(screen.getByLabelText('密码'), { target: { value: 'local password' } });
   fireEvent.click(screen.getByRole('button', { name: '登录' }));
   expect(await screen.findByRole('navigation', { name: '后台栏目' })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: '工作台' })).toBeInTheDocument();
   fireEvent.click(await screen.findByRole('button', { name: /社区食堂多了/ }));
+  expect(await screen.findByRole('dialog', { name: '话题详情' })).toBeInTheDocument();
   const preview = await screen.findByText('用户端预览');
   const previewPanel = preview.closest('aside')!;
   expect(within(previewPanel).queryByText('消息来源')).not.toBeInTheDocument();
   const title = screen.getByLabelText('标题');
   fireEvent.change(title, { target: { value: '社区食堂里的一顿饭，连接起新的邻里生活' } });
-  fireEvent.click(screen.getByRole('button', { name: '保存' }));
+  fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
   expect(await screen.findByRole('status')).toHaveTextContent('编辑已保存');
   const patch = calls.find(call => call.init?.method === 'PATCH');
   expect(new Headers(patch?.init?.headers).get('If-Match')).toBe('3');
   expect(JSON.parse(String(patch?.init?.body)).content.title).toContain('新的邻里生活');
+});
+
+it('uses a dashboard, full topic table and closable detail drawer', async () => {
+  dashboardFetch({ authenticatedInitially: true });
+  render(<TopicAdminApp />);
+  expect(await screen.findByRole('heading', { name: '工作台' })).toBeInTheDocument();
+  expect(screen.getAllByText('当前首页席位')).toHaveLength(2);
+  const navigation = screen.getByRole('navigation', { name: '后台栏目' });
+  fireEvent.click(within(navigation).getByRole('button', { name: '话题内容' }));
+  const table = await screen.findByRole('table');
+  expect(within(table).getByRole('columnheader', { name: '发布时间' })).toBeInTheDocument();
+  fireEvent.click(within(table).getByRole('button', { name: /社区食堂多了/ }));
+  const drawer = await screen.findByRole('dialog', { name: '话题详情' });
+  fireEvent.click(within(drawer).getByRole('tab', { name: '用户端预览' }));
+  expect(within(drawer).getByText('大家也在关心')).toBeInTheDocument();
+  expect(within(drawer).queryByText('消息来源')).not.toBeInTheDocument();
+  fireEvent.click(within(drawer).getByRole('button', { name: '关闭话题详情' }));
+  expect(screen.queryByRole('dialog', { name: '话题详情' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: '打开导航' }));
+  expect(screen.getAllByRole('button', { name: '关闭导航' })).toHaveLength(2);
 });
 
 it('keeps generation, scheduling and emergency takedown reachable in the compact console', async () => {

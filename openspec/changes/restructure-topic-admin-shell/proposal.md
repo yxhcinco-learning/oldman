@@ -23,4 +23,4 @@
 
 ## Impact
 
-主要影响 `features/topic-admin` 的 React 页面与 CSS、后台 UI 测试、`DESIGN-SYSTEM.md` 和浏览器验收记录。服务端 API、数据库 schema、登录凭据、公开话题接口、用户端与小程序均不改变。
+主要影响 `features/topic-admin` 的 React 页面与 CSS、后台 UI 测试、本变更设计规范和浏览器验收记录。面向用户前台的 `DESIGN-SYSTEM.md` 不约束后台。服务端 API、数据库 schema、登录凭据、公开话题接口、用户端与小程序均不改变。

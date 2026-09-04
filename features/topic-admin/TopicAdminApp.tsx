@@ -1,10 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { TopicEditableContent, TopicKind, TopicPlacement, WritingTopic } from '../../lib/domain/topics';
+import { AdminIcon, type AdminIconName } from './AdminIcon';
 import styles from './topic-admin.module.css';
 
-type AdminView = 'topics' | 'new' | 'schedule' | 'history' | 'monitoring';
+type AdminView = 'dashboard' | 'topics' | 'new' | 'schedule' | 'history' | 'monitoring';
 type StoredRevision = { topic: WritingTopic; editVersion: number; editorBrief: string };
 type Placement = TopicPlacement & { id: string };
 type Generation = { id: string; topicId: string | null; revision: number | null; brief: string; urls: string[]; webSearchEnabled: boolean;
@@ -40,6 +41,21 @@ const capabilityLabel: Record<keyof MonitoringData['capabilities'], string> = {
   topicAdminConfigured: '后台登录', miniIdentityConfigured: '小程序身份',
 };
 
+const viewMeta: Record<AdminView, { label: string; description: string }> = {
+  dashboard: { label: '工作台', description: '查看当前内容状态、首页席位与近期运营动作。' },
+  topics: { label: '话题内容', description: '筛选、审核和维护全部话题修订。' },
+  new: { label: '生成与新建', description: '由引子生成候选，或完全手工创建草稿。' },
+  schedule: { label: '首页排期', description: '人工管理首页五个固定席位及生效时间。' },
+  history: { label: '生成与审计', description: '核对 AI 生成记录与不可变操作留痕。' },
+  monitoring: { label: '运行监控', description: '查看当前网关进程的匿名聚合状态。' },
+};
+
+const navGroups: Array<{ label: string; items: Array<{ id: AdminView; icon: AdminIconName }> }> = [
+  { label: '工作台', items: [{ id: 'dashboard', icon: 'dashboard' }] },
+  { label: '内容管理', items: [{ id: 'topics', icon: 'topics' }, { id: 'new', icon: 'sparkles' }, { id: 'schedule', icon: 'calendar' }, { id: 'history', icon: 'history' }] },
+  { label: '系统', items: [{ id: 'monitoring', icon: 'monitoring' }] },
+];
+
 const blankContent = (): TopicEditableContent => ({
   kind: 'slow', title: '', summary: '', whyItMatters: '', expiresAt: null, sources: [],
   angles: [{ id: 'angle-1', title: '', prompt: '' }], starterQuestion: '', tags: [],
@@ -72,7 +88,8 @@ async function loadAdminDashboard() {
 export function TopicAdminApp() {
   const [session, setSession] = useState<{ username: string; csrfToken: string; expiresAt: string } | null>(null);
   const [checking, setChecking] = useState(true);
-  const [view, setView] = useState<AdminView>('topics');
+  const [view, setView] = useState<AdminView>('dashboard');
+  const [menuOpen, setMenuOpen] = useState(false);
   const [topics, setTopics] = useState<StoredRevision[]>([]);
   const [placements, setPlacements] = useState<Placement[]>([]);
   const [generations, setGenerations] = useState<Generation[]>([]);
@@ -109,7 +126,7 @@ export function TopicAdminApp() {
   }, []);
 
   const chooseTopic = useCallback(async (item: StoredRevision) => {
-    setSelected(item); setView('topics'); setError('');
+    setSelected(item); setView('topics'); setMenuOpen(false); setError('');
     try {
       const value = await request<{ revisions: StoredRevision[] }>(`/api/admin/topics/${encodeURIComponent(item.topic.id)}/revisions`);
       setRevisions(value.revisions);
@@ -126,32 +143,96 @@ export function TopicAdminApp() {
   if (!session) return <Login onLogin={value => { setSession(value); void refresh(); }} />;
 
   return <main className={styles.app}>
+    <aside className={`${styles.sidebar} ${menuOpen ? styles.sidebarOpen : ''}`}>
+      <div className={styles.brand}>
+        <span className={styles.brandSeal}>岁</span>
+        <div><strong>岁月有声</strong><span>内容运营后台</span></div>
+        <button className={styles.mobileClose} type="button" aria-label="关闭导航" onClick={() => setMenuOpen(false)}><AdminIcon name="close" /></button>
+      </div>
+      <nav className={styles.nav} aria-label="后台栏目">
+        {navGroups.map(group => <div className={styles.navGroup} key={group.label}><span className={styles.navLabel}>{group.label}</span>
+          {group.items.map(item => <button key={item.id} type="button" aria-current={view === item.id ? 'page' : undefined} onClick={() => {
+            setView(item.id); setSelected(null); setMenuOpen(false); setError(''); setNotice('');
+          }}><AdminIcon name={item.icon} />{viewMeta[item.id].label}</button>)}
+        </div>)}
+      </nav>
+      <div className={styles.sidebarFooter}><span className={styles.liveDot} />内部系统 · 本地环境</div>
+    </aside>
+    {menuOpen && <button className={styles.navScrim} type="button" aria-label="关闭导航" onClick={() => setMenuOpen(false)} />}
     <header className={styles.topbar}>
-      <div className={styles.brand}><span className={styles.mark}>岁月有声</span><span className={styles.brandDivider} /><div><h1>话题编辑台</h1><p>内容运营后台</p></div></div>
+      <button className={styles.menuButton} type="button" aria-label="打开导航" onClick={() => setMenuOpen(true)}><AdminIcon name="menu" /></button>
+      <div className={styles.breadcrumb}><span>内容运营后台</span><AdminIcon name="chevron" size={14} /><strong>{viewMeta[view].label}</strong></div>
       <div className={styles.account}><span className={styles.avatar} aria-hidden="true">{session.username.slice(0, 1).toUpperCase()}</span><span>{session.username}</span><button type="button" onClick={async () => {
         try { await request('/api/admin/auth/session', { method: 'DELETE', body: {} }); } finally { setSession(null); }
       }}>退出</button></div>
     </header>
-    <div className={styles.workspace}>
-      <nav className={styles.nav} aria-label="后台栏目">
-        <span className={styles.navLabel}>工作区</span>
-        {([['topics', '话题内容', '▤'], ['new', '生成与新建', '＋'], ['schedule', '首页排期', '▦'], ['history', '生成与审计', '≡'], ['monitoring', '运行监控', '◉']] as Array<[AdminView, string, string]>).map(([id, label, icon]) =>
-          <button key={id} type="button" aria-current={view === id ? 'page' : undefined} onClick={() => { setView(id); setError(''); setNotice(''); }}><span aria-hidden="true">{icon}</span>{label}</button>)}
-      </nav>
-      <section className={styles.content}>
-        {(notice || error) && <div role={error ? 'alert' : 'status'} className={error ? styles.error : styles.notice}>{error || notice}</div>}
-        {view === 'topics' && <TopicWorkspace topics={topics} selected={selected} revisions={revisions} busy={busy}
-          onChoose={chooseTopic} onBusy={setBusy} onError={setError} onResult={handleResult} request={request} />}
-        {view === 'new' && <NewTopicPanel busy={busy} onBusy={setBusy} onError={setError} onResult={async value => {
-          await handleResult('候选已保存，等待人工确认。', value); setView('topics');
-        }} request={request} />}
-        {view === 'schedule' && <SchedulePanel topics={topics} placements={placements} busy={busy} request={request}
-          onBusy={setBusy} onError={setError} onDone={() => handleResult('排期已更新。')} />}
-        {view === 'history' && <HistoryPanel generations={generations} audits={audits} />}
-        {view === 'monitoring' && <MonitoringPanel request={request} />}
-      </section>
-    </div>
+    <section className={styles.content}>
+      {(notice || error) && <div role={error ? 'alert' : 'status'} className={error ? styles.error : styles.notice}>{error || notice}</div>}
+      {view === 'dashboard' && <DashboardPanel topics={topics} placements={placements} audits={audits} request={request} onNavigate={setView} onChoose={chooseTopic} />}
+      {view === 'topics' && <TopicWorkspace topics={topics} selected={selected} revisions={revisions} busy={busy} onClose={() => setSelected(null)}
+        onChoose={chooseTopic} onNavigate={setView} onBusy={setBusy} onError={setError} onResult={handleResult} request={request} />}
+      {view === 'new' && <NewTopicPanel busy={busy} onBusy={setBusy} onError={setError} onResult={async value => {
+        await handleResult('候选已保存，等待人工确认。', value); setView('topics');
+      }} request={request} />}
+      {view === 'schedule' && <SchedulePanel topics={topics} placements={placements} busy={busy} request={request}
+        onBusy={setBusy} onError={setError} onDone={() => handleResult('排期已更新。')} />}
+      {view === 'history' && <HistoryPanel generations={generations} audits={audits} />}
+      {view === 'monitoring' && <MonitoringPanel request={request} />}
+    </section>
   </main>;
+}
+
+function PageHeader({ title, description, actions }: { title: string; description: string; actions?: ReactNode }) {
+  return <div className={styles.pageHeader}><div><h1>{title}</h1><p>{description}</p></div>{actions && <div className={styles.pageActions}>{actions}</div>}</div>;
+}
+
+function DashboardPanel({ topics, placements, audits, request, onNavigate, onChoose }: { topics: StoredRevision[]; placements: Placement[]; audits: Audit[];
+  request: Request; onNavigate: (view: AdminView) => void; onChoose: (topic: StoredRevision) => void }) {
+  const [monitoring, setMonitoring] = useState<MonitoringData | null>(null);
+  const [renderedAt] = useState(Date.now);
+  useEffect(() => { let active = true; void request<MonitoringData>('/api/admin/monitoring').then(value => { if (active) setMonitoring(value); }).catch(() => undefined);
+    return () => { active = false; }; }, [request]);
+  const activePlacements = placements.filter(item => new Date(item.startsAt).getTime() <= renderedAt && (!item.endsAt || new Date(item.endsAt).getTime() > renderedAt));
+  const pending = topics.filter(item => item.topic.status === 'candidate' || item.topic.status === 'draft').length;
+  const formal = topics.filter(item => item.topic.status === 'published' || item.topic.status === 'corrected').length;
+  const recent = [...topics].sort((left, right) => right.topic.updatedAt.localeCompare(left.topic.updatedAt)).slice(0, 5);
+  const titleById = new Map(topics.map(item => [item.topic.id, item.topic.title]));
+  return <div className={styles.pageStack}>
+    <PageHeader title="工作台" description="当前内容概览与常用运营入口。" actions={<button className={styles.primarySmall} type="button" onClick={() => onNavigate('new')}><AdminIcon name="plus" size={17} />新建话题</button>} />
+    <div className={styles.overviewGrid}>
+      <article><span>全部话题</span><strong>{topics.length}</strong><small>数据库中的最新修订</small><AdminIcon name="topics" /></article>
+      <article><span>待处理</span><strong>{pending}</strong><small>草稿与待审核候选</small><AdminIcon name="history" /></article>
+      <article><span>正式内容</span><strong>{formal}</strong><small>已发布与已更正</small><AdminIcon name="sparkles" /></article>
+      <article><span>当前首页席位</span><strong>{activePlacements.length}<i>/ 5</i></strong><small>按当前时间实际生效</small><AdminIcon name="calendar" /></article>
+    </div>
+    <div className={styles.dashboardGrid}>
+      <section className={styles.dataPanel}>
+        <div className={styles.dataPanelTitle}><div><h2>近期更新</h2><p>按话题最新修订时间排序</p></div><button className={styles.linkButton} type="button" onClick={() => onNavigate('topics')}>查看全部<AdminIcon name="arrow" size={16} /></button></div>
+        <div className={styles.tableScroll}><table className={styles.compactTable}><thead><tr><th>话题</th><th>状态</th><th>修订</th><th>更新时间</th></tr></thead><tbody>
+          {recent.map(item => <tr key={item.topic.id}><td><button className={styles.tableTitle} type="button" onClick={() => onChoose(item)}>{item.topic.title}</button></td>
+            <td><StatusBadge status={item.topic.status} /></td><td>v{item.topic.revision}</td><td>{displayTime(item.topic.updatedAt)}</td></tr>)}
+          {!recent.length && <tr><td className={styles.tableEmpty} colSpan={4}>还没有话题内容。</td></tr>}
+        </tbody></table></div>
+      </section>
+      <div className={styles.dashboardAside}>
+        <section className={styles.dataPanel}><div className={styles.dataPanelTitle}><div><h2>当前首页席位</h2><p>只显示此刻已经生效的排期</p></div><button className={styles.linkButton} type="button" onClick={() => onNavigate('schedule')}>管理排期</button></div>
+          <div className={styles.activeSlots}>{[1, 2, 3, 4, 5].map(slot => { const placement = activePlacements.find(item => item.slot === slot); return <div key={slot}><b>{slot}</b><span>{placement ? titleById.get(placement.topicId) ?? placement.topicId : '空缺'}</span></div>; })}</div>
+        </section>
+        <section className={styles.dataPanel}><div className={styles.dataPanelTitle}><div><h2>服务配置</h2><p>来自当前网关进程</p></div><button className={styles.linkButton} type="button" onClick={() => onNavigate('monitoring')}>运行监控</button></div>
+          <div className={styles.serviceList}>{monitoring ? Object.entries(monitoring.capabilities).map(([key, configured]) => <div key={key}><span><i className={configured ? styles.dotOn : styles.dotOff} />{capabilityLabel[key as keyof MonitoringData['capabilities']]}</span><b>{configured ? '已配置' : '未配置'}</b></div>) : <p>正在读取服务配置…</p>}</div>
+        </section>
+      </div>
+    </div>
+    <section className={styles.quickSection}><div><h2>常用操作</h2><p>进入内容生产、排期与操作记录。</p></div><div className={styles.quickGrid}>
+      {([{ id: 'new', icon: 'sparkles', title: '生成候选', detail: '用文字或链接创建一套 AI 候选' }, { id: 'schedule', icon: 'calendar', title: '调整首页', detail: '管理五个固定席位与生效时间' },
+        { id: 'history', icon: 'history', title: '核对记录', detail: `查看 ${audits.length} 条审计与生成记录` }] as Array<{ id: AdminView; icon: AdminIconName; title: string; detail: string }>).map(item =>
+        <button key={item.id} type="button" onClick={() => onNavigate(item.id)}><span><AdminIcon name={item.icon} /></span><div><b>{item.title}</b><small>{item.detail}</small></div><AdminIcon name="chevron" size={17} /></button>)}
+    </div></section>
+  </div>;
+}
+
+function StatusBadge({ status }: { status: WritingTopic['status'] }) {
+  return <span className={styles.statusBadge} data-status={status}>{statusLabel[status]}</span>;
 }
 
 function Login({ onLogin }: { onLogin: (session: { username: string; csrfToken: string; expiresAt: string }) => void }) {
@@ -176,35 +257,43 @@ function Login({ onLogin }: { onLogin: (session: { username: string; csrfToken: 
 
 type Request = <T>(path: string, options?: { method?: string; body?: unknown; ifMatch?: string | number }) => Promise<T>;
 
-function TopicWorkspace({ topics, selected, revisions, busy, onChoose, onBusy, onError, onResult, request }: {
+function TopicWorkspace({ topics, selected, revisions, busy, onChoose, onClose, onNavigate, onBusy, onError, onResult, request }: {
   topics: StoredRevision[]; selected: StoredRevision | null; revisions: StoredRevision[]; busy: boolean;
-  onChoose: (item: StoredRevision) => void; onBusy: (value: boolean) => void; onError: (value: string) => void;
+  onChoose: (item: StoredRevision) => void; onClose: () => void; onNavigate: (view: AdminView) => void;
+  onBusy: (value: boolean) => void; onError: (value: string) => void;
   onResult: (message: string, next?: StoredRevision) => Promise<void>; request: Request;
 }) {
   const [status, setStatus] = useState(''); const [kind, setKind] = useState(''); const [query, setQuery] = useState('');
   const visible = useMemo(() => topics.filter(item => (!status || item.topic.status === status) && (!kind || item.topic.kind === kind) &&
     (!query.trim() || `${item.topic.title} ${item.topic.summary}`.toLowerCase().includes(query.trim().toLowerCase()))), [kind, query, status, topics]);
-  return <div className={styles.topicLayout}>
-    <aside className={styles.topicList}>
-      <div className={styles.panelHeading}><div><span>内容库</span><h2>{visible.length} 个话题</h2></div></div>
-      <div className={styles.filters}>
-        <input aria-label="搜索话题" placeholder="搜索标题或摘要" value={query} onChange={event => setQuery(event.target.value)} />
+  return <div className={styles.pageStack}>
+    <PageHeader title="话题内容" description="集中管理全部草稿、候选和正式修订。" actions={<button className={styles.primarySmall} type="button" onClick={() => onNavigate('new')}><AdminIcon name="plus" size={17} />新建话题</button>} />
+    <section className={styles.dataPanel}>
+      <div className={styles.topicToolbar}>
+        <div className={styles.searchBox}><AdminIcon name="topics" size={17} /><input aria-label="搜索话题" placeholder="搜索标题或摘要" value={query} onChange={event => setQuery(event.target.value)} /></div>
         <select aria-label="按状态筛选" value={status} onChange={event => setStatus(event.target.value)}><option value="">全部状态</option>{Object.entries(statusLabel).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select>
         <select aria-label="按类型筛选" value={kind} onChange={event => setKind(event.target.value)}><option value="">全部类型</option>{Object.entries(kindLabel).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select>
+        <span className={styles.resultCount}>共 {visible.length} 条</span>
       </div>
-      <div className={styles.listScroll}>{visible.map(item => <button type="button" key={item.topic.id} className={selected?.topic.id === item.topic.id ? styles.selectedCard : styles.topicCard}
-        onClick={() => onChoose(item)}><span><i>{kindLabel[item.topic.kind]}</i><b>{statusLabel[item.topic.status]}</b></span><strong>{item.topic.title}</strong><small>修订 {item.topic.revision} · {displayTime(item.topic.updatedAt)}</small></button>)}
-        {!visible.length && <p className={styles.empty}>没有符合条件的话题。</p>}</div>
-    </aside>
-    <div className={styles.editorPane}>{selected ? <TopicEditor key={`${selected.topic.id}:${selected.topic.revision}:${selected.editVersion}`} value={selected}
-      revisions={revisions} busy={busy} onBusy={onBusy} onError={onError} onResult={onResult} request={request} /> :
-      <div className={styles.emptyLarge}><span>选择一个话题</span><p>在这里编辑候选、预览用户端内容并执行发布操作。</p></div>}</div>
+      <div className={styles.topicTableWrap}><table className={styles.topicTable}><thead><tr><th>话题标题</th><th>类型</th><th>状态</th><th>修订</th><th>更新时间</th><th>发布时间</th><th>操作</th></tr></thead><tbody>
+        {visible.map(item => <tr key={item.topic.id} className={selected?.topic.id === item.topic.id ? styles.activeRow : undefined}>
+          <td data-label="话题标题"><button className={styles.tableTitle} type="button" onClick={() => onChoose(item)}>{item.topic.title}</button><small>{item.topic.id}</small></td>
+          <td data-label="类型">{kindLabel[item.topic.kind]}</td><td data-label="状态"><StatusBadge status={item.topic.status} /></td><td data-label="修订">v{item.topic.revision}</td>
+          <td data-label="更新时间">{displayTime(item.topic.updatedAt)}</td><td data-label="发布时间">{item.topic.publishedAt ? displayTime(item.topic.publishedAt) : '—'}</td>
+          <td data-label="操作"><button className={styles.tableAction} type="button" onClick={() => onChoose(item)}>查看</button></td>
+        </tr>)}
+        {!visible.length && <tr><td colSpan={7} className={styles.tableEmpty}>没有符合条件的话题，请调整筛选条件。</td></tr>}
+      </tbody></table></div>
+      <div className={styles.tableFooter}>显示 {visible.length} 条，共 {topics.length} 条话题</div>
+    </section>
+    {selected && <TopicEditor key={`${selected.topic.id}:${selected.topic.revision}:${selected.editVersion}`} value={selected} revisions={revisions} busy={busy}
+      onClose={onClose} onBusy={onBusy} onError={onError} onResult={onResult} request={request} />}
   </div>;
 }
 
-function TopicEditor({ value, revisions, busy, onBusy, onError, onResult, request }: {
+function TopicEditor({ value, revisions, busy, onClose, onBusy, onError, onResult, request }: {
   value: StoredRevision; revisions: StoredRevision[]; busy: boolean; onBusy: (value: boolean) => void; onError: (value: string) => void;
-  onResult: (message: string, next?: StoredRevision) => Promise<void>; request: Request;
+  onClose: () => void; onResult: (message: string, next?: StoredRevision) => Promise<void>; request: Request;
 }) {
   const [content, setContent] = useState<TopicEditableContent>(() => ({
     kind: value.topic.kind, title: value.topic.title, summary: value.topic.summary, whyItMatters: value.topic.whyItMatters,
@@ -212,42 +301,60 @@ function TopicEditor({ value, revisions, busy, onBusy, onError, onResult, reques
     starterQuestion: value.topic.starterQuestion, tags: [...value.topic.tags], ...(value.topic.correctionNote ? { correctionNote: value.topic.correctionNote } : {}),
   }));
   const [publishOpen, setPublishOpen] = useState(false);
+  const [drawerTab, setDrawerTab] = useState<'edit' | 'preview' | 'revisions'>('edit');
   const [slot, setSlot] = useState(1); const [startsAt, setStartsAt] = useState(localDateTime(new Date().toISOString())); const [endsAt, setEndsAt] = useState('');
   const editable = value.topic.status === 'draft' || value.topic.status === 'candidate';
   const formal = value.topic.status === 'published' || value.topic.status === 'corrected';
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [onClose]);
   const act = async (work: () => Promise<StoredRevision>, message: string) => {
     onBusy(true); onError('');
     try { await onResult(message, await work()); }
     catch (reason) { onError(reason instanceof Error ? reason.message : '操作失败。'); }
     finally { onBusy(false); }
   };
-  return <div className={styles.editorGrid}>
-    <section className={styles.formPanel}>
-      <div className={styles.editorTitle}><div><span>{value.topic.id}</span><h2>{statusLabel[value.topic.status]} · 修订 {value.topic.revision}</h2></div>
-        {editable && <button className={styles.primarySmall} disabled={busy} type="button" onClick={() => void act(() => request(`/api/admin/topics/${value.topic.id}/revisions/${value.topic.revision}`,
-          { method: 'PATCH', ifMatch: value.editVersion, body: { content } }), '编辑已保存。')}>保存</button>}</div>
-      <TopicFields content={content} disabled={!editable || busy} onChange={setContent} />
-      <div className={styles.actions}>
-        {editable && <><button type="button" disabled={busy} onClick={() => void act(() => request(`/api/admin/topics/${value.topic.id}/revisions/${value.topic.revision}/reject`,
-          { method: 'POST', ifMatch: value.editVersion, body: {} }), '候选已拒绝。')}>拒绝</button>
-          <button className={styles.primarySmall} type="button" disabled={busy} onClick={() => setPublishOpen(open => !open)}>发布与排期</button></>}
-        {formal && <><button type="button" disabled={busy} onClick={() => void act(() => request(`/api/admin/topics/${value.topic.id}/revisions/${value.topic.revision}/correct`,
-          { method: 'POST', ifMatch: value.editVersion, body: {} }), '已创建新的更正候选。')}>创建更正</button>
-          <button className={styles.danger} type="button" disabled={busy} onClick={() => {
-            if (window.confirm('确认立即下线这个话题？用户端将立刻不可见。')) void act(() => request(`/api/admin/topics/${value.topic.id}/revisions/${value.topic.revision}/archive`,
-              { method: 'POST', ifMatch: value.editVersion, body: {} }), '话题已提前下线。');
-          }}>紧急下线</button></>}
+  return <><button className={styles.drawerScrim} type="button" aria-label="关闭详情遮罩" onClick={onClose} />
+    <aside className={styles.drawer} role="dialog" aria-modal="true" aria-label="话题详情">
+      <div className={styles.drawerHeader}><div><span>{value.topic.id}</span><h2>{value.topic.title}</h2><div><StatusBadge status={value.topic.status} /><small>修订 v{value.topic.revision}</small></div></div>
+        <button className={styles.iconButton} type="button" aria-label="关闭话题详情" onClick={onClose}><AdminIcon name="close" /></button></div>
+      <div className={styles.drawerTabs} role="tablist" aria-label="话题详情栏目">
+        <button type="button" role="tab" aria-selected={drawerTab === 'edit'} onClick={() => setDrawerTab('edit')}>编辑内容</button>
+        <button type="button" role="tab" aria-selected={drawerTab === 'preview'} onClick={() => setDrawerTab('preview')}>用户端预览</button>
+        <button type="button" role="tab" aria-selected={drawerTab === 'revisions'} onClick={() => setDrawerTab('revisions')}>修订记录 <span>{revisions.length}</span></button>
       </div>
-      {publishOpen && <div className={styles.publishBox}><h3>发布到首页席位</h3><div className={styles.inlineFields}>
-        <label>席位<select value={slot} onChange={event => setSlot(Number(event.target.value))}>{[1, 2, 3, 4, 5].map(value => <option key={value}>{value}</option>)}</select></label>
-        <label>上线时间<input type="datetime-local" value={startsAt} onChange={event => setStartsAt(event.target.value)} /></label>
-        <label>下线时间（可留空）<input type="datetime-local" value={endsAt} onChange={event => setEndsAt(event.target.value)} /></label>
-      </div><button className={styles.primarySmall} type="button" disabled={busy || !startsAt} onClick={() => void act(() => request(`/api/admin/topics/${value.topic.id}/revisions/${value.topic.revision}/publish`,
-        { method: 'POST', ifMatch: value.editVersion, body: { slot, startsAt: isoDateTime(startsAt), endsAt: isoDateTime(endsAt) } }), '话题已发布并写入排期。')}>确认发布</button></div>}
-      <details className={styles.revisions}><summary>修订历史（{revisions.length}）</summary>{revisions.map(item => <div key={item.topic.revision}><b>修订 {item.topic.revision}</b><span>{statusLabel[item.topic.status]} · {displayTime(item.topic.updatedAt)}</span></div>)}</details>
-    </section>
-    <TopicPreview topic={{ ...value.topic, ...content }} />
-  </div>;
+      <div className={styles.drawerBody}>
+        {drawerTab === 'edit' && <section className={styles.formPanel}>
+          <div className={styles.editorMeta}><div><b>内容字段</b><span>{editable ? '可编辑修订' : '正式修订只读'}</span></div>
+            {editable && <button className={styles.primarySmall} disabled={busy} type="button" onClick={() => void act(() => request(`/api/admin/topics/${value.topic.id}/revisions/${value.topic.revision}`,
+              { method: 'PATCH', ifMatch: value.editVersion, body: { content } }), '编辑已保存。')}>保存修改</button>}</div>
+          <TopicFields content={content} disabled={!editable || busy} onChange={setContent} />
+          <div className={styles.actions}>
+            {editable && <><button type="button" disabled={busy} onClick={() => void act(() => request(`/api/admin/topics/${value.topic.id}/revisions/${value.topic.revision}/reject`,
+              { method: 'POST', ifMatch: value.editVersion, body: {} }), '候选已拒绝。')}>拒绝候选</button>
+              <button className={styles.primarySmall} type="button" disabled={busy} onClick={() => setPublishOpen(open => !open)}>发布与排期</button></>}
+            {formal && <><button type="button" disabled={busy} onClick={() => void act(() => request(`/api/admin/topics/${value.topic.id}/revisions/${value.topic.revision}/correct`,
+              { method: 'POST', ifMatch: value.editVersion, body: {} }), '已创建新的更正候选。')}>创建更正</button>
+              <button className={styles.danger} type="button" disabled={busy} onClick={() => {
+                if (window.confirm('确认立即下线这个话题？用户端将立刻不可见。')) void act(() => request(`/api/admin/topics/${value.topic.id}/revisions/${value.topic.revision}/archive`,
+                  { method: 'POST', ifMatch: value.editVersion, body: {} }), '话题已提前下线。');
+              }}>紧急下线</button></>}
+          </div>
+          {publishOpen && <div className={styles.publishBox}><h3>发布到首页席位</h3><div className={styles.inlineFields}>
+            <label>席位<select value={slot} onChange={event => setSlot(Number(event.target.value))}>{[1, 2, 3, 4, 5].map(value => <option key={value}>{value}</option>)}</select></label>
+            <label>上线时间<input type="datetime-local" value={startsAt} onChange={event => setStartsAt(event.target.value)} /></label>
+            <label>下线时间（可留空）<input type="datetime-local" value={endsAt} onChange={event => setEndsAt(event.target.value)} /></label>
+          </div><button className={styles.primarySmall} type="button" disabled={busy || !startsAt} onClick={() => void act(() => request(`/api/admin/topics/${value.topic.id}/revisions/${value.topic.revision}/publish`,
+            { method: 'POST', ifMatch: value.editVersion, body: { slot, startsAt: isoDateTime(startsAt), endsAt: isoDateTime(endsAt) } }), '话题已发布并写入排期。')}>确认发布</button></div>}
+        </section>}
+        {drawerTab === 'preview' && <TopicPreview topic={{ ...value.topic, ...content }} />}
+        {drawerTab === 'revisions' && <section className={styles.revisionPanel}><div className={styles.sectionIntro}><h3>修订记录</h3><p>正式修订不可原地改写，更正会创建更高版本。</p></div>
+          <div className={styles.revisionList}>{revisions.map(item => <article key={item.topic.revision}><div><b>修订 v{item.topic.revision}</b><StatusBadge status={item.topic.status} /></div><h4>{item.topic.title}</h4><span>{displayTime(item.topic.updatedAt)}</span></article>)}
+            {!revisions.length && <p className={styles.empty}>正在读取修订记录…</p>}</div></section>}
+      </div>
+    </aside></>;
 }
 
 function TopicFields({ content, disabled, onChange }: { content: TopicEditableContent; disabled: boolean; onChange: (value: TopicEditableContent) => void }) {
@@ -265,14 +372,14 @@ function TopicFields({ content, disabled, onChange }: { content: TopicEditableCo
       <input aria-label={`切面 ${index + 1} 标题`} placeholder="短标题" value={angle.title} onChange={event => patch({ angles: content.angles.map((item, at) => at === index ? { ...item, title: event.target.value } : item) })} />
       <textarea aria-label={`切面 ${index + 1} 内容`} placeholder="给用户看的思考切面" value={angle.prompt} onChange={event => patch({ angles: content.angles.map((item, at) => at === index ? { ...item, prompt: event.target.value } : item) })} />
       {content.angles.length > 1 && <button type="button" onClick={() => patch({ angles: content.angles.filter((_, at) => at !== index) })}>移除此项</button>}
-    </div>)}{content.angles.length < 4 && <button type="button" onClick={() => patch({ angles: [...content.angles, { id: `angle-${Date.now()}`, title: '', prompt: '' }] })}>＋ 添加切面</button>}</fieldset>
+    </div>)}{content.angles.length < 4 && <button type="button" onClick={() => patch({ angles: [...content.angles, { id: `angle-${Date.now()}`, title: '', prompt: '' }] })}><AdminIcon name="plus" size={15} />添加切面</button>}</fieldset>
     <fieldset disabled={disabled}><legend>来源（可为零条）</legend>{content.sources.map((source, index) => <div className={styles.repeating} key={source.id}>
       <input aria-label={`来源 ${index + 1} 标题`} placeholder="来源标题" value={source.title} onChange={event => patch({ sources: content.sources.map((item, at) => at === index ? { ...item, title: event.target.value } : item) })} />
       <input aria-label={`来源 ${index + 1} 发布者`} placeholder="发布者" value={source.publisher} onChange={event => patch({ sources: content.sources.map((item, at) => at === index ? { ...item, publisher: event.target.value } : item) })} />
       <input aria-label={`来源 ${index + 1} 链接`} placeholder="https://…" value={source.url} onChange={event => patch({ sources: content.sources.map((item, at) => at === index ? { ...item, url: event.target.value } : item) })} />
       <input aria-label={`来源 ${index + 1} 发布时间`} type="datetime-local" value={localDateTime(source.publishedAt)} onChange={event => patch({ sources: content.sources.map((item, at) => at === index ? { ...item, publishedAt: isoDateTime(event.target.value) ?? '' } : item) })} />
       <button type="button" onClick={() => patch({ sources: content.sources.filter((_, at) => at !== index) })}>移除此来源</button>
-    </div>)}{content.sources.length < 5 && <button type="button" onClick={() => patch({ sources: [...content.sources, { id: `source-${Date.now()}`, title: '', publisher: '', url: 'https://', publishedAt: new Date().toISOString() }] })}>＋ 添加来源</button>}</fieldset>
+    </div>)}{content.sources.length < 5 && <button type="button" onClick={() => patch({ sources: [...content.sources, { id: `source-${Date.now()}`, title: '', publisher: '', url: 'https://', publishedAt: new Date().toISOString() }] })}><AdminIcon name="plus" size={15} />添加来源</button>}</fieldset>
   </div>;
 }
 
@@ -296,7 +403,8 @@ function NewTopicPanel({ busy, onBusy, onError, onResult, request }: { busy: boo
     catch (reason) { onError(`${reason instanceof Error ? reason.message : '操作失败。'}${generated ? ' 引子已保留，您可以重试或继续手工新建。' : ''}`); }
     finally { onBusy(false); }
   };
-  return <div className={styles.newGrid}><section className={styles.formPanel}><div className={styles.panelHeading}><div><span>AI 候选</span><h2>从一个引子开始</h2></div></div>
+  return <div className={styles.pageStack}><PageHeader title="生成与新建" description="AI 候选不会自动发布，所有内容都需要人工确认。" />
+  <div className={styles.newGrid}><section className={styles.formPanel}><div className={styles.panelHeading}><div><span>AI 候选</span><h2>从一个引子开始</h2></div></div>
     <p className={styles.help}>可输入文字、链接，或两者一起。每次点击只生成一套候选，不会自动重试或发布。</p>
     <label>引子文字<textarea className={styles.seed} maxLength={6000} value={brief} onChange={event => setBrief(event.target.value)} placeholder="例如：社区食堂里的一顿饭，也许能写出退休生活的变化…" /></label>
     <label>参考链接（每行一个，最多 5 个）<textarea value={urls} onChange={event => setUrls(event.target.value)} placeholder="https://example.com/story" /></label>
@@ -305,15 +413,15 @@ function NewTopicPanel({ busy, onBusy, onError, onResult, request }: { busy: boo
     <button className={styles.primary} type="button" disabled={busy || (!brief.trim() && !urlValues.length) || urlValues.length > 5} onClick={() => void run(async () => {
       const result = await request<{ topic: StoredRevision }>('/api/admin/topic-generations', { method: 'POST', body: { brief, urls: urlValues, webSearchEnabled: webSearch } });
       return result.topic;
-    }, true)}>{busy ? '正在生成…' : '生成一套候选'}</button>
+    }, true)}><AdminIcon name="sparkles" size={17} />{busy ? '正在生成…' : '生成一套候选'}</button>
   </section>
   <section className={styles.formPanel}><div className={styles.panelHeading}><div><span>完全手工</span><h2>新建草稿</h2></div></div>
     <label>自定义 ID（可留空）<input value={manualId} onChange={event => setManualId(event.target.value.toLowerCase())} placeholder="如 community-meals" /></label>
     <TopicFields content={manual} disabled={busy} onChange={setManual} />
     <button className={styles.primary} type="button" disabled={busy} onClick={() => void run(() => request('/api/admin/topics', { method: 'POST', body: {
       ...(manualId.trim() ? { id: manualId.trim() } : {}), status: 'draft', content: manual,
-    } }))}>保存手工草稿</button>
-  </section></div>;
+    } }))}><AdminIcon name="plus" size={17} />保存手工草稿</button>
+  </section></div></div>;
 }
 
 function SchedulePanel({ topics, placements, busy, request, onBusy, onError, onDone }: { topics: StoredRevision[]; placements: Placement[]; busy: boolean;
@@ -324,7 +432,8 @@ function SchedulePanel({ topics, placements, busy, request, onBusy, onError, onD
   const [editing, setEditing] = useState<Placement | null>(null);
   const act = async (work: () => Promise<unknown>) => { onBusy(true); onError(''); try { await work(); await onDone(); }
     catch (reason) { onError(reason instanceof Error ? reason.message : '排期操作失败。'); } finally { onBusy(false); } };
-  return <section><div className={styles.panelHeading}><div><span>完全人工排位</span><h2>首页五席时间表</h2></div></div>
+  return <section className={styles.pageStack}><PageHeader title="首页排期" description="人工管理五个固定席位；冲突不会覆盖已有排期。" />
+    <section className={styles.dataPanel}><div className={styles.panelHeading}><div><span>完全人工排位</span><h2>首页五席时间表</h2></div></div>
     <p className={styles.help}>同一席位的时间不能重叠；到期后允许空缺，不会自动补位。</p>
     <div className={styles.slotGrid}>{[1, 2, 3, 4, 5].map(number => <section className={styles.slot} key={number}><h3>席位 {number}</h3>
       {placements.filter(item => item.slot === number).map(item => <div className={styles.placement} key={item.id}><b>{item.topicId}</b><span>修订 {item.revision}</span>
@@ -348,19 +457,20 @@ function SchedulePanel({ topics, placements, busy, request, onBusy, onError, onD
         } })).then(() => setEditing(null));
       }}>{editing ? '保存调整' : '写入排期'}</button>
       {editing && <button type="button" disabled={busy} onClick={() => setEditing(null)}>取消调整</button>}
-    </div>
+    </div></section>
   </section>;
 }
 
 function HistoryPanel({ generations, audits }: { generations: Generation[]; audits: Audit[] }) {
-  return <div className={styles.historyGrid}><section><div className={styles.panelHeading}><div><span>DeepSeek</span><h2>生成记录</h2></div></div>
+  return <div className={styles.pageStack}><PageHeader title="生成与审计" description="核对 AI 请求结果与不包含敏感内容的操作留痕。" />
+  <div className={styles.historyGrid}><section className={styles.dataPanel}><div className={styles.panelHeading}><div><span>DeepSeek</span><h2>生成记录</h2></div></div>
     <div className={styles.historyList}>{generations.map(item => <article key={item.id}><div><b>{item.status === 'succeeded' ? '成功' : item.status === 'running' ? '进行中' : '未生成'}</b><time>{displayTime(item.createdAt)}</time></div>
       <p>{item.brief || item.urls.join('、') || '无文字引子'}</p><small>{item.model} · 联网 {item.webSearchEnabled ? '开' : '关'} · 搜索 {item.searchCalls ?? '—'} 次 · token {item.inputTokens ?? '—'} / {item.outputTokens ?? '—'}{item.errorCategory ? ` · ${item.errorCategory}` : ''}</small></article>)}
       {!generations.length && <p className={styles.empty}>还没有生成记录。</p>}</div></section>
-    <section><div className={styles.panelHeading}><div><span>操作留痕</span><h2>审计记录</h2></div></div>
+    <section className={styles.dataPanel}><div className={styles.panelHeading}><div><span>操作留痕</span><h2>审计记录</h2></div></div>
       <div className={styles.historyList}>{audits.map(item => <article key={item.id}><div><b>{actionLabel[item.action] ?? item.action}</b><time>{displayTime(item.createdAt)}</time></div>
         <p>{item.entityId}</p><small>{item.actor} · {Object.entries(item.summary).map(([key, value]) => `${key}: ${String(value ?? '—')}`).join(' · ') || '无敏感详情'}</small></article>)}
-        {!audits.length && <p className={styles.empty}>还没有操作记录。</p>}</div></section></div>;
+        {!audits.length && <p className={styles.empty}>还没有操作记录。</p>}</div></section></div></div>;
 }
 
 const successRate = (metric: OperationMetric) => metric.requests ? `${Math.round(metric.successes / metric.requests * 100)}%` : '—';
@@ -386,9 +496,9 @@ function MonitoringPanel({ request }: { request: Request }) {
   }, [load]);
   const errors = data?.metrics.actions.flatMap(action => Object.entries(action.errors).map(([category, count]) => ({ action: action.action, category, count })))
     .sort((left, right) => right.count - left.count) ?? [];
-  return <section className={styles.monitoring}>
-    <div className={styles.pageHeading}><div><h2>运行监控</h2><p>仅显示当前网关进程的匿名聚合数据，服务重启后清零。</p></div>
-      <button className={styles.secondaryButton} type="button" disabled={loading} onClick={() => void load()}>{loading ? '刷新中…' : '立即刷新'}</button></div>
+  return <section className={`${styles.pageStack} ${styles.monitoring}`}>
+    <PageHeader title="运行监控" description="仅显示当前网关进程的匿名聚合数据，服务重启后清零。" actions={
+      <button className={styles.secondaryButton} type="button" disabled={loading} onClick={() => void load()}>{loading ? '刷新中…' : '立即刷新'}</button>} />
     {error && <div className={styles.error} role="alert">{error}</div>}
     {data && <>
       <div className={styles.runtimeBar}><div><span className={styles.liveDot} />当前进程运行正常</div><span>启动于 {displayTime(data.metrics.startedAt)} · 已运行 {formatUptime(data.metrics.uptimeSeconds)}</span><span>更新于 {displayTime(data.metrics.generatedAt)}</span></div>
