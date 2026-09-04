@@ -1,7 +1,8 @@
 .app, .loginPage, .center { min-height: 100dvh; color: #111827; font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; }
 .app { background: #f3f5f8; }
 .app *, .loginPage * { box-sizing: border-box; }
-.app button, .app input, .app select, .app textarea, .loginPage button, .loginPage input { font: inherit; }
+.app :where(h1, h2, h3, h4), .loginPage :where(h1, h2, h3, h4) { font-family: inherit; }
+.app button, .app input, .app select, .app textarea, .loginPage button, .loginPage input { font-family: inherit; }
 .app button, .loginPage button { cursor: pointer; }
 .app button:disabled, .loginPage button:disabled { cursor: not-allowed; opacity: .55; }
 .app :where(button, input, select, textarea):focus-visible, .loginPage :where(button, input):focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
