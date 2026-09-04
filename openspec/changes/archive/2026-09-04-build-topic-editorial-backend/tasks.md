@@ -38,8 +38,8 @@
 
 ## 6. Deployment, documentation and completion
 
-- [ ] 6.1 Extend environment examples, Nginx/systemd and activation/rollback tooling for independent admin routes, topic health, root-only topic DB, dual backup, integrity and failed-migration recovery without deploying
-- [ ] 6.2 Update product, architecture, design, content policy, development, deployment, privacy and acceptance documentation with actual topic/editorial/AI/data boundaries
-- [ ] 6.3 Run topic database backup/restore and rollback rehearsal, all relevant H5/mini browser flows, `npm run check`, `npm run build`, strict OpenSpec and sensitive/generated-artifact scans
-- [ ] 6.4 Perform at most one non-sensitive real DeepSeek Responses + web search request if local credentials and provider compatibility are available; record actual top-level/search calls, tokens, result and approximate cost separately
-- [ ] 6.5 Synchronize delta specs into `openspec/specs`, archive the completed change, update acceptance status and commit only scoped files without connecting, deploying, pushing, uploading or publishing
+- [x] 6.1 Extend environment examples, Nginx/systemd and activation/rollback tooling for independent admin routes, topic health, root-only topic DB, dual backup, integrity and failed-migration recovery without deploying
+- [x] 6.2 Update product, architecture, design, content policy, development, deployment, privacy and acceptance documentation with actual topic/editorial/AI/data boundaries
+- [x] 6.3 Run topic database backup/restore and rollback rehearsal, all relevant H5/mini browser flows, `npm run check`, `npm run build`, strict OpenSpec and sensitive/generated-artifact scans
+- [x] 6.4 Perform at most one non-sensitive real DeepSeek Responses + web search request if local credentials and provider compatibility are available; record actual top-level/search calls, tokens, result and approximate cost separately
+- [x] 6.5 Synchronize delta specs into `openspec/specs`, archive the completed change, update acceptance status and commit only scoped files without connecting, deploying, pushing, uploading or publishing
