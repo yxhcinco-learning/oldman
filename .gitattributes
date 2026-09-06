@@ -1,3 +1,5 @@
+* text=auto eol=lf
+*.png binary
 # Historical H5 is source evidence, not a deployable product or release input.
 archive/ export-ignore
 docs/archive/ export-ignore
