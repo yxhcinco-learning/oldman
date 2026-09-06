@@ -1,4 +1,5 @@
-Page({
+import { accountPage } from '../../auth/page';
+accountPage({
   data: { url: '', error: '' },
   onLoad(options: Record<string, string | undefined>) {
     const url = options.url ? decodeURIComponent(options.url) : '';

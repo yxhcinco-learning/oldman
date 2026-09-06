@@ -1,2 +1,4 @@
+<block wx:if="{{accountReady}}">
 <web-view wx:if="{{url}}" src="{{url}}"></web-view>
 <view wx:else class="page-shell without-nav"><view class="error-panel">{{error}}</view></view>
+</block>

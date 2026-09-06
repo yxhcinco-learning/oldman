@@ -1,3 +1,4 @@
+import { accountPage } from '../../auth/page';
 import { openLogin } from '../../auth/navigation';
 import { writingAccess } from '../../sync/writing-access';
 import { conversationOf, conversationView, newSession, type DialogueCommand } from '../../domain/core';
@@ -29,7 +30,7 @@ const turnStatusLabel: Record<AiTurn['status'], string> = {
 const actionEditLabel = (turn: AiTurn) => turn.action === 'compose' || turn.result?.dialogue?.intent === 'finish'
   ? '整理' : ['chat', 'rewrite', 'dialogue'].includes(turn.action) ? '调整' : '优化';
 
-Page({
+accountPage({
   services: null as unknown as ReturnType<typeof miniServices>,
   cloudUnsubscribe: undefined as (() => void) | undefined,
   accountUnsubscribe: undefined as (() => void) | undefined,
@@ -745,4 +746,4 @@ Page({
     keyboardTimer = undefined;
     this.preserveAndSave();
   },
-});
+}, page => page.flushAutoSave());

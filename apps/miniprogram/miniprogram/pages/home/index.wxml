@@ -1,3 +1,4 @@
+<block wx:if="{{accountReady}}">
 <view class="page-shell home-page">
   <app-brand></app-brand>
   <view class="hero">
@@ -23,3 +24,4 @@
     </view>
   </view>
 </view>
+</block>

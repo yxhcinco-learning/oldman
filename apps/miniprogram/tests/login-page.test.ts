@@ -6,7 +6,7 @@ const fixture = vi.hoisted(() => ({
 }));
 vi.mock('../miniprogram/services', () => ({ miniServices: () => ({ account: { snapshot: () => fixture.state, restore: fixture.restore }, sync: { sync: fixture.sync } }),
   loginMiniAccount: fixture.login, refreshMiniAccount: fixture.refresh }));
-vi.mock('../miniprogram/auth/navigation', () => ({ cancelLogin: fixture.clear, finishLogin: fixture.finish }));
+vi.mock('../miniprogram/auth/navigation', () => ({ finishLogin: fixture.finish }));
 
 interface LoginPage {
   data: { busy: boolean; error: string; signedIn: boolean; contextual: boolean };
@@ -69,11 +69,7 @@ describe('独立授权登录页', () => {
     const active = fixture.finish.mock.calls[0][0] as () => boolean;
     expect(active()).toBe(false);
   });
-  it('取消上下文登录返回原页并清理目的地，首次先看看进入首页', async () => {
-    const login = await page();
-    login.data.contextual = true; login.skip();
-    expect(fixture.clear).toHaveBeenCalledOnce();
-    login.data.contextual = false; login.skip();
-    expect(fixture.clear).toHaveBeenCalledTimes(2);
+  it('没有跳过登录的事件入口', async () => {
+    expect((await page()).skip).toBeUndefined();
   });
 });

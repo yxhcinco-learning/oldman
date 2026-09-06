@@ -1,3 +1,4 @@
+<block wx:if="{{accountReady}}">
 <import src="../../ui/dictation-feedback.wxml" />
 <view class="editor-page" style="padding-bottom: {{keyboardHeight}}px">
   <view class="editor-topbar" style="height: {{navigationHeight}}px;">
@@ -174,3 +175,4 @@
     </view>
   </view>
 </view>
+</block>

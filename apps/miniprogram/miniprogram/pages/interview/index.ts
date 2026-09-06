@@ -1,3 +1,4 @@
+import { accountPage } from '../../auth/page';
 import { openLogin } from '../../auth/navigation';
 import { writingAccess } from '../../sync/writing-access';
 import { newSession, recoverSession, conversationOf, conversationView, type DialogueCommand, type ArticleSession, type Draft } from '../../domain/core';
@@ -15,7 +16,7 @@ let keyboardTimer: ReturnType<typeof setTimeout> | undefined;
 let pageVisible = false;
 const speechHold = new HoldToDictate();
 
-Page({
+accountPage({
   services: null as unknown as ReturnType<typeof miniServices>,
   cloudUnsubscribe: undefined as (() => void) | undefined,
   accountUnsubscribe: undefined as (() => void) | undefined,
@@ -391,4 +392,4 @@ Page({
     if (keyboardTimer) clearTimeout(keyboardTimer);
     keyboardTimer = undefined;
   },
-});
+}, page => page.saveComposer());

@@ -1,3 +1,4 @@
+import { accountPage } from '../../auth/page';
 import { isTopicCurrent, type WritingTopic } from '../../domain/core';
 import { miniTopics } from '../../network/topics';
 import { selectTab } from '../../ui/tab-bar';
@@ -15,7 +16,7 @@ const kindLabel = { current: '近期', periodic: '时令', slow: '持续关注' 
 const asCard = (topic: WritingTopic): TopicCard => ({ id: topic.id, kind: kindLabel[topic.kind], title: topic.title, summary: topic.summary,
   corrected: topic.status === 'corrected', stale: !isTopicCurrent(topic) });
 
-Page({
+accountPage({
   data: { loading: true, topics: [] as TopicCard[], error: '' },
 
   onLoad() {

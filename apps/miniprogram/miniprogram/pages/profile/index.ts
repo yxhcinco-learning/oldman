@@ -1,3 +1,4 @@
+import { accountPage } from '../../auth/page';
 import { miniServices, refreshMiniAccount } from '../../services';
 import { openLogin, clearLoginReturn } from '../../auth/navigation';
 import { navigationMetrics } from '../../ui/navigation';
@@ -5,7 +6,7 @@ import { selectTab, setTabBarHidden } from '../../ui/tab-bar';
 import type { AccountProfile } from '../../domain/core';
 import type { AccountStatus } from '../../auth/account-client';
 
-Page({
+accountPage({
   accountUnsubscribe: undefined as (() => void) | undefined,
   syncUnsubscribe: undefined as (() => void) | undefined,
   observed: undefined as ReturnType<typeof miniServices> | undefined,

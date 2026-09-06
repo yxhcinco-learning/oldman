@@ -30,6 +30,14 @@ describe('微信小程序公共工程配置', () => {
     expect(app.permission).toBeUndefined();
   });
 
+  it('除开屏、登录和隐私外，所有路由必须先经过账号门禁', () => {
+    const pages = readJson('../miniprogram/app.json').pages as string[];
+    for (const route of pages.filter(path => !['pages/launch/index', 'pages/login/index', 'pages/privacy/index'].includes(path))) {
+      expect(readText('../miniprogram/' + route + '.ts')).toContain('accountPage({');
+      expect(readText('../miniprogram/' + route + '.wxml')).toMatch(/^<block wx:if="{{accountReady}}">/);
+    }
+  });
+
   it('通过小程序适配入口复用写作语义', () => {
     const draft = completeVoice({ ...emptyDraft(), pendingVoice: '从前的故事。' });
     const work = workFromDraft(draft);
@@ -218,7 +226,8 @@ describe('微信小程序公共工程配置', () => {
     const privacy = readText('../miniprogram/pages/privacy/index.wxml');
     expect(profile).toContain('微信登录');
     expect(login).toContain('微信授权登录');
-    expect(login).toContain('登录后自动保存作品');
+    expect(login).not.toMatch(/先看看|暂不登录|登录后自动保存作品|首次登录自动创建账号/);
+    expect(login).toContain('隐私说明');
     expect(privacy).toContain('同一时间在一台设备使用');
     expect(profile).toContain('open-type="chooseAvatar"');
     expect(profile).toContain('type="nickname"');

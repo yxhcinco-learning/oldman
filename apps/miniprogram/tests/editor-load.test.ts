@@ -1,3 +1,4 @@
+vi.mock('../miniprogram/auth/page', () => ({ accountPage: (definition: object) => Page(definition) }));
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { emptyDraft, newSession, startInterview, type Draft, type ArticleSession } from '../miniprogram/domain/core';
 

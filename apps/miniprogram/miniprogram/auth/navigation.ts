@@ -14,20 +14,12 @@ export async function openLogin(target?: LoginReturn) {
   if (opening) return;
   opening = true;
   destination = target;
-  try { await wx.navigateTo({ url: '/pages/login/index?return=1' }); }
+  try { await wx.reLaunch({ url: '/pages/login/index?return=1' }); }
   catch (error) { destination = undefined; throw error; }
   finally { opening = false; }
 }
 
 export function clearLoginReturn() { destination = undefined; }
-
-export function cancelLogin() {
-  const target = destination;
-  destination = undefined;
-  const url = target?.source && target.source !== miniServices() ? '/pages/works/index'
-    : target?.url.replace(/[?&]resume=interview/, '') ?? '/pages/home/index';
-  return wx.reLaunch({ url });
-}
 
 export async function resolveLoginReturn(target: LoginReturn | undefined, services: Services): Promise<string> {
   if (!target) return '/pages/home/index';

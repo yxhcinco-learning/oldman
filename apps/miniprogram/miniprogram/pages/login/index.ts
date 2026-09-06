@@ -1,5 +1,5 @@
 import { miniServices, loginMiniAccount, refreshMiniAccount } from '../../services';
-import { cancelLogin, finishLogin } from '../../auth/navigation';
+import { finishLogin } from '../../auth/navigation';
 
 Page({
   visible: true,
@@ -31,10 +31,6 @@ Page({
       const state = miniServices().account.snapshot();
       this.setData({ busy: false, signedIn: state.status === 'authenticated' || state.status === 'offline' && Boolean(state.account) });
     }
-  },
-  skip() {
-    if (this.data.busy) return;
-    void cancelLogin();
   },
   openPrivacy() { void wx.navigateTo({ url: '/pages/privacy/index' }); },
 });

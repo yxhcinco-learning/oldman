@@ -7,8 +7,6 @@
 .login-actions { flex-shrink: 0; width: 100%; max-width: 420px; margin: 0 auto; }
 .login-actions .login-primary { display: flex; width: 100%; max-width: none; min-width: 0; min-height: 56px; align-items: center; justify-content: center; padding: 14px 20px; border-radius: 30px; background: #153b2e; color: #fff; font-size: 18px; line-height: 28px; }
 .login-actions .login-primary[disabled] { background: #416657; color: #fff; }
-.login-saving { margin-top: 12px; text-align: center; color: #717974; font-size: 14px; line-height: 22px; }
-.login-actions .login-skip { display: flex; width: 100%; max-width: none; min-height: 48px; margin-top: 8px; align-items: center; justify-content: center; padding: 10px; background: transparent; color: #416657; font-size: 16px; line-height: 26px; }
 .login-terms { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0 12px; margin-top: 12px; color: #717974; font-size: 14px; line-height: 22px; }
 .login-terms button { width: auto; max-width: none; min-width: 0; min-height: 48px; margin: 0; padding: 12px 0; color: #416657; background: transparent; font-size: 14px; line-height: 22px; }
 .login-reason { margin-bottom: 16px; color: #416657; font-size: 16px; line-height: 26px; }

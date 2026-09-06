@@ -9,8 +9,6 @@
     <view wx:if="{{reason}}" class="login-reason">{{reason}}</view>
     <view wx:if="{{error}}" class="error-panel" role="alert">{{error}}</view>
     <button class="login-primary" bindtap="login" disabled="{{busy}}" loading="{{busy}}">{{busy ? (signedIn ? '正在同步' : '正在登录') : signedIn ? '重试同步并继续' : '微信授权登录'}}</button>
-    <view class="login-saving">登录后自动保存作品，换台设备接着写</view>
-    <button class="login-skip" bindtap="skip" disabled="{{busy}}">{{contextual ? '暂不登录，返回' : '先看看'}}</button>
-    <view class="login-terms"><text>首次登录自动创建账号</text><button bindtap="openPrivacy">隐私说明<text> ›</text></button></view>
+    <view class="login-terms"><button bindtap="openPrivacy">隐私说明<text> ›</text></button></view>
   </view>
 </view>

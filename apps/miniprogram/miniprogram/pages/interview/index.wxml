@@ -1,3 +1,4 @@
+<block wx:if="{{accountReady}}">
 <import src="../../ui/dictation-feedback.wxml" />
 <view class="interview-page" style="padding-bottom: {{keyboardHeight}}px">
   <view class="interview-header" style="height: {{navigationHeight}}px;">
@@ -38,3 +39,4 @@
     </view>
   </view>
 </view>
+</block>

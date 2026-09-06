@@ -1,3 +1,4 @@
+vi.mock('../miniprogram/auth/page', () => ({ accountPage: (definition: object) => Page(definition) }));
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const current = vi.hoisted(() => ({ services: {} as object }));

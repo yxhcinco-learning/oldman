@@ -43,7 +43,7 @@ const requestCount = () => mini.evaluate(() => getApp().__dialogueQa.requests.le
 try {
   const info = await mini.systemInfo();
   console.info(JSON.stringify({ windowWidth: info.windowWidth, windowHeight: info.windowHeight, model: info.model }));
-  assert.equal((await mini.currentPage()).path, 'pages/home/index', '先回首页，避免打断正在编辑的作品');
+  assert.ok(['pages/home/index', 'pages/login/index'].includes((await mini.currentPage()).path), '先回首页或登录页，避免打断正在编辑的作品');
   await mini.evaluate(() => {
     const serviceModule = require('services.js');
     serviceModule.pauseMiniServices();
@@ -63,7 +63,7 @@ try {
     const writer = replace(services.writer, new storage.MiniDraftWriter(repository));
     const qa = { original, originals, root, queue: [], requests: [], pending: [], consent: services.aiConsent.ensure, accountSnapshot: services.account.snapshot };
     // This fixture permits non-billing AI/voice adapters only; it never acquires a real account.
-    services.account.snapshot = () => ({ status: 'authenticated', account: null, error: '', generation: services.generation });
+    services.account.snapshot = () => ({ status: 'authenticated', account: { id: 'qa-account', nickname: '', hasAvatar: false, avatarVersion: 0 }, error: '', generation: services.generation });
     const transport = { request(request) {
       qa.requests.push(request);
       const item = qa.queue.shift();
@@ -359,7 +359,7 @@ try {
 } finally {
   if (installed) {
     await mini.restoreWxMethod('showModal');
-    await mini.reLaunch('/pages/home/index');
+    await mini.reLaunch('/pages/login/index');
     await mini.evaluate(async () => {
       const q = getApp().__dialogueQa;
       if (!q) return; // The IDE may have recompiled; original services were recreated.
@@ -375,7 +375,7 @@ try {
       require('services.js').miniServices = q.original;
       delete getApp().__dialogueQa;
     });
-    await mini.reLaunch('/pages/home/index');
+    await mini.reLaunch('/pages/login/index');
   }
   await mini.disconnect();
 }

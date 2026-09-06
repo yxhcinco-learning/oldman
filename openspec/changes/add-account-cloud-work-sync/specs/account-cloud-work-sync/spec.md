@@ -9,7 +9,7 @@
 
 #### Scenario: Logout or account failure
 - **WHEN** 用户退出、换码失败、会话过期或被替换
-- **THEN** 系统区分状态、停止对应在线操作、隐藏已退出账号缓存，游客新草稿仍可写
+- **THEN** 系统区分状态、停止对应在线操作、隐藏已退出账号缓存，未登录不能进入产品；重新登录前不清除已有本机内容
 
 ### Requirement: Optional private profile
 系统 SHALL 支持用户主动选择头像和填写昵称；MUST 鉴权读写、限制输入并去除头像元数据，失败保留旧资料。
@@ -41,7 +41,7 @@
 - **THEN** 最新完整快照成功落到本机后才允许编辑，不恢复录音或自动重新调用正在执行的模型请求
 
 ### Requirement: Offline pause and recoverable stale input
-系统 MUST 在云作品断网或身份失效时保住当前输入并暂停修改；未入云的新本机草稿 SHALL 保持可写。
+系统 MUST 在云作品断网或身份失效时保住当前输入并暂停修改；已登录账号临时断网时未入云的新本机草稿 SHALL 保持可写。重新进入页面时必须核对账号；已有输入保存失败时仅保留只读救援，不丢弃内存或开放新编辑。
 
 #### Scenario: Stale local input after takeover
 - **WHEN** 原设备存在未上传内容且云端已有更新

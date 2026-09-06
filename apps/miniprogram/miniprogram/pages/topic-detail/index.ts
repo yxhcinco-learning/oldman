@@ -1,3 +1,4 @@
+import { accountPage } from '../../auth/page';
 import { emptyDraft, formatTime, isTopicCurrent, snapshotTopic, type WritingTopic } from '../../domain/core';
 import { miniTopics } from '../../network/topics';
 import { miniServices } from '../../services';
@@ -6,7 +7,7 @@ import { openLogin } from '../../auth/navigation';
 
 let currentTopic: WritingTopic | null = null;
 
-Page({
+accountPage({
   data: {
     ...navigationMetrics(),
     loading: true,

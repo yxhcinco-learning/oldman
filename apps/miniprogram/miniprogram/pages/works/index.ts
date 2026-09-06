@@ -1,3 +1,4 @@
+import { accountPage } from '../../auth/page';
 import { writingAccess } from '../../sync/writing-access';
 import { countWords, formatTime, type Work } from '../../domain/core';
 import { miniServices } from '../../services';
@@ -22,7 +23,7 @@ function card(work: Work): WorkCard {
     cover: `/assets/story-${cover}.svg`, meta: `${formatTime(work.updatedAt)} · ${countWords(work.segments)} 字` };
 }
 
-Page({
+accountPage({
   observed: undefined as ReturnType<typeof miniServices> | undefined,
   unsubscribe: undefined as (() => void) | undefined,
   accountUnsubscribe: undefined as (() => void) | undefined,

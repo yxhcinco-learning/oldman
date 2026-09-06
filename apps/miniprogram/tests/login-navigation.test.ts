@@ -6,7 +6,7 @@ import type { miniServices } from '../miniprogram/services';
 
 const current = vi.hoisted(() => ({ services: {} as ReturnType<typeof miniServices> }));
 vi.mock('../miniprogram/services', () => ({ miniServices: () => current.services }));
-import { openLogin, finishLogin, resolveLoginReturn, clearLoginReturn, cancelLogin } from '../miniprogram/auth/navigation';
+import { openLogin, finishLogin, resolveLoginReturn, clearLoginReturn } from '../miniprogram/auth/navigation';
 
 const asServices = (repository: MiniWorkRepository) => ({ repository }) as ReturnType<typeof miniServices>;
 afterEach(() => { clearLoginReturn(); vi.unstubAllGlobals(); });
@@ -44,21 +44,13 @@ describe('登录后回到固定归属的原作品', () => {
     const navigateTo = vi.fn().mockResolvedValue({}), reLaunch = vi.fn().mockResolvedValue({});
     vi.stubGlobal('wx', { navigateTo, reLaunch });
     await openLogin({ url: '/pages/profile/index' });
+    expect(reLaunch).toHaveBeenCalledWith({ url: '/pages/login/index?return=1' });
+    expect(navigateTo).not.toHaveBeenCalled();
+    reLaunch.mockClear();
     await finishLogin(() => false);
     expect(reLaunch).not.toHaveBeenCalled();
     clearLoginReturn();
     await finishLogin(() => true);
     expect(reLaunch).toHaveBeenCalledWith({ url: '/pages/home/index' });
-  });
-  it('取消明确重开原作品；账号已变时回到作品列表，不暴露原缓存', async () => {
-    const navigateTo = vi.fn().mockResolvedValue({}), reLaunch = vi.fn().mockResolvedValue({});
-    vi.stubGlobal('wx', { navigateTo, reLaunch });
-    await openLogin({ url: '/pages/editor/index?id=kept', workId: 'kept', source: current.services });
-    await cancelLogin();
-    expect(reLaunch).toHaveBeenLastCalledWith({ url: '/pages/editor/index?id=kept' });
-    await openLogin({ url: '/pages/editor/index?id=kept', workId: 'kept', source: current.services });
-    current.services = {} as ReturnType<typeof miniServices>;
-    await cancelLogin();
-    expect(reLaunch).toHaveBeenLastCalledWith({ url: '/pages/works/index' });
   });
 });

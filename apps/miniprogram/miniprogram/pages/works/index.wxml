@@ -1,3 +1,4 @@
+<block wx:if="{{accountReady}}">
 <view class="page-shell works-page">
   <app-brand></app-brand>
   <view class="works-hero">
@@ -39,3 +40,4 @@
     <image class="create-mic" src="/assets/mic-white.svg" mode="aspectFit"></image><text>开始写作</text>
   </button>
 </view>
+</block>
