@@ -93,6 +93,7 @@ Page({
   },
 
   onLoad(options: Record<string, string | undefined>) {
+    const emptyPageData = { ...this.data };
     this.services = miniServices();
     const render = this.setData.bind(this);
     this.setData = (values, callback) => {
@@ -101,7 +102,7 @@ Page({
     this.alive = true;
     this.cloudUnsubscribe = this.services.sync.subscribe(() => { void this.refreshCloudState(); });
     this.accountUnsubscribe = this.services.account.subscribe(() => {
-      if (this.services !== miniServices()) { void this.flushAutoSave(); this.setData({ draft: null, session: null, body: '', xiaowenComposer: '', conversationMessages: [], xiaowenTurns: [], xiaowenVersions: [], candidateBody: '', candidateOriginalBody: '', versionBody: '', xiaowenOpen: false, readOnly: true, cloudMessage: '账号已变化，请返回作品列表。' }); }
+      if (this.services !== miniServices()) { void this.flushAutoSave(); this.setData({ ...emptyPageData, readOnly: true, cloudMessage: '账号已变化，请返回作品列表。' }); }
       void this.refreshCloudState();
     });
     this.prepareUnsubscribe = this.services.sync.beforeSync(async () => {
