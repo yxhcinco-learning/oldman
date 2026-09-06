@@ -4,6 +4,7 @@
 
 | 记录 | 用途 |
 | --- | --- |
+| [第二阶段账号与私有云](PHASE-TWO-ACCEPTANCE.md) | 当前实现、真实本地 HTTP/SQLite 双客户端、模拟器与未完成真机验收；未部署 |
 | [文档结构精简](../openspec/changes/archive/2026-09-06-streamline-project-documents/tasks.md) | 入口归并、历史引用与规格去重；不改变产品行为 |
 | [第二阶段前清理](archive/phase-one/CLEANUP-BASELINE-20260906.md) | 2026-09-06 状态同步、退役规格与检查边界验证 |
 | [最终技术收尾](archive/phase-one/TECHNICAL-CLOSURE-20260906.md) | 第一阶段技术结论、9次有限真实模型经过、仅网关上线 |
@@ -17,4 +18,4 @@
 | [流程债务处理](archive/phase-one/XIAOWEN-FLOW-REVIEW.md) | 小文可靠性缺口处理历史；状态模型维护于架构 |
 | [累计验收原文](archive/phase-one/ACCEPTANCE.md) | 早期工程、服务、后台、成本治理和设备历史证据 |
 
-第一阶段两项技术 change 已归档。iOS 未验证、平台材料不记审核通过；本地代码、模拟器、真实模型、真机、线上部署各有自己的证据，不能相互替代。
+第一阶段两项技术 change 已归档；第二阶段保持活跃，等待实际设备证据。本地代码、模拟器、真实模型、真机和线上部署各有自己的证据，不能相互替代；平台材料不记审核通过。

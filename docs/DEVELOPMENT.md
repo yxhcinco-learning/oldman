@@ -31,7 +31,9 @@
 
 ## 数据与配置
 
-小程序仍本地优先：文件聚合、恢复、revision、回收站及 JSON v5，旧 v1–v4 备份可导入副本。操作系统中断可能丢失未提交输入，不承诺零丢失。服务器三库不是作品云备份，不将用户 JSON、正文或音频放入 Git。
+小程序本地先落盘，再以持久操作自动同步；聚合 v3、备份 v6，旧 v1–v5 可导入副本。auth.sqlite schema 2 包含账号与私有作品，topics/usage 仍为 schema 1。操作系统中断可能丢失未提交输入，不承诺零丢失。不将用户 JSON、正文、头像或音频放入 Git。
+
+`tests/cloud-sync-integration.test.ts` 使用两个隔离磁盘目录、真实回环 HTTP 网关与 SQLite，微信换码使用替身，覆盖接管、完整快照、确认丢失/重启和删除，不调用付费服务。`CLOUD_WORK_MAX_BYTES`（默认 8MiB、硬上限 8MiB）、`CLOUD_ACCOUNT_MAX_BYTES`（100MiB）、`CLOUD_ACCOUNT_MAX_WORKS`（1000，含回收站）、`CLOUD_ACCOUNT_REQUESTS_PER_MINUTE`（120）由服务端配置，非法配置拒绝启动。
 
 服务配置仍在忽略的 .env.local；服务器秘密位于 /etc/suiyue-yousheng/runtime.env。正文/语音/身份失败均不回退假数据。[语音配置](SPEECH-SETUP.md)、[部署](DEPLOYMENT.md)、[隐私](PRIVACY.md)保留有效服务边界。旧 localhost 数据不迁移、不清除，已归档浏览器操作不再是开发入口。
 

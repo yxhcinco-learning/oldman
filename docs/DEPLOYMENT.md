@@ -35,7 +35,7 @@
 3. 通过专用 SFTP-only 账户上传；在 TAT 的 root 通道验证远端 SHA-256 后，先列成员再解压到新的 `/opt/suiyue-yousheng/releases/<version>`。不得覆盖现有 release。
 4. 运行 `bash deploy/server/prepare-host.sh <release>`，建立隔离账户、`0700` 数据/备份/隔离目录和 HTTP/ACME 配置；脚本核对解析路径、所有者和权限。DNS 生效后使用现有 Certbot Nginx 账户为固定域名签发证书。
 5. 通过不回显内容的本地脚本把完整 DeepSeek/腾讯云项目凭据和临时 Basic Auth 文件分别上传到 staging；TAT 只移动已知路径、设置 root 所有权与 0600/0640 权限，不在命令参数、输出或历史中出现明文。用户再自行编辑 `/etc/suiyue-yousheng/runtime.env`，填写微信凭据、三库路径、三项每日上限、管理员用户名和 scrypt 散列；可选估算单价必须以当前供应商页面为依据，不确定时留空。不得把值发到聊天或命令行。密码轮换后现有后台会话会自动失效。
-6. 运行 `bash deploy/server/activate-release.sh <release>`。脚本先完成锁文件安装和生产构建，再停止网关，对已有身份库、话题库与用量库分别运行 `quick_check`、schema 上限检查和 SQLite 在线备份；随后安装 systemd unit、切换 `current`、重启，并要求身份/话题及 `costGovernanceConfigured` 健康布尔值为 true。迁移、权限、健康或构建失败时恢复上一链接；若已尝试迁移，则把三库的失败态分别转入 root-only 隔离目录并恢复各自迁移前副本，不用空库覆盖旧数据。
+6. 运行 `bash deploy/server/activate-release.sh <release>`。脚本先完成锁文件安装和生产构建，再停止网关，对已有账号库、话题库与用量库分别运行 `quick_check`、schema 上限检查和 SQLite 在线备份；随后安装 systemd unit、切换 `current`、重启并检查健康。失败时保留当前数据库；只有上一版本兼容全部当前数据库才回滚代码，否则停止网关等待前向修复。新网关可能已接收作品，禁止自动还原迁移前备份。
 7. 运行 `bash deploy/server/enable-https.sh`；脚本要求证书和认证文件存在，将 root-owned 静态认证恢复页安装到 `/var/www/suiyue-yousheng`，并在 `nginx -t` 成功后才 reload。
 8. 运行 `bash deploy/server/verify-host.sh`：核对3011/3012只监听回环、用户网页401挑战、公开话题免 Basic、后台页面可加载但未登录管理 API 为401、空登录失败、四个小程序拒绝路径、未列出API、三库完整性和网关重启 inode 持久性，并对最近服务日志做不回显的敏感标记扫描。该脚本不验证有效 Basic Auth 或有效后台密码，也不调用真实微信、DeepSeek、腾讯ASR或麦克风；这些仍从受控外部客户端单独完成。
 
@@ -66,6 +66,16 @@ DeepSeek 的常规优化、润色和文字追问各最多一次非敏感短样�
 
 ## 数据与回滚
 
-域名、协议和端口是 IndexedDB Origin 的一部分；微信用户、AppID 和设备共同决定小程序本地文件空间。公网或临时 AppID 首次访问是空库，其他位置文章不会自动迁移，需用户手工导出 JSON 并恢复为副本。服务器不接收文章库、备份、聊天或原音；身份库只保存最小微信身份与会话哈希，话题库保存编辑内容、修订、生成元数据、席位、后台会话散列和审计，用量库只保存三类匿名日汇总与活动预留。七类匿名运营事件仍只形成当前网关进程内的有界计数，不写入数据库或 release。
+域名、协议和端口是历史 IndexedDB Origin 的一部分；小程序本机文件空间受微信环境、AppID 和设备影响，应用内再按游客及已验证账号隔离。第二阶段上线后，主动登录自动同步完整私有作品与已保存写作输入，跨设备先获取最新快照；历史其他 Origin 的内容仍需 JSON 导入副本。账号库 schema 2 保存微信内部身份、会话哈希、可选资料、处理后的私有头像、作品快照和同步记录，不保存原音。话题库保存运营内容与后台会话，用量库只保存匿名日汇总和活动预留；后台账号不获得私有作品读取权限。七类匿名运营事件仍只形成进程内有界计数。
 
-回滚前记录当前与 previous 的解析路径。正常回滚运行 `bash deploy/server/rollback.sh /opt/suiyue-yousheng/releases/<verified-version>`：先对身份库、话题库和用量库做完整性/schema 上限检查，再切换 `current`、重启两个服务并复查；脚本不恢复、不删除也不覆盖数据。若旧代码无法启动则自动切回原 release，三库保持原样。激活期间发生迁移失败时才使用本次三个 root-only 备份分别恢复，失败迁移文件留在 `failed/` 供诊断。首次部署没有上一版本时，停止并禁用两个岁月有声服务、恢复该站点部署前 Nginx 状态并在 `nginx -t` 后 reload；保留 release、三库及备份、秘密、证书和 DNS 供恢复，除非用户另行授权删除。
+回滚前记录当前与 previous 的解析路径。正常回滚运行 `bash deploy/server/rollback.sh /opt/suiyue-yousheng/releases/<verified-version>`：先按目标版本清单检查三库完整性与 schema 兼容，再切换 `current`、重启并复查；脚本不恢复、不删除也不覆盖数据。若旧代码无法启动则切回原 release，三库保持原样。部署失败也不得自动回灌备份。灾难恢复必须另行授权，先保留完整当前库并核对新作品与恢复范围。首次部署没有上一版本时保留停止状态、数据库、release、备份、秘密、证书与 DNS，等待修复。
+
+## 第二阶段待部署配套（本次未执行）
+
+auth.sqlite 升级至 schema 2，包含私有作品与资料；迁移前用 SQLite backup API 备份，三库保持 release 外受限权限。作品大小/账号容量/数量/频率配置见 runtime.env.example。Nginx 精确放行账号端点与有界作品 ID，作品 mutations 上限 9MiB，头像上限 2MiB，其他账号请求 2KiB；业务鉴权仍在服务端，管理员 Cookie 不能读取用户作品，访问日志关闭。
+
+正式会话启用后，旧客户端换码不能抢占账号，旧最小 token 不能访问私有作品。当前小程序需要配套新网关；仅更新客户端指向旧网关会显示登录/同步不可用，不能算完成上线。
+
+release 的 deploy/schema-ceilings.json 声明 auth=2、topics=1、usage=1；无清单旧版本按上限 1 检查。rollback.sh 在切换前验证目标可读全部当前数据库，兼容才回滚代码，永不恢复旧备份。activate-release.sh 一旦尝试启动新网关就视为可能已接流量：失败保留当前三库；旧版本不兼容时保持网关停止，采用前向修复。不得自动还原迁移前备份覆盖新作品。sqlite-db.mjs restore 只保留为需另行授权、先保留完整当前库的灾难恢复入口。
+
+本地代码检查与模板回归不代表服务器执行 nginx -t、迁移、备份或上线验收。本次未推送、部署、上传、提审或发布。
