@@ -7,6 +7,8 @@
 | 规范 | 负责内容 |
 | --- | --- |
 | [active-client-scope](specs/active-client-scope/spec.md) | 唯一用户端、归档边界与文档职责 |
+| [account-cloud-work-sync](specs/account-cloud-work-sync/spec.md) | 微信账号、私有作品、单设备续写、恢复与备份 |
+| [wechat-identity-session](specs/wechat-identity-session/spec.md) | 主动登录、会话安全及历史最小身份接口的兼容边界 |
 | [article-ai-session](specs/article-ai-session/spec.md) | 文章候选、采用/恢复、兼容 action、安全与用量 |
 | [xiaowen-conversation-modes](specs/xiaowen-conversation-modes/spec.md) | 连续会话、访谈切换、语义承接、整理与失败恢复 |
 | [product-design-system](specs/product-design-system/spec.md)、[设计规范](../DESIGN-SYSTEM.md) | 视觉、交互与组件表现，不另建一套访谈业务状态机 |
