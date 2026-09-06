@@ -94,14 +94,18 @@
       <view wx:if="{{xiaowenView !== 'preview'}}" class="xiaowen-brand">岁月有声</view>
       <view class="xiaowen-header">
         <view wx:if="{{xiaowenView !== 'chat'}}" class="xiaowen-back" bindtap="backToConversation" role="button" aria-label="返回小文对话">‹</view>
-        <view class="xiaowen-title"><text>{{xiaowenView === 'preview' ? candidateTitle : xiaowenView === 'history' ? '修改记录' : '小文'}}</text></view>
+        <view class="xiaowen-title"><text>{{xiaowenView === 'preview' ? candidateTitle : xiaowenView === 'version' ? '查看这一版' : xiaowenView === 'history' ? '修改记录' : '小文'}}</text></view>
         <view class="xiaowen-header-actions">
           <view wx:if="{{xiaowenView === 'chat'}}" class="history-button" bindtap="showHistory" role="button" aria-label="查看修改记录"><image class="book-image" src="/assets/book.svg" mode="aspectFit"></image></view>
           <view class="xiaowen-close" bindtap="closeXiaoWen" role="button" aria-label="收起小文"><image class="close-image" src="/assets/close.svg" mode="aspectFit"></image></view>
         </view>
       </view>
 
-      <view wx:if="{{xiaowenView === 'chat'}}" class="conversation-topic topic-compact {{draft.topicSnapshot ? '' : 'topic-absent'}}"><view wx:if="{{draft && draft.topicSnapshot}}" class="topic-heading"><image src="/assets/book.svg" /><view class="topic-window"><text class="topic-text {{topicDistance > 1 ? 'topic-moving' : ''}}" style="--topic-distance: -{{topicDistance || 0}}px; --topic-duration: {{topicDuration || 7}}s">{{draft.topicSnapshot.title}}</text></view></view><view class="ai-mode-bar"><button bindtap="startInterview" disabled="{{operationBusy || voiceBusy}}">开启访谈</button></view></view>
+      <view wx:if="{{resultSavePending}}" class="reply-save" role="alert">
+        <view>{{resultSaveMessage}}</view>
+        <view class="result-save-actions"><button bindtap="retryResultSave" disabled="{{operationBusy}}">重试保存</button><button bindtap="exportRescue">救援导出</button></view>
+      </view>
+      <view wx:if="{{xiaowenView === 'chat'}}" class="conversation-topic topic-compact {{draft.topicSnapshot ? '' : 'topic-absent'}}"><view wx:if="{{draft && draft.topicSnapshot}}" class="topic-heading"><image src="/assets/book.svg" /><view class="topic-window"><text class="topic-text {{topicDistance > 1 ? 'topic-moving' : ''}}" style="--topic-distance: -{{topicDistance || 0}}px; --topic-duration: {{topicDuration || 7}}s">{{draft.topicSnapshot.title}}</text></view></view><view class="ai-mode-bar"><button bindtap="startInterview" disabled="{{operationBusy || voiceBusy || resultSavePending}}">开启访谈</button></view></view>
       <scroll-view wx:if="{{xiaowenView === 'chat'}}" class="xiaowen-messages" scroll-y scroll-into-view="xiaowen-end-{{conversationMessages.length}}-{{xiaowenRunning ? 1 : 0}}-{{xiaowenError ? 1 : 0}}">
         <view wx:for="{{conversationMessages}}" wx:key="id" class="xiaowen-turn">
           <view class="{{item.role === 'system' ? 'conversation-event' : item.role === 'user' ? 'xiaowen-user-message' : 'xiaowen-answer'}}">
@@ -109,14 +113,15 @@
             <view wx:if="{{item.pending}}" class="reply-pending" role="status" aria-label="{{item.text}}"><view /><view class="reply-dot-second" /><view class="reply-dot-third" /></view>
             <view wx:if="{{item.hasCandidate}}" class="article-result-actions">
               <button class="article-result-link" data-id="{{item.turnId}}" bindtap="showCandidate"><text>看看文章</text><text aria-hidden="true">›</text></button>
-              <button wx:if="{{item.status === 'applied'}}" class="article-undo" data-id="{{item.turnId}}" bindtap="undoTurn" disabled="{{operationBusy}}" aria-label="撤销这次修改"><image src="/assets/undo.svg" />撤销</button>
+              <button wx:if="{{item.canUndo}}" class="article-undo" data-id="{{item.turnId}}" bindtap="undoTurn" disabled="{{operationBusy || resultSavePending}}" aria-label="撤销这次修改"><image src="/assets/undo.svg" />撤销</button>
+              <text wx:elif="{{item.reverted}}" class="xiaowen-turn-status">已撤销</text>
             </view>
             <view wx:if="{{item.error}}" class="xiaowen-error">{{item.error}}</view>
-            <button wx:if="{{item.canRetry}}" data-id="{{item.turnId}}" bindtap="retryTurn" disabled="{{operationBusy}}">重新发送</button>
+            <button wx:if="{{item.canRetry}}" data-id="{{item.turnId}}" bindtap="retryTurn" disabled="{{operationBusy || resultSavePending}}">重新发送</button>
           </view>
         </view>
         <view wx:if="{{xiaowenStatus === 'blocked'}}" class="xiaowen-request-state">未发送</view>
-        <view wx:if="{{xiaowenError && !conversationMessages[conversationMessages.length - 1].error}}" class="xiaowen-error">{{xiaowenError}}</view>
+        <view wx:if="{{!resultSavePending && xiaowenError && !conversationMessages[conversationMessages.length - 1].error}}" class="xiaowen-error">{{xiaowenError}}</view>
         <view id="xiaowen-end-{{conversationMessages.length}}-{{xiaowenRunning ? 1 : 0}}-{{xiaowenError ? 1 : 0}}"></view>
       </scroll-view>
 
@@ -135,22 +140,32 @@
         <view class="candidate-note">每次手动编辑、应用和恢复都会留下记录。</view>
         <view wx:if="{{aiAssisted}}" class="ai-origin-label history-disclosure">这篇文章曾应用 AI 辅助候选；后续手动修改或恢复不会删除这条历史说明。</view>
         <view wx:if="{{xiaowenVersions.length === 0}}" class="history-empty">暂无修改记录</view>
-        <view class="history-item" wx:for="{{xiaowenVersions}}" wx:key="id">
+        <view class="history-item" wx:for="{{xiaowenVersions}}" wx:key="id" bindtap="showVersion" data-id="{{item.id}}" role="button" aria-label="查看{{item.label}}记录">
           <view><strong>{{item.label}}</strong><text wx:if="{{item.aiAssisted}}" class="history-ai-label">{{aiAssistanceLabel}}</text><text>{{item.title}}</text></view><small>{{item.length}} 字 · {{item.createdAt}}</small>
         </view>
       </scroll-view>
 
+      <scroll-view wx:if="{{xiaowenView === 'version'}}" class="xiaowen-preview" scroll-y>
+        <view class="version-title">{{versionTitle}}</view>
+        <view class="candidate-full-text" user-select>{{versionBody || '（这一版正文为空）'}}</view>
+        <view wx:if="{{xiaowenError}}" class="xiaowen-error" role="alert">{{xiaowenError}}</view>
+      </scroll-view>
+      <view wx:if="{{xiaowenView === 'version'}}" class="article-review-note">{{versionSame ? '当前文章就是这一版。' : '恢复后，当前文章仍会保留在修改记录中。'}}</view>
+      <view wx:if="{{xiaowenView === 'version'}}" class="candidate-actions">
+        <button bindtap="backToConversation">返回记录</button>
+        <button class="candidate-apply" bindtap="restoreVersion" disabled="{{operationBusy || xiaowenRunning || resultSavePending || versionSame}}">恢复这版</button>
+      </view>
 
       <view wx:if="{{xiaowenView === 'chat'}}" class="xiaowen-composer">
-        <textarea value="{{xiaowenComposer}}" maxlength="12000" auto-height placeholder="问小文，或提要求" placeholder-style="color:#858e88;line-height:30px" disabled="{{operationBusy || voiceBusy}}"
+        <textarea value="{{xiaowenComposer}}" maxlength="12000" auto-height placeholder="问小文，或提要求" placeholder-style="color:#858e88;line-height:30px" disabled="{{operationBusy || voiceBusy || resultSavePending}}"
           adjust-position="{{false}}" show-confirm-bar="{{false}}" cursor-spacing="20" bindinput="onXiaoWenInput" bindkeyboardheightchange="onKeyboardHeight"></textarea>
         <view wx:if="{{voiceTarget === 'xiaowen' && (voicePressing || voicePhase !== 'idle')}}" class="xiaowen-speech-status">{{voiceText || voiceMessage || (voicePressing ? '已按住，松开结束' : '正在准备语音…')}}</view>
-        <view class="xiaowen-button-cell"><button class="xiaowen-voice {{voiceTarget === 'xiaowen' && voicePressing ? 'pressing' : ''}} {{operationBusy ? 'is-disabled' : ''}}" bindtouchstart="pressXiaoWenVoice" bindtouchend="releaseVoice" bindtouchcancel="cancelVoice" aria-disabled="{{operationBusy}}" aria-label="长按语音输入"><image src="/assets/mic.svg" mode="aspectFit"></image></button></view>
-        <view class="xiaowen-button-cell"><button wx:if="{{xiaowenRunning}}" class="ai-stop" bindtap="cancelXiaoWen" aria-label="停止回复"><view />停止</button><button wx:else class="xiaowen-send {{operationBusy || voiceBusy || !xiaowenComposer ? 'is-disabled' : ''}}" bindtap="sendXiaoWen" aria-disabled="{{operationBusy || voiceBusy || !xiaowenComposer}}">{{operationBusy ? '处理中' : '发送'}}</button></view>
+        <view class="xiaowen-button-cell"><button class="xiaowen-voice {{voiceTarget === 'xiaowen' && voicePressing ? 'pressing' : ''}} {{operationBusy || resultSavePending ? 'is-disabled' : ''}}" bindtouchstart="pressXiaoWenVoice" bindtouchend="releaseVoice" bindtouchcancel="cancelVoice" aria-disabled="{{operationBusy || resultSavePending}}" aria-label="长按语音输入"><image src="/assets/mic.svg" mode="aspectFit"></image></button></view>
+        <view class="xiaowen-button-cell"><button wx:if="{{xiaowenRunning}}" class="ai-stop" bindtap="cancelXiaoWen" aria-label="停止回复"><view />停止</button><button wx:else class="xiaowen-send {{operationBusy || voiceBusy || resultSavePending || !xiaowenComposer ? 'is-disabled' : ''}}" bindtap="sendXiaoWen" aria-disabled="{{operationBusy || voiceBusy || resultSavePending || !xiaowenComposer}}">{{operationBusy ? '处理中' : '发送'}}</button></view>
       </view>
       <view wx:if="{{xiaowenView === 'preview' && candidateStatus === 'ready'}}" class="article-review-note">确认使用后才会替换正文，请留意事实与细节。</view>
       <view wx:if="{{xiaowenView === 'preview' && candidateStatus === 'ready'}}" class="candidate-actions">
-        <button bindtap="dismissCandidate" disabled="{{operationBusy}}">暂不使用</button>
+        <button bindtap="dismissCandidate" disabled="{{operationBusy || resultSavePending}}">暂不使用</button>
         <button class="candidate-apply" bindtap="applyCandidate" disabled="{{operationBusy || candidateStale}}">用这篇</button>
       </view>
     </view>

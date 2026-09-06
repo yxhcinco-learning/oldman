@@ -180,9 +180,9 @@ describe('微信小程序公共工程配置', () => {
     expect(editorStyles).not.toContain('content: "••••"');
     expect(editorStyles).toMatch(/\.xiaowen-header-actions\s*\{[^}]*gap:\s*8px/);
     expect(editorStyles).toMatch(/\.xiaowen-close\s*\{[^}]*border:\s*0/);
-    expect(editor).toContain("class=\"xiaowen-send {{operationBusy || voiceBusy || !xiaowenComposer ? 'is-disabled' : ''}}\"");
+    expect(editor).toContain("class=\"xiaowen-send {{operationBusy || voiceBusy || resultSavePending || !xiaowenComposer ? 'is-disabled' : ''}}\"");
     expect(editorStyles).toMatch(/\.xiaowen-send\.is-disabled\s*\{[^}]*background:\s*#153b2e[^}]*color:\s*#fff/);
-    expect(interview).toContain("class=\"send {{saving || voiceBusy || !composer ? 'is-disabled' : ''}}\"");
+    expect(interview).toContain("class=\"send {{saving || voiceBusy || resultSavePending || !composer ? 'is-disabled' : ''}}\"");
     expect(interviewStyles).toMatch(/\.send\.is-disabled\s*\{[^}]*background:\s*#9caaa2[^}]*color:\s*#fff[^}]*opacity:\s*1/);
     expect(editorController).toContain('onHide()');
     expect(editorController).toContain('onUnload()');

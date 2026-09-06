@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { emptyDraft, newSession, startInterview, type Draft, type ArticleSession } from '../miniprogram/domain/core';
 
 const services = vi.hoisted(() => ({
-  repository: { load: vi.fn() }, writer: { seed: vi.fn(), preserve: vi.fn() },
+  repository: { load: vi.fn() }, writer: { seed: vi.fn(), preserve: vi.fn(), recoverPending: vi.fn(), pendingSession: vi.fn() },
   conversations: { read: () => ({ composer: '', requestStatus: 'idle', error: '' }) },
 }));
 vi.mock('../miniprogram/services', () => ({ miniServices: () => services }));

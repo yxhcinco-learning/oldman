@@ -2,6 +2,7 @@ import { ACTION_LABELS, MAX_ARTICLE_CHARS, aiResponseSchema, buildAiRequest, che
   newVersion, recoverSession, sameDocument, splitDraft, type AiAction, type AiRequest, type AiResponse, type AiTurn,
   type ArticleSession, type Draft, type Work } from '../domain/core';
 import type { MiniDraftWriter, MiniWorkRepository } from '../storage/repository';
+import { MiniSessionSaveError } from '../storage/repository';
 import { prepareDialogue, settleDialogue, startInterview, type DialogueCommand } from '../domain/core';
 
 const zodParseContext = { jitless: true } as const;
@@ -62,6 +63,7 @@ export class MiniArticleAiController {
   }
 
   async startInterview(draft: Draft, session: ArticleSession | null) {
+    if (this.writer.pendingSession(draft.id)) throw new Error('请先保存小文已收到的回复。');
     if (this.active || this.preparation) throw new Error('小文正在处理上一条请求，请稍候。');
     this.preparation = { workId: draft.id };
     try { return await this.save(draft, startInterview(session ?? newSession(draft), draft, newId())); }
@@ -70,6 +72,7 @@ export class MiniArticleAiController {
 
   async run(draft: Draft, existingSession: ArticleSession | null, action: AiAction, prompt = '', turnPrompt?: string,
     onStarted?: (context: MiniAiContext & { turnId: string }) => void, command: DialogueCommand = 'send', retryId?: string): Promise<MiniAiRunResult> {
+    if (this.writer.pendingSession(draft.id)) return { draft, session: existingSession ?? newSession(draft), work: null, accepted: false, turnId: null, error: '请先保存小文已收到的回复，不需要重新发送。' };
     if (this.active || this.preparation) return { draft, session: existingSession ?? newSession(draft), work: null, accepted: false, turnId: null, error: '小文正在处理上一条请求，请稍候。' };
     const preparation = { workId: draft.id };
     this.preparation = preparation;
@@ -127,9 +130,10 @@ export class MiniArticleAiController {
       const result = ['question', 'interview'].includes(action) ? { ...response.result, body: undefined } : response.result;
       if (['regular', 'polish', 'rewrite'].includes(action) && !result.body?.trim()) throw new Error('小文没有返回可核对的完整正文，原文未改变。');
       const settled = await this.settle(turnId, current => ({ ...current, result,
-        status: result.body ? 'ready' : 'answered', error: undefined }));
+        status: result.body ? 'ready' : 'answered', error: undefined }), { draft, session, work });
       return { ...settled, accepted: true, turnId, error: '' };
     } catch (failure) {
+      if (failure instanceof MiniSessionSaveError) throw failure;
       if (active.cancelled) return { ...(await active.settlement!), accepted: true, turnId, error: '' };
       if (this.active !== active) return { ...(await this.latest(draft.id)), accepted: true, turnId, error: '' };
       const message = failure instanceof Error && failure.name !== 'ZodError' ? failure.message : '小文连接或数据格式异常，原文未改变。';
@@ -182,13 +186,28 @@ export class MiniArticleAiController {
     const turn = session.turns.find(item => item.id === turnId);
     const before = session.versions.find(version => version.id === turn?.inputVersionId);
     const after = session.versions.find(version => version.id === turn?.appliedVersionId);
-    if (!turn || turn.status !== 'applied' || !before || !after) throw new Error('这次修改已不能撤销。');
+    if (!turn || turn.status !== 'applied' || turn.revertedVersionId || !before || !after) throw new Error('这次修改已不能撤销。');
     if (draft.pendingVoice.trim() || draft.segmentEdit || !sameDocument(after, documentOf(draft))) {
       throw new Error('应用后正文又有修改，请先核对修改记录。');
     }
     const nextDraft: Draft = { ...draft, title: before.title, inputMode: 'text', textDraft: before.body,
       segments: splitDraft(before.body, draft.segments) };
-    return this.save(nextDraft, { ...session, versions: [...session.versions, newVersion(nextDraft, 'restore')] });
+    const restored = newVersion(nextDraft, 'restore');
+    return this.save(nextDraft, { ...session, versions: [...session.versions, restored],
+      turns: session.turns.map(item => item.id === turnId ? { ...item, revertedVersionId: restored.id } : item) });
+  }
+
+  async restoreVersion(draft: Draft, session: ArticleSession, versionId: string, expected: { title: string; body: string }) {
+    if (this.isRunning(draft.id)) throw new Error('请等小文回复完成后再恢复。');
+    const version = session.versions.find(item => item.id === versionId);
+    if (!version) throw new Error('这条修改记录已不存在。');
+    if (draft.pendingVoice.trim() || draft.segmentEdit || !sameDocument(documentOf(draft), expected)) {
+      throw new Error('正文已有新修改，请重新查看记录后再恢复。');
+    }
+    if (sameDocument(version, expected)) throw new Error('当前正文已经是这一版。');
+    const preserved = checkpointSession(session, draft);
+    const nextDraft: Draft = { ...draft, title: version.title, inputMode: 'text', textDraft: version.body, segments: splitDraft(version.body, draft.segments) };
+    return this.save(nextDraft, { ...preserved, versions: [...preserved.versions, newVersion(nextDraft, 'restore')] });
   }
 
   private async latest(workId: string): Promise<MiniAiContext> {
@@ -203,7 +222,7 @@ export class MiniArticleAiController {
     return { draft, session, work };
   }
 
-  private async settle(turnId: string, update: (turn: AiTurn) => AiTurn): Promise<MiniAiContext> {
+  private async settle(turnId: string, update: (turn: AiTurn) => AiTurn, fallback?: MiniAiContext): Promise<MiniAiContext> {
     const reduce = (current: ArticleSession): ArticleSession => {
       const turn = current.turns.find(item => item.id === turnId && item.status === 'running');
       if (!turn) return current;
@@ -219,7 +238,7 @@ export class MiniArticleAiController {
       if (!session) throw new Error('当前文章会话已不存在。');
       return this.writer.updateLatestSession(session.workId, reduce);
     }
-    return this.writer.updateLatestSession(activeWorkId, reduce);
+    return this.writer.updateLatestSession(activeWorkId, reduce, fallback);
   }
 
   private async save(draft: Draft, session: ArticleSession): Promise<MiniAiContext> {

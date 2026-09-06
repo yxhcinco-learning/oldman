@@ -50,7 +50,12 @@ Page({
     xiaowenComposer: '',
     xiaowenStatus: 'idle' as 'idle' | 'blocked',
     xiaowenError: '',
-    xiaowenView: 'chat' as 'chat' | 'preview' | 'history',
+    xiaowenView: 'chat' as 'chat' | 'preview' | 'history' | 'version',
+    selectedVersionId: '',
+    versionBody: '',
+    versionTitle: '',
+    versionBaseline: { title: '', body: '' },
+    versionSame: false,
     xiaowenTurns: [] as Array<{ id: string; prompt: string; answer: string; status: string; hasCandidate: boolean; canRetry: boolean; canUndo: boolean; editLabel: string; aiLabel: string }>,
     xiaowenVersions: [] as Array<{ id: string; label: string; title: string; length: number; createdAt: string; aiAssisted: boolean }>,
     aiAssisted: false,
@@ -67,6 +72,8 @@ Page({
     candidateEditLabel: '调整',
     operationBusy: false,
     navigationSaving: false,
+    resultSavePending: false,
+    resultSaveMessage: '',
     voicePhase: 'idle' as MiniSpeechState['phase'],
     voiceText: '',
     voiceMessage: '',
@@ -83,6 +90,7 @@ Page({
       if (!editorVisible || this.data.draft?.id !== id) return;
       void miniServices().repository.load().then(snapshot => {
         if (!editorVisible || this.data.draft?.id !== id) return;
+        miniServices().writer.recoverPending(snapshot.pendingSessions ?? []);
         const session = snapshot.recovery?.draft.id === id ? snapshot.recoverySession : snapshot.sessions.find(item => item.workId === id) ?? null;
         this.setData({ session, xiaowenRunning: miniServices().articleAi.isRunning(id) });
         this.syncXiaoWen(this.data.draft, session);
@@ -109,12 +117,13 @@ Page({
   async open(id?: string, compose = false) {
     try {
       const snapshot = await miniServices().repository.load();
+      miniServices().writer.recoverPending(snapshot.pendingSessions ?? []);
       const stored = id ? snapshot.works.find(work => work.id === id && !work.deletedAt) : undefined;
       const useRecovery = snapshot.recovery && (!id || snapshot.recovery.draft.id === id);
       const draft = useRecovery ? snapshot.recovery!.draft : stored?.draft ?? emptyDraft();
       const revision = useRecovery ? snapshot.recovery!.revision : stored?.revision ?? 0;
       const storedSession = useRecovery ? snapshot.recoverySession : snapshot.sessions.find(item => item.workId === draft.id) ?? null;
-      const hadInterruptedRequest = Boolean(storedSession?.turns.some(turn => turn.status === 'running')) && !miniServices().articleAi.isRunning(draft.id);
+      const hadInterruptedRequest = Boolean(storedSession?.turns.some(turn => turn.status === 'running')) && !miniServices().articleAi.isRunning(draft.id) && !miniServices().writer.pendingSession(draft.id);
       const session = storedSession && hadInterruptedRequest ? recoverSession(storedSession) : storedSession;
       miniServices().writer.seed(draft.id, revision);
       const conversation = miniServices().conversations.read(draft.id);
@@ -203,7 +212,7 @@ Page({
   },
 
   pressXiaoWenVoice() {
-    if (this.data.operationBusy) return;
+    if (this.data.operationBusy || this.data.resultSavePending) return;
     this.setData({ voiceTarget: 'xiaowen', voicePressing: true, xiaowenError: '' });
     speechHold.press(() => void miniServices().speech.start(text => this.acceptXiaoWenDictation(text)));
   },
@@ -297,6 +306,7 @@ Page({
   },
 
   async saveNow() {
+    if (this.data.resultSavePending) { await this.retryResultSave(); return !this.data.resultSavePending && this.data.saved; }
     const draft = this.currentDraft();
     if (!draft || !hasContent(draft)) return true;
     const savingVersion = draftVersion;
@@ -333,13 +343,17 @@ Page({
       return { id: turn.id, prompt: turn.prompt || ACTION_LABELS[turn.action],
         answer: turn.result ? resultSummary(turn.result, base?.body ?? '') : turn.error || (turn.status === 'running' ? '小文正在处理…' : ''),
         status: turnStatusLabel[turn.status], hasCandidate: Boolean(turn.result?.body), canRetry: turn.status === 'failed' || turn.status === 'cancelled',
-        canUndo: turn.status === 'applied', editLabel: actionEditLabel(turn), aiLabel: turn.result ? AI_ASSISTANCE_LABEL : '' };
+        canUndo: turn.status === 'applied' && !turn.revertedVersionId && Boolean(draft && sameDocument(versions.find(version => version.id === turn.appliedVersionId) ?? { title: '', body: '' }, documentOf(draft))), editLabel: actionEditLabel(turn), aiLabel: turn.result ? AI_ASSISTANCE_LABEL : '' };
     });
-    const xiaowenVersions = versions.filter(version => version.body.trim()).slice().reverse().map(version => ({
+    const xiaowenVersions = versions.slice().reverse().map(version => ({
       id: version.id, label: VERSION_LABELS[version.source], title: version.title || '未命名作品', length: version.body.length, createdAt: version.createdAt,
       aiAssisted: isAppliedAiVersion(session, version.id),
     }));
-    this.setData({ conversationMessages: draft ? conversationView(session ?? newSession(draft), draft) : [], xiaowenTurns, xiaowenVersions, aiAssisted: isWorkAiAssisted(session),
+    const pending = draft ? miniServices().writer.pendingSession(draft.id) : undefined;
+    const visibleSession = pending && session ? recoverSession(session) : session;
+    this.setData({ resultSavePending: Boolean(pending), resultSaveMessage: pending?.durable ? '回复已留在本机恢复记录中，请先保存到作品。' : '回复仅暂存于内存，请勿关闭微信。',
+      conversationMessages: draft ? conversationView(visibleSession ?? newSession(draft), draft).map(message => pending ? { ...message, text: message.pending ? '' : message.text, pending: false, canRetry: false, error: '' } : message)
+        .filter(message => message.text || message.error || message.pending || message.hasCandidate) : [], xiaowenTurns, xiaowenVersions, aiAssisted: isWorkAiAssisted(session),
       xiaowenRunning: Boolean(draft && miniServices().articleAi.isRunning(draft.id)) });
   },
 
@@ -352,13 +366,40 @@ Page({
   async exportRescue() {
     const draft = this.currentDraft();
     if (!draft) return;
-    try { await miniServices().backups.rescue(draft, this.data.session); this.setData({ notice: '已打开救援备份分享。' }); }
-    catch (error) { this.setData({ error: error instanceof Error ? error.message : '救援导出失败。' }); }
+    const pending = miniServices().writer.pendingSession(draft.id);
+    try { await miniServices().backups.rescue(draft, pending?.context.session ?? this.data.session); this.setData({ notice: '已打开救援备份分享。' }); }
+    catch (error) { this.setData({ error: error instanceof Error ? error.message : '救援导出失败。',
+      ...(pending ? { resultSaveMessage: error instanceof Error ? error.message : '救援导出失败，请重试保存。' } : {}) }); }
+  },
+
+  async retryResultSave() {
+    const id = this.data.draft?.id;
+    if (!id || this.data.operationBusy) return;
+    this.setData({ operationBusy: true });
+    try {
+      const context = await miniServices().writer.retrySessionSave(id);
+      const draft = this.currentDraft();
+      // Body typing while the reply was pending remains the author's current input.
+      this.adoptAiContext(draft ? { ...context, draft } : context);
+      this.setData({ error: '', xiaowenError: '', resultSavePending: false, saved: draft ? sameDocument(documentOf(draft), documentOf(context.draft)) : true });
+      if (draft && !this.data.saved) this.scheduleSave();
+      if (context.session.conversation?.mode === 'interview') await this.openXiaoWen();
+    } catch (error) {
+      this.setData({ xiaowenError: error instanceof Error ? error.message : '回复仍未保存，请救援导出。' });
+      this.syncXiaoWen(this.data.draft, this.data.session);
+      this.setData({ resultSaveMessage: error instanceof Error ? error.message : '回复仍未保存，请救援导出。' });
+    }
+    finally { this.setData({ operationBusy: false }); }
   },
 
   async openXiaoWen() {
     if (this.data.navigationSaving) return;
     const draft = this.currentDraft();
+    if (draft && miniServices().writer.pendingSession(draft.id)) {
+      this.setData({ xiaowenOpen: true, xiaowenView: 'chat', resultSavePending: true });
+      this.syncXiaoWen(draft, this.data.session);
+      return;
+    }
     if (draft && conversationOf(this.data.session ?? newSession(draft), draft).mode === 'interview') {
       this.setData({ navigationSaving: true, error: '' });
       const savingVersion = draftVersion;
@@ -382,7 +423,7 @@ Page({
 
   async startInterview() {
     const draft = this.currentDraft();
-    if (!draft || this.data.operationBusy || this.data.voiceBusy) return;
+    if (!draft || this.data.operationBusy || this.data.voiceBusy || this.data.resultSavePending) return;
     try {
       this.adoptAiContext(await miniServices().articleAi.startInterview(draft, this.data.session));
       await this.openXiaoWen();
@@ -408,7 +449,7 @@ Page({
 
   async runXiaoWen(action: AiAction, prompt: string, turnPrompt?: string, command: DialogueCommand = 'send', retryId?: string) {
     const draft = this.currentDraft();
-    if (!draft || this.data.operationBusy) return;
+    if (!draft || this.data.operationBusy || this.data.resultSavePending) return;
     this.setData({ operationBusy: true });
     try {
     if (!await miniServices().aiConsent.ensure()) {
@@ -431,6 +472,7 @@ Page({
     if (editorVisible && this.data.xiaowenOpen && result.session.conversation?.mode === 'interview') await this.openXiaoWen();
     } catch (error) {
       this.setData({ xiaowenError: error instanceof Error ? error.message : '小文状态尚未保存，请重试。' });
+      this.syncXiaoWen(this.data.draft, this.data.session);
     } finally { this.setData({ operationBusy: false }); }
   },
 
@@ -465,10 +507,34 @@ Page({
   },
 
   toggleCandidateOriginal() { this.setData({ candidateShowOriginal: !this.data.candidateShowOriginal }); },
-  backToConversation() { this.setData({ xiaowenView: 'chat', selectedTurnId: '', xiaowenError: '' }); },
+  backToConversation() { this.setData({ xiaowenView: this.data.xiaowenView === 'version' ? 'history' : 'chat', selectedTurnId: '', xiaowenError: '' }); },
   showHistory() {
     this.dismissKeyboard();
     this.setData({ xiaowenView: 'history', xiaowenError: '' });
+  },
+
+  showVersion(event: WechatMiniprogram.TouchEvent) {
+    const version = this.data.session?.versions.find(item => item.id === String(event.currentTarget.dataset.id));
+    const draft = this.currentDraft();
+    if (!version || !draft) return;
+    this.setData({ xiaowenView: 'version', selectedVersionId: version.id, versionBody: version.body,
+      versionTitle: version.title || '未命名作品', versionBaseline: documentOf(draft), versionSame: sameDocument(version, documentOf(draft)), xiaowenError: '' });
+  },
+
+  async restoreVersion() {
+    if (!this.data.session || this.data.operationBusy || this.data.resultSavePending) return;
+    this.setData({ operationBusy: true, xiaowenError: '' });
+    try {
+      const confirm = await wx.showModal({ title: '恢复这版文章？', content: '当前文章会保留在修改记录中。', confirmText: '确认恢复', cancelText: '再看看' });
+      if (!confirm.confirm) return;
+      const draft = this.currentDraft();
+      if (!draft) return;
+      if (saveTimer) { clearTimeout(saveTimer); saveTimer = undefined; }
+      const context = await miniServices().articleAi.restoreVersion(draft, this.data.session, this.data.selectedVersionId, this.data.versionBaseline);
+      this.adoptAiContext(context);
+      this.setData({ xiaowenView: 'history', notice: '已恢复这一版，原内容仍在修改记录中。' });
+    } catch (error) { this.setData({ xiaowenError: error instanceof Error ? error.message : '恢复失败，原文未改变。' }); }
+    finally { this.setData({ operationBusy: false }); }
   },
 
   async applyCandidate() {

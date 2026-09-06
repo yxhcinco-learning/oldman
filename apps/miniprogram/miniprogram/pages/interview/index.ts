@@ -27,6 +27,8 @@ Page({
     hasAnswers: false,
     composer: '',
     saving: false,
+    resultSavePending: false,
+    resultSaveMessage: '',
     error: '',
     keyboardHeight: 0,
     voicePhase: 'idle' as MiniSpeechState['phase'],
@@ -57,27 +59,32 @@ Page({
   async open(id: string) {
     try {
       const snapshot = await miniServices().repository.load();
+      miniServices().writer.recoverPending(snapshot.pendingSessions ?? []);
+      const pending = miniServices().writer.pendingSession(id);
       const stored = snapshot.works.find(work => work.id === id);
       const recovering = snapshot.recovery?.draft.id === id;
       const draft = recovering ? snapshot.recovery!.draft : stored?.draft;
       if (!draft) throw new Error('采访话题未找到，请返回热门重新选择。');
       const revision = recovering ? snapshot.recovery!.revision : stored?.revision ?? 0;
       const storedSession = recovering ? snapshot.recoverySession : snapshot.sessions.find(item => item.workId === id) ?? null;
-      let session = storedSession ? (miniServices().articleAi.isRunning(id) ? storedSession : recoverSession(storedSession)) : newSession(draft);
+      let session = storedSession ? (miniServices().articleAi.isRunning(id) || pending ? storedSession : recoverSession(storedSession)) : newSession(draft);
       miniServices().writer.seed(id, revision);
       const conversation = conversationOf(session, draft);
       if (!session.conversation) {
         session = { ...session, conversation };
         await miniServices().writer.write(draft, session);
       }
-      if (conversation.mode === 'conversation' && !miniServices().articleAi.isRunning(id) && pageVisible) {
+      if (conversation.mode === 'conversation' && !pending && !miniServices().articleAi.isRunning(id) && pageVisible) {
         pageVisible = false;
         void wx.redirectTo({ url: `/pages/editor/index?id=${encodeURIComponent(id)}&xiaowen=compose` });
         return;
       }
       const memory = miniServices().conversations.read(draft.id);
       measureTopic(this);
-      this.setData({ draft, session, revision, mode: conversation.mode, messages: conversationView(session, draft), questionAlternative: 0,
+      this.setData({ draft, session, revision, mode: conversation.mode, resultSavePending: Boolean(pending),
+        resultSaveMessage: pending?.durable ? '回复已留在本机恢复记录中，请先保存到作品。' : '回复仅暂存于内存，请勿关闭微信。',
+        messages: conversationView(session, draft).map(message => pending ? { ...message, text: message.pending ? '' : message.text, pending: false, canRetry: false, error: '' } : message)
+          .filter(message => message.text || message.error || message.pending || message.hasCandidate), questionAlternative: 0,
         question: '', hasAnswers: conversation.materials.length > 0, pendingEdit: conversation.pendingEdit ?? '', composer: memory.composer,
         saving: miniServices().articleAi.isRunning(id),
         error: memory.error || snapshot.issues.map(item => item.message).join(' ') });
@@ -127,7 +134,7 @@ Page({
 
   async runDialogue(prompt: string, command: DialogueCommand = 'send', retryId?: string) {
     const draft = this.data.draft;
-    if (!draft || !prompt.trim() || this.data.saving || this.data.voiceBusy) return;
+    if (!draft || !prompt.trim() || this.data.saving || this.data.voiceBusy || this.data.resultSavePending) return;
     this.setData({ saving: true, error: '' });
     try {
       if (!await miniServices().aiConsent.ensure()) { this.setData({ error: '没有发送给小文，输入仍然保留。' }); return; }
@@ -148,13 +155,29 @@ Page({
       }
     } catch (error) {
       this.setData({ error: error instanceof Error ? error.message : '小文暂时没有接上，输入仍然保留。' });
+      const pending = miniServices().writer.pendingSession(draft.id);
+      if (pending) this.setData({ resultSavePending: true, resultSaveMessage: pending.durable ? '回复已留在本机恢复记录中，请先保存到作品。' : '回复仅暂存于内存，请勿关闭微信。',
+        messages: this.data.messages.map(message => ({ ...message, text: message.pending ? '' : message.text, pending: false, canRetry: false, error: '' })).filter(message => message.text || message.hasCandidate) });
     } finally { this.setData({ saving: false }); }
+  },
+
+  async retryResultSave() {
+    if (!this.data.draft || this.data.saving) return;
+    this.setData({ saving: true });
+    try { await miniServices().writer.retrySessionSave(this.data.draft.id); await this.open(this.data.draft.id); }
+    catch (error) { this.setData({ error: error instanceof Error ? error.message : '回复仍未保存，请救援导出。', resultSaveMessage: error instanceof Error ? error.message : '回复仍未保存，请救援导出。' }); }
+    finally { this.setData({ saving: false }); }
+  },
+  async exportRescue() {
+    if (!this.data.draft) return;
+    try { await miniServices().backups.rescue(this.data.draft, miniServices().writer.pendingSession(this.data.draft.id)?.context.session ?? this.data.session); }
+    catch (error) { this.setData({ error: error instanceof Error ? error.message : '救援导出失败。', resultSaveMessage: error instanceof Error ? error.message : '救援导出失败，请重试保存。' }); }
   },
 
   changeQuestion() { void this.runDialogue('换个问题', 'change'); },
   confirmEdit() { void this.runDialogue(this.data.pendingEdit, 'confirm-edit'); },
   async continueInterview() {
-    if (!this.data.draft || !this.data.session || this.data.saving) return;
+    if (!this.data.draft || !this.data.session || this.data.saving || this.data.resultSavePending) return;
     this.setData({ saving: true });
     try {
       const result = await miniServices().articleAi.continueInterview(this.data.draft, this.data.session);
@@ -174,7 +197,7 @@ Page({
   },
 
   pressDictation() {
-    if (this.data.saving) return;
+    if (this.data.saving || this.data.resultSavePending) return;
     this.setData({ error: '', voicePressing: true });
     speechHold.press(() => void miniServices().speech.start(text => this.acceptDictation(text)));
   },
@@ -207,7 +230,7 @@ Page({
 
   async composeArticle() { await this.runDialogue('结束访谈并整理', 'finish'); },
   async toggleInterview() {
-    if (this.data.saving || this.data.voiceBusy || !this.data.draft) return;
+    if (this.data.saving || this.data.voiceBusy || this.data.resultSavePending || !this.data.draft) return;
     if (this.data.mode === 'interview') { await this.composeArticle(); return; }
     this.setData({ saving: true, error: '' });
     try {

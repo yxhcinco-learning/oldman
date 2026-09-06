@@ -34,6 +34,7 @@ yarn-error.log*
 /backups/
 /.data/
 /test-results/
+/.tmp/
 *.wav
 *.pcm
 *.webm

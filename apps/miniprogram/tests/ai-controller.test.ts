@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MiniArticleAiController, type MiniAiTransport } from '../miniprogram/ai/controller';
-import { documentOf, emptyDraft, type AiRequest, type AiResult, type Draft } from '../miniprogram/domain/core';
-import { MiniDraftWriter, MiniWorkRepository } from '../miniprogram/storage/repository';
+import { articleSessionSchema, conversationView, copySession, documentOf, emptyDraft, isWorkAiAssisted, parseBackupBundle, type AiRequest, type AiResult, type Draft } from '../miniprogram/domain/core';
+import { MiniDraftWriter, MiniWorkRepository, MiniSessionSaveError } from '../miniprogram/storage/repository';
 import { MemoryFileSystem } from './memory-file-system';
 
 const writing = (body: string): Draft => ({ ...emptyDraft(), inputMode: 'text', textDraft: body });
@@ -39,6 +39,90 @@ const setup = (transport: MiniAiTransport) => {
 };
 
 describe('小程序小文文章会话', () => {
+  it('回复保存失败保住结果，重开恢复并重试保存，不重复调用或发布模式', async () => {
+    const files = new MemoryFileSystem();
+    const repository = new MiniWorkRepository(files, '/reply-rescue', clock);
+    const writer = new MiniDraftWriter(repository);
+    const transport = new DeferredTransport();
+    const controller = new MiniArticleAiController(repository, writer, transport);
+    const draft = writing('我在学校教过书。');
+    let started!: () => void;
+    const ready = new Promise<void>(resolve => { started = resolve; });
+    const running = controller.run(draft, null, 'dialogue', '你来采访我吧', undefined, () => started());
+    await ready;
+    files.failOnce('writeText', new Error('no space'), path => path.endsWith('.work.json.tmp'));
+    const rejected = expect(running).rejects.toBeInstanceOf(MiniSessionSaveError);
+    transport.resolve({ answer: '好，我们接着聊。', dialogue: { intent: 'start' }, citedVersionIds: [] });
+    await rejected;
+    expect(writer.pendingSession(draft.id)?.context.session.conversation?.mode).toBe('interview');
+    expect((await repository.load()).sessions[0].conversation?.mode).toBe('conversation');
+    const blocked = await controller.run(draft, null, 'dialogue', '重新发送');
+    expect(blocked.accepted).toBe(false);
+    await expect(writer.write({ ...draft, textDraft: '新手改' })).rejects.toThrow('先保存');
+    const reopened = new MiniWorkRepository(files, '/reply-rescue', clock);
+    const newWriter = new MiniDraftWriter(reopened);
+    newWriter.recoverPending((await reopened.load()).pendingSessions);
+    const backup = parseBackupBundle(await reopened.exportBackup());
+    expect(backup.sessions.some(session => session.turns.some(turn => turn.result?.answer === '好，我们接着聊。'))).toBe(true);
+    const saved = await newWriter.retrySessionSave(draft.id);
+    expect(saved.session.conversation?.mode).toBe('interview');
+    expect(saved.session.conversation?.messages.filter(message => message.role === 'user')).toHaveLength(1);
+    expect((await reopened.load()).pendingSessions).toHaveLength(0);
+    await expect(newWriter.retrySessionSave(draft.id)).rejects.toThrow('没有待保存');
+  });
+
+  it('所有结果写入失败时保留内存救援，读取失败也不丢已收到回复', async () => {
+    const { controller, writer, repository } = setup(new ResultTransport({ answer: '完整说明', body: '完整新文章', citedVersionIds: [] }));
+    const draft = writing('原文');
+    const load = vi.spyOn(repository, 'load');
+    const stage = vi.spyOn(repository, 'stageSession').mockRejectedValue(new Error('no space'));
+    const save = vi.spyOn(repository, 'save');
+    const running = controller.run(draft, null, 'chat', '请调整', undefined, () => {
+      save.mockRejectedValue(new Error('no space'));
+    });
+    await expect(running).rejects.toMatchObject({ durable: false });
+    const rescued = writer.pendingSession(draft.id)!;
+    expect(rescued.context.session.turns.at(-1)?.result?.body).toBe('完整新文章');
+    expect(parseBackupBundle(repository.rescueExport(draft, [], [rescued.context.session])).sessions[0].turns.at(-1)?.result?.body).toBe('完整新文章');
+    save.mockRestore(); stage.mockRestore();
+    await writer.retrySessionSave(draft.id);
+    const next = controller.run(draft, (await repository.load()).sessions[0], 'chat', '再调整', undefined, () => load.mockRejectedValue(new Error('read failed')));
+    await expect(next).rejects.toBeInstanceOf(MiniSessionSaveError);
+    expect(writer.pendingSession(draft.id)?.context.session.turns.at(-1)?.result?.body).toBe('完整新文章');
+    load.mockRestore();
+  });
+
+  it('已提交聚合后的索引失败可幂等重试，不重复版本或回复', async () => {
+    const { controller, repository, writer } = setup(new ResultTransport({ answer: '已整理', body: '整理正文', citedVersionIds: [] }));
+    const original = repository.save.bind(repository);
+    const save = vi.spyOn(repository, 'save');
+    const draft = writing('原文');
+    await expect(controller.run(draft, null, 'chat', '调整', undefined, () => save.mockImplementationOnce(async (...args) => {
+      await original(...args); throw new Error('index failed after commit');
+    }))).rejects.toBeInstanceOf(MiniSessionSaveError);
+    const before = (await repository.load()).works[0].revision;
+    const saved = await writer.retrySessionSave(draft.id);
+    expect(saved.work?.revision).toBe(before);
+    expect(saved.session.turns).toHaveLength(1);
+  });
+
+  it('恢复历史先保留当前手改，校验查看时正文和磁盘revision，失败不覆盖', async () => {
+    const { controller, repository } = setup(new ResultTransport({ answer: '说明', body: 'AI版本', citedVersionIds: [] }));
+    const original = writing('初稿');
+    const reply = await controller.run(original, null, 'chat', '改一改');
+    const applied = await controller.apply(original, reply.session, reply.turnId!);
+    const edited = { ...applied.draft, textDraft: '当前手改尚未保存' };
+    const before = documentOf(edited);
+    await expect(controller.restoreVersion({ ...edited, textDraft: '查看后又修改了' }, applied.session, applied.session.versions[0].id, before)).rejects.toThrow('已有新修改');
+    const restored = await controller.restoreVersion(edited, applied.session, applied.session.versions[0].id, before);
+    expect(documentOf(restored.draft).body).toBe('初稿');
+    expect(restored.session.versions.at(-2)?.body).toBe('当前手改尚未保存');
+    expect(restored.session.versions.at(-1)?.source).toBe('restore');
+    expect(isWorkAiAssisted(restored.session)).toBe(true);
+    await repository.save({ ...restored.draft, textDraft: '另一处的新正文' }, restored.work!.revision, restored.session);
+    await expect(controller.restoreVersion(restored.draft, restored.session, applied.session.versions.at(-1)!.id, documentOf(restored.draft))).rejects.toThrow('已有更新');
+    expect((await repository.load()).works[0].draft.textDraft).toBe('另一处的新正文');
+  });
   it('重新开启访谈后不能重试旧结束请求，不发网络请求或覆盖新模式', async () => {
     const transport = new ResultTransport(new Error('离线'));
     const { controller } = setup(transport);
@@ -111,6 +195,24 @@ describe('小程序小文文章会话', () => {
     const undone = await controller.undo(applied.draft, applied.session, turn.id);
     expect(documentOf(undone.draft).body).toBe('我回到老院子。');
     expect(undone.session.versions.at(-1)?.source).toBe('restore');
+    expect(undone.session.turns.at(-1)?.revertedVersionId).toBe(undone.session.versions.at(-1)?.id);
+    expect(isWorkAiAssisted(undone.session)).toBe(true);
+    expect(conversationView(undone.session, undone.draft).some(message => message.canUndo)).toBe(false);
+    await expect(controller.undo(undone.draft, undone.session, turn.id)).rejects.toThrow('已不能撤销');
+    const copied = copySession(undone.session, 'copy');
+    expect(articleSessionSchema.safeParse(copied).success).toBe(true);
+    expect(copied.turns[0].revertedVersionId).toBe(copied.versions.at(-1)?.id);
+  });
+
+  it('旧自动保存不能抹掉已采用状态，即使回复内容未变', async () => {
+    const { controller, writer, repository } = setup(new ResultTransport({ answer: '整理说明', body: '候选正文', citedVersionIds: [] }));
+    const result = await controller.run(writing('原文'), null, 'chat', '调整一下');
+    const applied = await controller.apply(result.draft, result.session, result.session.turns.at(-1)!.id);
+    await expect(writer.write(applied.draft, result.session)).rejects.toMatchObject({ category: 'conflict' });
+    const saved = await repository.load();
+    expect(saved.sessions[0].turns.at(-1)?.status).toBe('applied');
+    await expect(repository.writeRecovery(applied.draft, saved.works[0].revision, result.session)).rejects.toMatchObject({ category: 'conflict' });
+    expect((await repository.load()).recovery).toBeNull();
   });
 
   it('正文改变时拒绝应用旧候选，也能明确放弃而不改正文', async () => {

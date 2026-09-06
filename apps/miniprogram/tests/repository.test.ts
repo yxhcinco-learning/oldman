@@ -9,6 +9,36 @@ const clock = () => new Date('2026-09-01T00:00:00.000Z');
 const writing = (text: string, title = ''): Draft => completeVoice({ ...emptyDraft(), title, pendingVoice: text });
 
 describe('小程序本地作品仓储', () => {
+  it('跨页保留排在在途自动保存之后，使用新 revision 保住新输入', async () => {
+    const repository = new MiniWorkRepository(new MemoryFileSystem(), '/race', clock);
+    const writer = new MiniDraftWriter(repository);
+    const draft = writing('原有正文');
+    const session = newSession(draft);
+    const saving = writer.write(draft, session);
+    const newest = { ...draft, inputMode: 'text' as const, textDraft: '跳转前最新输入' };
+    await Promise.all([saving, writer.preserve(newest, session)]);
+    const snapshot = await repository.load();
+    expect(snapshot.recovery?.draft.textDraft).toBe('跳转前最新输入');
+    expect(snapshot.recovery?.revision).toBe(snapshot.works[0].revision);
+  });
+
+  it('进程在结果记录替换途中退出可恢复，坏记录不删除', async () => {
+    const files = new MemoryFileSystem();
+    const repository = new MiniWorkRepository(files, '/journal-crash', clock);
+    const draft = writing('原文');
+    const session = newSession(draft);
+    await repository.save(draft, 0, session);
+    const next = { ...session, conversation: { mode: 'interview' as const, messages: [], materials: [] } };
+    await repository.stageSession(draft, next, 1);
+    const target = `${repository.paths.root}/${draft.id}.result.json`;
+    await files.rename(target, target + '.tmp');
+    const restarted = await new MiniWorkRepository(files, '/journal-crash', clock).load();
+    expect(restarted.pendingSessions[0].session?.conversation?.mode).toBe('interview');
+    files.set(target, '{broken');
+    const corrupt = await new MiniWorkRepository(files, '/journal-crash', clock).load();
+    expect(corrupt.issues.some(issue => issue.message.includes('恢复记录'))).toBe(true);
+    expect(files.files.get(target)).toBe('{broken');
+  });
   it('接受微信用户文件根路径并拒绝越界路径', () => {
     expect(repositoryPaths('wxfile://usr/').root).toBe('wxfile://usr/suiyue-v1');
     expect(repositoryPaths('http://usr/').root).toBe('http://usr/suiyue-v1');

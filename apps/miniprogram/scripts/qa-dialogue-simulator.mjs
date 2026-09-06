@@ -40,6 +40,8 @@ async function send(text, response, target) {
 const conversation = () => page.data('session.conversation');
 const requestCount = () => mini.evaluate(() => getApp().__dialogueQa.requests.length);
 try {
+  const info = await mini.systemInfo();
+  console.info(JSON.stringify({ windowWidth: info.windowWidth, windowHeight: info.windowHeight, model: info.model }));
   assert.equal((await mini.currentPage()).path, 'pages/home/index', '先回首页，避免打断正在编辑的作品');
   await mini.evaluate(() => {
     const serviceModule = require('services.js');
@@ -158,12 +160,8 @@ try {
   check('自然语言开启沿用历史', (await conversation()).materials.length === 2);
   await send('聊得差不多了', { error: '模拟自然结束失败' });
   check('自然语言结束失败不猜测模式切换', (await conversation()).mode === 'interview');
-  await mini.evaluate(() => {
-    const writer = getApp().__dialogueQa.services.writer; const original = writer.updateLatestSession;
-    writer.updateLatestSession = function () { writer.updateLatestSession = original; throw new Error('模拟结果保存失败'); };
-  });
-  await send('聊得差不多了', { result: result('finish', '已整理。', { body: '尚未成功保存的候选。' }) });
-  check('结果保存失败不切换自然语言模式，原始消息仍可重试', (await conversation()).mode === 'interview' && (await page.data('session.turns')).at(-1).status === 'failed');
+  await send('聊得差不多了', { result: result('finish', '已整理。', { body: '尚未核验的候选。', unexpected: true }) });
+  check('结果校验失败不切换自然语言模式，原始消息仍可重试', (await conversation()).mode === 'interview' && (await page.data('session.turns')).at(-1).status === 'failed');
   await send('把现有正文改得简短一点', { result: result('confirm-edit', '需要先结束访谈再修改，是否继续？') });
   check('访谈改文先保留原要求并确认', await page.data('pendingEdit') === '把现有正文改得简短一点' && (await conversation()).mode === 'interview');
   await page.callMethod('continueInterview');
@@ -262,14 +260,49 @@ try {
     await restored.importBackup(raw); const snapshot = await restored.load();
     return JSON.parse(raw).schemaVersion === 5 && snapshot.sessions.length === 1 && snapshot.sessions[0].conversation.materials.length === 2;
   }));
+  await page.callMethod('openXiaoWen');
+  await page.callMethod('showHistory');
+  const version = (await page.data('session.versions')).find(item => item.body === '我在工厂工作了三十年。');
+  await page.callMethod('showVersion', { currentTarget: { dataset: { id: version.id } } });
+  check('修改记录可查看具体版本，底部恢复可达', await page.data('xiaowenView') === 'version' && await page.data('versionBody') === version.body && !!await page.$('.candidate-actions .candidate-apply'));
+  await mini.screenshot({ path: resolve(output, 'history-version.png') });
+  await mini.mockWxMethod('showModal', { confirm: false, cancel: true });
+  await page.callMethod('restoreVersion');
+  check('取消恢复保留当前文章', await page.data('body') === '用户后来修改的正文。');
+  await mini.mockWxMethod('showModal', { confirm: true, cancel: false });
+  await page.callMethod('restoreVersion');
+  await mini.restoreWxMethod('showModal');
+  check('确认恢复保留旧版本并写回所选文章', await page.data('body') === version.body && (await page.data('session.versions')).at(-1).source === 'restore');
+  await page.callMethod('backToConversation');
+  const beforeRescue = await requestCount();
+  await mini.evaluate(() => {
+    const q = getApp().__dialogueQa; q.save = q.services.repository.save;
+    q.services.repository.save = async function (...args) {
+      if (args[2]?.turns.at(-1)?.result?.answer === '保存救援测试回复') throw new Error('模拟结果写入失败');
+      return q.save.apply(this, args);
+    };
+  });
+  await send('请帮我梳理文章', { result: result('edit', '保存救援测试回复', { body: '应保住的完整整理结果' }) });
+  check('收到结果保存失败展示补救，不提供重新发送', await page.data('resultSavePending') && !!await page.$('.result-save-actions button') && !(await page.data('conversationMessages')).at(-1).canRetry);
+  await mini.screenshot({ path: resolve(output, 'result-rescue.png') });
+  await page.callMethod('runXiaoWen', 'dialogue', '不应重复发送');
+  await page.callMethod('pressXiaoWenVoice');
+  await page.callMethod('startInterview');
+  check('回复待保存时触摸入口也禁用，不发请求、不录音、不切换', await page.data('resultSavePending') && !await page.data('voicePressing') && await requestCount() === beforeRescue + 1 && (await page.data('session.conversation')).mode === 'conversation');
+  await mini.evaluate(() => { const q = getApp().__dialogueQa; q.services.repository.save = q.save; });
+  await page.callMethod('retryResultSave');
+  check('重试保存保住完整回复和原正文，不重复请求', !await page.data('resultSavePending') && (await page.data('session.turns')).at(-1).result.body === '应保住的完整整理结果' && await requestCount() === beforeRescue + 1 && await page.data('body') === version.body);
   await mini.screenshot({ path: resolve(output, 'final.png') });
   console.info(JSON.stringify({ passed: passed.length, modelCalls: 0, screenshots: output }));
 } finally {
   if (installed) {
+    await mini.restoreWxMethod('showModal');
     await mini.reLaunch('/pages/home/index');
     await mini.evaluate(async () => {
       const q = getApp().__dialogueQa;
+      if (!q) return; // The IDE may have recompiled; original services were recreated.
       if (q.write) q.services.writer.write = q.write;
+      if (q.save) q.services.repository.save = q.save;
       await q.services.writer.flush();
       q.services.aiConsent.ensure = q.consent;
       for (const { target, state } of q.originals.reverse()) {

@@ -1,4 +1,4 @@
-import { documentOf, readableResultSummary as resultSummary, type AiResult, type ArticleSession, type DialogueCommand, type XiaoWenConversation } from './article-ai.js';
+import { documentOf, sameDocument, readableResultSummary as resultSummary, type AiResult, type ArticleSession, type DialogueCommand, type XiaoWenConversation } from './article-ai.js';
 import type { Draft } from './writing.js';
 
 export const INTERVIEW_INTRO = '您好，我是小文，您的写作助手。接下来我们围绕这个话题聊一聊。';
@@ -29,7 +29,9 @@ export function conversationView(session: ArticleSession, draft: Draft) {
       canRetry: message.role === 'assistant' && Boolean(turn && ['failed', 'cancelled'].includes(turn.status))
         && (turn?.action !== 'dialogue' || stored.at(-1)?.turnId === turn.id),
       error: message.role === 'assistant' && turn && ['failed', 'cancelled'].includes(turn.status) ? turn.error || (turn.status === 'cancelled' ? '已取消，原文未改变。' : '小文暂时没有接上，请重试。') : '', ai: message.role === 'assistant' && Boolean(turn?.result),
-      status: turn?.status ?? '' };
+      canUndo: turn?.status === 'applied' && !turn.revertedVersionId && !draft.pendingVoice.trim() && !draft.segmentEdit
+        && sameDocument(session.versions.find(version => version.id === turn.appliedVersionId) ?? { title: '', body: '' }, documentOf(draft)),
+      reverted: Boolean(turn?.revertedVersionId), status: turn?.status ?? '' };
   });
 }
 

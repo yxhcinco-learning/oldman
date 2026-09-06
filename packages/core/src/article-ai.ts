@@ -72,6 +72,7 @@ export const turnSchema = z.object({
   command: dialogueCommandSchema.optional(),
   status: z.enum(['running', 'ready', 'applied', 'dismissed', 'answered', 'failed', 'cancelled']),
   result: aiResultSchema.optional(), appliedVersionId: id.optional(), error: z.string().max(1000).optional(),
+  revertedVersionId: id.optional(),
   omittedRecords: z.number().int().nonnegative().optional(),
 }).strict();
 export type AiTurn = z.infer<typeof turnSchema>;
@@ -85,6 +86,7 @@ export const articleSessionSchema = z.object({
   }
   for (const turn of session.turns) {
     if (!versions.has(turn.inputVersionId) || (turn.appliedVersionId && !versions.has(turn.appliedVersionId)) ||
+      (turn.revertedVersionId && (!turn.appliedVersionId || !versions.has(turn.revertedVersionId))) ||
       turn.result?.citedVersionIds.some(ref => !versions.has(ref))) ctx.addIssue({ code: 'custom', message: '无效的版本引用' });
     if (['ready', 'applied'].includes(turn.status) && (['question', 'interview'].includes(turn.action) || !turn.result?.body?.trim())) {
       ctx.addIssue({ code: 'custom', message: '无效的优化结果' });
@@ -158,6 +160,7 @@ export function copySession(session: ArticleSession, workId: string): ArticleSes
   return recoverSession({ workId, ...(conversation ? { conversation } : {}), versions: session.versions.map(v => ({ ...v, id: ids.get(v.id)! })), turns: session.turns.map(t => ({
     ...t, id: turnIds.get(t.id)!, inputVersionId: ids.get(t.inputVersionId)!,
     ...(t.appliedVersionId ? { appliedVersionId: ids.get(t.appliedVersionId)! } : {}),
+    ...(t.revertedVersionId ? { revertedVersionId: ids.get(t.revertedVersionId)! } : {}),
     ...(t.result ? { result: { ...t.result, citedVersionIds: t.result.citedVersionIds.map(ref => ids.get(ref)!), ...(t.result.dialogue?.material?.supersedes ? { dialogue: { ...t.result.dialogue, material: { ...t.result.dialogue.material, supersedes: materialIds.get(t.result.dialogue.material.supersedes)! } } } : {}) } } : {}),
   })) });
 }

@@ -18,9 +18,30 @@ export interface RepositorySnapshot {
   recovery: Recovery | null;
   recoverySession: ArticleSession | null;
   issues: RepositoryIssue[];
+  pendingSessions: RecoveryRecord[];
+}
+
+export class MiniSessionSaveError extends Error {
+  constructor(readonly context: { draft: Draft; session: ArticleSession; work: Work | null }, readonly durable: boolean) {
+    super(durable ? '小文回复尚未写入作品，已保留本机恢复记录。请重试保存，不会重新请求小文。'
+      : '小文回复仅暂存于内存，请勿关闭微信。请重试保存或救援导出，不会重新请求小文。');
+    this.name = 'MiniSessionSaveError';
+  }
 }
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+const stableJson = (value: unknown) => JSON.stringify(value, (_key, item: unknown) => item && typeof item === 'object' && !Array.isArray(item)
+  ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item);
+function assertReplyPreserved(stored: ArticleSession | null | undefined, next: ArticleSession | undefined) {
+  if (!stored || !next) return;
+  if (stored.turns.some(turn => {
+    if (!turn.result) return false;
+    const incoming = next.turns.find(item => item.id === turn.id);
+    return !incoming || stableJson(incoming.result) !== stableJson(turn.result)
+      || Boolean(turn.appliedVersionId && (incoming.appliedVersionId !== turn.appliedVersionId || incoming.status !== turn.status))
+      || Boolean(turn.revertedVersionId && incoming.revertedVersionId !== turn.revertedVersionId);
+  })) throw new MiniStorageError('conflict', { message: '小文已有新的回复，旧状态未覆盖。请重新打开小文或先救援导出。' });
+}
 const zodParseContext = { jitless: true } as const;
 
 export class MiniWorkRepository {
@@ -50,6 +71,20 @@ export class MiniWorkRepository {
         await this.files.ensureDirectory(this.paths.root);
         await this.files.ensureDirectory(this.paths.works);
         await this.files.ensureDirectory(this.paths.quarantine);
+        // Recover only validated reply journals, never delete an unreadable result.
+        const names = await this.files.list(this.paths.root);
+        for (const base of new Set(names.map(name => name.replace(/\.(tmp|bak)$/, '')).filter(name => /^[A-Za-z0-9_-]+\.result\.json$/.test(name)))) {
+          const target = `${this.paths.root}/${base}`;
+          const valid = async (path: string) => {
+            try { return recoveryRecordSchema.safeParse(JSON.parse(await this.files.readText(path)), zodParseContext).success; } catch { return false; }
+          };
+          if (await valid(target)) continue;
+          for (const suffix of ['.tmp', '.bak']) if (await valid(target + suffix)) {
+            await this.quarantine(target, base);
+            await this.files.rename(target + suffix, target);
+            break;
+          }
+        }
         const previousIds = await this.readPreviousIndex();
         await this.recoverInterruptedReplacements();
         const rebuilt = await this.rebuildIndex();
@@ -237,10 +272,39 @@ export class MiniWorkRepository {
       if (aggregate) aggregates.push(aggregate);
     }
     const recovered = await this.loadRecovery(aggregates);
+    const pendingSessions: RecoveryRecord[] = [];
+    for (const name of await this.files.list(this.paths.root)) {
+      if (!/^[A-Za-z0-9_-]+\.result\.json$/.test(name)) continue;
+      try {
+        const record = recoveryRecordSchema.parse(JSON.parse(await this.files.readText(`${this.paths.root}/${name}`)), zodParseContext);
+        if (name !== `${record.workId}.result.json` || !record.session) throw new Error('invalid');
+        const stored = aggregates.find(item => item.work.id === record.workId);
+        if (stored && stableJson(stored.session) === stableJson(record.session)) {
+          await this.clearPendingSession(record.workId);
+        } else pendingSessions.push(record);
+      } catch {
+        this.issues.push({ category: 'corrupt', message: '一份小文回复恢复记录暂时无法读取，原文件仍保留。', fileName: name });
+      }
+    }
     const result = { works: aggregates.map(item => item.work), sessions: aggregates.flatMap(item => item.session ? [item.session] : []),
-      recovery: recovered.recovery, recoverySession: recovered.session, issues: [...this.issues] };
+      recovery: recovered.recovery, recoverySession: recovered.session, pendingSessions, issues: [...this.issues] };
     this.issues = [];
     return result;
+  }
+
+  stageSession(draft: Draft, session: ArticleSession, expectedRevision: number) {
+    const record: RecoveryRecord = { schemaVersion: LOCAL_SCHEMA_VERSION, workId: draft.id, draft: clone(draft), session: clone(session),
+      expectedRevision, recoveryRevision: expectedRevision + 1, updatedAt: this.now().toISOString() };
+    return this.enqueue(async () => {
+      await this.initialize();
+      workFileName(draft.id);
+      await this.writeSmallFile(`${this.paths.root}/${draft.id}.result.json`, record, value => recoveryRecordSchema.parse(value, zodParseContext));
+    });
+  }
+
+  async clearPendingSession(id: string) {
+    workFileName(id);
+    await this.safeRemove(`${this.paths.root}/${id}.result.json`);
   }
 
   save(draft: Draft, expectedRevision: number, session?: ArticleSession): Promise<Work | null> {
@@ -252,6 +316,19 @@ export class MiniWorkRepository {
         throw new MiniStorageError('invalid', { message: '会话记录无效，原作品未改变。' });
       }
       const current = await this.readAggregate(draftSnapshot.id);
+      assertReplyPreserved(current?.session, sessionSnapshot);
+      const journalPath = `${this.paths.root}/${draftSnapshot.id}.result.json`;
+      if (await this.files.exists(journalPath)) {
+        const journal = recoveryRecordSchema.parse(JSON.parse(await this.files.readText(journalPath)), zodParseContext);
+        if (stableJson(journal.session) !== stableJson(sessionSnapshot)) throw new MiniStorageError('conflict', { message: '请先保存已收到的小文回复，或救援导出。' });
+      }
+      // Aggregate commit may succeed before index/cleanup fails. Explicit retry is idempotent.
+      if (current?.work.revision === expectedRevision + 1 && stableJson(current.work.draft) === stableJson(draftSnapshot)
+        && stableJson(current.session) === stableJson(sessionSnapshot)) {
+        await this.rebuildIndex();
+        await this.clearRecoveryInternal(draftSnapshot.id);
+        return current.work;
+      }
       if ((current?.work.revision ?? 0) !== expectedRevision || current?.work.deletedAt) throw new MiniStorageError('conflict');
       if (!current && !hasContent(draftSnapshot) && !sessionSnapshot?.turns.length && !sessionSnapshot?.conversation) return null;
       const work = workFromDraft(draftSnapshot, current?.work);
@@ -272,6 +349,9 @@ export class MiniWorkRepository {
       if (sessionSnapshot && (sessionSnapshot.workId !== snapshot.id || !articleSessionSchema.safeParse(sessionSnapshot, zodParseContext).success)) {
         throw new MiniStorageError('invalid');
       }
+      const current = await this.readAggregate(snapshot.id);
+      if ((current?.work.revision ?? 0) !== expectedRevision || current?.work.deletedAt) throw new MiniStorageError('conflict');
+      assertReplyPreserved(current?.session, sessionSnapshot ?? undefined);
       const record: RecoveryRecord = { schemaVersion: LOCAL_SCHEMA_VERSION, workId: snapshot.id, expectedRevision,
         recoveryRevision: expectedRevision + 1, updatedAt: this.now().toISOString(), draft: snapshot, session: sessionSnapshot };
       await this.writeSmallFile(this.paths.recovery, record, value => recoveryRecordSchema.parse(value, zodParseContext));
@@ -326,7 +406,11 @@ export class MiniWorkRepository {
 
   async exportBackup(): Promise<string> {
     const snapshot = await this.load();
-    return makeBackup(snapshot.works, snapshot.recovery?.draft ?? null, snapshot.sessions);
+    // Unsaved replies travel as explicit rescue copies, never replace a newer work.
+    const copies = snapshot.pendingSessions.map(record => asImportedCopy(workFromDraft(record.draft)));
+    const rescued = snapshot.pendingSessions.flatMap((record, index) => record.session ? [copySession(record.session, copies[index]!.id)] : []);
+    const sessions = snapshot.recoverySession ? [...snapshot.sessions.filter(session => session.workId !== snapshot.recoverySession!.workId), snapshot.recoverySession] : snapshot.sessions;
+    return makeBackup([...snapshot.works, ...copies], snapshot.recovery?.draft ?? null, [...sessions, ...rescued]);
   }
 
   rescueExport(draft: Draft, works: Work[] = [], sessions: ArticleSession[] = []) {
@@ -364,6 +448,15 @@ export class MiniWorkRepository {
 export class MiniDraftWriter {
   private tail: Promise<unknown> = Promise.resolve();
   private revisions = new Map<string, number>();
+  private pending = new Map<string, { context: MiniSessionSaveError['context']; revision: number; durable: boolean }>();
+
+  pendingSession(id: string) { return this.pending.get(id); }
+
+  recoverPending(records: RecoveryRecord[]) {
+    for (const record of records) if (record.session && !this.pending.has(record.workId)) {
+      this.pending.set(record.workId, { context: { draft: record.draft, session: record.session, work: null }, revision: record.expectedRevision, durable: true });
+    }
+  }
 
   constructor(private readonly repository: MiniWorkRepository) {}
 
@@ -375,6 +468,7 @@ export class MiniDraftWriter {
     const snapshot = clone(draft);
     const sessionSnapshot = session ? clone(session) : undefined;
     const job = this.tail.catch(() => undefined).then(async () => {
+      if (this.pending.has(snapshot.id)) throw new Error('请先保存小文已收到的回复，或救援导出。');
       const next = await this.repository.save(snapshot, this.revisions.get(snapshot.id) ?? 0, sessionSnapshot);
       this.revisions.set(snapshot.id, next?.revision ?? 0);
       return next;
@@ -383,13 +477,27 @@ export class MiniDraftWriter {
     return job;
   }
 
-  async preserve(draft: Draft, session?: ArticleSession) {
-    await this.repository.writeRecovery(draft, this.revisions.get(draft.id) ?? 0, session);
+  preserve(draft: Draft, session?: ArticleSession) {
+    const snapshot = clone(draft);
+    const sessionSnapshot = session ? clone(session) : undefined;
+    const job = this.tail.catch(() => undefined).then(async () => {
+      if (this.pending.has(snapshot.id)) throw new Error('请先保存小文已收到的回复，或救援导出。');
+      await this.repository.writeRecovery(snapshot, this.revisions.get(snapshot.id) ?? 0, sessionSnapshot);
+    });
+    this.tail = job;
+    return job;
   }
 
-  updateLatestSession(id: string, update: (session: ArticleSession) => ArticleSession) {
+  updateLatestSession(id: string, update: (session: ArticleSession) => ArticleSession, fallback?: MiniSessionSaveError['context']) {
     const job = this.tail.catch(() => undefined).then(async () => {
-      const snapshot = await this.repository.load();
+      let snapshot: RepositorySnapshot;
+      try { snapshot = await this.repository.load(); }
+      catch (error) {
+        if (!fallback) throw error;
+        const context = { ...fallback, session: update(clone(fallback.session)) };
+        this.pending.set(id, { context, revision: fallback.work?.revision ?? this.revisions.get(id) ?? 0, durable: false });
+        throw new MiniSessionSaveError(context, false);
+      }
       const recovery = snapshot.recovery?.draft.id === id ? snapshot.recovery : null;
       const stored = snapshot.works.find(work => work.id === id && !work.deletedAt) ?? null;
       const draft = recovery?.draft ?? stored?.draft;
@@ -398,9 +506,32 @@ export class MiniDraftWriter {
       const revision = recovery?.revision ?? stored?.revision ?? 0;
       this.revisions.set(id, revision);
       const nextSession = update(clone(session));
-      const work = await this.repository.save(clone(draft), revision, clone(nextSession));
+      const context = { draft, session: nextSession, work: stored };
+      const pending = { context, revision, durable: false };
+      this.pending.set(id, pending);
+      try { await this.repository.stageSession(draft, nextSession, revision); pending.durable = true; } catch { /* Try the aggregate; retain memory if both writes fail. */ }
+      let work: Work | null;
+      try { work = await this.repository.save(clone(draft), revision, clone(nextSession)); }
+      catch { throw new MiniSessionSaveError(context, pending.durable); }
       this.revisions.set(id, work?.revision ?? 0);
+      this.pending.delete(id);
+      await this.repository.clearPendingSession(id).catch(() => undefined);
       return { draft, session: nextSession, work };
+    });
+    this.tail = job;
+    return job;
+  }
+
+  retrySessionSave(id: string) {
+    const job = this.tail.catch(() => undefined).then(async () => {
+      const pending = this.pending.get(id);
+      if (!pending) throw new Error('没有待保存的小文回复。');
+      const { draft, session } = pending.context;
+      const work = await this.repository.save(draft, pending.revision, session);
+      this.revisions.set(id, work?.revision ?? 0);
+      this.pending.delete(id);
+      await this.repository.clearPendingSession(id).catch(() => undefined);
+      return { draft, session, work };
     });
     this.tail = job;
     return job;
