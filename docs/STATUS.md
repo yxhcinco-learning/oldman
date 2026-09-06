@@ -8,6 +8,8 @@
 
 账号与作品共用 auth.sqlite schema 2，游客/账号本机隔离、固定操作重试、版本核对、冲突恢复稿及删除标记已接通。真实本地 HTTP 网关、SQLite 和双客户端独立磁盘联调 6 项通过；微信换码使用替身，不调用计费服务。
 
+本地工程与模拟器验收已完成：`npm run check` 310 项测试及 `npm run build` 通过，开发者工具 npm 包已刷新。360×640、390×844、430×932 的会话回归各 69 项通过，账号界面分别 8、8、7 项通过，详见[第二阶段验收](PHASE-TWO-ACCEPTANCE.md)。
+
 第一阶段约定技术验收继续有效。小程序是唯一用户端，网页仅维护运营后台，H5 试验已归档。
 
 - [小程序接入](../openspec/changes/archive/2026-09-06-add-wechat-miniprogram-client/tasks.md)与[统一会话](../openspec/changes/archive/2026-09-06-unify-xiaowen-conversation-modes/tasks.md)已归档，不从旧证据重新生成已完成任务。
@@ -16,7 +18,6 @@
 
 ## 待办与保留边界
 
-- 补齐第二阶段模拟器最后尺寸与最终复核，以[活跃 tasks](../openspec/changes/add-account-cloud-work-sync/tasks.md)和实际验收为准。
 - 第二阶段 Android/iOS 实际登录、头像昵称、断网暂停、键盘与跨设备接管尚未验证；第一阶段 Android 语音确认不能替代。change 保持活跃，证据齐全后才同步正式规格、归档。
 - Nginx、三库备份、目标 release 兼容检查与不自动回灌旧备份的部署模板已更新，未在服务器执行；未来上线须另行授权，不得用旧库覆盖新增作品。
 - 主体、备案、类目、隐私与 AI 平台材料由用户负责，独立保留[发布清单](MINIPROGRAM-AI-PRIVACY-CHECKLIST.md)；不阻塞约定技术归档，也不代表审核通过。未上传、提审或发布小程序。
