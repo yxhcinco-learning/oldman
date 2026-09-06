@@ -23,22 +23,26 @@ afterEach(async () => {
 });
 
 describe('小程序最小身份 SQLite 仓储', () => {
-  it('迁移文件库、启用 WAL 并只建立身份边界内的数据表', async () => {
+  it('迁移文件库、启用 WAL 并分表保存账号与私有作品', async () => {
     const { store, path, directory } = await setup();
-    expect(store.statistics()).toMatchObject({ users: 0, identities: 0, sessions: 0, usedCodes: 0, journalMode: 'wal', schemaVersion: 1 });
+    expect(store.statistics()).toMatchObject({ users: 0, identities: 0, sessions: 0, usedCodes: 0, journalMode: 'wal', schemaVersion: 2 });
     store.assertIntegrity();
     store.close();
 
     const database = new DatabaseSync(path, { readOnly: true });
-    const tables = database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all().map(row => String(row.name));
-    expect(tables).toEqual(['mini_sessions', 'used_wechat_codes', 'users', 'wechat_identities']);
-    const columns = tables.flatMap(table => database.prepare(`PRAGMA table_info(${table})`).all().map(row => String(row.name)));
-    expect(columns).not.toEqual(expect.arrayContaining(['phone', 'avatar', 'nickname', 'article', 'body', 'audio']));
-    database.close();
+    try {
+      const tables = database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all().map(row => String(row.name));
+      expect(tables).toEqual(['cloud_operations', 'cloud_works', 'mini_accounts', 'mini_sessions', 'used_wechat_codes', 'users', 'wechat_identities']);
+      const columns = tables.flatMap(table => database.prepare(`PRAGMA table_info(${table})`).all().map(row => String(row.name)));
+      expect(columns).not.toContain('phone');
+      expect(columns).not.toContain('audio');
+      const identityColumns = database.prepare('PRAGMA table_info(wechat_identities)').all().map(row => String(row.name));
+      expect(identityColumns).not.toContain('snapshot');
+    } finally { database.close(); }
 
     const reopened = new MiniIdentityStore({ path });
     resources.push({ store: reopened, directory });
-    expect(reopened.statistics().schemaVersion).toBe(1);
+    expect(reopened.statistics().schemaVersion).toBe(2);
   });
 
   it('原子消费 code 哈希、复用内部用户并只保存业务 token 哈希', async () => {

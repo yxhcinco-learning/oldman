@@ -5,4 +5,6 @@ export * from './ai-protocol.js';
 export * from './conversation.js';
 export * from './speech-protocol.js';
 export * from './backup.js';
+export * from './writing-state.js';
+export * from './cloud-protocol.js';
 export { z } from 'zod';

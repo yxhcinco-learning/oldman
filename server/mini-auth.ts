@@ -57,6 +57,10 @@ export function registerMiniAuth(app: FastifyInstance, options: MiniAuthGatewayO
       finish(200);
       return reply.header('Cache-Control', 'no-store').send({ token: session.token, expiresAt: new Date(session.expiresAt).toISOString() });
     } catch (error) {
+      if (error instanceof MiniIdentityError && error.category === 'account_upgrade_required') {
+        finish(403, 'account_upgrade_required');
+        return reply.code(403).header('Cache-Control', 'no-store').send({ code: 'account_upgrade_required', error: '请升级小程序并点击微信登录。' });
+      }
       if (error instanceof MiniIdentityError && error.category === 'replayed_code') {
         finish(401, 'code_rejected');
         return reply.code(401).header('Cache-Control', 'no-store').send(loginError);

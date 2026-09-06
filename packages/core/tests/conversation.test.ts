@@ -141,13 +141,13 @@ describe('统一小文会话', () => {
     const { draft, session } = setup('interview', '我当过老师。');
     const settled = settleDialogue(session, 'turn-1', { ...reply('您教什么？'), dialogue: { intent: 'reply', material: { text: '我当过老师。' } } });
     const raw = makeBackup([workFromDraft(draft)], null, [settled]);
-    expect(JSON.parse(raw).schemaVersion).toBe(5);
+    expect(JSON.parse(raw).schemaVersion).toBe(6);
     const restored = parseBackupBundle(raw).sessions[0]!;
     const copy = copySession(restored, 'copy');
     expect(copy.conversation?.mode).toBe('interview');
     expect(articleSessionSchema.safeParse(copy).success).toBe(true);
     expect(copy.conversation?.materials[0]?.sourceMessageId).not.toBe(restored.conversation?.materials[0]?.sourceMessageId);
-    const legacy = JSON.parse(raw); legacy.schemaVersion = 4; delete legacy.sessions[0].conversation;
+    const legacy = JSON.parse(raw); legacy.schemaVersion = 4; delete legacy.sessions[0].conversation; delete legacy.writingStates;
     expect(parseBackupBundle(JSON.stringify(legacy)).sessions).toHaveLength(1);
   });
 

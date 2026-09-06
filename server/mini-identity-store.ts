@@ -1,12 +1,13 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
+import { migrateAccounts } from './account-schema';
 
 export const DEFAULT_MINI_IDENTITY_DB_PATH = '/var/lib/suiyue-yousheng/auth.sqlite';
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export type MiniIdentityErrorCategory = 'invalid_session' | 'replayed_code' | 'integrity_failed';
+export type MiniIdentityErrorCategory = 'invalid_session' | 'session_replaced' | 'session_expired' | 'account_upgrade_required' | 'replayed_code' | 'integrity_failed';
 
 export class MiniIdentityError extends Error {
   constructor(readonly category: MiniIdentityErrorCategory) {
@@ -38,7 +39,7 @@ export interface AuthenticatedMiniSession {
 
 interface IntegrityRow { quick_check: string }
 interface IdentityRow { user_id: string }
-interface SessionRow { id: string; user_id: string; expires_at: number; revoked_at: number | null; last_used_at: number | null }
+interface SessionRow { id: string; user_id: string; expires_at: number; revoked_at: number | null; last_used_at: number | null; kind: string; revoked_reason: string | null }
 
 export const sha256 = (value: string) => createHash('sha256').update(value, 'utf8').digest('hex');
 
@@ -79,7 +80,7 @@ export class MiniIdentityStore {
     if (version === SCHEMA_VERSION) return;
 
     this.transaction(() => {
-      this.database.exec(`
+      if (version === 0) this.database.exec(`
         CREATE TABLE users (
           id TEXT PRIMARY KEY,
           created_at INTEGER NOT NULL,
@@ -111,6 +112,7 @@ export class MiniIdentityStore {
         ) STRICT;
         PRAGMA user_version = 1;
       `);
+      migrateAccounts(this.database);
     });
   }
 
@@ -143,7 +145,7 @@ export class MiniIdentityStore {
     }
   }
 
-  issueSession(appId: string, openid: string): IssuedMiniSession {
+  issueSession(appId: string, openid: string, kind: 'legacy' | 'account' = 'legacy'): IssuedMiniSession {
     if (!appId || !openid) throw new Error('Identity is required');
     const now = this.now();
     const expiresAt = now + this.sessionTtlMs;
@@ -153,6 +155,9 @@ export class MiniIdentityStore {
     return this.transaction(() => {
       const identity = this.database.prepare('SELECT user_id FROM wechat_identities WHERE app_id = ? AND openid = ?').get(appId, openid) as IdentityRow | undefined;
       const userId = identity?.user_id ?? randomUUID();
+      if (kind === 'legacy' && this.database.prepare('SELECT user_id FROM mini_accounts WHERE user_id = ?').get(userId)) {
+        throw new MiniIdentityError('account_upgrade_required');
+      }
       if (!identity) {
         this.database.prepare('INSERT INTO users (id, created_at, updated_at) VALUES (?, ?, ?)').run(userId, now, now);
         this.database.prepare('INSERT INTO wechat_identities (app_id, openid, user_id, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?)')
@@ -167,24 +172,27 @@ export class MiniIdentityStore {
         WHERE user_id = ? AND revoked_at IS NULL AND expires_at > ?
         ORDER BY created_at ASC, id ASC
       `).all(userId, now) as Array<{ id: string }>;
-      const revokeCount = Math.max(0, active.length - this.maxActiveSessions + 1);
-      const revoke = this.database.prepare('UPDATE mini_sessions SET revoked_at = ? WHERE id = ?');
-      for (const row of active.slice(0, revokeCount)) revoke.run(now, row.id);
+      const revokeCount = kind === 'account' ? active.length : Math.max(0, active.length - this.maxActiveSessions + 1);
+      const revoke = this.database.prepare('UPDATE mini_sessions SET revoked_at = ?, revoked_reason = ? WHERE id = ?');
+      for (const row of active.slice(0, revokeCount)) revoke.run(now, kind === 'account' ? 'session_replaced' : null, row.id);
+      if (kind === 'account') this.database.prepare('INSERT OR IGNORE INTO mini_accounts (user_id, created_at) VALUES (?, ?)').run(userId, now);
 
-      this.database.prepare('INSERT INTO mini_sessions (id, user_id, token_hash, created_at, expires_at) VALUES (?, ?, ?, ?, ?)')
-        .run(randomUUID(), userId, sha256(token), now, expiresAt);
+      this.database.prepare('INSERT INTO mini_sessions (id, user_id, token_hash, created_at, expires_at, kind) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(randomUUID(), userId, sha256(token), now, expiresAt, kind);
       return { token, userId, expiresAt };
     });
   }
 
-  authenticate(token: string): AuthenticatedMiniSession {
+  authenticate(token: string, requireAccount = false): AuthenticatedMiniSession {
     if (!/^[A-Za-z0-9_-]{43,256}$/.test(token)) throw new MiniIdentityError('invalid_session');
     const now = this.now();
     const row = this.database.prepare(`
-      SELECT id, user_id, expires_at, revoked_at, last_used_at
+      SELECT id, user_id, expires_at, revoked_at, last_used_at, kind, revoked_reason
       FROM mini_sessions WHERE token_hash = ?
     `).get(sha256(token)) as SessionRow | undefined;
-    if (!row || row.revoked_at !== null || row.expires_at <= now) throw new MiniIdentityError('invalid_session');
+    if (!row || requireAccount && row.kind !== 'account') throw new MiniIdentityError('invalid_session');
+    if (row.revoked_at !== null) throw new MiniIdentityError(row.kind === 'account' && row.revoked_reason === 'session_replaced' ? 'session_replaced' : 'invalid_session');
+    if (row.expires_at <= now) throw new MiniIdentityError(row.kind === 'account' ? 'session_expired' : 'invalid_session');
     if (row.last_used_at === null || row.last_used_at <= now - 5 * 60 * 1000) {
       this.database.prepare('UPDATE mini_sessions SET last_used_at = ? WHERE id = ?').run(now, row.id);
     }
@@ -195,6 +203,19 @@ export class MiniIdentityStore {
     if (!/^[A-Za-z0-9_-]{43,256}$/.test(token)) return;
     this.database.prepare('UPDATE mini_sessions SET revoked_at = ? WHERE token_hash = ? AND revoked_at IS NULL')
       .run(this.now(), sha256(token));
+  }
+
+  /** No asynchronous work is allowed between authentication and COMMIT. */
+  accountTransaction<T>(token: string, operation: (database: DatabaseSync, session: AuthenticatedMiniSession) => T): T {
+    return this.transaction(() => operation(this.database, this.authenticate(token, true)));
+  }
+
+  renewAccount(token: string) {
+    return this.accountTransaction(token, (database, session) => {
+      const expiresAt = this.now() + this.sessionTtlMs;
+      database.prepare('UPDATE mini_sessions SET expires_at = ? WHERE token_hash = ?').run(expiresAt, sha256(token));
+      return { ...session, expiresAt };
+    });
   }
 
   cleanup() {

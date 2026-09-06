@@ -189,6 +189,7 @@ describe('小程序本地作品仓储', () => {
     legacy.schemaVersion = 1;
     delete legacy.sessions;
     delete legacy.disclosures;
+    delete legacy.writingStates;
     for (const item of legacy.works as Array<{ draft: Record<string, unknown> }>) {
       delete item.draft.topicSnapshot;
       delete item.draft.materials;

@@ -99,11 +99,11 @@ export class WechatCode2SessionTransport implements WechatCodeTransport {
 export class WechatAuthService {
   constructor(
     private readonly configuration: Pick<WechatMiniConfiguration, 'appId'>,
-    private readonly store: MiniIdentityStore,
+    readonly store: MiniIdentityStore,
     private readonly transport: WechatCodeTransport,
   ) {}
 
-  async login(code: string): Promise<IssuedMiniSession> {
+  async login(code: string, kind: 'legacy' | 'account' = 'legacy'): Promise<IssuedMiniSession> {
     if (!validCode(code)) throw new WechatExchangeError('invalid_code');
     this.store.cleanup();
     this.store.consumeWechatCode(sha256(code));
@@ -112,7 +112,7 @@ export class WechatAuthService {
     if (typeof identity.openid !== 'string' || identity.openid.length < 1 || identity.openid.length > 128 || /[\u0000-\u001f\u007f]/.test(identity.openid)) {
       throw new WechatExchangeError('invalid_response');
     }
-    return this.store.issueSession(identity.appId, identity.openid);
+    return this.store.issueSession(identity.appId, identity.openid, kind);
   }
 
   authenticateBearer(authorization: string | undefined) {

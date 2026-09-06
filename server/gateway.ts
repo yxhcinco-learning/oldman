@@ -8,6 +8,8 @@ import { defaultOperationLogger, OperationMonitor, operationDuration, type Opera
 import { registerTopics } from './topics';
 import type { TopicStore } from './topic-store';
 import { registerMiniAuth, type MiniAuthGatewayOptions } from './mini-auth';
+import { registerAccountApi } from './account-api';
+import type { CloudWorkLimits } from './cloud-work-store';
 import { SpeechTicketError, SpeechTicketStore } from './speech-ticket-store';
 import { MiniIdentityError } from './mini-identity-store';
 import { registerTopicAdmin, type TopicAdminGatewayOptions } from './topic-admin-api';
@@ -28,6 +30,8 @@ export interface GatewayOptions {
   miniAuth?: Omit<MiniAuthGatewayOptions, 'operations'>;
   speechTickets?: SpeechTicketStore;
   costGovernance?: CostGovernanceStore;
+  cloudWorkLimits?: Partial<CloudWorkLimits>;
+  accountRequestsPerMinute?: number;
 }
 export async function createGateway(options: GatewayOptions) {
   const app = Fastify({ logger: false, bodyLimit: 64 * 1024 });
@@ -41,6 +45,7 @@ export async function createGateway(options: GatewayOptions) {
     topicAiConfigured: Boolean(options.topicAi?.configuration),
     topicAdminConfigured: Boolean(options.topicAdmin?.auth),
     miniIdentityConfigured: Boolean(options.miniAuth?.service),
+    cloudWorksConfigured: Boolean(options.miniAuth?.service),
     costGovernanceConfigured: Boolean(options.costGovernance),
   });
   registerArticleAi(app, { ...options.ai, origin: options.origin, operations, miniAuthService: options.miniAuth?.service, costGovernance: options.costGovernance });
@@ -48,6 +53,7 @@ export async function createGateway(options: GatewayOptions) {
   registerTopicAdmin(app, { ...options.topicAdmin, origin: options.origin, store: options.topics, operations, ai: options.topicAi,
     costGovernance: options.costGovernance, monitor, capabilities });
   registerMiniAuth(app, { ...options.miniAuth, operations });
+  registerAccountApi(app, { service: options.miniAuth?.service, operations, limits: options.cloudWorkLimits, requestsPerMinute: options.accountRequestsPerMinute });
   registerOperationalEvents(app, { origin: options.origin, operations, requestsPerMinute: options.eventRequestsPerMinute });
   const active = new Set<WebSocket>();
   const speechTickets = options.speechTickets ?? new SpeechTicketStore();
