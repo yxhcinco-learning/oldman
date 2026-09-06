@@ -101,8 +101,8 @@
         </view>
       </view>
 
-      <scroll-view wx:if="{{xiaowenView === 'chat'}}" class="xiaowen-messages" scroll-y scroll-into-view="xiaowen-end">
-        <view class="ai-mode-bar"><text>普通对话</text><button bindtap="startInterview" disabled="{{operationBusy || voiceBusy}}">开启访谈</button></view>
+      <view wx:if="{{xiaowenView === 'chat'}}" class="ai-mode-bar"><text>普通对话</text><button bindtap="startInterview" disabled="{{operationBusy || voiceBusy}}">开启访谈</button></view>
+      <scroll-view wx:if="{{xiaowenView === 'chat'}}" class="xiaowen-messages" scroll-y scroll-into-view="xiaowen-end-{{conversationMessages.length}}-{{xiaowenRunning ? 1 : 0}}-{{xiaowenError ? 1 : 0}}">
         <view wx:for="{{conversationMessages}}" wx:key="id" class="xiaowen-turn">
           <view class="{{item.role === 'user' ? 'xiaowen-user-message' : 'xiaowen-answer'}}">
             <view wx:if="{{item.ai}}" class="ai-origin-label">{{aiAssistanceLabel}}</view>
@@ -113,10 +113,10 @@
             <button wx:if="{{item.hasCandidate && item.status === 'applied'}}" data-id="{{item.turnId}}" bindtap="undoTurn">撤销</button>
           </view>
         </view>
-        <view id="xiaowen-end"></view>
         <view wx:if="{{xiaowenStatus === 'blocked'}}" class="xiaowen-request-state">未发送</view>
         <view wx:if="{{xiaowenError}}" class="xiaowen-error">{{xiaowenError}}</view>
         <view wx:if="{{xiaowenRunning}}" class="xiaowen-progress"><text>小文正在处理…</text><button bindtap="cancelXiaoWen">取消请求</button></view>
+        <view id="xiaowen-end-{{conversationMessages.length}}-{{xiaowenRunning ? 1 : 0}}-{{xiaowenError ? 1 : 0}}"></view>
       </scroll-view>
 
       <scroll-view wx:elif="{{xiaowenView === 'preview'}}" class="xiaowen-preview" scroll-y>

@@ -43,3 +43,11 @@
 #### Scenario: Save failure and late response
 - **WHEN** 保存失败或请求取消后返回迟到结果
 - **THEN** 不假报保存或覆盖新状态，不自动重试计费请求，保留可恢复输入
+
+#### Scenario: Mini-program loads a stale shared runtime
+- **WHEN** 小程序共享核心新增接口或实际运行包缺失会话函数
+- **THEN** 构建校验必须检查新增接口及其函数类型，生成包必须随内容变化更新版本；页面展示失败不得替换已经读出的作品草稿，重新编译恢复无需删除用户作品
+
+#### Scenario: Long conversation in mini-program
+- **WHEN** 连续消息增加或重新打开长会话
+- **THEN** 消息区定位最新消息及确认操作，模式操作保持显著可达；结束访谈产生的候选明确标为整理而不是优化

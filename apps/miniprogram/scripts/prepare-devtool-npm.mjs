@@ -2,6 +2,9 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'vite';
+import { createHash } from 'node:crypto';
+import { runInNewContext } from 'node:vm';
+import { assertDevtoolCoreRuntime } from './devtool-runtime-check.mjs';
 
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = resolve(appRoot, '..', '..');
@@ -30,7 +33,13 @@ await build({
 });
 
 const sourcePackage = JSON.parse(await readFile(resolve(repoRoot, 'packages', 'core', 'package.json'), 'utf8'));
-const packageJson = { name: sourcePackage.name, version: sourcePackage.version, private: true, main: './index' };
+const bundled = await readFile(resolve(coreTarget, 'index.js'), 'utf8');
+const runtime = { exports: {} };
+runInNewContext(bundled, { module: runtime, exports: runtime.exports }, { timeout: 5000 });
+assertDevtoolCoreRuntime(runtime.exports);
+// DevTools caches packages by version: a source-only update must change that key.
+const fingerprint = createHash('sha256').update(bundled).digest('hex').slice(0, 16);
+const packageJson = { name: sourcePackage.name, version: `${sourcePackage.version}-mini.h${fingerprint}`, private: true, main: './index' };
 await writeFile(resolve(coreTarget, 'package.json'), JSON.stringify(packageJson, null, 2));
 
 console.info('微信开发者工具 npm 源依赖已准备（单文件 @suiyue/core）');

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { completeVoice, emptyDraft, workFromDraft } from '../miniprogram/domain/core';
-import { assertDevtoolCoreRuntime } from '../scripts/devtool-runtime-check.mjs';
+import { assertDevtoolCoreRuntime, requiredCoreFunctions } from '../scripts/devtool-runtime-check.mjs';
 
 const readJson = (relative: string) => JSON.parse(readFileSync(fileURLToPath(new URL(relative, import.meta.url)), 'utf8')) as Record<string, unknown>;
 const readText = (relative: string) => readFileSync(fileURLToPath(new URL(relative, import.meta.url)), 'utf8');
@@ -43,8 +43,13 @@ describe('微信小程序公共工程配置', () => {
     expect(packageJson.scripts).toMatchObject({ 'devtool:build-npm': 'node scripts/build-devtool-npm.mjs' });
     expect(prepareScript).not.toContain('generatedCoreTarget');
     expect(buildScript).toContain('await rm(generatedCoreTarget');
-    expect(() => assertDevtoolCoreRuntime({ workFromDraft() {}, isWorkAiAssisted() {}, AI_ASSISTANCE_LABEL: 'AI' })).not.toThrow();
+    const completeRuntime = { ...Object.fromEntries(requiredCoreFunctions.map(name => [name, () => {}])), AI_ASSISTANCE_LABEL: 'AI' };
+    expect(() => assertDevtoolCoreRuntime(completeRuntime)).not.toThrow();
     expect(() => assertDevtoolCoreRuntime({ workFromDraft() {} })).toThrow(/isWorkAiAssisted/);
+    expect(() => assertDevtoolCoreRuntime({ ...completeRuntime, conversationView: undefined })).toThrow(/conversationView/);
+    expect(() => assertDevtoolCoreRuntime({ ...completeRuntime, settleDialogue: 'stale' })).toThrow(/settleDialogue/);
+    expect(prepareScript).toContain("createHash('sha256').update(bundled)");
+    expect(prepareScript).toContain('-mini.h${fingerprint}');
   });
 
   it('保留三栏主导航、键盘避让和生命周期保存边界', () => {
@@ -136,6 +141,10 @@ describe('微信小程序公共工程配置', () => {
     expect(interviewController).toMatch(/onComposerBlur\(\)\s*\{[\s\S]*this\.setData\(\{ keyboardHeight: 0 \}\)/);
     expect(interviewController).toContain('hasAnswers: conversation.materials.length > 0');
     expect(interviewController).toContain('conversationView');
+    expect(interview).toContain('scroll-into-view="interview-end-{{messages.length}}');
+    expect(editor).toContain('scroll-into-view="xiaowen-end-{{conversationMessages.length}}');
+    expect(editorController).toContain("turn.result?.dialogue?.intent === 'finish'");
+    expect(editorController).not.toContain('this.setData({ draft: emptyDraft()');
     expect(interviewController).not.toContain('interviewQuestion');
     expect(interviewStyles).toMatch(/\.interview-page\s*\{[^}]*position:\s*fixed[^}]*bottom:\s*0/);
     expect(interviewStyles).toMatch(/\.interview-topic\s*\{[^}]*margin:\s*0 0 12px/);

@@ -23,7 +23,8 @@ const turnStatusLabel: Record<AiTurn['status'], string> = {
   running: '正在处理', ready: '待应用', applied: '已应用', dismissed: '未采用', answered: '已回答', failed: '未完成', cancelled: '已取消',
 };
 
-const actionEditLabel = (action: AiAction) => action === 'compose' ? '整理' : action === 'chat' || action === 'rewrite' ? '调整' : '优化';
+const actionEditLabel = (turn: AiTurn) => turn.action === 'compose' || turn.result?.dialogue?.intent === 'finish'
+  ? '整理' : ['chat', 'rewrite', 'dialogue'].includes(turn.action) ? '调整' : '优化';
 
 Page({
   data: {
@@ -123,9 +124,8 @@ Page({
       if (session && hadInterruptedRequest) void miniServices().writer.preserve(draft, session).catch(() => undefined);
       if (compose) this.setData({ xiaowenOpen: true, xiaowenView: 'chat' });
     } catch (error) {
-      const draft = emptyDraft();
-      miniServices().writer.seed(draft.id, 0);
-      this.setData({ draft, body: '', error: error instanceof Error ? error.message : '本机作品暂时无法读取。' });
+      // Rendering a loaded conversation must never replace the work with a blank draft.
+      this.setData({ error: error instanceof Error ? error.message : '本机作品暂时无法读取。' });
     }
   },
 
@@ -329,7 +329,7 @@ Page({
       return { id: turn.id, prompt: turn.prompt || ACTION_LABELS[turn.action],
         answer: turn.result ? resultSummary(turn.result, base?.body ?? '') : turn.error || (turn.status === 'running' ? '小文正在处理…' : ''),
         status: turnStatusLabel[turn.status], hasCandidate: Boolean(turn.result?.body), canRetry: turn.status === 'failed' || turn.status === 'cancelled',
-        canUndo: turn.status === 'applied', editLabel: actionEditLabel(turn.action), aiLabel: turn.result ? AI_ASSISTANCE_LABEL : '' };
+        canUndo: turn.status === 'applied', editLabel: actionEditLabel(turn), aiLabel: turn.result ? AI_ASSISTANCE_LABEL : '' };
     });
     const xiaowenVersions = versions.filter(version => version.body.trim()).slice().reverse().map(version => ({
       id: version.id, label: VERSION_LABELS[version.source], title: version.title || '未命名作品', length: version.body.length, createdAt: version.createdAt,
@@ -440,10 +440,10 @@ Page({
     if (!draft || !turn?.result?.body || !base) return;
     this.dismissKeyboard();
     this.setData({ xiaowenView: 'preview', selectedTurnId: turnId,
-      candidateTitle: turn.action === 'compose' ? '看看整理后的文章' : '看看调整后的全文',
+      candidateTitle: actionEditLabel(turn) === '整理' ? '看看整理后的文章' : '看看调整后的全文',
       candidateSummary: resultSummary(turn.result, base.body), candidateBody: turn.result.body, candidateOriginalBody: base.body,
       candidateShowOriginal: false, candidateStale: !sameDocument(base, documentOf(draft)), candidateStatus: turn.status,
-      candidateEditLabel: actionEditLabel(turn.action), xiaowenError: '' });
+      candidateEditLabel: actionEditLabel(turn), xiaowenError: '' });
   },
 
   toggleCandidateOriginal() { this.setData({ candidateShowOriginal: !this.data.candidateShowOriginal }); },
