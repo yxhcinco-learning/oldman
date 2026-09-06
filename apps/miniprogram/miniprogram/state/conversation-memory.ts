@@ -10,9 +10,14 @@ export interface ConversationMemoryState {
 
 const emptyState = (): ConversationMemoryState => ({ composer: '', inputSource: 'typed', requestStatus: 'idle', error: '' });
 
-/** Page-routing memory only. This state is deliberately excluded from works and backups. */
+/** Request errors remain transient; composer text is also persisted by the draft writer. */
 export class ConversationMemory {
   private readonly states = new Map<string, ConversationMemoryState>();
+  constructor(private readonly changed?: (id: string, state: Pick<ConversationMemoryState, 'composer' | 'inputSource'>) => void) {}
+  hydrate(workId: string, state: Pick<ConversationMemoryState, 'composer' | 'inputSource'>) {
+    this.states.set(workId, { ...emptyState(), ...state });
+    this.changed?.(workId, state);
+  }
 
   read(workId: string): ConversationMemoryState {
     return { ...(this.states.get(workId) ?? emptyState()) };
@@ -21,6 +26,7 @@ export class ConversationMemory {
   updateComposer(workId: string, composer: string, inputSource: ComposerInputSource = 'typed') {
     const current = this.read(workId);
     this.states.set(workId, { ...current, composer, inputSource, requestStatus: 'idle', error: '' });
+    this.changed?.(workId, { composer, inputSource });
   }
 
   markBlocked(workId: string, error: string) {
@@ -31,6 +37,7 @@ export class ConversationMemory {
   clearComposer(workId: string) {
     const current = this.read(workId);
     this.states.set(workId, { ...current, composer: '', inputSource: 'typed', requestStatus: 'idle', error: '' });
+    this.changed?.(workId, { composer: '', inputSource: 'typed' });
   }
 
   clear(workId: string) {

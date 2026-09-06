@@ -1,5 +1,6 @@
 import type { SpeechEvent } from '../domain/core';
-import type { AuthenticatedMiniResponse, MiniAuthClient } from '../auth/client';
+import type { AuthenticatedMiniResponse } from '../auth/client';
+import type { MiniSessionAuthorizer } from '../auth/account-client';
 import { MINI_API_ORIGIN } from '../network/config';
 
 export type MiniSpeechPhase = 'idle' | 'permission' | 'ticket' | 'connecting' | 'recording' | 'finishing' | 'error';
@@ -57,7 +58,7 @@ const idleState = (): MiniSpeechState => ({ phase: 'idle', text: '', level: 0, e
 const validTicket = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9_-]{43,256}$/.test(value);
 
 export class MiniSpeechTicketClient {
-  constructor(private readonly auth: MiniAuthClient, private readonly platform: MiniSpeechTicketPlatform, private readonly now: () => number = Date.now) {}
+  constructor(private readonly auth: MiniSessionAuthorizer, private readonly platform: MiniSpeechTicketPlatform, private readonly now: () => number = Date.now) {}
 
   async issue() {
     const response = await this.auth.authorizedRequest(token => this.platform.issue(token));

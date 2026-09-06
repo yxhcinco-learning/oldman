@@ -34,13 +34,13 @@ export function registerAccountApi(app: FastifyInstance, options: AccountApiOpti
   };
   app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer', bodyLimit: 2 * 1024 * 1024 }, (_request, body, done) => done(null, body));
   type Handler = (request: FastifyRequest, reply: FastifyReply, token: string) => unknown;
-  const route = (method: HTTPMethods, url: string, action: string, handler: Handler, bodyLimit = 2048, authenticated = true) => {
+  const route = (method: HTTPMethods | HTTPMethods[], url: string, action: string, handler: Handler, bodyLimit = 2048, authenticated = true) => {
     app.route({ method, url, bodyLimit, handler: async (request, reply) => {
       const startedAt = performance.now();
       reply.header('Cache-Control', 'no-store');
       try {
         if (!identity || !accounts || !works) throw new CloudWorkError(503, 'account_unavailable', '账号与云保存暂不可用，本机草稿仍可使用。');
-        consume(`ip:${request.ip}`, authenticated ? 300 : 10);
+        consume(`${authenticated ? 'api' : 'login'}:${request.ip}`, authenticated ? 300 : 10);
         const token = authenticated ? bearer(request) : '';
         if (authenticated) consume(`account:${identity.authenticate(token, true).userId}`, options.requestsPerMinute ?? 120);
         const result = await handler(request, reply, token);
@@ -70,7 +70,7 @@ export function registerAccountApi(app: FastifyInstance, options: AccountApiOpti
     identity!.renewAccount(token); return accounts!.profile(token);
   });
   route('DELETE', '/api/mini/account/session', 'mini.account.logout', (_request, reply, token) => { identity!.revoke(token); return reply.code(204).send(); });
-  route('PATCH', '/api/mini/account/me', 'mini.account.profile', (request, _reply, token) => {
+  route(['PATCH', 'PUT'], '/api/mini/account/me', 'mini.account.profile', (request, _reply, token) => {
     const body = request.body as { nickname?: unknown } | null;
     if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => key !== 'nickname') || typeof body.nickname !== 'string') throw invalid();
     return accounts!.updateNickname(token, body.nickname);

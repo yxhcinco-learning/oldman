@@ -12,7 +12,7 @@ function trimTrailingSlash(value: string) {
   return value.replace(/\/+$/, '');
 }
 
-export function repositoryPaths(userDataPath: string): RepositoryPaths {
+export function repositoryPaths(userDataPath: string, accountId?: string): RepositoryPaths {
   const userRoot = trimTrailingSlash(userDataPath);
   const isAbsoluteFilePath = userRoot.startsWith('/');
   const isWxUserPath = /^wxfile:\/\/[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/.test(userRoot);
@@ -20,7 +20,8 @@ export function repositoryPaths(userDataPath: string): RepositoryPaths {
   if (!userRoot || userRoot.includes('\\') || userRoot.split('/').includes('..') || (!isAbsoluteFilePath && !isWxUserPath && !isDevtoolUserPath)) {
     throw new Error('用户文件根路径无效');
   }
-  const root = `${userRoot}/suiyue-v1`;
+  if (accountId && !SAFE_WORK_ID.test(accountId)) throw new Error('账号文件路径无效');
+  const root = accountId ? `${userRoot}/suiyue-accounts/${accountId}` : `${userRoot}/suiyue-v1`;
   return { root, works: `${root}/works`, quarantine: `${root}/quarantine`, index: `${root}/index.json`, recovery: `${root}/active-recovery.json` };
 }
 

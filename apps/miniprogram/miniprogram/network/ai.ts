@@ -1,6 +1,7 @@
 import type { AiRequest, AiResponse } from '../domain/core';
 import type { MiniAiOperation, MiniAiTransport } from '../ai/controller';
-import type { AuthenticatedMiniResponse, MiniAuthClient } from '../auth/client';
+import type { AuthenticatedMiniResponse } from '../auth/client';
+import type { MiniSessionAuthorizer } from '../auth/account-client';
 import { MINI_API_ORIGIN } from './config';
 
 const MAX_RESPONSE_CHARS = 256 * 1024;
@@ -73,7 +74,7 @@ function responseError(response: AuthenticatedMiniResponse<unknown>, request: Ai
 
 export class AuthenticatedMiniAiTransport implements MiniAiTransport {
   constructor(
-    private readonly auth: MiniAuthClient,
+    private readonly auth: MiniSessionAuthorizer,
     private readonly platform: MiniAiHttpPlatform = new WxMiniAiHttpPlatform(),
     private readonly origin = MINI_API_ORIGIN,
   ) {}

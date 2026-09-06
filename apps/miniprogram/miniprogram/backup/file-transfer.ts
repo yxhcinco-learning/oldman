@@ -47,9 +47,15 @@ export class MiniBackupController {
   }
 
   async exportAll() {
-    const raw = await this.repository.exportBackup();
-    parseBackupBundle(raw);
-    return this.writeAndShare(raw, exportName('json', this.now()));
+    const volumes = await this.repository.exportVolumes();
+    let path = '';
+    for (let index = 0; index < volumes.length; index++) {
+      const raw = volumes[index]!;
+      parseBackupBundle(raw);
+      const name = exportName('json', this.now()).replace('.json', volumes.length > 1 ? `-第${index + 1}卷-共${volumes.length}卷.json` : '.json');
+      path = await this.writeAndShare(raw, name);
+    }
+    return path;
   }
 
   async rescue(draft: Draft, session?: ArticleSession | null) {

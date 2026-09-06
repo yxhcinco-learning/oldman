@@ -61,6 +61,9 @@ export class MiniArticleAiController {
   isRunning(workId: string) {
     return this.active?.workId === workId || this.preparation?.workId === workId;
   }
+  async cancelActive(message = '在线会话已中断，已收到的内容保留在本机。') {
+    if (this.active) await this.cancel(this.active.workId, message);
+  }
 
   async startInterview(draft: Draft, session: ArticleSession | null) {
     if (this.writer.pendingSession(draft.id)) throw new Error('请先保存小文已收到的回复。');
@@ -102,6 +105,7 @@ export class MiniArticleAiController {
     session = { ...session, turns: [...session.turns.filter(item => item.id !== turnId), turn] };
 
     let work: Work | null;
+    if (action === 'dialogue' && command === 'send' && !retryId) this.writer.clearComposerIfMatches(draft.id, prompt);
     try { work = await this.writer.write(draft, session); }
     catch (failure) {
       return { draft, session: fallbackSession, work: null, accepted: false, turnId: null,

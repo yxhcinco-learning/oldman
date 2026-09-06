@@ -1,4 +1,4 @@
-import { miniServices } from './services';
+import { registerMiniNetwork, resumeMiniServices, pauseMiniServices } from './services';
 
 App<AppOptions>({
   globalData: {
@@ -6,6 +6,8 @@ App<AppOptions>({
   },
   onLaunch() {
     this.globalData.launchAt = new Date().toISOString();
-    miniServices().auth.startBackground();
+    registerMiniNetwork();
   },
+  onShow() { resumeMiniServices(); },
+  onHide() { pauseMiniServices(); },
 });

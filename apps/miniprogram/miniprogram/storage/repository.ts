@@ -1,10 +1,11 @@
-import { aggregateSchema, LOCAL_SCHEMA_VERSION, recoveryRecordSchema, repositoryIndexSchema,
+import { aggregateSchema, LOCAL_SCHEMA_VERSION, recoveryRecordSchema, repositoryIndexSchema, emptyCloudMetadata,
   type RecoveryRecord, type RepositoryIndex, type WorkAggregate } from './schema';
 import { MiniStorageError, storageError, type StorageErrorCategory } from './errors';
 import { repositoryPaths, workFileName, workFilePath, workIdFromFileName, type RepositoryPaths } from './paths';
 import type { LocalFileSystem } from './file-system';
-import { articleSessionSchema, asImportedCopy, copySession, hasContent, makeBackup, parseBackupBundle,
-  workFromDraft, type ArticleSession, type Draft, type Recovery, type Work } from '../domain/core';
+import { articleSessionSchema, asImportedCopy, copySession, hasContent, makeBackup, makeBackupVolumes, parseBackupBundle, newId, emptyWritingState,
+  workFromDraft, type ArticleSession, type Draft, type Recovery, type Work, type WritingState, type CloudMutation, type CloudMutationResult,
+  type CloudWork, type WorkSnapshot, type WorkWritingState } from '../domain/core';
 
 export interface RepositoryIssue {
   category: StorageErrorCategory;
@@ -19,6 +20,8 @@ export interface RepositorySnapshot {
   recoverySession: ArticleSession | null;
   issues: RepositoryIssue[];
   pendingSessions: RecoveryRecord[];
+  aggregates?: WorkAggregate[];
+  writingStates?: WorkWritingState[];
 }
 
 export class MiniSessionSaveError extends Error {
@@ -50,9 +53,11 @@ export class MiniWorkRepository {
   private initialization?: Promise<void>;
   private issues: RepositoryIssue[] = [];
   private quarantineCounter = 0;
+  private listeners = new Set<(id: string) => void>();
+  subscribe(listener: (id: string) => void) { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; }
 
-  constructor(private readonly files: LocalFileSystem, userDataPath: string, private readonly now = () => new Date()) {
-    this.paths = repositoryPaths(userDataPath);
+  constructor(private readonly files: LocalFileSystem, userDataPath: string, private readonly now = () => new Date(), readonly accountId?: string) {
+    this.paths = repositoryPaths(userDataPath, accountId);
   }
 
   private enqueue<T>(work: () => Promise<T>): Promise<T> {
@@ -204,6 +209,7 @@ export class MiniWorkRepository {
     const parsed = aggregateSchema.parse(aggregate, zodParseContext) as WorkAggregate;
     const path = workFilePath(this.paths, parsed.work.id);
     await this.replaceValidated(path, JSON.stringify(parsed), raw => this.parseAggregate(raw));
+    this.listeners.forEach(listener => listener(parsed.work.id));
   }
 
   private async writeSmallFile(path: string, value: unknown, validate: (value: unknown) => unknown) {
@@ -269,7 +275,7 @@ export class MiniWorkRepository {
     const aggregates: WorkAggregate[] = [];
     for (const entry of index.entries) {
       const aggregate = await this.readAggregate(entry.id);
-      if (aggregate) aggregates.push(aggregate);
+      if (aggregate && !aggregate.cloud?.claim) aggregates.push(aggregate);
     }
     const recovered = await this.loadRecovery(aggregates);
     const pendingSessions: RecoveryRecord[] = [];
@@ -286,7 +292,8 @@ export class MiniWorkRepository {
         this.issues.push({ category: 'corrupt', message: '一份小文回复恢复记录暂时无法读取，原文件仍保留。', fileName: name });
       }
     }
-    const result = { works: aggregates.map(item => item.work), sessions: aggregates.flatMap(item => item.session ? [item.session] : []),
+    const result = { works: aggregates.map(item => item.work), sessions: aggregates.flatMap(item => item.session ? [item.session] : []), aggregates,
+      writingStates: aggregates.map(item => ({ workId: item.work.id, state: item.writingState ?? emptyWritingState() })),
       recovery: recovered.recovery, recoverySession: recovered.session, pendingSessions, issues: [...this.issues] };
     this.issues = [];
     return result;
@@ -307,7 +314,7 @@ export class MiniWorkRepository {
     await this.safeRemove(`${this.paths.root}/${id}.result.json`);
   }
 
-  save(draft: Draft, expectedRevision: number, session?: ArticleSession): Promise<Work | null> {
+  save(draft: Draft, expectedRevision: number, session?: ArticleSession, writingState?: WritingState): Promise<Work | null> {
     const draftSnapshot = clone(draft);
     const sessionSnapshot = session ? clone(session) : undefined;
     return this.enqueue(async () => {
@@ -316,6 +323,7 @@ export class MiniWorkRepository {
         throw new MiniStorageError('invalid', { message: '会话记录无效，原作品未改变。' });
       }
       const current = await this.readAggregate(draftSnapshot.id);
+      if (current?.cloud?.claim) throw new MiniStorageError('conflict', { message: '作品已归属登录账号，请重新打开。' });
       assertReplyPreserved(current?.session, sessionSnapshot);
       const journalPath = `${this.paths.root}/${draftSnapshot.id}.result.json`;
       if (await this.files.exists(journalPath)) {
@@ -324,16 +332,17 @@ export class MiniWorkRepository {
       }
       // Aggregate commit may succeed before index/cleanup fails. Explicit retry is idempotent.
       if (current?.work.revision === expectedRevision + 1 && stableJson(current.work.draft) === stableJson(draftSnapshot)
-        && stableJson(current.session) === stableJson(sessionSnapshot)) {
+        && stableJson(current.session) === stableJson(sessionSnapshot) && (!writingState || stableJson(current.writingState) === stableJson(writingState))) {
         await this.rebuildIndex();
         await this.clearRecoveryInternal(draftSnapshot.id);
         return current.work;
       }
       if ((current?.work.revision ?? 0) !== expectedRevision || current?.work.deletedAt) throw new MiniStorageError('conflict');
-      if (!current && !hasContent(draftSnapshot) && !sessionSnapshot?.turns.length && !sessionSnapshot?.conversation) return null;
+      if (!current && !hasContent(draftSnapshot) && !sessionSnapshot?.turns.length && !sessionSnapshot?.conversation && !writingState?.composer.trim()) return null;
       const work = workFromDraft(draftSnapshot, current?.work);
       const aggregate: WorkAggregate = { app: 'suiyue-yousheng', schemaVersion: LOCAL_SCHEMA_VERSION,
-        savedAt: this.now().toISOString(), work, session: sessionSnapshot ?? current?.session ?? null };
+        savedAt: this.now().toISOString(), work, session: sessionSnapshot ?? current?.session ?? null,
+        writingState: writingState ?? current?.writingState ?? emptyWritingState(), cloud: current?.cloud ?? emptyCloudMetadata() };
       await this.writeAggregate(aggregate);
       await this.rebuildIndex();
       await this.clearRecoveryInternal(draftSnapshot.id);
@@ -341,7 +350,7 @@ export class MiniWorkRepository {
     });
   }
 
-  writeRecovery(draft: Draft, expectedRevision: number, session?: ArticleSession): Promise<void> {
+  writeRecovery(draft: Draft, expectedRevision: number, session?: ArticleSession, writingState?: WritingState): Promise<void> {
     const snapshot = clone(draft);
     const sessionSnapshot = session ? clone(session) : null;
     return this.enqueue(async () => {
@@ -353,7 +362,8 @@ export class MiniWorkRepository {
       if ((current?.work.revision ?? 0) !== expectedRevision || current?.work.deletedAt) throw new MiniStorageError('conflict');
       assertReplyPreserved(current?.session, sessionSnapshot ?? undefined);
       const record: RecoveryRecord = { schemaVersion: LOCAL_SCHEMA_VERSION, workId: snapshot.id, expectedRevision,
-        recoveryRevision: expectedRevision + 1, updatedAt: this.now().toISOString(), draft: snapshot, session: sessionSnapshot };
+        recoveryRevision: expectedRevision + 1, updatedAt: this.now().toISOString(), draft: snapshot, session: sessionSnapshot,
+        ...(writingState ? { writingState } : {}) };
       await this.writeSmallFile(this.paths.recovery, record, value => recoveryRecordSchema.parse(value, zodParseContext));
     });
   }
@@ -410,7 +420,13 @@ export class MiniWorkRepository {
     const copies = snapshot.pendingSessions.map(record => asImportedCopy(workFromDraft(record.draft)));
     const rescued = snapshot.pendingSessions.flatMap((record, index) => record.session ? [copySession(record.session, copies[index]!.id)] : []);
     const sessions = snapshot.recoverySession ? [...snapshot.sessions.filter(session => session.workId !== snapshot.recoverySession!.workId), snapshot.recoverySession] : snapshot.sessions;
-    return makeBackup([...snapshot.works, ...copies], snapshot.recovery?.draft ?? null, [...sessions, ...rescued]);
+    return makeBackup([...snapshot.works, ...copies], snapshot.recovery?.draft ?? null, [...sessions, ...rescued], snapshot.writingStates);
+  }
+
+  async exportVolumes(): Promise<string[]> {
+    // exportBackup folds recovery and pending AI results into the portable bundle first.
+    const raw = JSON.parse(await this.exportBackup()) as { works: Work[]; sessions: ArticleSession[]; writingStates: WorkWritingState[] };
+    return makeBackupVolumes(raw.works, raw.sessions, raw.writingStates);
   }
 
   rescueExport(draft: Draft, works: Work[] = [], sessions: ArticleSession[] = []) {
@@ -423,8 +439,10 @@ export class MiniWorkRepository {
     const workIds = new Map(source.works.map((work, index) => [work.id, copies[index]!.id]));
     const sessions = source.sessions.map(session => copySession(session, workIds.get(session.workId)!));
     const sessionByWork = new Map(sessions.map(session => [session.workId, session]));
+    const stateByWork = new Map(source.writingStates.map(item => [workIds.get(item.workId), item.state]));
     const aggregates = copies.map(work => aggregateSchema.parse({ app: 'suiyue-yousheng', schemaVersion: LOCAL_SCHEMA_VERSION,
-      savedAt: this.now().toISOString(), work, session: sessionByWork.get(work.id) ?? null }, zodParseContext) as WorkAggregate);
+      savedAt: this.now().toISOString(), work, session: sessionByWork.get(work.id) ?? null,
+      writingState: stateByWork.get(work.id) ?? emptyWritingState() }, zodParseContext) as WorkAggregate);
     return this.enqueue(async () => {
       await this.initialize();
       const created: string[] = [];
@@ -443,11 +461,170 @@ export class MiniWorkRepository {
       }
     });
   }
+
+  async allAggregates(includeClaimed = false): Promise<WorkAggregate[]> {
+    await this.flush();
+    await this.initialize();
+    const values: WorkAggregate[] = [];
+    for (const name of await this.files.list(this.paths.works)) {
+      const id = workIdFromFileName(name);
+      if (!id) continue;
+      const aggregate = await this.readAggregate(id);
+      if (aggregate && (includeClaimed || !aggregate.cloud?.claim)) values.push(aggregate);
+    }
+    return values;
+  }
+
+  getAggregate(id: string): Promise<WorkAggregate | null> {
+    return this.enqueue(async () => { await this.initialize(); return this.readAggregate(id); });
+  }
+
+  private snapshotOf(aggregate: WorkAggregate): WorkSnapshot {
+    return { work: aggregate.work, session: aggregate.session, writingState: aggregate.writingState ?? emptyWritingState() };
+  }
+
+  queueMutation(id: string, kind?: CloudMutation['kind']): Promise<CloudMutation | null> {
+    return this.enqueue(async () => {
+      await this.initialize();
+      const current = await this.readAggregate(id);
+      if (!current) throw new MiniStorageError('missing');
+      const cloud = current.cloud ?? emptyCloudMetadata();
+      if (cloud.recoveryOf || cloud.claim) return null;
+      if (cloud.operation) return clone(cloud.operation);
+      if (!kind && cloud.version > 0 && cloud.syncedRevision === current.work.revision) return null;
+      const selectedKind = kind ?? (cloud.version ? 'save' : 'create');
+      const operation: CloudMutation = { operationId: newId(), workId: id, kind: selectedKind, baseVersion: cloud.version,
+        ...(['create', 'save'].includes(selectedKind) ? { snapshot: this.snapshotOf(current) } : {}) };
+      await this.writeAggregate({ ...current, cloud: { ...cloud, operation, operationRevision: current.work.revision } });
+      return clone(operation);
+    });
+  }
+
+  acknowledge(id: string, result: CloudMutationResult): Promise<void> {
+    return this.enqueue(async () => {
+      await this.initialize();
+      const current = await this.readAggregate(id);
+      if (!current?.cloud?.operation || current.cloud.operation.operationId !== result.operationId) return;
+      if (result.entry.id !== id || result.entry.version !== current.cloud.operation.baseVersion + 1) throw new MiniStorageError('invalid');
+      const cloud = current.cloud;
+      const operation = current.cloud.operation;
+      if (operation.kind === 'purge') {
+        if (current.work.revision !== cloud.operationRevision) await this.recoveryCopy(current);
+        await this.safeRemove(workFilePath(this.paths, id));
+        await this.clearRecoveryInternal(id);
+        await this.clearPendingSession(id);
+        await this.rebuildIndex();
+        return;
+      }
+      const lifecycle = operation.kind === 'trash' || operation.kind === 'restore';
+      const revision = lifecycle ? current.work.revision + 1 : current.work.revision;
+      const work = lifecycle ? { ...current.work, revision, deletedAt: result.entry.deletedAt, updatedAt: result.entry.updatedAt } : current.work;
+      await this.writeAggregate({ ...current, work, cloud: { ...cloud, version: result.entry.version,
+        syncedRevision: lifecycle ? revision : cloud.operationRevision, operation: null, operationRevision: 0 } });
+      await this.rebuildIndex();
+    });
+  }
+
+  private async recoveryCopy(current: WorkAggregate) {
+    for (const name of await this.files.list(this.paths.works)) {
+      const id = workIdFromFileName(name);
+      if (!id) continue;
+      const candidate = await this.readAggregate(id);
+      if (candidate?.cloud?.recoveryOf === current.work.id && candidate.cloud.recoverySourceRevision === current.work.revision) return candidate;
+    }
+    const work = asImportedCopy(current.work);
+    work.title = (current.work.title.slice(0, 108) + '（本机恢复稿）');
+    work.draft.title = work.title;
+    work.deletedAt = null;
+    const copy: WorkAggregate = { ...current, work, session: current.session ? copySession(current.session, work.id) : null,
+      cloud: { ...emptyCloudMetadata(), recoveryOf: current.work.id, recoverySourceRevision: current.work.revision } };
+    await this.writeAggregate(copy);
+    return copy;
+  }
+
+  installRemote(remote: CloudWork): Promise<WorkAggregate | null> {
+    return this.enqueue(async () => {
+      await this.initialize();
+      const current = await this.readAggregate(remote.id);
+      if (current?.cloud?.claim || current?.cloud?.recoveryOf) throw new MiniStorageError('conflict');
+      if (current && (current.cloud?.version ?? 0) >= remote.version) return current;
+      // Never discard an uncommitted AI result or interrupted input while pulling.
+      if (await this.files.exists(this.paths.recovery)) {
+        const record = recoveryRecordSchema.parse(JSON.parse(await this.files.readText(this.paths.recovery)), zodParseContext);
+        if (record.workId === remote.id && record.expectedRevision === (current?.work.revision ?? 0)) {
+          throw new MiniStorageError('conflict', { message: '本机还有待恢复输入，请先保存或救援导出，再同步云作品。' });
+        }
+      }
+      if (await this.files.exists(`${this.paths.root}/${remote.id}.result.json`)) {
+        throw new MiniStorageError('conflict', { message: '本机还有小文回复待保存，请先重试保存或救援导出。' });
+      }
+      if (current && (current.cloud?.syncedRevision ?? 0) < current.work.revision) await this.recoveryCopy(current);
+      if (remote.purged || !remote.snapshot) {
+        await this.safeRemove(workFilePath(this.paths, remote.id));
+        await this.clearRecoveryInternal(remote.id);
+        await this.rebuildIndex();
+        return null;
+      }
+      const revision = (current?.work.revision ?? 0) + 1;
+      const aggregate: WorkAggregate = { app: 'suiyue-yousheng', schemaVersion: LOCAL_SCHEMA_VERSION, savedAt: this.now().toISOString(),
+        ...remote.snapshot, work: { ...remote.snapshot.work, revision },
+        cloud: { ...emptyCloudMetadata(), version: remote.version, syncedRevision: revision } };
+      await this.writeAggregate(aggregate);
+      await this.rebuildIndex();
+      return aggregate;
+    });
+  }
+
+  /** Persist ownership intent before copying, so a crash cannot bind a draft to another account. */
+  claim(id: string, accountId: string, targetId: string, complete = false): Promise<WorkAggregate> {
+    return this.enqueue(async () => {
+      await this.initialize();
+      const current = await this.readAggregate(id);
+      if (!current) throw new MiniStorageError('missing');
+      const cloud = current.cloud ?? emptyCloudMetadata();
+      if (cloud.claim && (cloud.claim.accountId !== accountId || cloud.claim.targetId !== targetId)) throw new MiniStorageError('conflict');
+      const next = { ...current, cloud: { ...cloud, claim: { accountId, targetId, complete } } };
+      await this.writeAggregate(next);
+      await this.clearRecoveryInternal(id);
+      return next;
+    });
+  }
+
+  addClaimed(source: WorkAggregate, targetId: string): Promise<void> {
+    return this.enqueue(async () => {
+      await this.initialize();
+      if (await this.readAggregate(targetId)) return;
+      let work = clone(source.work);
+      let session = source.session ? clone(source.session) : null;
+      if (targetId !== source.work.id) {
+        work = asImportedCopy(source.work);
+        work.id = targetId; work.draft.id = targetId;
+        session = source.session ? copySession(source.session, targetId) : null;
+      }
+      await this.writeAggregate({ ...source, work, session, cloud: emptyCloudMetadata() });
+      await this.rebuildIndex();
+    });
+  }
+
+  promoteRecovery(id: string): Promise<void> {
+    return this.enqueue(async () => {
+      await this.initialize();
+      const current = await this.readAggregate(id);
+      if (!current?.cloud?.recoveryOf) throw new MiniStorageError('missing');
+      await this.writeAggregate({ ...current, cloud: emptyCloudMetadata() });
+    });
+  }
+
 }
 
 export class MiniDraftWriter {
   private tail: Promise<unknown> = Promise.resolve();
   private revisions = new Map<string, number>();
+  private writingStates = new Map<string, WritingState>();
+  setWritingState(id: string, state: WritingState) { this.writingStates.set(id, clone(state)); }
+  clearComposerIfMatches(id: string, composer: string) {
+    if (this.writingStates.get(id)?.composer === composer) this.writingStates.set(id, emptyWritingState());
+  }
   private pending = new Map<string, { context: MiniSessionSaveError['context']; revision: number; durable: boolean }>();
 
   pendingSession(id: string) { return this.pending.get(id); }
@@ -469,7 +646,7 @@ export class MiniDraftWriter {
     const sessionSnapshot = session ? clone(session) : undefined;
     const job = this.tail.catch(() => undefined).then(async () => {
       if (this.pending.has(snapshot.id)) throw new Error('请先保存小文已收到的回复，或救援导出。');
-      const next = await this.repository.save(snapshot, this.revisions.get(snapshot.id) ?? 0, sessionSnapshot);
+      const next = await this.repository.save(snapshot, this.revisions.get(snapshot.id) ?? 0, sessionSnapshot, this.writingStates.get(snapshot.id));
       this.revisions.set(snapshot.id, next?.revision ?? 0);
       return next;
     });
@@ -482,7 +659,7 @@ export class MiniDraftWriter {
     const sessionSnapshot = session ? clone(session) : undefined;
     const job = this.tail.catch(() => undefined).then(async () => {
       if (this.pending.has(snapshot.id)) throw new Error('请先保存小文已收到的回复，或救援导出。');
-      await this.repository.writeRecovery(snapshot, this.revisions.get(snapshot.id) ?? 0, sessionSnapshot);
+      await this.repository.writeRecovery(snapshot, this.revisions.get(snapshot.id) ?? 0, sessionSnapshot, this.writingStates.get(snapshot.id));
     });
     this.tail = job;
     return job;
@@ -511,7 +688,7 @@ export class MiniDraftWriter {
       this.pending.set(id, pending);
       try { await this.repository.stageSession(draft, nextSession, revision); pending.durable = true; } catch { /* Try the aggregate; retain memory if both writes fail. */ }
       let work: Work | null;
-      try { work = await this.repository.save(clone(draft), revision, clone(nextSession)); }
+      try { work = await this.repository.save(clone(draft), revision, clone(nextSession), this.writingStates.get(id)); }
       catch { throw new MiniSessionSaveError(context, pending.durable); }
       this.revisions.set(id, work?.revision ?? 0);
       this.pending.delete(id);
@@ -527,7 +704,7 @@ export class MiniDraftWriter {
       const pending = this.pending.get(id);
       if (!pending) throw new Error('没有待保存的小文回复。');
       const { draft, session } = pending.context;
-      const work = await this.repository.save(draft, pending.revision, session);
+      const work = await this.repository.save(draft, pending.revision, session, this.writingStates.get(id));
       this.revisions.set(id, work?.revision ?? 0);
       this.pending.delete(id);
       await this.repository.clearPendingSession(id).catch(() => undefined);
