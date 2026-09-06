@@ -2,7 +2,7 @@
 
 # 小文文章伙伴验收
 
-日期：2026-08-31  
+日期：2026-08-31
 变更：`promote-xiaowen-writing-companion`
 
 ## 当前结论

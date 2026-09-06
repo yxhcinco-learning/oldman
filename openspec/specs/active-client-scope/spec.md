@@ -35,4 +35,3 @@ TBD - created by archiving change retire-h5-experiment. Update Purpose after arc
 #### Scenario: Review unfinished work
 - **WHEN** 审查统一会话或小程序变更的剩余任务
 - **THEN** 不把 H5 体验缺口作为小程序交付门槛，也不因 H5 退役而假称保存安全、模型或新 AppID 的待验项完成
-
