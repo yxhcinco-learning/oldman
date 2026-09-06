@@ -1,7 +1,7 @@
 # active-client-scope Specification
 
 ## Purpose
-TBD - created by archiving change retire-h5-experiment. Update Purpose after archive.
+定义小程序唯一用户端、运营后台独立维护、共享服务与退役资料边界，以及当前状态与历史证据的分离规则；防止新会话恢复已退役需求或将未验证事项误记为完成。
 ## Requirements
 ### Requirement: Mini-program is the only active user client
 项目 SHALL 只将原生微信小程序作为活跃用户客户端。H5 为退役试验端，独有 UI、账号互通、跨 H5 同步、四尺寸用户体验验收不再是后续产品目标；内部网页话题管理台、服务端和共享核心继续维护。

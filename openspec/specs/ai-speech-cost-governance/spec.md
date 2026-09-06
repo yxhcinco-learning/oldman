@@ -3,7 +3,7 @@
 # ai-speech-cost-governance Specification
 
 ## Purpose
-TBD - created by archiving change govern-ai-speech-costs. Update Purpose after archive.
+定义 AI 与实时语音的匿名持久用量、调用前预算预留、失败和未知用量的保守结算、成本展示及安全运维边界；不记录用户内容或因普通回归自动调用付费服务。
 ## Requirements
 ### Requirement: Persistent anonymous daily usage ledger
 系统 SHALL 在独立 SQLite 中按 `Asia/Shanghai` 自然日持久化文章 AI、话题 AI 的输入/输出 token 总量和腾讯实时语音秒数；账本 MUST 使用事务、WAL、严格表、完整性检查与 schema 上限，并且 MUST NOT 保存请求时间线、用户/IP/作品/话题标识、正文、提示词、链接、转写或音频。

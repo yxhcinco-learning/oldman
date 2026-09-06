@@ -31,5 +31,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "archive", "apps/miniprogram", "packages/core/dist"]
+  "exclude": ["node_modules", "archive", ".tmp", "outputs", "work", "test-results", "apps/miniprogram", "packages/core/dist"]
 }

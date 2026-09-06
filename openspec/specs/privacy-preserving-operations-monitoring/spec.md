@@ -3,7 +3,7 @@
 # privacy-preserving-operations-monitoring Specification
 
 ## Purpose
-TBD - created by archiving change add-private-operations-monitoring. Update Purpose after archive.
+定义隐私最小化的运行聚合、受保护的运营监控及日志边界；旧 H5 匿名事件仅为仍保留的线上兼容协议，不是小程序新增上报要求。
 ## Requirements
 ### Requirement: Coarse anonymous product events
 H5 SHALL 只上报白名单事件 `app.opened`、`topic.opened`、`writing.started.blank`、`writing.started.topic`、`writing.started.interview`、`backup.exported` 和 `backup.imported`；每个请求 MUST 只包含事件名，并且 MUST NOT 包含用户或设备标识、作品/话题标识、内容、搜索词、URL、客户端时间或任意元数据。

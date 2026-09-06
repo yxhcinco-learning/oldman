@@ -1,6 +1,6 @@
 > 适用范围（2026-09-06）：小程序为唯一用户端，网页仅运营后台。H5 专属 UI/浏览器实现条款仅作历史兼容记录，不是后续需求或验收门槛；共享业务、后端与后台要求继续有效。详见仓库 docs/CLIENT-SCOPE.md 与 active-client-scope 规范。
 
-# isolated-ai-demo Specification
+# isolated-ai-demo Specification（退役历史）
 
 ## Purpose
 定义产品化阶段保留的历史模拟组件与正式作品之间的副本隔离和退出恢复边界；正式文章助手行为由 `article-ai-session` 规范管理。

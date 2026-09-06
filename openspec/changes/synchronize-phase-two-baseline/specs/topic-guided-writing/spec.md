@@ -1,0 +1,44 @@
+## MODIFIED Requirements
+
+### Requirement: Two reversible paths from a topic
+用户从议题开始写作时 SHALL 可以选择直接进入正常写作，或进入由小文逐问引导的采访模式；两条路径 MUST 关联同一篇作品和同一个议题背景，并允许随时切换而不丢失正文或素材。
+
+#### Scenario: Start with normal writing
+- **WHEN** 用户在话题详情选择“直接写”
+- **THEN** 系统创建或打开关联作品并显示正常编辑器，议题作为可收起背景存在，不自动打开采访、不生成提纲或正文
+
+#### Scenario: Start with guided interview
+- **WHEN** 用户在话题详情选择“接受小文采访”
+- **THEN** 系统进入同一作品的小文聊天式采访，先用简短静态文案说明小文身份和一次一问的方式，再请用户简单介绍自己；打开本身不调用 AI，正文保持不变
+
+#### Scenario: Continue as one conversation
+- **WHEN** 用户通过文字或语音回答当前问题并点击“发送”
+- **THEN** 输入先保存为原始消息，实质回答才关联素材；小文自然承接，允许问候和解释，每轮最多一个追问；消息历史独立滚动、输入区固定可达，界面不要求用户再点击“保存回答”或“继续问我”
+
+#### Scenario: Switch paths without losing work
+- **WHEN** 用户在采访、正常写作或稍后恢复之间切换
+- **THEN** 当前正文、议题快照、采访素材和会话状态分别保留，开启或收起本身不调用成文、不应用候选也不清空内容；明确结束访谈统一整理，仍须用户采用
+
+#### Scenario: Leave an untouched first interview
+- **WHEN** 用户首次进入采访后没有发送回答、没有未发送文字、没有会话结果且没有进行中的请求，随后关闭小文
+- **THEN** 系统返回同篇文章，保留已保存的访谈模式与静态开场；重开继续，不因尚无回答而清除访谈
+
+#### Scenario: Leave after contributing or while processing
+- **WHEN** 用户已有采访回答、未发送文字、会话结果或进行中的请求，随后关闭小文
+- **THEN** 系统进入同篇文章，保留全部内容；请求进行中时编辑器显示清楚的加载状态，请求不因关闭面板而取消
+
+### Requirement: Separate background, material and article
+系统 MUST 分别表达议题事实、用户观点、采访回答、AI 整理候选和已确认正文；任何背景或素材不得因打开议题、完成一次回答、退出采访或切换模式而自动进入正文。
+
+#### Scenario: Answer an interview question
+- **WHEN** 用户通过文字或语音回答小文问题
+- **THEN** 输入先保存为原始消息，只有实质回答关联素材，问候和控制指令不自动成文；正文不自动变化，关闭只收起并维持访谈，重开不自动请求，不设暂停状态
+
+#### Scenario: Request an article from gathered material
+- **WHEN** 用户明确选择把采访素材整理成文章
+- **THEN** 系统结束访谈并用有效素材生成独立候选，提供全文预览与明确采用；不足时说明材料不足，取消、失败或放弃不重新开启访谈，正文保持原样
+
+#### Scenario: Encounter failure while switching or composing
+- **WHEN** 保存素材、读取背景或生成候选失败
+- **THEN** 系统保留已经输入的正文和可恢复素材，显示真实错误及重试或导出补救，不用空内容覆盖或声称成文成功
+

@@ -8,7 +8,11 @@ async function scan(dir) {
   dir = dir.replaceAll('\\', '/');
   for (const item of await readdir(dir, { withFileTypes: true })) {
     const path = join(dir, item.name);
-    if (item.isDirectory()) { await scan(path); continue; }
+    if (item.isDirectory()) {
+      // The actual generated package is checked by the mini-program build.
+      if (path.replaceAll('\\', '/') !== 'apps/miniprogram/miniprogram/miniprogram_npm') await scan(path);
+      continue;
+    }
     if (!/\.[cm]?[jt]sx?$/.test(path)) continue;
     const source = await readFile(path, 'utf8');
     for (const match of source.matchAll(/(?:from\s*|import\s*\(\s*)['"]([^'"]+)['"]/g)) {
@@ -20,7 +24,7 @@ async function scan(dir) {
     }
     if ((dir.startsWith('app') || dir.startsWith('features') || dir.startsWith('lib')) && /process\.env\.(?:TENCENT|DEEPSEEK)|TENCENT_ASR_SECRET_KEY|DEEPSEEK_API_KEY/.test(source)) report(`客户端出现服务端凭据引用: ${path}`);
     if ((dir.startsWith('app') || dir.startsWith('features') || dir.startsWith('lib')) && /from\s+['"][^'"]*server\//.test(source)) report(`客户端导入服务端模块: ${path}`);
-    if (!dir.startsWith('features/demo') && /from\s+['"][^'"]*mock-data/.test(source)) report(`真实业务依赖演示数据: ${path}`);
+    if (/from\s+['"][^'"]*mock-data/.test(source)) report(`真实业务依赖演示数据: ${path}`);
     if (dir.startsWith('packages/core/src') && /(?:from\s+['"](?:react|react-dom|node:)|\b(?:window|document|localStorage|indexedDB|process|wx)\b)/.test(source)) {
       report(`共享核心依赖平台专属 API: ${path}`);
     }

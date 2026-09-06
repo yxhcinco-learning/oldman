@@ -3,7 +3,7 @@
 # topic-guided-writing Specification
 
 ## Purpose
-TBD - created by archiving change add-topic-guided-writing. Update Purpose after archive.
+定义从议题直接写作或开启同篇小文访谈的路径、可选背景与来源，以及原始消息、素材和正文分离的行为；收起保留会话，明确整理后仍需用户采用才修改正文。
 ## Requirements
 ### Requirement: Two reversible paths from a topic
 用户从议题开始写作时 SHALL 可以选择直接进入正常写作，或进入由小文逐问引导的采访模式；两条路径 MUST 关联同一篇作品和同一个议题背景，并允许随时切换而不丢失正文或素材。

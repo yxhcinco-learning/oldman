@@ -3,7 +3,7 @@
 # local-writing Specification
 
 ## Purpose
-定义本地优先写作的真实编辑、IndexedDB 自动保存与恢复、作品生命周期，以及可校验、可救援的便携备份行为。
+定义小程序本地优先写作的真实编辑、用户文件自动保存与恢复、作品生命周期，以及可校验、可救援的便携备份行为。
 ## Requirements
 ### Requirement: Real writing with recovery
 系统 SHALL 支持标题、正文、单段编辑、输入模式切换；自动保存作品及待确认转写、未完成编辑，且仅在写入成功后显示已保存。

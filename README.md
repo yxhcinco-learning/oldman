@@ -4,6 +4,7 @@
 
 ## 先读这些
 
+- [当前状态与第二阶段接手](docs/STATUS.md)：最新技术结论、线上分版、保留项及新会话阅读顺序。
 - [维护范围与退役边界](docs/CLIENT-SCOPE.md)：新会话先确认什么在维护、什么已归档。
 - [产品](docs/PRODUCT.md)、[设计](DESIGN-SYSTEM.md)、[架构](docs/ARCHITECTURE.md)、[开发](docs/DEVELOPMENT.md)。
 - [小程序工程](apps/miniprogram/README.md)、[隐私](docs/PRIVACY.md)、[验收](docs/ACCEPTANCE.md)。
@@ -23,4 +24,4 @@
 
 完整检查 npm run check，构建 npm run build。无需启动或修复 H5；归档测试不计入当前验收。[部署说明](docs/DEPLOYMENT.md)涉及现有服务，任何上线、停站和小程序上传仍单独确认。
 
-当前作品仍本机保存，云端作品、账号产品与跨设备同步尚未实现；新 AppID 待提供，不迁移借用 AppID 的身份/token。保留旧 JSON v1–v5 导入副本能力，不恢复 H5 产品。
+当前作品仍本机保存，云端作品、账号产品与跨设备同步尚未实现；正式 AppID 配套和第一阶段技术收尾已完成，身份/token 不跨 AppID 迁移。保留旧 JSON v1–v5 导入副本能力，不恢复 H5 产品。
