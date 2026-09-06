@@ -4,6 +4,7 @@ import { HoldToDictate, type MiniSpeechState } from '../../speech/session';
 import { appendDictation } from '../../speech/dictation';
 import { resolveKeyboardInset } from '../../ui/keyboard';
 import { navigationMetrics } from '../../ui/navigation';
+import { measureTopic } from '../../ui/topic-motion';
 
 let speechUnsubscribe: (() => void) | undefined;
 let aiUnsubscribe: (() => void) | undefined;
@@ -35,7 +36,8 @@ Page({
     voicePressing: false,
   },
 
-  onShow() { pageVisible = true; },
+  onShow() { pageVisible = true; measureTopic(this); },
+  onResize() { measureTopic(this); },
 
   onLoad(options: Record<string, string | undefined>) {
     aiUnsubscribe?.();
@@ -74,6 +76,7 @@ Page({
         return;
       }
       const memory = miniServices().conversations.read(draft.id);
+      measureTopic(this);
       this.setData({ draft, session, revision, mode: conversation.mode, messages: conversationView(session, draft), questionAlternative: 0,
         question: '', hasAnswers: conversation.materials.length > 0, pendingEdit: conversation.pendingEdit ?? '', composer: memory.composer,
         saving: miniServices().articleAi.isRunning(id),

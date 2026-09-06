@@ -133,7 +133,10 @@ describe('微信小程序公共工程配置', () => {
     expect(editor + interview).not.toMatch(/(?:adjust-position|show-confirm-bar)="false"/);
     expect(editorController).toContain('resolveKeyboardInset(reportedHeight, baselineWindowHeight, info.windowHeight, info.pixelRatio)');
     expect(keyboardAvoidance).toContain('reported - viewportReduction');
-    expect(interview).toContain('class="interview-topic"');
+    expect(interview).toContain('class="topic-window"');
+    expect(interview).toContain('class="conversation-topic"');
+    expect(interview).toContain('aria-label="停止回复"');
+    expect(interview).not.toContain('取消请求');
     expect(interview).not.toContain('<small>{{draft && draft.topicSnapshot');
     expect(interview).toContain('<view class="interview-title">小文</view>');
     expect(interview).not.toContain('class="interview-close"');
@@ -221,7 +224,8 @@ describe('微信小程序公共工程配置', () => {
     const interview = readText('../miniprogram/pages/interview/index.wxml');
     expect(editor + interview).not.toContain('普通对话');
     expect(interview).not.toContain('AI 辅助生成 · 请核对');
-    expect(interview.indexOf('class="interview-topic"')).toBeLessThan(interview.indexOf('<scroll-view'));
+    expect(interview.indexOf('class="topic-window"')).toBeGreaterThan(0);
+    expect(interview.indexOf('class="topic-window"')).toBeLessThan(interview.indexOf('<scroll-view'));
     expect(interview).toContain('index === messages.length - 1');
     expect(interview).toContain('class="change-question" bindtap="changeQuestion" disabled=');
     expect(readText('../miniprogram/app.wxss')).toContain('width: auto; flex: 0 0 auto; min-height: 48px; align-items: center');

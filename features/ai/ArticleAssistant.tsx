@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Dialog } from '../../components/Dialog';
+import { ConversationTopic } from './ConversationTopic';
 import { Icon } from '../../components/Icons';
 import { AI_ASSISTANCE_LABEL, VERSION_LABELS, documentOf, externalArticleText, isAppliedAiVersion, isWorkAiAssisted, sameDocument,
   readableResultSummary as resultSummary, type AiAction, type AiTurn, type ArticleVersion } from '../../lib/domain/article-ai';
@@ -121,7 +122,8 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
     <div className="ai-composer-row"><textarea ref={promptInput} id="article-ai-question" value={prompt} onChange={event => onPromptChange(event.target.value)}
       disabled={busy || voiceActive} maxLength={12000} rows={1} placeholder={interviewMode ? '回复小文' : '问小文，或提要求'} />
       <div className="ai-composer-actions"><VoiceDictationButton ariaSubject={interviewMode ? '回复' : '要求'} value={prompt} onChange={text => onPromptChange(text.slice(0, 12000))} disabled={busy} onActiveChange={setVoiceActive} />
-        <button type="submit" className="primary-button ai-send" disabled={busy || voiceActive || !prompt.trim()}>发送</button></div>
+        {ai.busy ? <button type="button" className="ai-stop" aria-label="停止回复" onClick={() => void controller.cancel()}><span aria-hidden="true" />停止</button>
+          : <button type="submit" className="primary-button ai-send" disabled={busy || voiceActive || !prompt.trim()}>发送</button>}</div>
     </div>
   </form>;
 
@@ -167,7 +169,8 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
       </>}
 
       {page === 'chat' && conversation && <>
-        {draft.topicSnapshot && <p className="interview-topic">{draft.topicSnapshot.title}</p>}
+        <ConversationTopic title={draft.topicSnapshot?.title} interview={Boolean(interviewMode)} disabled={busy || voiceActive}
+          onToggle={() => interviewMode ? request('dialogue', '结束访谈并整理', undefined, false, 'finish') : void controller.startInterview()} />
         <div className="ai-conversation" ref={chatScroll} role="log" aria-label={interviewMode ? '小文采访对话' : '文章对话记录'}>
           {messages.map(message => {
             const item = session?.turns.find(t => t.id === message.turnId);
@@ -175,8 +178,8 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
               {message.role === 'assistant' && <span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span>}
               <div className={message.role === 'assistant' ? 'ai-assistant-message' : ''}>
               <div className={message.role === 'system' ? '' : 'message-bubble'}>
-                <p role={message.pending ? 'status' : undefined}>{message.role === 'assistant' && item?.result ? resultSummary(item.result, session?.versions.find(v => v.id === item.inputVersionId)?.body ?? '') : message.text}</p>
-                {message.pending && <div className="reply-pending" role="status"><span className="thinking-dots" aria-hidden="true">•••</span><button type="button" onClick={() => void controller.cancel()}>取消请求</button></div>}
+                {!message.pending && <p>{message.role === 'assistant' && item?.result ? resultSummary(item.result, session?.versions.find(v => v.id === item.inputVersionId)?.body ?? '') : message.text}</p>}
+                {message.pending && <div className="reply-pending" role="status" aria-label={message.text}><i /><i /><i /></div>}
                 {interviewMode && message.role === 'assistant' && message === messages.at(-1) && !message.pending && !message.canRetry && conversation.materials.length > 0 && !conversation.pendingEdit && <button className="change-question" type="button" disabled={busy || voiceActive} onClick={() => request('dialogue', '换个问题', undefined, false, 'change')}>换个问题</button>}
                 {message.role === 'assistant' && item?.result?.citedVersionIds.map((id, index) => <button type="button" key={id} onClick={() => showVersion(id)}>查看引用记录 {index + 1}</button>)}
                 {message.canRetry && item && <>
@@ -197,11 +200,6 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
         {interviewMode && conversation.pendingEdit && <button type="button" disabled={busy} onClick={() => {
           setSaving(true); void workspace.updateSession(draft.id, current => ({ ...current, conversation: { ...current.conversation!, pendingEdit: undefined } })).finally(() => setSaving(false));
         }}>继续访谈</button>}
-        <div className="ai-mode-bar">
-          {interviewMode
-            ? <button type="button" aria-label="访谈已开启，结束访谈并整理" disabled={busy || voiceActive} onClick={() => request('dialogue', '结束访谈并整理', undefined, false, 'finish')}>结束访谈并整理</button>
-            : <button type="button" disabled={busy || voiceActive} onClick={() => void controller.startInterview()}>开启访谈</button>}
-        </div>
         {chatComposer()}
       </>}
 

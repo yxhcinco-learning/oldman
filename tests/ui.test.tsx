@@ -444,7 +444,9 @@ it('keeps a XiaoWen request running while minimized and reports processing then 
   fireEvent.click(screen.getByRole('button', { name: '发送' }));
   await waitFor(() => expect(transport).toHaveBeenCalledOnce());
   expect(screen.getByLabelText('问问小文')).toBeDisabled();
-  expect(screen.getByRole('button', { name: '发送' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: '停止回复' })).toBeEnabled();
+  expect(screen.queryByRole('button', { name: '取消请求' })).not.toBeInTheDocument();
+  expect(screen.getByRole('status', { name: '小文正在想…' }).querySelectorAll('i')).toHaveLength(3);
   fireEvent.click(screen.getByRole('button', { name: '收起小文' }));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: '打开小文，正在处理' })).toHaveTextContent('正在处理');

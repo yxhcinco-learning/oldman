@@ -8,6 +8,7 @@ import { HoldToDictate, type MiniSpeechState } from '../../speech/session';
 import { appendDictation, stageBodyDictation } from '../../speech/dictation';
 import { resolveKeyboardInset } from '../../ui/keyboard';
 import { navigationMetrics } from '../../ui/navigation';
+import { measureTopic } from '../../ui/topic-motion';
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let speechUnsubscribe: (() => void) | undefined;
@@ -101,7 +102,8 @@ Page({
     void this.open(typeof options.id === 'string' ? decodeURIComponent(options.id) : undefined, options.xiaowen === 'compose');
   },
 
-  onShow() { editorVisible = true; },
+  onShow() { editorVisible = true; measureTopic(this); },
+  onResize() { measureTopic(this); },
 
   async open(id?: string, compose = false) {
     try {
@@ -323,6 +325,7 @@ Page({
   },
 
   syncXiaoWen(draft: Draft | null, session: ArticleSession | null) {
+    measureTopic(this);
     const versions = session?.versions ?? [];
     const xiaowenTurns = (session?.turns ?? []).map(turn => {
       const base = versions.find(version => version.id === turn.inputVersionId);
@@ -361,6 +364,7 @@ Page({
     }
     this.dismissKeyboard();
     this.setData({ xiaowenOpen: true, xiaowenView: 'chat', notice: '' });
+    measureTopic(this);
   },
 
   async startInterview() {

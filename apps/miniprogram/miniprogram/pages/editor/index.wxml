@@ -101,12 +101,12 @@
         </view>
       </view>
 
-      <view wx:if="{{xiaowenView === 'chat' && draft.topicSnapshot}}" class="xiaowen-topic">{{draft.topicSnapshot.title}}</view>
+      <view wx:if="{{xiaowenView === 'chat'}}" class="conversation-topic"><view wx:if="{{draft && draft.topicSnapshot}}" class="topic-heading"><image src="/assets/book.svg" /><view class="topic-window"><text class="topic-text {{topicDistance > 1 ? 'topic-moving' : ''}}" style="--topic-distance: -{{topicDistance || 0}}px; --topic-duration: {{topicDuration || 7}}s">{{draft.topicSnapshot.title}}</text></view></view><view class="ai-mode-bar"><text class="topic-state">和小文聊聊</text><button bindtap="startInterview" disabled="{{operationBusy || voiceBusy}}">开启访谈</button></view></view>
       <scroll-view wx:if="{{xiaowenView === 'chat'}}" class="xiaowen-messages" scroll-y scroll-into-view="xiaowen-end-{{conversationMessages.length}}-{{xiaowenRunning ? 1 : 0}}-{{xiaowenError ? 1 : 0}}">
         <view wx:for="{{conversationMessages}}" wx:key="id" class="xiaowen-turn">
           <view class="{{item.role === 'user' ? 'xiaowen-user-message' : 'xiaowen-answer'}}">
-            <view>{{item.text}}</view>
-            <view wx:if="{{item.pending}}" class="reply-pending"><text class="thinking-dots">•••</text><button bindtap="cancelXiaoWen">取消请求</button></view>
+            <view wx:if="{{!item.pending}}">{{item.text}}</view>
+            <view wx:if="{{item.pending}}" class="reply-pending" role="status" aria-label="{{item.text}}"><view /><view /><view /></view>
             <button wx:if="{{item.hasCandidate}}" class="article-result-link" data-id="{{item.turnId}}" bindtap="showCandidate"><text>看看文章</text><text aria-hidden="true">›</text></button>
             <view wx:if="{{item.error}}" class="xiaowen-error">{{item.error}}</view>
             <button wx:if="{{item.canRetry}}" data-id="{{item.turnId}}" bindtap="retryTurn" disabled="{{operationBusy}}">重新发送</button>
@@ -138,13 +138,13 @@
         </view>
       </scroll-view>
 
-      <view wx:if="{{xiaowenView === 'chat'}}" class="ai-mode-bar"><button bindtap="startInterview" disabled="{{operationBusy || voiceBusy}}">开启访谈</button></view>
+
       <view wx:if="{{xiaowenView === 'chat'}}" class="xiaowen-composer">
         <textarea value="{{xiaowenComposer}}" maxlength="12000" auto-height placeholder="问小文，或提要求" placeholder-style="color:#858e88;line-height:30px" disabled="{{operationBusy || voiceBusy}}"
           adjust-position="{{false}}" show-confirm-bar="{{false}}" cursor-spacing="20" bindinput="onXiaoWenInput" bindkeyboardheightchange="onKeyboardHeight"></textarea>
         <view wx:if="{{voiceTarget === 'xiaowen' && (voicePressing || voicePhase !== 'idle')}}" class="xiaowen-speech-status">{{voiceText || voiceMessage || (voicePressing ? '已按住，松开结束' : '正在准备语音…')}}</view>
         <view class="xiaowen-button-cell"><button class="xiaowen-voice {{voiceTarget === 'xiaowen' && voicePressing ? 'pressing' : ''}} {{operationBusy ? 'is-disabled' : ''}}" bindtouchstart="pressXiaoWenVoice" bindtouchend="releaseVoice" bindtouchcancel="cancelVoice" aria-disabled="{{operationBusy}}" aria-label="长按语音输入"><image src="/assets/mic.svg" mode="aspectFit"></image></button></view>
-        <view class="xiaowen-button-cell"><button class="xiaowen-send {{operationBusy || voiceBusy || !xiaowenComposer ? 'is-disabled' : ''}}" bindtap="sendXiaoWen" aria-disabled="{{operationBusy || voiceBusy || !xiaowenComposer}}">{{operationBusy ? '处理中' : '发送'}}</button></view>
+        <view class="xiaowen-button-cell"><button wx:if="{{xiaowenRunning}}" class="ai-stop" bindtap="cancelXiaoWen" aria-label="停止回复"><view />停止</button><button wx:else class="xiaowen-send {{operationBusy || voiceBusy || !xiaowenComposer ? 'is-disabled' : ''}}" bindtap="sendXiaoWen" aria-disabled="{{operationBusy || voiceBusy || !xiaowenComposer}}">{{operationBusy ? '处理中' : '发送'}}</button></view>
       </view>
       <view wx:if="{{xiaowenView === 'preview' && candidateStatus === 'ready'}}" class="article-review-note">确认使用后才会替换正文，请留意事实与细节。</view>
       <view wx:if="{{xiaowenView === 'preview' && candidateStatus === 'ready'}}" class="candidate-actions">
