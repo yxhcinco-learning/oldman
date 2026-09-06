@@ -2,6 +2,8 @@
 
 本说明只适用于用户另行授权后的少量同事临时体验，不表示正式开放。固定入口为 `https://suiyue.maicong.chat`；测试期用户网页继续使用 Nginx Basic Auth，小程序只绕过明确列出的在线接口并使用自身业务会话，内部话题后台使用独立应用会话。应用仍无用户端可见注册、云端文章或跨设备同步。`build-topic-editorial-backend` 最初仅更新模板；2026-09-06 用户另行授权后，受控环境已激活 `00f8a46` 并补齐话题后台及用量保护配置，真实会话结果与未通过项见[统一会话验收](XIAOWEN-CONVERSATION-ACCEPTANCE.md)。
 
+2026-09-06 18:36（Asia/Shanghai）受控测试站点更新至 `483d8f4`，回滚版本为 `fc9cdc0`。仅更新既有站点及共享服务，小程序未上传；发布验证与限制见[统一会话验收](XIAOWEN-CONVERSATION-ACCEPTANCE.md#受控测试站点更新2026-09-06-1836)。
+
 ## 固定拓扑与文件
 
 - Lighthouse：`lhins-pg6lbxtx`（`ap-guangzhou`），只保留公网 80/443；SSH/TAT 管理边界不由本项目扩大。
