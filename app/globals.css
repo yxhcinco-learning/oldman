@@ -549,5 +549,7 @@ svg { display: block; }
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 /* 同一会话的模式操作与收起窗口分别呈现。 */
-.ai-mode-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #416657; padding: 8px 0; }
-.ai-mode-bar button { min-height: 48px; color: #153b2e; background: #e8eee9; border-radius: 24px; padding: 8px 16px; }
+.ai-mode-bar { display: flex; flex: 0 0 auto; align-items: center; justify-content: flex-end; gap: 12px; color: #416657; padding: 4px 0; }
+.ai-mode-bar button { display: inline-flex; align-items: center; justify-content: center; width: auto; min-height: 48px; font-size: 15px; line-height: 24px; color: #153b2e; background: #e8eee9; border-radius: 24px; padding: 8px 14px; }
+.ai-mode-bar button[aria-pressed="true"]::before { content: ''; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: #416657; }
+.message-bubble .change-question { min-height: 48px; padding: 8px 0; background: transparent; color: #416657; font-size: 15px; text-decoration: underline; text-underline-offset: 4px; }

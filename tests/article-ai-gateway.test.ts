@@ -51,6 +51,26 @@ it('accepts a short introduction and distinguishes protocol, format and size rej
   }
   expect(fetch).not.toHaveBeenCalled();
 });
+it('normalizes the observed nested candidate without accepting conflicts or unsolicited bodies', async () => {
+  const draft = emptyDraft({ topicWritingMode: 'interview' });
+  const request = buildAiRequest(prepareDialogue(newSession(draft), draft, 'finish', '结束访谈并整理', 'finish'), 'dialogue', '结束访谈并整理', 'finish', { command: 'finish' });
+  const fetch = vi.fn(async () => response({ answer: '请查看候选', dialogue: { intent: 'finish', body: '每天记录水温。' }, citedVersionIds: [] }));
+  const app = await gateway({ fetch });
+  const valid = await app.inject({ method: 'POST', url: '/api/ai/turn', headers: { origin }, payload: request });
+  expect(valid.statusCode).toBe(200);
+  expect(valid.json().result).toEqual({ answer: '请查看候选', body: '每天记录水温。', dialogue: { intent: 'finish' }, citedVersionIds: [] });
+  for (const result of [
+    { answer: '冲突', body: '另一篇', dialogue: { intent: 'finish', body: '每天记录水温。' } },
+    { answer: '错误', dialogue: { intent: 'finish', body: 123 } },
+    { answer: '未知', dialogue: { intent: 'finish', body: '正文', unknown: true } },
+    { answer: '未授权', dialogue: { intent: 'reply', body: '正文' } },
+  ]) {
+    fetch.mockImplementation(async () => response(result));
+    expect((await app.inject({ method: 'POST', url: '/api/ai/turn', headers: { origin }, payload: request })).statusCode).toBe(502);
+  }
+  expect(fetch).toHaveBeenCalledTimes(5);
+  expect(systemPrompt('dialogue')).toContain('body 必须是顶层字符串');
+});
 it('turns unnecessary spoken phrasing into natural written expression without weakening content boundaries', () => {
   const regular = systemPrompt('regular');
   expect(regular).toContain('处理强度不能只停留在标点和分段');

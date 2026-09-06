@@ -101,11 +101,12 @@
         </view>
       </view>
 
-      <view wx:if="{{xiaowenView === 'chat'}}" class="ai-mode-bar"><text>普通对话</text><button bindtap="startInterview" disabled="{{operationBusy || voiceBusy}}">开启访谈</button></view>
+      <view wx:if="{{xiaowenView === 'chat'}}" class="ai-mode-bar"><button aria-pressed="false" bindtap="startInterview" disabled="{{operationBusy || voiceBusy}}">开启访谈</button></view>
+      <view wx:if="{{xiaowenView === 'chat' && draft.topicSnapshot}}" class="xiaowen-topic">聊聊：{{draft.topicSnapshot.title}}</view>
       <scroll-view wx:if="{{xiaowenView === 'chat'}}" class="xiaowen-messages" scroll-y scroll-into-view="xiaowen-end-{{conversationMessages.length}}-{{xiaowenRunning ? 1 : 0}}-{{xiaowenError ? 1 : 0}}">
         <view wx:for="{{conversationMessages}}" wx:key="id" class="xiaowen-turn">
           <view class="{{item.role === 'user' ? 'xiaowen-user-message' : 'xiaowen-answer'}}">
-            <view wx:if="{{item.ai}}" class="ai-origin-label">{{aiAssistanceLabel}}</view>
+            <view wx:if="{{item.hasCandidate}}" class="ai-origin-label">{{aiAssistanceLabel}}</view>
             <view>{{item.text}}</view>
             <button wx:if="{{item.hasCandidate}}" data-id="{{item.turnId}}" bindtap="showCandidate">查看调整结果</button>
             <view wx:if="{{item.error}}" class="xiaowen-error">{{item.error}}</view>

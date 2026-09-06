@@ -1,5 +1,16 @@
 ## ADDED Requirements
 
+### Requirement: Compact interview switch
+界面 MUST 将访谈呈现为小文会话中的单一开关，不展示“普通对话”等模式分类。话题与访谈操作 SHALL 固定在消息滚动区外，按钮紧凑且垂直居中，触控目标至少48px。换个问题 SHALL 只出现在当前可继续追问的助手消息内。聊天气泡不重复显示 AI 核对提示，候选预览与导出来源说明保留。
+
+#### Scenario: Scroll and toggle interview
+- **WHEN** 用户滚动长会话或结束访谈
+- **THEN** 话题保持可见，访谈控件只切换开启/结束语义，不显示两种模式分类；失败重试继续保留
+
+#### Scenario: Provider nests candidate body
+- **WHEN** 模型将唯一候选 body 错放在 dialogue 内
+- **THEN** 服务端可将该字段移到顶层后执行全部既有校验；双重 body、未知字段和无授权候选仍被拒绝，不额外请求模型
+
 ### Requirement: Continuous work conversation
 系统 SHALL 为每篇作品保存一段连续小文会话与唯一模式，普通对话和访谈共用文章、消息、素材和背景；不得因切换隐藏历史。
 

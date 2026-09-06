@@ -140,7 +140,7 @@ describe('微信小程序公共工程配置', () => {
     expect(interview).toContain('<image src="/assets/leaf.svg"');
     expect(interview).toContain('wx:for="{{messages}}"');
     expect(interview).toContain('结束访谈并整理');
-    expect(interview).toMatch(/wx:if="{{hasAnswers}}" class="change-question"[^>]*role="button"/);
+    expect(interview).toMatch(/<button wx:if="{{item.role === 'assistant'[^}]*hasAnswers[^}]*}}" class="change-question"/);
     expect(interview).not.toContain('compose-link-row');
     expect(interview).toMatch(/placeholder="回复小文"[^>]*disable-default-padding="{{true}}"[^>]*bindfocus="onComposerFocus"[^>]*bindblur="onComposerBlur"/s);
     expect(interviewController).toMatch(/onComposerBlur\(\)\s*\{[\s\S]*this\.setData\(\{ keyboardHeight: 0 \}\)/);
@@ -152,7 +152,8 @@ describe('微信小程序公共工程配置', () => {
     expect(editorController).not.toContain('this.setData({ draft: emptyDraft()');
     expect(interviewController).not.toContain('interviewQuestion');
     expect(interviewStyles).toMatch(/\.interview-page\s*\{[^}]*position:\s*fixed[^}]*bottom:\s*0/);
-    expect(interviewStyles).toMatch(/\.interview-topic\s*\{[^}]*margin:\s*0 0 12px/);
+    expect(interviewStyles).toMatch(/\.interview-topic\s*\{[^}]*margin:\s*0;/);
+    expect(interviewStyles).toMatch(/\.interview-context\s*\{[^}]*flex:\s*0 0 auto/);
     expect(interviewStyles).toMatch(/\.change-question\s*\{[^}]*justify-content:\s*flex-start[^}]*text-align:\s*left/);
     expect(interviewStyles).toMatch(/\.compose-link-row\s*\{[^}]*justify-content:\s*flex-end/);
     expect(interviewStyles).toMatch(/\.interview-footer\s*\{[^}]*padding:\s*10px 24px max\(12px, env\(safe-area-inset-bottom\)\)/);
@@ -214,6 +215,16 @@ describe('微信小程序公共工程配置', () => {
     expect(profile).toContain('请定期手工导出备份');
     expect(profile).toContain('不请求手机号、头像或昵称');
     expect(profile).toContain('发送 DeepSeek');
+  });
+  it('访谈是紧凑开关，主题固定且换题属于当前回复', () => {
+    const editor = readText('../miniprogram/pages/editor/index.wxml');
+    const interview = readText('../miniprogram/pages/interview/index.wxml');
+    expect(editor + interview).not.toContain('普通对话');
+    expect(interview).not.toContain('AI 辅助生成 · 请核对');
+    expect(interview.indexOf('class="interview-topic"')).toBeLessThan(interview.indexOf('<scroll-view'));
+    expect(interview).toContain('index === messages.length - 1');
+    expect(interview).toContain('class="change-question" bindtap="changeQuestion" disabled=');
+    expect(readText('../miniprogram/app.wxss')).toContain('width: auto; flex: 0 0 auto; min-height: 48px; align-items: center');
   });
 
   it('正文、小文和采访都使用长按语音且不保留旧的不可用占位入口', () => {

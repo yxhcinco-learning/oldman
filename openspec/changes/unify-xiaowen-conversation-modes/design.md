@@ -8,6 +8,8 @@
 
 ## Decisions
 
+- 2026-09-06 用户修订：访谈只作为会话开关，取消普通对话分类标签；固定话题与紧凑操作行，换题在当前助手气泡内，不重复聊天 AI 提示。模型实测将候选放在 dialogue.body，服务端只对唯一错位字段归一化，再严格校验，双字段冲突拒绝。
+
 - ArticleSession 增加可兼容缺省的 conversation，保存 mode 与连续事件；老数据按稳定 ID 恢复，未知顺序保留来源顺序不伪造时间。新会话以 conversation.mode 为唯一模式来源。
 - 新增 dialogue action 与 protocolVersion=2；输入包含 mode、messages、command（send/start/finish/change/confirm-edit）及用户原文。旧 action 原样兼容。共享纯函数负责准备与结算，平台控制器继续负责事务和网络。
 - 模型同次返回 reply/start/finish/confirm-edit/edit 意图、素材原文片段及更正引用。语义不明确保持模式并澄清。模型结果只关联用户原文，不把生成文本冒充素材。

@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Visible AI-origin disclosure in interaction
-系统 MUST 在小文生成的回答、完整候选和候选预览附近持续提供用户可感知的“AI 辅助生成、需要核对”标识，并 SHALL 将模型输出与用户原文、采访回答、议题来源和程序状态文字分开表达。
+系统 MUST 在完整候选和候选预览附近提供用户可感知的“AI 辅助生成、需要核对”标识，并 SHALL 将模型输出与用户原文、采访回答、议题来源和程序状态文字分开表达。聊天回答通过小文身份和助手气泡区分，不逐条重复核对提示。
 
 #### Scenario: Receive an AI answer without a candidate
 - **WHEN** 小文返回只读回答或澄清问题

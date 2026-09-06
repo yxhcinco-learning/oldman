@@ -153,7 +153,7 @@ it('uses XiaoWen to save answers as materials, ask one next question and compose
   });
   expect(await screen.findByText('那次尝试中，最难解决的一步是什么？')).toBeInTheDocument();
   expect(ai.mock.calls[0][0]).toMatchObject({ action: 'dialogue', current: { body: '' }, conversation: { mode: 'interview', materials: [] } });
-  const compose = screen.getByRole('button', { name: '结束访谈并整理' });
+  const compose = screen.getByRole('button', { name: '访谈已开启，结束访谈并整理' });
   await waitFor(() => expect(compose).toBeEnabled());
   fireEvent.click(compose);
   fireEvent.click(await screen.findByRole('button', { name: '查看调整结果' }));
@@ -176,7 +176,7 @@ it('retains the mode and history when an untouched interview is minimized', asyn
   expect(await screen.findByRole('group', { name: '文章正文' })).toBeInTheDocument();
   expect((await store.load()).sessions[0].conversation?.mode).toBe('interview');
   fireEvent.click(screen.getByRole('button', { name: '打开小文' }));
-  expect(await screen.findByText('访谈中')).toBeVisible();
+  expect(await screen.findByRole('button', { name: '访谈已开启，结束访谈并整理' })).toHaveAttribute('aria-pressed', 'true');
 });
 
 it('enters the article with a visible loading state after an answer while the next question is processing', async () => {
