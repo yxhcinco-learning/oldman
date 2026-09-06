@@ -106,7 +106,7 @@
         <view wx:for="{{conversationMessages}}" wx:key="id" class="xiaowen-turn">
           <view class="{{item.role === 'user' ? 'xiaowen-user-message' : 'xiaowen-answer'}}">
             <view wx:if="{{!item.pending}}">{{item.text}}</view>
-            <view wx:if="{{item.pending}}" class="reply-pending" role="status" aria-label="{{item.text}}"><view /><view /><view /></view>
+            <view wx:if="{{item.pending}}" class="reply-pending" role="status" aria-label="{{item.text}}"><view /><view class="reply-dot-second" /><view class="reply-dot-third" /></view>
             <button wx:if="{{item.hasCandidate}}" class="article-result-link" data-id="{{item.turnId}}" bindtap="showCandidate"><text>看看文章</text><text aria-hidden="true">›</text></button>
             <view wx:if="{{item.error}}" class="xiaowen-error">{{item.error}}</view>
             <button wx:if="{{item.canRetry}}" data-id="{{item.turnId}}" bindtap="retryTurn" disabled="{{operationBusy}}">重新发送</button>

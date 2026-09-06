@@ -68,6 +68,10 @@
 - **THEN** 构建校验必须检查新增接口及其函数类型，生成包必须随内容变化更新版本；页面展示失败不得替换已经读出的作品草稿，重新编译恢复无需删除用户作品
 - **AND** 显式刷新运行包后清理当前项目的代码编译缓存（仅 compile），不得清理 storage/file/auth/session；验收必须区分自动化运行和普通编译
 
+#### Scenario: Native stylesheet compilation fails
+- **WHEN** 开发者工具无法读取页面元数据或页面未加载
+- **THEN** 先检查原生 WXSS/WXML/脚本编译错误；等待动效使用兼容的显式类选择器，修复后必须补模拟器运行证据，不以 TypeScript 构建通过代替原生编译成功
+
 #### Scenario: Long conversation in mini-program
 - **WHEN** 连续消息增加或重新打开长会话
 - **THEN** 消息区定位最新消息及确认操作，模式操作保持显著可达；结束访谈产生的候选明确标为整理而不是优化

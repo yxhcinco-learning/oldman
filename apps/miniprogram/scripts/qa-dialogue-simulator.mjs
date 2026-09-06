@@ -81,6 +81,17 @@ try {
   await (await page.$('.ai-mode-bar button')).tap();
   await current('interview');
   check('按钮开启访谈，静态开场不请求模型', (await conversation()).mode === 'interview' && await requestCount() === 1);
+  const originalDraft = await page.data('draft');
+  await page.setData({ draft: { ...originalDraft, topicSnapshot: { ...originalDraft.topicSnapshot, title: '人工智能进入课堂，教师的角色也在变化，聊聊您记忆中的第一次电脑备课' } } });
+  await page.callMethod('onResize');
+  await new Promise(resolve => setTimeout(resolve, 300));
+  check('长主题实际测量溢出并启用单行滚动', await page.data('topicDistance') > 0 && (await (await page.$('.topic-window')).size()).height <= 30);
+  await mini.screenshot({ path: resolve(output, 'topic-long.png') });
+  await page.setData({ draft: { ...originalDraft, topicSnapshot: { ...originalDraft.topicSnapshot, title: '短主题' } } });
+  await page.callMethod('onResize');
+  await new Promise(resolve => setTimeout(resolve, 300));
+  check('短主题保持静止', await page.data('topicDistance') === 0);
+  await page.setData({ draft: originalDraft });
   // Native keyboard properties are not exposed by automator.property; WXML's
   // boolean bindings are checked in project-config.test.ts, not guessed here.
   const footer = await page.$('.interview-footer');

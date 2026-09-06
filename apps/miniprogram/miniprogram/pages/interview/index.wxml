@@ -12,7 +12,7 @@
   <scroll-view class="messages" scroll-y scroll-into-view="interview-end-{{messages.length}}-{{saving ? 1 : 0}}-{{pendingEdit ? 1 : 0}}" aria-label="小文访谈对话">
     <view class="message {{item.role}}" wx:for="{{messages}}" wx:key="id">
       <view wx:if="{{item.role === 'assistant'}}" class="avatar"><image src="/assets/leaf.svg" mode="aspectFit"></image></view><view class="bubble"><view wx:if="{{!item.pending}}">{{item.text}}</view>
-        <view wx:if="{{item.pending}}" class="reply-pending" role="status" aria-label="{{item.text}}"><view /><view /><view /></view>
+        <view wx:if="{{item.pending}}" class="reply-pending" role="status" aria-label="{{item.text}}"><view /><view class="reply-dot-second" /><view class="reply-dot-third" /></view>
         <button wx:if="{{item.role === 'assistant' && index === messages.length - 1 && !item.pending && !item.canRetry && hasAnswers && !pendingEdit}}" class="change-question" bindtap="changeQuestion" disabled="{{saving || voiceBusy}}">换个问题</button>
         <view wx:if="{{item.error}}">{{item.error}}</view><button wx:if="{{item.canRetry}}" data-id="{{item.turnId}}" bindtap="retryTurn" disabled="{{saving}}">重新发送</button></view>
     </view>
