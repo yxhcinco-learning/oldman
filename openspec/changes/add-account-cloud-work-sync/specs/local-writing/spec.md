@@ -21,6 +21,14 @@
 - **WHEN** 正在编辑已入云作品时断网
 - **THEN** 保住已有输入、暂停修改，恢复网络后先核对最新版本
 
+#### Scenario: Return to an unsaved blank draft
+- **WHEN** 新建草稿尚无可保存内容、没有本机修订及云版本，页面从后台返回
+- **THEN** 保留当前草稿标识、输入方式及编辑现场，不按已保存作品读取，不生成空文件或删除/归属错误；新增输入先保存，已落盘后仍走正常版本核对
+
+#### Scenario: Reopen a saved empty article
+- **WHEN** 已保存的当前或兼容旧格式作品正文为空
+- **THEN** 按作品标识正常读取，不以正文是否为空判定存在性；真实缺失、回收或删除的已有作品不能降级为新稿重新创建
+
 ### Requirement: Portable backup is the only cross-client transfer
 以下手工备份是跨 AppID/账号和历史 H5 的唯一迁移方式；同账号同 AppID 的小程序设备 SHALL 使用私有云同步续写，不将备份副本或本机 revision 当同步协议。
 

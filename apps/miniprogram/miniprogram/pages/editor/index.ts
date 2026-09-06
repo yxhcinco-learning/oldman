@@ -37,6 +37,8 @@ accountPage({
   accountUnsubscribe: undefined as (() => void) | undefined,
   prepareUnsubscribe: undefined as (() => void) | undefined,
   checkingCloud: false,
+  loadTarget: undefined as string | undefined,
+  loadCompose: false,
   loginOpening: false,
   alive: true,
   data: {
@@ -54,6 +56,7 @@ accountPage({
     saving: false,
     saved: false,
     error: '',
+    loadError: '',
     notice: '',
     keyboardHeight: 0,
     topicOpen: false,
@@ -184,18 +187,22 @@ accountPage({
     }) : null;
     if (aggregate === undefined) return;
     if (this.services !== miniServices() || !this.alive || this.data.draft?.id !== id) return;
-    if (aggregate && aggregate.work.revision !== this.data.revision && !this.checkingCloud && this.data.saved && !this.services.articleAi.isRunning(aggregate.work.id)) {
+    if (aggregate && aggregate.work.revision !== this.data.revision && !this.checkingCloud && !this.data.loadError && this.data.saved && !this.services.articleAi.isRunning(aggregate.work.id)) {
       await this.open(aggregate.work.id, false, false); return;
     }
     this.setData({ ...writingAccess(aggregate, this.services.account.snapshot(), this.services.sync, this.data.saved || !aggregate),
-      ...(this.checkingCloud ? { readOnly: true } : {}) });
+      ...(this.checkingCloud || this.data.loadError ? { readOnly: true } : {}) });
   },
   async reconnectCloud() {
     if (this.checkingCloud || !this.data.draft || this.services !== miniServices()) return;
     this.checkingCloud = true;
-    this.setData({ readOnly: true, cloudMessage: '正在核对最新作品…' });
+    this.setData({ readOnly: true, cloudMessage: this.data.revision || this.data.saved || this.data.cloudVersion ? '正在核对最新作品…' : '' });
     try {
+      if (this.data.loadError) { await this.open(this.loadTarget, this.loadCompose); return; }
       if (!await this.flushAutoSave()) return;
+      if (this.services !== miniServices() || !this.alive) return;
+      // A blank draft has an in-memory ID, but no saved work to reopen yet.
+      if (!this.data.revision && !this.data.saved && !this.data.cloudVersion) return;
       await this.open(this.data.draft.id);
     } finally { this.checkingCloud = false; await this.refreshCloudState(); }
   },
@@ -204,6 +211,7 @@ accountPage({
 
   async open(id?: string, compose = false, verify = true) {
     if (this.services !== miniServices() || !this.alive) return;
+    this.loadTarget = id; this.loadCompose = compose;
     this.setData({ readOnly: true });
     try {
       if (id && verify) {
@@ -214,7 +222,7 @@ accountPage({
       if (this.services !== miniServices() || !this.alive) return;
       this.services.writer.recoverPending(snapshot.pendingSessions ?? []);
       const stored = id ? snapshot.works.find(work => work.id === id && !work.deletedAt) : undefined;
-      if (id && !stored && snapshot.recovery?.draft.id !== id) throw new Error('这篇作品已删除或不属于当前账号。');
+      if (id && !stored && snapshot.recovery?.draft.id !== id) throw new Error('暂时找不到这篇文章，请重新打开或返回文章列表。');
       const useRecovery = snapshot.recovery && (!id || snapshot.recovery.draft.id === id);
       const draft = useRecovery ? snapshot.recovery!.draft : stored?.draft ?? emptyDraft();
       const revision = useRecovery ? snapshot.recovery!.revision : stored?.revision ?? 0;
@@ -226,7 +234,7 @@ accountPage({
       if (persistedInput && !this.services.articleAi.isRunning(draft.id)) this.services.conversations.hydrate(draft.id, persistedInput);
       const conversation = this.services.conversations.read(draft.id);
       this.setData({ draft, session, revision, body: draft.inputMode === 'text' ? draft.textDraft : articleText(draft.segments),
-        saved: Boolean(stored) && !useRecovery, error: '', notice: snapshot.issues.map(item => item.message).join(' '),
+        saved: Boolean(stored) && !useRecovery, error: '', loadError: '', notice: snapshot.issues.map(item => item.message).join(' '),
         xiaowenComposer: conversation.composer, xiaowenStatus: conversation.requestStatus, xiaowenError: conversation.error,
         topicSources: draft.topicSnapshot?.sources.map(source => ({ id: source.id, title: source.title,
           route: `/pages/source/index?url=${encodeURIComponent(source.url)}&title=${encodeURIComponent(source.title)}` })) ?? [] });
@@ -239,9 +247,16 @@ accountPage({
       if (compose) this.setData({ xiaowenOpen: true, xiaowenView: 'chat' });
     } catch (error) {
       // Rendering a loaded conversation must never replace the work with a blank draft.
-      this.setData({ error: errorMessage(error, '本机作品暂时无法读取。') });
+      this.setData({ loadError: errorMessage(error, '文章暂时无法打开，请重试。'), readOnly: true });
     }
   },
+
+  async retryError() {
+    if (this.data.error) { await this.saveNow(); return; }
+    if (this.data.loadError) await this.open(this.loadTarget, this.loadCompose);
+  },
+
+  returnToWorks() { void wx.switchTab({ url: '/pages/works/index' }); },
 
   currentDraft(): Draft | null {
     const draft = this.data.draft;

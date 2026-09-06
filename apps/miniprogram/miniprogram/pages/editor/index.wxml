@@ -11,10 +11,10 @@
     </view>
   </view>
 
-  <view wx:if="{{!error && !resultSavePending && (requiresLogin || canReconnect || cloudMessage)}}" class="cloud-save-row" role="status"><text class="cloud-message">{{cloudMessage || (requiresLogin ? '请重新登录后继续。' : '暂时无法编辑，请重试。')}}</text><button wx:if="{{requiresLogin}}" bindtap="goToAccount">微信登录</button><button wx:elif="{{canReconnect}}" bindtap="reconnectCloud">重试</button></view>
-  <view wx:if="{{error && !resultSavePending}}" class="editor-error" style="top: {{navigationHeight}}px" role="alert">
-    <scroll-view scroll-y class="error-copy">{{error}}</scroll-view>
-    <view class="error-actions"><button bindtap="saveNow">重试保存</button><button bindtap="exportRescue">导出当前内容</button></view>
+  <view wx:if="{{!error && !loadError && !resultSavePending && (requiresLogin || canReconnect || cloudMessage)}}" class="cloud-save-row" role="status"><text class="cloud-message">{{cloudMessage || (requiresLogin ? '请重新登录后继续。' : '暂时无法编辑，请重试。')}}</text><button wx:if="{{requiresLogin}}" bindtap="goToAccount">微信登录</button><button wx:elif="{{canReconnect}}" bindtap="reconnectCloud">重试</button></view>
+  <view wx:if="{{(error || loadError) && !resultSavePending}}" class="editor-error" style="top: {{navigationHeight}}px" role="alert">
+    <scroll-view scroll-y class="error-copy">{{error || loadError}}</scroll-view>
+    <view class="error-actions"><button bindtap="retryError">{{error ? '重试保存' : '重新打开'}}</button><button wx:if="{{draft}}" bindtap="exportRescue">导出当前内容</button><button wx:else bindtap="returnToWorks">返回文章</button></view>
   </view>
   <view class="visually-hidden" role="status">{{saving ? '正在自动保存' : saved ? '已自动保存到当前设备' : ''}}</view>
   <view wx:if="{{notice}}" class="editor-notice" role="status">{{notice}}</view>

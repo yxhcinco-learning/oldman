@@ -44,68 +44,73 @@ try {
   const info = await mini.systemInfo();
   console.info(JSON.stringify({ width: info.windowWidth, height: info.windowHeight }));
   if (process.env.MINI_QA_EXPECTED_WIDTH) assert.equal(info.windowWidth, Number(process.env.MINI_QA_EXPECTED_WIDTH), '必须连接正确尺寸的模拟器');
-  for (const route of ['home', 'works', 'profile', 'editor', 'interview', 'topic-detail', 'source']) {
-    await mini.reLaunch('/pages/' + route + '/index');
-    await waitFor(async () => (await mini.currentPage()).path === 'pages/login/index', '未登录拦截' + route);
+  let loginPage, page;
+  if (process.env.MINI_QA_EDITOR_ONLY === '1') {
+    await mini.evaluate(() => { const qa = getApp().__accountQa; qa.status = 'authenticated'; qa.failLogin = false; });
+  } else {
+    for (const route of ['home', 'works', 'profile', 'editor', 'interview', 'topic-detail', 'source']) {
+      await mini.reLaunch('/pages/' + route + '/index');
+      await waitFor(async () => (await mini.currentPage()).path === 'pages/login/index', '未登录拦截' + route);
+      await (await mini.currentPage()).waitFor(1000);
+      check('未登录直接打开 ' + route + ' 被拦截且清空返回栈', await mini.evaluate(() => getCurrentPages().length === 1));
+    }
+    await mini.evaluate(() => require('auth/navigation.js').clearLoginReturn());
+    await mini.reLaunch('/pages/login/index');
+    await new Promise(resolve => setTimeout(resolve, 300));
+    loginPage = await mini.currentPage();
+    const loginSize = await (await loginPage.$('.login-primary')).size();
+    check('独立授权登录按钮铺满内容宽且至少56px', loginSize.width >= info.windowWidth - 52 && loginSize.height >= 56);
+    check('登录按钮下只有隐私入口，没有跳过和上下说明', !await loginPage.$('.login-skip') && !await loginPage.$('.login-saving') && (await (await loginPage.$('.login-terms')).text()).trim() === '隐私说明 ›');
+    await mini.screenshot({ path: resolve(output, 'login.png') });
+    await loginPage.callMethod('openPrivacy');
+    await waitFor(async () => (await mini.currentPage()).path === 'pages/privacy/index', '未登录阅读隐私');
+    check('未登录仍可阅读隐私说明', !!await (await mini.currentPage()).$('.privacy-section'));
     await (await mini.currentPage()).waitFor(1000);
-    check('未登录直接打开 ' + route + ' 被拦截且清空返回栈', await mini.evaluate(() => getCurrentPages().length === 1));
+    await mini.navigateBack();
+    await waitFor(async () => (await mini.currentPage()).path === 'pages/login/index', '隐私返回登录');
+    loginPage = await mini.currentPage();
+    await loginPage.waitFor(1000);
+    await loginPage.callMethod('login');
+    await new Promise(resolve => setTimeout(resolve, 400));
+    await waitFor(async () => !await loginPage.data('busy'), '登录失败反馈');
+    check('登录失败留在原页并显示明确重试', (await mini.currentPage()).path === 'pages/login/index' && (await loginPage.data('error')).includes('未成功'));
+    await mini.screenshot({ path: resolve(output, 'login-failed.png') });
+    await mini.evaluate(() => { getApp().__accountQa.failLogin = false; });
+    await loginPage.callMethod('login');
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await waitFor(async () => (await mini.currentPage()).path === 'pages/home/index', '登录成功返回首页');
+    check('点击授权登录后回到首页', (await mini.currentPage()).path === 'pages/home/index');
+    await mini.switchTab('/pages/profile/index');
+    await new Promise(resolve => setTimeout(resolve, 500));
+    page = await mini.currentPage();
+    await page.callMethod('refreshState');
+    check('空账号不显示未上传或无缘由重试', await page.data('syncText') === '还没有作品' && !await page.data('canReconnect'));
+    // Render documented account states without authenticating with WeChat or writing profile data.
+    check('资料行完整占用可用宽度', (await (await page.$('.account-heading')).size()).width >= info.windowWidth - 52);
+    check('作品工具共有三行且每行至少64px', (await page.$$('.tool-list .tool')).length === 4 && (await page.$$('.support-list .tool')).length === 1 && (await (await page.$('.tool')).size()).height >= 64);
+    await page.setData({ account: { id: 'qa-account', nickname: '', hasAvatar: false, avatarVersion: 0 }, status: 'authenticated', needsLogin: false, canReconnect: false, accountText: '编辑头像与昵称', syncText: '还没有作品' });
+    check('正常个人中心无常驻同步状态与重复登录按钮', !await page.$('.sync-row') && !await page.$('.account-primary') && !!await page.$('.logout-button'));
+    await mini.screenshot({ path: resolve(output, 'profile-signed-in.png') });
+    await page.callMethod('logout');
+    check('退出提供明确确认和取消入口', await page.data('logoutOpen') && !!await page.$('.logout-actions'));
+    await mini.screenshot({ path: resolve(output, 'logout-confirm.png') });
+    await page.callMethod('closeLogout');
+    check('取消退出保留资料', !!await page.data('account'));
+    await page.callMethod('openMenu');
+    await mini.screenshot({ path: resolve(output, 'backup.png') });
+    await page.callMethod('closeMenu');
+    await page.callMethod('openProfile');
+    check('资料抽屉提供原生头像与昵称输入', !!await page.$('.avatar-choose') && !!await page.$('.nickname-input'));
+    const avatarSize = await (await page.$('.avatar-choose')).size();
+    check('头像选择按钮铺满抽屉可用宽度：' + avatarSize.width + 'px', avatarSize.width >= info.windowWidth - 52);
+    await page.callMethod('onNicknameReview', { detail: { pass: false } });
+    check('昵称未通过保留抽屉并禁止保存', !await page.data('nicknameValid') && await page.data('editingProfile'));
+    await mini.screenshot({ path: resolve(output, 'profile-edit.png') });
+    await page.callMethod('closeProfile');
+    await page.setData({ status: 'replaced', needsLogin: true, accountText: '已在其他设备登录', error: '已在其他设备登录，请主动微信登录。' });
+    await mini.screenshot({ path: resolve(output, 'profile-replaced.png') });
+    check('接管状态提供明确主动登录入口', (await (await page.$('.account-primary')).text()).includes('在此设备继续'));
   }
-  await mini.evaluate(() => require('auth/navigation.js').clearLoginReturn());
-  await mini.reLaunch('/pages/login/index');
-  await new Promise(resolve => setTimeout(resolve, 300));
-  let loginPage = await mini.currentPage();
-  const loginSize = await (await loginPage.$('.login-primary')).size();
-  check('独立授权登录按钮铺满内容宽且至少56px', loginSize.width >= info.windowWidth - 52 && loginSize.height >= 56);
-  check('登录按钮下只有隐私入口，没有跳过和上下说明', !await loginPage.$('.login-skip') && !await loginPage.$('.login-saving') && (await (await loginPage.$('.login-terms')).text()).trim() === '隐私说明 ›');
-  await mini.screenshot({ path: resolve(output, 'login.png') });
-  await loginPage.callMethod('openPrivacy');
-  await waitFor(async () => (await mini.currentPage()).path === 'pages/privacy/index', '未登录阅读隐私');
-  check('未登录仍可阅读隐私说明', !!await (await mini.currentPage()).$('.privacy-section'));
-  await (await mini.currentPage()).waitFor(1000);
-  await mini.navigateBack();
-  await waitFor(async () => (await mini.currentPage()).path === 'pages/login/index', '隐私返回登录');
-  loginPage = await mini.currentPage();
-  await loginPage.waitFor(1000);
-  await loginPage.callMethod('login');
-  await new Promise(resolve => setTimeout(resolve, 400));
-  await waitFor(async () => !await loginPage.data('busy'), '登录失败反馈');
-  check('登录失败留在原页并显示明确重试', (await mini.currentPage()).path === 'pages/login/index' && (await loginPage.data('error')).includes('未成功'));
-  await mini.screenshot({ path: resolve(output, 'login-failed.png') });
-  await mini.evaluate(() => { getApp().__accountQa.failLogin = false; });
-  await loginPage.callMethod('login');
-  await new Promise(resolve => setTimeout(resolve, 300));
-  await waitFor(async () => (await mini.currentPage()).path === 'pages/home/index', '登录成功返回首页');
-  check('点击授权登录后回到首页', (await mini.currentPage()).path === 'pages/home/index');
-  await mini.switchTab('/pages/profile/index');
-  await new Promise(resolve => setTimeout(resolve, 500));
-  let page = await mini.currentPage();
-  await page.callMethod('refreshState');
-  check('空账号不显示未上传或无缘由重试', await page.data('syncText') === '还没有作品' && !await page.data('canReconnect'));
-  // Render documented account states without authenticating with WeChat or writing profile data.
-  check('资料行完整占用可用宽度', (await (await page.$('.account-heading')).size()).width >= info.windowWidth - 52);
-  check('作品工具共有三行且每行至少64px', (await page.$$('.tool-list .tool')).length === 4 && (await page.$$('.support-list .tool')).length === 1 && (await (await page.$('.tool')).size()).height >= 64);
-  await page.setData({ account: { id: 'qa-account', nickname: '', hasAvatar: false, avatarVersion: 0 }, status: 'authenticated', needsLogin: false, canReconnect: false, accountText: '编辑头像与昵称', syncText: '还没有作品' });
-  check('正常个人中心无常驻同步状态与重复登录按钮', !await page.$('.sync-row') && !await page.$('.account-primary') && !!await page.$('.logout-button'));
-  await mini.screenshot({ path: resolve(output, 'profile-signed-in.png') });
-  await page.callMethod('logout');
-  check('退出提供明确确认和取消入口', await page.data('logoutOpen') && !!await page.$('.logout-actions'));
-  await mini.screenshot({ path: resolve(output, 'logout-confirm.png') });
-  await page.callMethod('closeLogout');
-  check('取消退出保留资料', !!await page.data('account'));
-  await page.callMethod('openMenu');
-  await mini.screenshot({ path: resolve(output, 'backup.png') });
-  await page.callMethod('closeMenu');
-  await page.callMethod('openProfile');
-  check('资料抽屉提供原生头像与昵称输入', !!await page.$('.avatar-choose') && !!await page.$('.nickname-input'));
-  const avatarSize = await (await page.$('.avatar-choose')).size();
-  check('头像选择按钮铺满抽屉可用宽度：' + avatarSize.width + 'px', avatarSize.width >= info.windowWidth - 52);
-  await page.callMethod('onNicknameReview', { detail: { pass: false } });
-  check('昵称未通过保留抽屉并禁止保存', !await page.data('nicknameValid') && await page.data('editingProfile'));
-  await mini.screenshot({ path: resolve(output, 'profile-edit.png') });
-  await page.callMethod('closeProfile');
-  await page.setData({ status: 'replaced', needsLogin: true, accountText: '已在其他设备登录', error: '已在其他设备登录，请主动微信登录。' });
-  await mini.screenshot({ path: resolve(output, 'profile-replaced.png') });
-  check('接管状态提供明确主动登录入口', (await (await page.$('.account-primary')).text()).includes('在此设备继续'));
   await mini.reLaunch('/pages/works/index');
   await new Promise(resolve => setTimeout(resolve, 500));
   page = await mini.currentPage();
@@ -119,6 +124,21 @@ try {
   await page.callMethod('closeXiaoWen');
   check('空白新稿不显示保存上传标签', !await page.data('syncLabel') && !await page.$('.cloud-save-row'));
   await mini.screenshot({ path: resolve(output, 'editor-empty.png') });
+  const emptyId = (await page.data('draft')).id;
+  for (const mode of ['voice', 'text']) {
+    if (mode === 'text') await page.callMethod('focusText');
+    await mini.navigateTo('/pages/privacy/index');
+    await (await mini.currentPage()).waitFor(1000);
+    await mini.navigateBack();
+    await waitFor(async () => (await mini.currentPage()).path === 'pages/editor/index', '空白稿返回');
+    page = await mini.currentPage();
+    await page.waitFor(1000);
+    check(mode + ' 空白稿跨页返回保留标识和输入方式，没有读取或保存错误', (await page.data('draft')).id === emptyId
+      && (await page.data('draft')).inputMode === mode && !await page.data('error') && !await page.data('loadError') && !await page.data('readOnly'));
+    check(mode + ' 空白稿没有生成空作品，也没有同步或错误提示', !await page.data('saved') && !await page.$('.editor-error') && !await page.$('.cloud-save-row')
+      && await mini.evaluate(async id => !await getApp().__accountQa.services.repository.getAggregate(id), emptyId));
+  }
+  await mini.screenshot({ path: resolve(output, 'editor-empty-resumed.png') });
   await page.callMethod('focusText');
   await page.callMethod('onBodyInput', { detail: { value: '这篇正文已经保存在本机。' } });
   await page.callMethod('flushAutoSave');
@@ -138,7 +158,7 @@ try {
   check('保存失败不叠加云提示，两个补救按钮同排且可触达', !await page.$('.cloud-save-row') && !await page.$('.cloud-message') && (await page.$$('.error-actions button')).length === 2
     && (await (await page.$('.error-actions')).size()).height <= 56 && (await (await page.$('.error-actions button')).size()).height >= 48);
   await mini.screenshot({ path: resolve(output, 'editor-save-error.png') });
-  await page.callMethod('saveNow');
+  await page.callMethod('retryError');
   check('重试保存成功后收起错误并保留正文', await page.data('saved') && !await page.data('error'));
   await page.callMethod('onXiaoWenInput', { detail: { value: '只在输入框里，还没发送给小文。' } });
   await page.callMethod('flushAutoSave');
@@ -177,6 +197,27 @@ try {
     return { successful: results.every(result => result.status === 'fulfilled'), restored: restarted.works[0]?.draft.textDraft === '并发回归新文字', issues: restarted.issues.length };
   });
   check('实际微信文件 API 并发保存与读取通过，重建仓储保留最新内容', concurrency.successful && concurrency.restored && concurrency.issues === 0);
+  await mini.reLaunch('/pages/editor/index?id=qa-missing-article');
+  await new Promise(resolve => setTimeout(resolve, 500));
+  page = await mini.currentPage();
+  await waitFor(async () => !!await page.data('loadError'), '不存在文章的读取错误');
+  check('读取失败提供重新打开和返回文章，不显示保存操作或账号归属断言', (await (await page.$('.error-actions')).text()).includes('重新打开')
+    && (await (await page.$('.error-actions')).text()).includes('返回文章') && !(await page.data('loadError')).includes('不属于')
+    && !await page.data('draft') && await page.data('readOnly'));
+  check('读取补救按钮同排且可触达', (await (await page.$('.error-actions')).size()).height <= 56 && (await (await page.$('.error-actions button')).size()).height >= 48);
+  await mini.screenshot({ path: resolve(output, 'editor-load-error.png') });
+  await page.callMethod('retryError');
+  check('重新打开不会把不存在的文章创建为空稿', !!await page.data('loadError') && !await page.data('draft')
+    && await mini.evaluate(async () => !await getApp().__accountQa.services.repository.getAggregate('qa-missing-article')));
+  await mini.evaluate(async () => {
+    const qa = getApp().__accountQa;
+    const { emptyDraft } = require('domain/core.js');
+    await qa.services.repository.save({ ...emptyDraft(), id: 'qa-missing-article', inputMode: 'text', textDraft: '重新读取成功后的原文章。' }, 0);
+  });
+  await page.callMethod('retryError');
+  check('读取恢复后重新打开同一目标，清除提示并恢复编辑', await page.data('body') === '重新读取成功后的原文章。'
+    && !await page.data('loadError') && !await page.data('error') && !await page.data('readOnly'));
+  await mini.screenshot({ path: resolve(output, 'editor-load-recovered.png') });
   console.info(JSON.stringify({ width: info.windowWidth, height: info.windowHeight, passed: passed.length, paidCalls: 0, realWeChatLogin: false }));
   await writeFile(resolve(output, 'account-ui-result.json'), JSON.stringify({ window: { width: info.windowWidth, height: info.windowHeight }, passed, realWeChatLogin: false, paidCalls: 0 }, null, 2));
 } finally {
