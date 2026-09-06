@@ -7,4 +7,5 @@ export * from './speech-protocol.js';
 export * from './backup.js';
 export * from './writing-state.js';
 export * from './cloud-protocol.js';
+export * from './publication-protocol.js';
 export { z } from 'zod';

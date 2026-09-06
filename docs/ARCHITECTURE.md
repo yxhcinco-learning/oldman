@@ -52,6 +52,8 @@ conversation.mode 是持久模式唯一来源。共享 prepareDialogue / settleD
 
 ## 运营与部署
 
+发表阶段在 auth.sqlite schema 3 独立存放唯一用户名归属、发表设置、处理后的图片、不可变投稿、公开版本及审计；与私有作品共用事务但不共用公开投影。后台只可读明确投稿内容，不能取得 WorkSnapshot、未投稿封面或会话。原删除事务同时撤销待审和公开内容；恢复不发表。小程序使用账号隔离的独立发表侧文件保存封面及裁切，不改正文聚合 v3 或 JSON v6。当前实施及验证状态见 STATUS，不据此推断线上已升级。
+
 后台继续独立管理员会话、HttpOnly/Secure/SameSite Cookie、Origin、CSRF 和修订并发保护；候选不绕过人工审核。后台预览是运营内容预览，不复用或启动 H5 应用。
 
 保留现有 Node 24、TypeScript、React/Vinext 和 npm 工具链用于管理台与服务，删除 H5 独有 IndexedDB/Tailwind 依赖。服务使用 Nginx + 两个 systemd 单元、回环 3011/3012 和 release 外三库。网关可独立部署，安装 unit 固定 release 路径；网页与 current 可保持其他版本，不因本地根路由变化自动退役线上 H5。分别按[部署记录](DEPLOYMENT.md)核对两服务版本及回滚目标，不用current推断网关版本。

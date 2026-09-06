@@ -2,6 +2,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { cloudMutationSchema, stableJson, workSnapshotSchema, type CloudChanges, type CloudMutation, type CloudMutationResult,
   type CloudWork, type CloudWorkEntry, type WorkSnapshot } from '../packages/core/src/cloud-protocol';
 import { MiniIdentityStore, sha256 } from './mini-identity-store';
+import { revokeWorkPublication } from './publication-lifecycle';
 
 export class CloudWorkError extends Error {
   constructor(readonly status: number, readonly code: string, message: string) { super(message); this.name = 'CloudWorkError'; }
@@ -77,6 +78,7 @@ export class CloudWorkStore {
       if (mutation.kind === 'restore') deletedAt = null;
       if (snapshot) snapshot = { ...snapshot, work: { ...snapshot.work, deletedAt } };
       if (mutation.kind === 'purge') snapshot = null;
+      if (mutation.kind === 'trash' || mutation.kind === 'purge') revokeWorkPublication(database, userId, mutation.workId, mutation.kind === 'purge', updatedAt);
       const raw = snapshot ? JSON.stringify(snapshot) : null;
       const bytes = raw ? Buffer.byteLength(raw) : 0;
       const totals = database.prepare('SELECT COUNT(*) AS count, COALESCE(SUM(bytes), 0) AS bytes FROM cloud_works WHERE user_id = ? AND purged = 0')

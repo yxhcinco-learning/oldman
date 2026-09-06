@@ -1,10 +1,12 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { migrateAccounts } from './account-schema';
+import { migratePublications } from './publication-schema';
+import { generatedUsername } from './username-store';
 
 export const DEFAULT_MINI_IDENTITY_DB_PATH = '/var/lib/suiyue-yousheng/auth.sqlite';
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type MiniIdentityErrorCategory = 'invalid_session' | 'session_replaced' | 'session_expired' | 'account_upgrade_required' | 'replayed_code' | 'integrity_failed';
@@ -112,7 +114,8 @@ export class MiniIdentityStore {
         ) STRICT;
         PRAGMA user_version = 1;
       `);
-      migrateAccounts(this.database);
+      if (version < 2) migrateAccounts(this.database);
+      migratePublications(this.database);
     });
   }
 
@@ -175,7 +178,10 @@ export class MiniIdentityStore {
       const revokeCount = kind === 'account' ? active.length : Math.max(0, active.length - this.maxActiveSessions + 1);
       const revoke = this.database.prepare('UPDATE mini_sessions SET revoked_at = ?, revoked_reason = ? WHERE id = ?');
       for (const row of active.slice(0, revokeCount)) revoke.run(now, kind === 'account' ? 'session_replaced' : null, row.id);
-      if (kind === 'account') this.database.prepare('INSERT OR IGNORE INTO mini_accounts (user_id, created_at) VALUES (?, ?)').run(userId, now);
+      if (kind === 'account') {
+        const created = this.database.prepare('INSERT OR IGNORE INTO mini_accounts (user_id, created_at) VALUES (?, ?)').run(userId, now);
+        if (created.changes) generatedUsername(this.database, userId);
+      }
 
       this.database.prepare('INSERT INTO mini_sessions (id, user_id, token_hash, created_at, expires_at, kind) VALUES (?, ?, ?, ?, ?, ?)')
         .run(randomUUID(), userId, sha256(token), now, expiresAt, kind);
@@ -208,6 +214,11 @@ export class MiniIdentityStore {
   /** No asynchronous work is allowed between authentication and COMMIT. */
   accountTransaction<T>(token: string, operation: (database: DatabaseSync, session: AuthenticatedMiniSession) => T): T {
     return this.transaction(() => operation(this.database, this.authenticate(token, true)));
+  }
+
+  /** Server-internal publication domain access; never exposed as a generic administrator API. */
+  publicationTransaction<T>(operation: (database: DatabaseSync) => T): T {
+    return this.transaction(() => operation(this.database));
   }
 
   renewAccount(token: string) {

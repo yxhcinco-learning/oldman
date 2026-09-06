@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest, HTTPMethods } from 'fastify';
 import sharp from 'sharp';
+import { UsernameError } from './username-store';
 import { cloudIdSchema, cloudMutationSchema } from '../packages/core/src/cloud-protocol';
 import { AccountStore } from './account-store';
 import { CloudWorkError, CloudWorkStore, type CloudWorkLimits } from './cloud-work-store';
@@ -32,7 +33,7 @@ export function registerAccountApi(app: FastifyInstance, options: AccountApiOpti
     buckets.set(key, bucket);
     if (++bucket.count > limit) throw new CloudWorkError(429, 'rate_limited', '请求较频繁，请稍后重试。');
   };
-  app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer', bodyLimit: 2 * 1024 * 1024 }, (_request, body, done) => done(null, body));
+  app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer', bodyLimit: 8 * 1024 * 1024 }, (_request, body, done) => done(null, body));
   type Handler = (request: FastifyRequest, reply: FastifyReply, token: string) => unknown;
   const route = (method: HTTPMethods | HTTPMethods[], url: string, action: string, handler: Handler, bodyLimit = 2048, authenticated = true) => {
     app.route({ method, url, bodyLimit, handler: async (request, reply) => {
@@ -48,7 +49,7 @@ export function registerAccountApi(app: FastifyInstance, options: AccountApiOpti
         return result;
       } catch (error) {
         let status = 503, code = 'account_unavailable', message = '账号与云保存暂不可用，请稍后重试。';
-        if (error instanceof CloudWorkError) { status = error.status; code = error.code; message = error.message; }
+        if (error instanceof CloudWorkError || error instanceof UsernameError) { status = error.status; code = error.code; message = error.message; }
         else if (error instanceof MiniIdentityError) {
           status = 401; code = error.category;
           message = code === 'session_replaced' ? '已在其他设备登录，请点击微信登录以在此设备继续。' : '登录已失效，请点击微信登录。';

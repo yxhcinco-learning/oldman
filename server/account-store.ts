@@ -1,6 +1,7 @@
 import type { AccountProfile } from '../packages/core/src/cloud-protocol';
 import { MiniIdentityStore } from './mini-identity-store';
 import { CloudWorkError } from './cloud-work-store';
+import { changeUsername, validUsername } from './username-store';
 
 export class AccountStore {
   constructor(private readonly identity: MiniIdentityStore) {}
@@ -14,10 +15,10 @@ export class AccountStore {
   }
 
   updateNickname(token: string, nickname: string) {
-    const trimmed = nickname.trim();
-    if ([...trimmed].length > 32 || trimmed.length > 64 || /[\u0000-\u001f\u007f]/.test(trimmed)) throw new CloudWorkError(400, 'invalid_profile', '昵称请使用 32 字以内的文字。');
+    const trimmed = nickname.normalize('NFKC').trim();
+    if (trimmed && !validUsername(trimmed)) throw new CloudWorkError(400, 'invalid_profile', '用户名请使用 32 字以内的可见文字。');
     this.identity.accountTransaction(token, (database, session) => {
-      database.prepare('UPDATE mini_accounts SET nickname = ? WHERE user_id = ?').run(trimmed, session.userId);
+      changeUsername(database, session.userId, trimmed);
     });
     return this.profile(token);
   }

@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { registerPublicationAdmin } from './publication-api';
+import type { PublicationStore } from './publication-store';
 import { z } from 'zod';
 import { topicEditableContentSchema, topicGenerationRequestSchema, topicPlacementSchema, writingTopicSchema } from '../packages/core/src/topics';
 import { defaultOperationLogger, OperationMonitor, operationDuration, type OperationLogger } from './operations';
@@ -35,6 +37,7 @@ const emptySchema = z.object({}).strict();
 interface RateBucket { startedAt: number; count: number }
 
 export interface TopicAdminGatewayOptions {
+  publications?: PublicationStore;
   origin: string;
   store?: TopicStore;
   auth?: TopicAdminAuthService;
@@ -124,6 +127,8 @@ export function registerTopicAdmin(app: FastifyInstance, options: TopicAdminGate
       return undefined;
     }
   };
+
+  registerPublicationAdmin(app, options.publications, guard, log);
 
   app.post('/api/admin/auth/login', { bodyLimit: 4096 }, async (request, reply) => {
     const startedAt = performance.now();
