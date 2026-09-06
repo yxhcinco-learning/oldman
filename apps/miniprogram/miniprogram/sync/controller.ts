@@ -14,6 +14,8 @@ export class MiniCloudSync {
   private state: SyncState = { status: 'local', error: '' };
   private listeners = new Set<(state: SyncState) => void>();
   private unsubscribe: () => void;
+  private preparations = new Set<() => Promise<void>>();
+  beforeSync(prepare: () => Promise<void>) { this.preparations.add(prepare); return () => { this.preparations.delete(prepare); }; }
   constructor(readonly repository: MiniWorkRepository, private readonly writer: MiniDraftWriter, private readonly account: MiniAccountClient,
     private readonly transport: MiniCloudTransport, private readonly generation: number, private readonly guest?: MiniWorkRepository) {
     this.unsubscribe = repository.subscribe(() => this.schedule());
@@ -27,8 +29,11 @@ export class MiniCloudSync {
     }
     if (['expired', 'replaced', 'guest', 'connecting'].includes(this.account.snapshot().status)) throw new AccountRequestError('login_required', '请点击微信登录以继续。', 401);
   }
-  dispose() { this.active = false; this.unsubscribe(); if (this.timer) clearTimeout(this.timer); this.readyIds.clear(); }
-  pause(message = '云作品暂停编辑，请联网后重试。') { this.readyIds.clear(); this.failed = true; this.publish({ status: 'paused', error: message }); }
+  dispose() { this.active = false; this.unsubscribe(); if (this.timer) clearTimeout(this.timer); this.pause('账号已变化，请重新打开作品。'); }
+  pause(message = '云作品暂停编辑，请联网后重试。') {
+    this.readyIds.clear(); this.failed = true;
+    this.publish(this.repository.accountId ? { status: 'paused', error: message } : { status: 'local', error: '' });
+  }
   canEdit(id: string, cloudVersion: number) { return !cloudVersion || this.active && this.readyIds.has(id) && this.account.snapshot().status === 'authenticated'; }
   private schedule() {
     if (!this.active || !this.repository.accountId || this.failed) return;
@@ -41,7 +46,7 @@ export class MiniCloudSync {
     if (this.flight) return this.flight;
     this.failed = false;
     this.flight = this.run().catch(error => {
-      if (this.active) { this.failed = true; this.readyIds.clear(); this.publish({ status: 'error', error: error instanceof Error ? error.message : '云保存失败，内容仍保留在本机。' }); }
+      if (this.active) { this.failed = true; if (!(error instanceof AccountRequestError && error.status === 413)) this.readyIds.clear(); this.publish({ status: 'error', error: error instanceof Error ? error.message : '云保存失败，内容仍保留在本机。' }); }
       throw error;
     }).finally(() => { this.flight = undefined; });
     return this.flight;
@@ -57,7 +62,7 @@ export class MiniCloudSync {
       await this.repository.acknowledge(aggregate.work.id, result);
       if (!result.entry.purged) this.readyIds.add(aggregate.work.id);
     } catch (error) {
-      if (!(error instanceof AccountRequestError) || error.status !== 409) throw error;
+      if (!(error instanceof AccountRequestError) || error.status !== 409 || error.code === 'operation_mismatch') throw error;
       const remote = await this.transport.get(aggregate.work.id);
       this.assertActive();
       await this.repository.installRemote(remote);
@@ -99,6 +104,7 @@ export class MiniCloudSync {
     this.publish({ status: 'syncing', error: '' });
     await this.account.refresh();
     this.assertActive();
+    for (const prepare of this.preparations) await prepare();
     await this.writer.flush();
     // Replay frozen operations before pulling to reconcile an ACK lost after commit.
     for (const local of await this.repository.allAggregates()) await this.sendPending(local);
@@ -126,7 +132,8 @@ export class MiniCloudSync {
   }
 
   async open(id: string) {
-    await this.sync();
+    try { await this.sync(); }
+    catch (error) { if (!(error instanceof AccountRequestError && error.status === 413)) throw error; }
     const local = await this.repository.getAggregate(id);
     if (!local?.cloud?.version || local.cloud.recoveryOf) return;
     const remote = await this.transport.get(id);
@@ -153,7 +160,9 @@ export class MiniCloudSync {
   }
   private async openForLifecycle(id: string) {
     this.assertActive();
-    await this.sync();
+    await this.account.refresh();
+    const pending = await this.repository.getAggregate(id);
+    if (pending?.cloud?.operation) await this.sendPending(pending);
     const remote = await this.transport.get(id);
     this.assertActive();
     await this.repository.installRemote(remote);

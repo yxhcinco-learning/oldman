@@ -25,10 +25,10 @@ fi
 
 /usr/bin/curl -fsS --max-time 5 http://127.0.0.1:3011/ >/dev/null
 health="$(/usr/bin/curl -fsS --max-time 5 http://127.0.0.1:3012/api/health)"
-for marker in '"miniIdentityConfigured":true' '"topicsConfigured":true' '"topicAiConfigured":true' '"topicAdminConfigured":true' '"costGovernanceConfigured":true'; do
+for marker in '"cloudWorksConfigured":true' '"miniIdentityConfigured":true' '"topicsConfigured":true' '"topicAiConfigured":true' '"topicAdminConfigured":true' '"costGovernanceConfigured":true'; do
   grep -Fq "$marker" <<<"$health" || { echo "required gateway capability is not configured" >&2; exit 2; }
 done
-/usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check "$identity_db" 1
+/usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check "$identity_db" 2
 /usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check "$topics_db" 1
 /usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check "$usage_db" 1
 
@@ -60,6 +60,10 @@ status="$(/usr/bin/curl -sS --max-time 10 -o "$body" -w '%{http_code}' -H 'Conte
 [[ "$status" == 401 ]] || { echo "mini speech-ticket rejection path failed" >&2; exit 2; }
 status="$(/usr/bin/curl -sS --max-time 10 -o "$body" -w '%{http_code}' -H 'Connection: Upgrade' -H 'Upgrade: websocket' "$origin/api/mini/speech?ticket=$invalid_token")"
 [[ "$status" == 401 ]] || { echo "mini speech WebSocket rejection path failed" >&2; exit 2; }
+for endpoint in account/me account/session account/avatar works; do
+  status="$(/usr/bin/curl -sS --max-time 10 -o "$body" -w '%{http_code}' "$origin/api/mini/$endpoint")"
+  [[ "$status" == 401 ]] || { echo "private mini API is not session-protected" >&2; exit 2; }
+done
 status="$(/usr/bin/curl -sS --max-time 10 -o "$body" -w '%{http_code}' "$origin/api/mini/not-listed")"
 [[ "$status" == 404 ]] || { echo "unlisted mini API is not denied" >&2; exit 2; }
 
@@ -74,7 +78,7 @@ grep -Fq '"costGovernanceConfigured":true' <<<"$health"
 [[ "$(stat -c '%d:%i' "$identity_db")" == "$identity_inode" ]] || { echo "identity database was replaced during restart" >&2; exit 2; }
 [[ "$(stat -c '%d:%i' "$topics_db")" == "$topics_inode" ]] || { echo "topics database was replaced during restart" >&2; exit 2; }
 [[ "$(stat -c '%d:%i' "$usage_db")" == "$usage_inode" ]] || { echo "usage database was replaced during restart" >&2; exit 2; }
-/usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check "$identity_db" 1
+/usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check "$identity_db" 2
 /usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check "$topics_db" 1
 /usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check "$usage_db" 1
 

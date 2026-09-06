@@ -18,6 +18,7 @@ export interface RepositorySnapshot {
   sessions: ArticleSession[];
   recovery: Recovery | null;
   recoverySession: ArticleSession | null;
+  recoveryWritingState?: WritingState;
   issues: RepositoryIssue[];
   pendingSessions: RecoveryRecord[];
   aggregates?: WorkAggregate[];
@@ -250,7 +251,7 @@ export class MiniWorkRepository {
     return index;
   }
 
-  private async loadRecovery(aggregates: WorkAggregate[]): Promise<{ recovery: Recovery | null; session: ArticleSession | null }> {
+  private async loadRecovery(aggregates: WorkAggregate[]): Promise<{ recovery: Recovery | null; session: ArticleSession | null; writingState?: WritingState }> {
     if (!await this.files.exists(this.paths.recovery)) return { recovery: null, session: null };
     let record: RecoveryRecord;
     try { record = recoveryRecordSchema.parse(JSON.parse(await this.files.readText(this.paths.recovery)), zodParseContext); }
@@ -266,7 +267,7 @@ export class MiniWorkRepository {
       await this.safeRemove(this.paths.recovery).catch(() => undefined);
       return { recovery: null, session: null };
     }
-    return { recovery: { draft: record.draft, revision: record.expectedRevision }, session: record.session };
+    return { recovery: { draft: record.draft, revision: record.expectedRevision }, session: record.session, writingState: record.writingState };
   }
 
   async load(): Promise<RepositorySnapshot> {
@@ -294,7 +295,7 @@ export class MiniWorkRepository {
     }
     const result = { works: aggregates.map(item => item.work), sessions: aggregates.flatMap(item => item.session ? [item.session] : []), aggregates,
       writingStates: aggregates.map(item => ({ workId: item.work.id, state: item.writingState ?? emptyWritingState() })),
-      recovery: recovered.recovery, recoverySession: recovered.session, pendingSessions, issues: [...this.issues] };
+      recovery: recovered.recovery, recoverySession: recovered.session, recoveryWritingState: recovered.writingState, pendingSessions, issues: [...this.issues] };
     this.issues = [];
     return result;
   }
@@ -420,7 +421,17 @@ export class MiniWorkRepository {
     const copies = snapshot.pendingSessions.map(record => asImportedCopy(workFromDraft(record.draft)));
     const rescued = snapshot.pendingSessions.flatMap((record, index) => record.session ? [copySession(record.session, copies[index]!.id)] : []);
     const sessions = snapshot.recoverySession ? [...snapshot.sessions.filter(session => session.workId !== snapshot.recoverySession!.workId), snapshot.recoverySession] : snapshot.sessions;
-    return makeBackup([...snapshot.works, ...copies], snapshot.recovery?.draft ?? null, [...sessions, ...rescued], snapshot.writingStates);
+    const writingStates = [...snapshot.writingStates ?? []];
+    if (snapshot.recovery && snapshot.recoveryWritingState) {
+      const index = writingStates.findIndex(item => item.workId === snapshot.recovery!.draft.id);
+      if (index >= 0) writingStates.splice(index, 1);
+      writingStates.push({ workId: snapshot.recovery.draft.id, state: snapshot.recoveryWritingState });
+    }
+    snapshot.pendingSessions.forEach((record, index) => {
+      const state = record.writingState ?? writingStates.find(item => item.workId === record.workId)?.state;
+      if (state) writingStates.push({ workId: copies[index]!.id, state });
+    });
+    return makeBackup([...snapshot.works, ...copies], snapshot.recovery?.draft ?? null, [...sessions, ...rescued], writingStates);
   }
 
   async exportVolumes(): Promise<string[]> {
@@ -429,8 +440,8 @@ export class MiniWorkRepository {
     return makeBackupVolumes(raw.works, raw.sessions, raw.writingStates);
   }
 
-  rescueExport(draft: Draft, works: Work[] = [], sessions: ArticleSession[] = []) {
-    return makeBackup(works, draft, sessions);
+  rescueExport(draft: Draft, works: Work[] = [], sessions: ArticleSession[] = [], writingStates: WorkWritingState[] = []) {
+    return makeBackup(works, draft, sessions, writingStates);
   }
 
   importBackup(raw: string): Promise<number> {
@@ -644,9 +655,10 @@ export class MiniDraftWriter {
   write(draft: Draft, session?: ArticleSession) {
     const snapshot = clone(draft);
     const sessionSnapshot = session ? clone(session) : undefined;
+    const writingState = this.writingStates.get(snapshot.id);
     const job = this.tail.catch(() => undefined).then(async () => {
       if (this.pending.has(snapshot.id)) throw new Error('请先保存小文已收到的回复，或救援导出。');
-      const next = await this.repository.save(snapshot, this.revisions.get(snapshot.id) ?? 0, sessionSnapshot, this.writingStates.get(snapshot.id));
+      const next = await this.repository.save(snapshot, this.revisions.get(snapshot.id) ?? 0, sessionSnapshot, writingState);
       this.revisions.set(snapshot.id, next?.revision ?? 0);
       return next;
     });
@@ -657,9 +669,10 @@ export class MiniDraftWriter {
   preserve(draft: Draft, session?: ArticleSession) {
     const snapshot = clone(draft);
     const sessionSnapshot = session ? clone(session) : undefined;
+    const writingState = this.writingStates.get(snapshot.id);
     const job = this.tail.catch(() => undefined).then(async () => {
       if (this.pending.has(snapshot.id)) throw new Error('请先保存小文已收到的回复，或救援导出。');
-      await this.repository.writeRecovery(snapshot, this.revisions.get(snapshot.id) ?? 0, sessionSnapshot, this.writingStates.get(snapshot.id));
+      await this.repository.writeRecovery(snapshot, this.revisions.get(snapshot.id) ?? 0, sessionSnapshot, writingState);
     });
     this.tail = job;
     return job;

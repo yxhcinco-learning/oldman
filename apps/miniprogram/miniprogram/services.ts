@@ -56,6 +56,7 @@ export async function loginMiniAccount() {
     for (const record of snapshot.pendingSessions) await current.writer.retrySessionSave(record.workId);
     if (snapshot.recovery) {
       current.writer.seed(snapshot.recovery.draft.id, snapshot.recovery.revision);
+      if (snapshot.recoveryWritingState) current.writer.setWritingState(snapshot.recovery.draft.id, snapshot.recoveryWritingState);
       await current.writer.write(snapshot.recovery.draft, snapshot.recoverySession ?? undefined);
     }
   }

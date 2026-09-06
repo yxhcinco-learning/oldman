@@ -47,7 +47,9 @@ Page({
     }
     const draft = emptyDraft({ topicSnapshot: snapshotTopic(currentTopic), topicWritingMode: mode });
     try {
-      await miniServices().repository.writeRecovery(draft, 0);
+      const services = miniServices();
+      await services.repository.writeRecovery(draft, 0);
+      if (services !== miniServices()) throw new Error('账号已变化，请重新开始写作。');
       const route = mode === 'interview' ? '/pages/interview/index' : '/pages/editor/index';
       void wx.redirectTo({ url: `${route}?id=${encodeURIComponent(draft.id)}` });
     } catch (error) {

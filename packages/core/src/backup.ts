@@ -77,7 +77,7 @@ export function parseBackupBundle(raw: string): { works: Work[]; sessions: Artic
 }
 export function makeBackup(works: Work[], current?: Draft | null, sessions: ArticleSession[] = [], writingStates: WorkWritingState[] = []): string {
   let items = cloneValue(works);
-  if (current && (hasContent(current) || sessions.some(session => session.workId === current.id && (session.turns.length || session.conversation)))) {
+  if (current && (hasContent(current) || writingStates.some(item => item.workId === current.id && item.state.composer.trim()) || sessions.some(session => session.workId === current.id && (session.turns.length || session.conversation)))) {
     const snapshot = workFromDraft(current, items.find(w => w.id === current.id));
     items = [...items.filter(w => w.id !== current.id), snapshot];
   }

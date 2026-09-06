@@ -57,6 +57,7 @@ export async function createGateway(options: GatewayOptions) {
   registerOperationalEvents(app, { origin: options.origin, operations, requestsPerMinute: options.eventRequestsPerMinute });
   const active = new Set<WebSocket>();
   const speechTickets = options.speechTickets ?? new SpeechTicketStore();
+  const speechSessionChecks = new Map<string, () => void>();
   const speechReservations = new Map<string, CostReservation>();
   const configuredSpeechSeconds = Math.max(1, Math.ceil((options.maxDurationMs ?? 300_000) / 1_000));
   await app.register(websocket, { options: { maxPayload: 64 * 1024 } });
@@ -94,7 +95,7 @@ export async function createGateway(options: GatewayOptions) {
     catch (error) {
       if (error instanceof MiniIdentityError) {
         finish(401, 'unauthorized');
-        return reply.code(401).send({ error: '在线身份已失效，请重试。' });
+        return reply.code(401).send({ code: error.category, error: error.category === 'session_replaced' ? '已在其他设备登录，请主动登录后继续。' : '登录已过期，请主动登录后继续。' });
       }
       finish(503, 'identity_unavailable');
       return reply.code(503).send({ error: '在线身份服务暂不可用，本地写作仍可使用。' });
@@ -104,7 +105,7 @@ export async function createGateway(options: GatewayOptions) {
       return reply.code(503).send({ error: '语音服务尚未配置，请继续使用文字输入。' });
     }
     try {
-      const issued = speechTickets.issue(userId);
+      const issued = speechTickets.issue(userId, 'speech', () => { options.miniAuth!.service!.authenticateBearer(request.headers.authorization); });
       finish(200);
       return reply.send({ ticket: issued.ticket, expiresAt: new Date(issued.expiresAt).toISOString() });
     } catch (error) {
@@ -136,6 +137,9 @@ export async function createGateway(options: GatewayOptions) {
   };
 
   const speechSession = (socket: WebSocket, request: FastifyRequest, action: 'speech.session' | 'mini.speech.session') => {
+    const validateSession = speechSessionChecks.get(request.id);
+    speechSessionChecks.delete(request.id);
+    let sessionTimer: ReturnType<typeof setInterval> | undefined;
     const startedAt = performance.now();
     const reservation = speechReservations.get(request.id);
     speechReservations.delete(request.id);
@@ -160,7 +164,7 @@ export async function createGateway(options: GatewayOptions) {
     const send = (event: SpeechEvent) => { if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(event)); };
     const release = () => {
       if (released) return;
-      released = true; active.delete(socket); clearTimeout(maxTimer); clearTimeout(readyTimer); clearTimeout(finishTimer);
+      released = true; active.delete(socket); clearTimeout(maxTimer); clearTimeout(readyTimer); clearTimeout(finishTimer); clearInterval(sessionTimer);
       if (upstream.readyState === WebSocket.CONNECTING) upstream.terminate();
       else if (upstream.readyState === WebSocket.OPEN) upstream.close();
       if (reservation) {
@@ -170,6 +174,10 @@ export async function createGateway(options: GatewayOptions) {
       finishLog();
     };
     const fail = (message: string, category = 'upstream_unavailable') => { if (completed || released) return; finalStatus = 502; finalCategory = category; send({ type: 'error', message }); socket.close(1011, 'Recognition unavailable'); release(); };
+    const sessionValid = () => {
+      try { validateSession?.(); return true; }
+      catch { fail('登录已失效或已在其他设备登录，已收到的文字保留在本机。', 'session_replaced'); return false; }
+    };
     const end = () => {
       if (ended || released) return;
       ended = true;
@@ -179,6 +187,7 @@ export async function createGateway(options: GatewayOptions) {
     };
     const readyTimer = setTimeout(() => fail('语音连接超时，请稍后重试', 'upstream_ready_timeout'), 10000);
     const maxTimer = setTimeout(() => { send({ type: 'limit' }); end(); }, reservation ? reservation.speechSeconds * 1_000 : options.maxDurationMs ?? 300_000);
+    if (validateSession) sessionTimer = setInterval(sessionValid, 1000);
     upstream.on('message', data => {
       if (released) return;
       try {
@@ -191,7 +200,7 @@ export async function createGateway(options: GatewayOptions) {
     upstream.on('error', () => fail('无法连接语音识别服务，请检查网络和配置', 'upstream_network'));
     upstream.on('close', () => { if (!completed && !released) fail('语音连接中断，已收到的文字已保留', 'upstream_closed'); });
     socket.on('message', (data, binary) => {
-      if (released) return;
+      if (released || !sessionValid()) return;
       if (!binary) {
         try {
           const event = JSON.parse(data.toString());
@@ -244,9 +253,12 @@ export async function createGateway(options: GatewayOptions) {
       if (!query || typeof query !== 'object' || Array.isArray(query) || Object.keys(query).length !== 1 || typeof (query as { ticket?: unknown }).ticket !== 'string') {
         return fail(401, 'ticket_rejected', '语音连接已失效，请重试。');
       }
-      try { speechTickets.consume((query as { ticket: string }).ticket); }
+      try { const ticket = speechTickets.consume((query as { ticket: string }).ticket);
+        if (ticket.validateSession) speechSessionChecks.set(request.id, ticket.validateSession); }
       catch { return fail(401, 'ticket_rejected', '语音连接已失效，请重试。'); }
-      return reserveSpeechBudget(request, reply, 'mini.speech.session', startedAt);
+      const budgetFailure = reserveSpeechBudget(request, reply, 'mini.speech.session', startedAt);
+      if (budgetFailure) speechSessionChecks.delete(request.id);
+      return budgetFailure;
     },
   }, (socket, request) => speechSession(socket, request, 'mini.speech.session'));
   app.addHook('preClose', async () => {

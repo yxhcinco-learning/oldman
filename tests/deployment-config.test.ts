@@ -69,7 +69,9 @@ it('protects the exact HTTPS origin while preserving same-origin API and WebSock
   expect(nginx).toContain('zone=suiyue_mini_speech');
   expect(nginx).toContain('zone=suiyue_topic_admin');
   expect(nginx).toContain('zone=suiyue_events');
-  expect(nginx).toContain('location ^~ /api/mini/');
+  expect(nginx).toContain('location /api/mini/');
+  expect(nginx).toContain('client_max_body_size 9m;');
+  expect(nginx).toContain('location = /api/mini/account/avatar');
   expect(nginx).toContain('location /api/ {');
   expect(nginx).not.toContain('location ^~ /api/ {');
   const miniSpeech = /location = \/api\/mini\/speech \{([\s\S]*?)\n    \}/.exec(nginx)?.[1] ?? '';
@@ -91,7 +93,9 @@ it('prepares, backs up and verifies all release-external databases without print
   expect(activate).toContain('deploy/server/sqlite-db.mjs" backup "$identity_db"');
   expect(activate).toContain('deploy/server/sqlite-db.mjs" backup "$topics_db"');
   expect(activate).toContain('deploy/server/sqlite-db.mjs" backup "$usage_db"');
-  expect(activate).toContain('deploy/server/sqlite-db.mjs" restore');
+  expect(activate).not.toContain('deploy/server/sqlite-db.mjs" restore');
+  expect(activate).toContain('check-release');
+  expect(activate).toContain('current databases retained');
   expect(activate).toContain('"miniIdentityConfigured":true');
   expect(activate).toContain('"topicsConfigured":true');
   expect(activate).toContain('"topicAiConfigured":true');
@@ -99,8 +103,8 @@ it('prepares, backs up and verifies all release-external databases without print
   expect(activate).toContain('"costGovernanceConfigured":true');
   expect(activate).toContain('WECHAT_MINIPROGRAM_APP_SECRET=[^[:space:]]');
   expect(activate).toContain('TOPIC_ADMIN_PASSWORD_HASH=scrypt\\$16384');
-  expect(rollback).toContain('check "$topics_db" 1');
-  expect(rollback).toContain('check "$usage_db" 1');
+  expect(rollback).toContain('check-release "$topics_db" "$target" topics');
+  expect(rollback).toContain('check-release "$usage_db" "$target" usage');
   expect(rollback).not.toContain(' restore ');
   expect(verify).toContain('systemctl restart suiyue-gateway.service');
   expect(verify).toContain('identity database was replaced during restart');

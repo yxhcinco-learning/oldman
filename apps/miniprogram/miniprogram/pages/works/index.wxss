@@ -30,3 +30,6 @@
 .create-pressed { background: #2d5244; }
 .create-mic { width: 24px; height: 24px; }
 @media (max-width: 370px) { .work-card { gap: 16px; padding: 20px; } .cover { width: 72px; flex-basis: 72px; } .work-title { font-size: 18px; } }
+
+.recovery-actions { flex-wrap:wrap; gap:8px; }
+.recovery-actions text { width:100%; font-size:14px; color:#8a5638; }

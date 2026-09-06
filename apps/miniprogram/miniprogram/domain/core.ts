@@ -2,4 +2,6 @@
 export * from '@suiyue/core';
 // Keep the new runtime surface explicit for the DevTools incremental TS compiler.
 export { conversationOf, conversationView, prepareDialogue, settleDialogue,
-  startInterview, validateDialogueResult } from '@suiyue/core';
+  startInterview, validateDialogueResult, cloudIdSchema, cloudMutationSchema, cloudWorkSchema, cloudChangesSchema,
+  cloudMutationResultSchema, accountLoginSchema, accountProfileSchema, workSnapshotSchema, writingStateSchema,
+  emptyWritingState, makeBackupVolumes, stableJson } from '@suiyue/core';

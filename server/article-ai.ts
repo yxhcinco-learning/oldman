@@ -196,7 +196,7 @@ export function registerArticleAi(app: FastifyInstance, options: AiGatewayOption
       catch (error) {
         if (error instanceof MiniIdentityError) {
           finish(401, 'unauthorized');
-          return reply.code(401).send({ error: '在线身份已失效，请重试。' });
+          return reply.code(401).send({ code: error.category, error: error.category === 'session_replaced' ? '已在其他设备登录，请主动登录后继续。' : '登录已过期，请主动登录后继续。' });
         }
         finish(503, 'identity_unavailable');
         return reply.code(503).send({ error: '在线身份服务暂不可用，本地写作仍可使用。' });

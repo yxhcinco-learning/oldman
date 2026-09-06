@@ -62,9 +62,6 @@ usage_backup=""
 release_name="${release_dir##*/}"
 [[ "$release_name" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "release name is unsafe" >&2; exit 2; }
 database_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
-identity_quarantine="$data_dir/failed/${release_name}-${database_stamp}-auth"
-topics_quarantine="$data_dir/failed/${release_name}-${database_stamp}-topics"
-usage_quarantine="$data_dir/failed/${release_name}-${database_stamp}-usage"
 
 secure_database_files() {
   local database_path="$1"
@@ -73,23 +70,23 @@ secure_database_files() {
   done
 }
 
-restore_database() {
-  local backup_path="$1" database_path="$2" quarantine_path="$3"
-  local restore_source="${backup_path:--}"
-  /usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" restore "$restore_source" "$database_path" "$quarantine_path"
-  secure_database_files "$database_path"
-}
-
 rollback_on_error() {
   local status="${1:-$?}"
   trap - ERR
   set +e
   if [[ "$migration_attempted" == 1 ]]; then
     systemctl stop suiyue-gateway.service
-    restore_database "$identity_backup" "$identity_db" "$identity_quarantine"
-    restore_database "$topics_backup" "$topics_db" "$topics_quarantine"
-    restore_database "$usage_backup" "$usage_db" "$usage_quarantine"
-    find "$data_dir/failed" -maxdepth 1 -type f -name "${release_name}-${database_stamp}-*.sqlite*" -exec chown root:root {} + -exec chmod 0600 {} +
+    # Once startup was attempted, the gateway may have accepted new writes.
+    # Keep every current database. Never restore a pre-start backup here.
+    echo "Gateway startup failed; current databases retained, no backup restored" >&2
+    if [[ -n "$previous_target" ]]; then
+      if ! /usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check-release "$identity_db" "$previous_target" auth ||
+         ! /usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check-release "$topics_db" "$previous_target" topics ||
+         ! /usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check-release "$usage_db" "$previous_target" usage; then
+        echo "Previous release cannot read current data; gateway remains stopped for forward repair" >&2
+        exit "$status"
+      fi
+    fi
   fi
   if [[ "$activated" == 1 ]]; then
     if [[ -n "$previous_target" ]]; then
@@ -116,7 +113,7 @@ for database_path in "$identity_db" "$topics_db" "$usage_db"; do
   fi
 done
 if [[ -e "$identity_db" ]]; then
-  /usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check "$identity_db" 1
+  /usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check "$identity_db" 2
   identity_backup="$data_dir/backups/${release_name}-${database_stamp}-auth.sqlite"
   /usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" backup "$identity_db" "$identity_backup"
   chown root:root "$identity_backup"
@@ -146,13 +143,14 @@ systemctl enable suiyue-web.service suiyue-gateway.service
 migration_attempted=1
 systemctl restart suiyue-gateway.service suiyue-web.service
 health="$(/usr/bin/curl -fsS --max-time 5 http://127.0.0.1:3012/api/health)"
+grep -Fq '"cloudWorksConfigured":true' <<<"$health"
 grep -Fq '"miniIdentityConfigured":true' <<<"$health"
 grep -Fq '"topicsConfigured":true' <<<"$health"
 grep -Fq '"topicAiConfigured":true' <<<"$health"
 grep -Fq '"topicAdminConfigured":true' <<<"$health"
 grep -Fq '"costGovernanceConfigured":true' <<<"$health"
 /usr/bin/curl -fsS --max-time 5 http://127.0.0.1:3011/ >/dev/null
-/usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check "$identity_db" 1
+/usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check "$identity_db" 2
 /usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check "$topics_db" 1
 /usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check "$usage_db" 1
 secure_database_files "$identity_db"

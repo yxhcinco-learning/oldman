@@ -44,7 +44,7 @@ describe('小程序鉴权 AI 网关', () => {
     for (const authorization of [undefined, 'Bearer short', `Basic ${'x'.repeat(43)}`]) {
       const result = await app.inject({ method: 'POST', url: '/api/mini/ai/turn', headers: authorization ? { authorization } : {}, payload: request });
       expect(result.statusCode).toBe(401);
-      expect(result.json()).toEqual({ error: '在线身份已失效，请重试。' });
+      expect(result.json()).toEqual({ code: 'invalid_session', error: '登录已过期，请主动登录后继续。' });
     }
     const revoked = store.issueSession('wx-test-domain', 'openid-one');
     store.revoke(revoked.token);

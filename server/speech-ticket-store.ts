@@ -16,6 +16,7 @@ interface TicketRecord {
   purpose: SpeechTicketPurpose;
   issuedAt: number;
   expiresAt: number;
+  validateSession?: () => void;
 }
 
 export interface SpeechTicketStoreOptions {
@@ -43,7 +44,7 @@ export class SpeechTicketStore {
     if (this.ttlMs < 1 || this.ttlMs > 60_000 || this.maxTickets < 1 || this.maxTicketsPerUser < 1) throw new Error('Invalid speech-ticket limits');
   }
 
-  issue(userId: string, purpose: SpeechTicketPurpose = 'speech') {
+  issue(userId: string, purpose: SpeechTicketPurpose = 'speech', validateSession?: () => void) {
     if (!userId || userId.length > 128) throw new Error('Invalid ticket user');
     this.cleanup();
     if (this.records.size >= this.maxTickets) throw new SpeechTicketError('ticket_limited');
@@ -55,7 +56,7 @@ export class SpeechTicketStore {
     if (this.records.has(ticketHash)) throw new SpeechTicketError('ticket_limited');
     const issuedAt = this.now();
     const expiresAt = issuedAt + this.ttlMs;
-    this.records.set(ticketHash, { userId, purpose, issuedAt, expiresAt });
+    this.records.set(ticketHash, { userId, purpose, issuedAt, expiresAt, validateSession });
     return { ticket, expiresAt };
   }
 
@@ -65,7 +66,9 @@ export class SpeechTicketStore {
     const record = this.records.get(ticketHash);
     this.records.delete(ticketHash);
     if (!record || record.expiresAt <= this.now() || record.purpose !== purpose) throw new SpeechTicketError('invalid_ticket');
-    return { userId: record.userId, issuedAt: record.issuedAt, expiresAt: record.expiresAt };
+    record.validateSession?.();
+    return { userId: record.userId, issuedAt: record.issuedAt, expiresAt: record.expiresAt,
+      ...(record.validateSession ? { validateSession: record.validateSession } : {}) };
   }
 
   cleanup() {

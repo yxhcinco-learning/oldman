@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, copyFileSync, renameSync } from 'node:fs';
+import { existsSync, copyFileSync, renameSync, readFileSync } from 'node:fs';
 import { dirname, isAbsolute, resolve } from 'node:path';
 import { DatabaseSync, backup } from 'node:sqlite';
 
@@ -24,6 +24,15 @@ function verify(file, maximumSchema) {
 
 async function main() {
   const [mode, source, destination, quarantinePrefix] = process.argv.slice(2);
+  if (mode === 'check-release' && absolute(source) && absolute(destination) && ['auth', 'topics', 'usage'].includes(quarantinePrefix)) {
+    const manifest = resolve(destination, 'deploy/schema-ceilings.json');
+    // Releases predating the manifest supported schema 1 only.
+    const maximum = existsSync(manifest) ? JSON.parse(readFileSync(manifest, 'utf8'))[quarantinePrefix] : 1;
+    if (!Number.isSafeInteger(maximum) || maximum < 1) throw new Error('Invalid release schema ceiling');
+    const version = verify(source, maximum);
+    process.stdout.write(`Release database compatibility verified (schema ${version})\n`);
+    return;
+  }
   if (mode === 'check' && absolute(source)) {
     const maximumSchema = destination === undefined
       ? undefined

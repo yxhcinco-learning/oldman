@@ -115,4 +115,24 @@ describe('真实 SQLite 账号与私有云 API', () => {
     expect((await send(token, { operationId: 'create', workId: content.work.id, kind: 'create', baseVersion: 0, snapshot: content })).statusCode).toBe(413);
     expect((await app.inject({ url: '/api/mini/works', headers: { authorization: `Bearer ${token}` } })).json().entries).toEqual([]);
   });
+
+  it('回执落库失败回滚正文与账号序号，原操作可安全重试', async () => {
+    const { app, path, login, send } = await setup();
+    const { token } = await login('writer:one');
+    const content = snapshot();
+    const operation = { operationId: 'database-failure', workId: content.work.id, kind: 'create', baseVersion: 0, snapshot: content };
+    const database = new DatabaseSync(path);
+    try {
+      database.exec("CREATE TRIGGER fail_receipt BEFORE INSERT ON cloud_operations BEGIN SELECT RAISE(ABORT, 'injected database failure'); END");
+      expect((await send(token, operation)).statusCode).toBe(503);
+      expect(database.prepare('SELECT COUNT(*) AS count FROM cloud_works').get()).toMatchObject({ count: 0 });
+      expect(database.prepare('SELECT COUNT(*) AS count FROM cloud_operations').get()).toMatchObject({ count: 0 });
+      expect(database.prepare('SELECT sequence FROM mini_accounts').get()).toMatchObject({ sequence: 0 });
+      database.exec('DROP TRIGGER fail_receipt');
+      const retried = await send(token, operation);
+      expect(retried.statusCode).toBe(200);
+      expect(retried.json().entry).toMatchObject({ version: 1, sequence: 1 });
+      expect((await app.inject({ url: `/api/mini/works/${content.work.id}`, headers: { authorization: `Bearer ${token}` } })).json().snapshot).toEqual(content);
+    } finally { database.close(); }
+  });
 });

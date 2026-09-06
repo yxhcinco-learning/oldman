@@ -1,32 +1,49 @@
 <view class="page-shell profile-page">
   <app-brand></app-brand>
   <view class="profile-hero">
-    <view class="eyebrow">本机内容</view>
+    <view class="eyebrow">把文字，好好留住</view>
     <view class="page-title">我的<text class="period">。</text></view>
-    <view class="lead">文章和资料，默认保存在这台设备上。</view>
   </view>
+  <view class="account-panel">
+    <view class="account-heading">
+      <view class="account-avatar"><image wx:if="{{avatarPath}}" src="{{avatarPath}}" mode="aspectFill" /><text wx:else>我</text></view>
+      <view class="account-copy"><view class="account-name">{{account ? account.nickname || '微信用户' : '欢迎来写一写'}}</view><view class="account-status">{{accountText}}</view></view>
+    </view>
+    <button wx:if="{{status === 'guest' || status === 'expired' || status === 'replaced' || status === 'connecting'}}" class="account-primary" bindtap="login" disabled="{{busy || status === 'connecting'}}">{{status === 'replaced' ? '微信登录，在此设备继续' : '微信登录'}}</button>
+    <view wx:if="{{account}}" class="account-links"><button bindtap="openProfile" disabled="{{status !== 'authenticated' || busy}}">编辑头像与昵称</button><button bindtap="logout" disabled="{{busy}}">退出登录</button></view>
+    <view class="account-note">{{account ? '登录后的作品自动云保存，可在其他设备登录后接着写。' : '登录后自动保存到云端。也可以先在本机写作。'}}</view>
+  </view>
+  <view wx:if="{{account}}" class="sync-row"><view><text>{{syncText}}</text><small>同一时间在一台设备使用</small></view><button bindtap="reconnect" disabled="{{busy || status === 'expired' || status === 'replaced'}}">重新同步</button></view>
   <view class="tool-list">
-    <view class="tool-row"><button class="tool" bindtap="openMenu"><view class="tool-icon"><image class="book-image" src="/assets/book.svg" mode="aspectFit"></image></view><view><text>作品与备份</text><small>管理、导出或恢复这台设备上的文章</small></view><b>›</b></button></view>
+    <view class="tool-row"><button class="tool" bindtap="openMenu"><view class="tool-icon"><image class="book-image" src="/assets/book.svg" mode="aspectFit" /></view><view><text>作品与备份</text><small>管理文章、回收站和手工备份</small></view><b>›</b></button></view>
+  </view>
+  <view wx:if="{{busy}}" class="notice" role="status">{{busy}}</view>
+  <view wx:if="{{notice}}" class="notice" role="status">{{notice}}</view>
+  <view wx:if="{{error}}" class="error-panel" role="alert">{{error}}</view>
+</view>
+<view wx:if="{{editingProfile}}" class="sheet-mask" bindtap="closeProfile" catchtouchmove="noop">
+  <view class="backup-sheet" catchtap="noop" role="dialog" aria-modal="true" aria-label="编辑个人资料">
+    <view class="sheet-handle"></view>
+    <view class="sheet-heading"><view>头像与昵称</view><button bindtap="closeProfile" aria-label="关闭">×</button></view>
+    <button class="avatar-choose" open-type="chooseAvatar" bindchooseavatar="chooseAvatar" disabled="{{busy}}"><image wx:if="{{avatarPath}}" src="{{avatarPath}}" mode="aspectFill" /><text>{{avatarPath ? '更换头像' : '选择头像（可选）'}}</text></button>
+    <label class="nickname-label">昵称（可选）</label>
+    <input class="nickname-input" type="nickname" value="{{nicknameInput}}" maxlength="32" placeholder="输入昵称" bindinput="onNickname" bindnicknamereview="onNicknameReview" />
+    <button class="account-primary" bindtap="saveNickname" disabled="{{busy || !nicknameValid}}">保存昵称</button>
+    <view wx:if="{{error}}" class="error-panel">{{error}}</view>
+    <view wx:if="{{busy}}" class="notice">{{busy}}</view>
   </view>
 </view>
-
 <view wx:if="{{menuOpen}}" class="sheet-mask" bindtap="closeMenu" catchtouchmove="noop">
   <view class="backup-sheet" catchtap="noop" role="dialog" aria-modal="true" aria-label="作品与备份">
-    <view class="sheet-handle"></view>
-    <view class="sheet-brand">岁月有声</view>
+    <view class="sheet-handle"></view><view class="sheet-brand">岁月有声</view>
     <view class="sheet-heading"><view>作品与备份</view><button bindtap="closeMenu" aria-label="关闭">×</button></view>
     <view class="sheet-tools">
-      <button bindtap="manageWorks"><view class="sheet-icon"><image class="sheet-book" src="/assets/book.svg" mode="aspectFit"></image></view><view><text>管理作品</text><small>导出、复制或移入回收站</small></view><b>›</b></button>
-      <button bindtap="openRecycle"><view class="sheet-icon undo-icon">↶</view><view><text>回收站</text><small>恢复误删的作品</small></view><b>›</b></button>
-      <button bindtap="exportBackup" disabled="{{busy}}"><view class="sheet-icon">→</view><view><text>导出全部备份</text><small>保存为 JSON 文件</small></view><b>›</b></button>
+      <button bindtap="manageWorks"><view class="sheet-icon"><image class="sheet-book" src="/assets/book.svg" /></view><view><text>管理作品</text><small>文章与本机恢复稿</small></view><b>›</b></button>
+      <button bindtap="openRecycle"><view class="sheet-icon">↶</view><view><text>回收站</text><small>恢复误删的作品</small></view><b>›</b></button>
+      <button bindtap="exportBackup" disabled="{{busy}}"><view class="sheet-icon">→</view><view><text>{{exportLabel}}</text><small>保存为可恢复的 JSON 文件</small></view><b>›</b></button>
       <button bindtap="importBackup" disabled="{{busy}}"><view class="sheet-icon">✓</view><view><text>从备份恢复副本</text><small>不会覆盖现有作品</small></view><b>›</b></button>
     </view>
-    <view wx:if="{{busy}}" class="notice">{{busy}}</view>
-    <view wx:if="{{notice}}" class="notice" role="status">{{notice}}</view>
-    <view wx:if="{{error}}" class="error-panel" role="alert">{{error}}</view>
-    <view class="sheet-note">
-      <view>作品只保存在本机；“已保存”表示已写入当前微信用户、当前小程序 AppID 和这台设备，不是云备份。清理小程序数据或更换 AppID 后可能丢失，请定期手工导出备份。</view>
-      <view>小程序不请求手机号、头像或昵称。长按语音时当次音频会经岁月有声服务发送腾讯云转写；只有明确发送给小文并同意后，必要内容才会发送 DeepSeek，候选仍需确认。</view>
-    </view>
+    <view wx:if="{{busy}}" class="notice">{{busy}}</view><view wx:if="{{notice}}" class="notice">{{notice}}</view><view wx:if="{{error}}" class="error-panel">{{error}}</view>
+    <view class="sheet-note"><view>“本机已保存”表示已写入这台设备；“已同步”表示对应内容已获云端确认。尚未上传的内容请保留设备或导出备份。</view><view>语音不保存原音；明确发送给小文并同意后，必要内容才发送给 DeepSeek。</view></view>
   </view>
 </view>

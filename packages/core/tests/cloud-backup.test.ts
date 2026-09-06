@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { emptyDraft, workFromDraft, makeBackup, makeBackupVolumes, parseBackupBundle } from '../src/index.js';
 
 describe('完整输入备份 v6', () => {
+  it('只有未发送输入的空正文也能救援导出', () => {
+    const draft = emptyDraft();
+    const state = { workId: draft.id, state: { composer: '尚未发送也尚未落盘', inputSource: 'typed' as const } };
+    const restored = parseBackupBundle(makeBackup([], draft, [], [state]));
+    expect(restored.works[0]?.id).toBe(draft.id);
+    expect(restored.writingStates).toEqual([state]);
+  });
   it('未发送输入往返且 v5 无输入可读，拒绝错误关联', () => {
     const work = workFromDraft({ ...emptyDraft(), title: '日记' });
     const writingStates = [{ workId: work.id, state: { composer: '还想补充', inputSource: 'typed' as const } }];

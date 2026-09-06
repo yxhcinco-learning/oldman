@@ -2,7 +2,7 @@
   <app-brand></app-brand>
   <view class="works-hero">
     <view class="works-intro">
-      <view class="eyebrow">{{recycle ? '恢复误删的作品' : manage ? '管理本机作品' : '日子慢慢过，文字慢慢写'}}</view>
+      <view class="eyebrow">{{recycle ? '恢复误删的作品' : manage ? '管理作品' : '日子慢慢过，文字慢慢写'}}</view>
       <view class="page-title">{{recycle ? '回收站' : '我的作品'}}<text class="period">。</text></view>
       <view wx:if="{{!recycle && !manage}}" class="lead">把生活，留在字里行间。</view>
     </view>
@@ -11,11 +11,11 @@
   </view>
   <view wx:if="{{issue}}" class="error-panel" role="alert">{{issue}}</view>
   <view wx:if="{{!recycle && !manage}}" class="section-heading"><view>最近写下</view><text>{{visible.length}} 篇作品</text></view>
-  <view wx:if="{{loading}}" class="empty-state">正在读取本机作品…</view>
+  <view wx:if="{{loading}}" class="empty-state">正在读取作品…</view>
   <view wx:elif="{{visible.length === 0}}" class="empty-state">
     <view class="empty-branch"></view>
     <view class="empty-title">{{recycle ? '回收站是空的' : '还没有作品'}}</view>
-    <view>{{recycle ? '移入回收站的作品会完整保留，直到你明确永久删除。' : '点击下方“开始写作”，从想说的一句话开始。作品只保存在当前微信、当前 AppID 和这台设备。'}}</view>
+    <view>{{recycle ? '移入回收站的作品会完整保留，直到你明确永久删除。' : '点击下方“开始写作”，从想说的一句话开始。未登录保存在本机，微信登录后自动云保存。'}}</view>
   </view>
   <view class="work-list" wx:else>
     <view class="work-card" wx:for="{{visible}}" wx:key="id" data-id="{{item.id}}" bindtap="continueWriting">
@@ -27,8 +27,9 @@
           <button data-id="{{item.id}}" data-revision="{{item.revision}}" catchtap="restore">恢复</button>
           <button class="danger" data-id="{{item.id}}" data-revision="{{item.revision}}" catchtap="permanentlyDelete">永久删除</button>
         </view>
-        <view wx:elif="{{manage}}" class="work-bottom"><view class="saved">已保存</view><button class="remove" data-id="{{item.id}}" data-revision="{{item.revision}}" catchtap="moveToRecycle">移入回收站</button></view>
-        <view wx:else class="work-bottom"><view class="saved">已保存</view><view class="continue">继续写 <view class="arrow"></view></view></view>
+        <view wx:elif="{{item.recovery}}" class="work-actions recovery-actions"><text>本机恢复稿</text><button data-id="{{item.id}}" catchtap="viewRecovery">查看</button><button data-id="{{item.id}}" catchtap="promoteRecovery">另存新篇</button><button data-id="{{item.id}}" catchtap="exportRecovery">导出</button></view>
+        <view wx:elif="{{manage}}" class="work-bottom"><view class="saved">{{item.saveLabel}}</view><button class="remove" data-id="{{item.id}}" data-revision="{{item.revision}}" catchtap="moveToRecycle">移入回收站</button></view>
+        <view wx:else class="work-bottom"><view class="saved">{{item.saveLabel}}</view><view class="continue">继续写 <view class="arrow"></view></view></view>
       </view>
     </view>
   </view>

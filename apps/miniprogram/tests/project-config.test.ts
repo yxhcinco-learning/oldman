@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { completeVoice, emptyDraft, workFromDraft } from '../miniprogram/domain/core';
-import { assertDevtoolCoreRuntime, requiredCoreFunctions } from '../scripts/devtool-runtime-check.mjs';
+import { assertDevtoolCoreRuntime, requiredCoreFunctions, requiredCoreExports } from '../scripts/devtool-runtime-check.mjs';
 
 const readJson = (relative: string) => JSON.parse(readFileSync(fileURLToPath(new URL(relative, import.meta.url)), 'utf8')) as Record<string, unknown>;
 const readText = (relative: string) => readFileSync(fileURLToPath(new URL(relative, import.meta.url)), 'utf8');
@@ -47,7 +47,7 @@ describe('微信小程序公共工程配置', () => {
     expect(buildScript).not.toMatch(/--clean (?:all|storage|file|auth|session|network)\b/);
     const coreBoundary = readText('../miniprogram/domain/core.ts');
     expect(coreBoundary).toContain('export { conversationOf, conversationView, prepareDialogue, settleDialogue,');
-    const completeRuntime = { ...Object.fromEntries(requiredCoreFunctions.map(name => [name, () => {}])), AI_ASSISTANCE_LABEL: 'AI' };
+    const completeRuntime = { ...Object.fromEntries(requiredCoreExports.map(name => [name, {}])), ...Object.fromEntries(requiredCoreFunctions.map(name => [name, () => {}])), AI_ASSISTANCE_LABEL: 'AI' };
     expect(() => assertDevtoolCoreRuntime(completeRuntime)).not.toThrow();
     expect(() => assertDevtoolCoreRuntime({ workFromDraft() {} })).toThrow(/isWorkAiAssisted/);
     expect(() => assertDevtoolCoreRuntime({ ...completeRuntime, conversationView: undefined })).toThrow(/conversationView/);
@@ -180,9 +180,9 @@ describe('微信小程序公共工程配置', () => {
     expect(editorStyles).not.toContain('content: "••••"');
     expect(editorStyles).toMatch(/\.xiaowen-header-actions\s*\{[^}]*gap:\s*8px/);
     expect(editorStyles).toMatch(/\.xiaowen-close\s*\{[^}]*border:\s*0/);
-    expect(editor).toContain("class=\"xiaowen-send {{operationBusy || voiceBusy || resultSavePending || !xiaowenComposer ? 'is-disabled' : ''}}\"");
+    expect(editor).toContain("class=\"xiaowen-send {{readOnly || operationBusy || voiceBusy || resultSavePending || !xiaowenComposer ? 'is-disabled' : ''}}\"");
     expect(editorStyles).toMatch(/\.xiaowen-send\.is-disabled\s*\{[^}]*background:\s*#153b2e[^}]*color:\s*#fff/);
-    expect(interview).toContain("class=\"send {{saving || voiceBusy || resultSavePending || !composer ? 'is-disabled' : ''}}\"");
+    expect(interview).toContain("class=\"send {{readOnly || saving || voiceBusy || resultSavePending || !composer ? 'is-disabled' : ''}}\"");
     expect(interviewStyles).toMatch(/\.send\.is-disabled\s*\{[^}]*background:\s*#9caaa2[^}]*color:\s*#fff[^}]*opacity:\s*1/);
     expect(editorController).toContain('onHide()');
     expect(editorController).toContain('onUnload()');
@@ -201,7 +201,7 @@ describe('微信小程序公共工程配置', () => {
     expect(editor).toContain('<view class="topic-heading"');
     expect(editor).not.toContain('<button class="topic-heading"');
     expect(editorController).toContain('dismissKeyboard()');
-    expect(worksController).toContain('await miniServices().writer.flush()');
+    expect(worksController).toContain('await services.writer.flush()');
     expect(worksStyles).toMatch(/\.create-dock\s*\{[^}]*right:\s*0[^}]*left:\s*0[^}]*box-sizing:\s*border-box[^}]*overflow:\s*hidden/);
     expect(worksStyles).toMatch(/\.create-button\s*\{[^}]*width:\s*100%[^}]*max-width:\s*100%[^}]*min-width:\s*0/);
     const allStyles = [readText('../miniprogram/app.wxss'), navigationStyles, brandStyles,
@@ -211,13 +211,14 @@ describe('微信小程序公共工程配置', () => {
     expect(allStyles).toContain('scroll-view, navigator, image { box-sizing: border-box; }');
   });
 
-  it('明确说明作品的设备和 AppID 隔离边界', () => {
+  it('明确说明自动云保存、私有账号与可选资料', () => {
     const profile = readText('../miniprogram/pages/profile/index.wxml');
-    expect(profile).toContain('只保存在本机');
-    expect(profile).toContain('当前小程序 AppID');
-    expect(profile).toContain('请定期手工导出备份');
-    expect(profile).toContain('不请求手机号、头像或昵称');
-    expect(profile).toContain('发送 DeepSeek');
+    expect(profile).toContain('微信登录');
+    expect(profile).toContain('自动云保存');
+    expect(profile).toContain('同一时间在一台设备使用');
+    expect(profile).toContain('open-type="chooseAvatar"');
+    expect(profile).toContain('type="nickname"');
+    expect(profile).toContain('发送给 DeepSeek');
   });
   it('访谈是紧凑开关，主题固定且换题属于当前回复', () => {
     const editor = readText('../miniprogram/pages/editor/index.wxml');

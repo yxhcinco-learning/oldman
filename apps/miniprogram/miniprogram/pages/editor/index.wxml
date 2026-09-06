@@ -10,6 +10,8 @@
     </view>
   </view>
 
+  <view class="cloud-save-row" role="status"><text>{{syncLabel}}</text><button wx:if="{{requiresLogin}}" bindtap="goToAccount">去登录</button><button wx:elif="{{readOnly || cloudMessage}}" bindtap="reconnectCloud">重新连接</button></view>
+  <view wx:if="{{cloudMessage}}" class="cloud-message">{{cloudMessage}}</view>
   <view wx:if="{{error}}" class="editor-error" role="alert">
     <scroll-view scroll-y class="error-copy">{{error}}</scroll-view>
     <view class="error-actions"><button bindtap="saveNow">重试保存</button><button bindtap="exportRescue">救援导出</button></view>
@@ -27,7 +29,7 @@
   </view>
 
   <view class="body-wrap {{draft && draft.topicSnapshot ? 'with-topic' : ''}}" bindtap="focusText">
-    <textarea wx:if="{{draft && draft.inputMode === 'text'}}" class="body-input" value="{{body}}" maxlength="-1"
+    <textarea disabled="{{readOnly}}" wx:if="{{draft && draft.inputMode === 'text'}}" class="body-input" value="{{body}}" maxlength="-1"
       placeholder="从想说的一句话开始……" cursor-spacing="24" show-confirm-bar="{{false}}" adjust-position="{{false}}"
       bindinput="onBodyInput" bindkeyboardheightchange="onKeyboardHeight"></textarea>
     <scroll-view wx:elif="{{draft}}" class="body-preview" scroll-y>
@@ -59,7 +61,7 @@
       </view>
       <view class="voice-control-row">
         <view class="voice-side-slot"><button wx:if="{{!voiceBusy && draft.pendingVoice}}" class="voice-side cancel" bindtap="discardPendingVoice">取消</button><button wx:elif="{{!voiceBusy}}" class="voice-collapse" bindtap="toggleInputMode" aria-label="切换到文字输入"><view></view></button></view>
-        <button class="mic {{voicePhase}} {{voicePhase === 'recording' ? 'pressing' : voicePressing ? 'holding' : ''}}" bindtouchstart="pressBodyVoice" bindtouchend="releaseVoice" bindtouchcancel="cancelVoice" aria-label="长按说话，松开后成为待确认文字；不会发送给小文"><image class="mic-drawing" src="/assets/mic-white.svg" mode="aspectFit"></image></button>
+        <button disabled="{{readOnly}}" class="mic {{voicePhase}} {{voicePhase === 'recording' ? 'pressing' : voicePressing ? 'holding' : ''}}" bindtouchstart="pressBodyVoice" bindtouchend="releaseVoice" bindtouchcancel="cancelVoice" aria-label="长按说话，松开后成为待确认文字；不会发送给小文"><image class="mic-drawing" src="/assets/mic-white.svg" mode="aspectFit"></image></button>
         <view class="voice-side-slot"><button wx:if="{{!voiceBusy && draft.pendingVoice}}" class="voice-side done" bindtap="completePendingVoice">完成</button></view>
       </view>
       <view class="voice-help">{{voicePhase === 'recording' ? '松开，结束这一段' : voiceBusy ? '请稍候…' : voiceTarget === 'body' && voicePressing ? '已按住，请稍候…' : draft.pendingVoice ? '还想补充？可以继续按住说' : '按住说话'}}</view>
@@ -72,10 +74,10 @@
       <view class="dialog-brand">岁月有声</view>
       <view class="dialog-heading"><view class="dialog-title">编辑标题</view><button bindtap="cancelTitle" aria-label="关闭"><image class="close-image" src="/assets/close.svg" mode="aspectFit"></image></button></view>
       <view class="input-label">文章标题</view>
-      <input class="title-input" value="{{titleInput}}" maxlength="120" focus select-text-on-focus placeholder="输入标题"
+      <input disabled="{{readOnly}}" class="title-input" value="{{titleInput}}" maxlength="120" focus select-text-on-focus placeholder="输入标题"
         adjust-position="{{false}}" cursor-spacing="20" bindinput="onTitleInput" bindkeyboardheightchange="onKeyboardHeight"
         confirm-type="done" bindconfirm="confirmTitle" />
-      <view class="dialog-actions"><button bindtap="cancelTitle">取消</button><button class="confirm" bindtap="confirmTitle">完成</button></view>
+      <view class="dialog-actions"><button bindtap="cancelTitle">取消</button><button disabled="{{readOnly}}" class="confirm" bindtap="confirmTitle">完成</button></view>
     </view>
   </view>
 
@@ -83,9 +85,9 @@
     <view class="pending-dialog" role="dialog" aria-modal="true" aria-label="修改语音文字">
       <view class="sheet-handle"></view>
       <view class="dialog-heading"><view class="dialog-title">修改语音文字</view><button bindtap="cancelPendingEdit" aria-label="关闭"><image class="close-image" src="/assets/close.svg" mode="aspectFit"></image></button></view>
-      <textarea class="pending-input" value="{{pendingInput}}" maxlength="12000" focus cursor-spacing="20" adjust-position="{{false}}"
+      <textarea disabled="{{readOnly}}" class="pending-input" value="{{pendingInput}}" maxlength="12000" focus cursor-spacing="20" adjust-position="{{false}}"
         show-confirm-bar="{{false}}" bindinput="onPendingInput" bindkeyboardheightchange="onKeyboardHeight"></textarea>
-      <view class="dialog-actions"><button bindtap="cancelPendingEdit">取消</button><button class="confirm" bindtap="confirmPendingEdit">完成修改</button></view>
+      <view class="dialog-actions"><button bindtap="cancelPendingEdit">取消</button><button disabled="{{readOnly}}" class="confirm" bindtap="confirmPendingEdit">完成修改</button></view>
     </view>
   </view>
 
@@ -106,7 +108,7 @@
         <view>{{resultSaveMessage}}</view>
         <view class="result-save-actions"><button bindtap="retryResultSave" disabled="{{operationBusy}}">重试保存</button><button bindtap="exportRescue">救援导出</button></view>
       </view>
-      <view wx:if="{{xiaowenView === 'chat'}}" class="conversation-topic topic-compact {{draft.topicSnapshot ? '' : 'topic-absent'}}"><view wx:if="{{draft && draft.topicSnapshot}}" class="topic-heading"><image src="/assets/book.svg" /><view class="topic-window"><text class="topic-text {{topicDistance > 1 ? 'topic-moving' : ''}}" style="--topic-distance: -{{topicDistance || 0}}px; --topic-duration: {{topicDuration || 7}}s">{{draft.topicSnapshot.title}}</text></view></view><view class="ai-mode-bar"><button bindtap="startInterview" disabled="{{operationBusy || voiceBusy || resultSavePending}}">开启访谈</button></view></view>
+      <view wx:if="{{xiaowenView === 'chat'}}" class="conversation-topic topic-compact {{draft.topicSnapshot ? '' : 'topic-absent'}}"><view wx:if="{{draft && draft.topicSnapshot}}" class="topic-heading"><image src="/assets/book.svg" /><view class="topic-window"><text class="topic-text {{topicDistance > 1 ? 'topic-moving' : ''}}" style="--topic-distance: -{{topicDistance || 0}}px; --topic-duration: {{topicDuration || 7}}s">{{draft.topicSnapshot.title}}</text></view></view><view class="ai-mode-bar"><button bindtap="startInterview" disabled="{{readOnly || operationBusy || voiceBusy || resultSavePending}}">开启访谈</button></view></view>
       <scroll-view wx:if="{{xiaowenView === 'chat'}}" class="xiaowen-messages" scroll-y scroll-into-view="xiaowen-end-{{conversationMessages.length}}-{{xiaowenRunning ? 1 : 0}}-{{xiaowenError ? 1 : 0}}">
         <view wx:for="{{conversationMessages}}" wx:key="id" class="xiaowen-turn">
           <view class="{{item.role === 'system' ? 'conversation-event' : item.role === 'user' ? 'xiaowen-user-message' : 'xiaowen-answer'}}">
@@ -114,11 +116,11 @@
             <view wx:if="{{item.pending}}" class="reply-pending" role="status" aria-label="{{item.text}}"><view /><view class="reply-dot-second" /><view class="reply-dot-third" /></view>
             <view wx:if="{{item.hasCandidate}}" class="article-result-actions">
               <button class="article-result-link" data-id="{{item.turnId}}" bindtap="showCandidate"><text>看看文章</text><text aria-hidden="true">›</text></button>
-              <button wx:if="{{item.canUndo}}" class="article-undo" data-id="{{item.turnId}}" bindtap="undoTurn" disabled="{{operationBusy || resultSavePending}}" aria-label="撤销这次修改"><image src="/assets/undo.svg" />撤销</button>
+              <button wx:if="{{item.canUndo}}" class="article-undo" data-id="{{item.turnId}}" bindtap="undoTurn" disabled="{{readOnly || operationBusy || resultSavePending}}" aria-label="撤销这次修改"><image src="/assets/undo.svg" />撤销</button>
               <text wx:elif="{{item.reverted}}" class="xiaowen-turn-status">已撤销</text>
             </view>
             <view wx:if="{{item.error}}" class="xiaowen-error">{{item.error}}</view>
-            <button wx:if="{{item.canRetry}}" data-id="{{item.turnId}}" bindtap="retryTurn" disabled="{{operationBusy || resultSavePending}}">重新发送</button>
+            <button wx:if="{{item.canRetry}}" data-id="{{item.turnId}}" bindtap="retryTurn" disabled="{{readOnly || operationBusy || resultSavePending}}">重新发送</button>
           </view>
         </view>
         <view wx:if="{{xiaowenStatus === 'blocked'}}" class="xiaowen-request-state">未发送</view>
@@ -154,20 +156,20 @@
       <view wx:if="{{xiaowenView === 'version'}}" class="article-review-note">{{versionSame ? '当前文章就是这一版。' : '恢复后，当前文章仍会保留在修改记录中。'}}</view>
       <view wx:if="{{xiaowenView === 'version'}}" class="candidate-actions">
         <button bindtap="backToConversation">返回记录</button>
-        <button class="candidate-apply" bindtap="restoreVersion" disabled="{{operationBusy || xiaowenRunning || resultSavePending || versionSame}}">恢复这版</button>
+        <button class="candidate-apply" bindtap="restoreVersion" disabled="{{readOnly || operationBusy || xiaowenRunning || resultSavePending || versionSame}}">恢复这版</button>
       </view>
 
       <template wx:if="{{xiaowenView === 'chat' && voiceTarget === 'xiaowen'}}" is="dictation-feedback" data="{{phase: voicePhase, text: voiceText, message: voiceMessage, pressing: voicePressing}}" />
       <view wx:if="{{xiaowenView === 'chat'}}" class="xiaowen-composer">
-        <textarea value="{{xiaowenComposer}}" maxlength="12000" auto-height placeholder="问小文，或提要求" placeholder-style="color:#858e88;line-height:30px" disabled="{{operationBusy || voiceBusy || resultSavePending}}"
+        <textarea value="{{xiaowenComposer}}" maxlength="12000" auto-height placeholder="问小文，或提要求" placeholder-style="color:#858e88;line-height:30px" disabled="{{readOnly || operationBusy || voiceBusy || resultSavePending}}"
           adjust-position="{{false}}" show-confirm-bar="{{false}}" cursor-spacing="20" bindinput="onXiaoWenInput" bindkeyboardheightchange="onKeyboardHeight"></textarea>
-        <view class="xiaowen-button-cell"><button class="xiaowen-voice {{voiceTarget === 'xiaowen' && voicePressing ? 'pressing' : ''}} {{operationBusy || resultSavePending ? 'is-disabled' : ''}}" bindtouchstart="pressXiaoWenVoice" bindtouchend="releaseVoice" bindtouchcancel="cancelVoice" aria-disabled="{{operationBusy || resultSavePending}}" aria-label="长按语音输入"><image src="/assets/mic.svg" mode="aspectFit"></image></button></view>
-        <view class="xiaowen-button-cell"><button wx:if="{{xiaowenRunning}}" class="ai-stop" bindtap="cancelXiaoWen" aria-label="停止回复"><view />停止</button><button wx:else class="xiaowen-send {{operationBusy || voiceBusy || resultSavePending || !xiaowenComposer ? 'is-disabled' : ''}}" bindtap="sendXiaoWen" aria-disabled="{{operationBusy || voiceBusy || resultSavePending || !xiaowenComposer}}">{{operationBusy ? '处理中' : '发送'}}</button></view>
+        <view class="xiaowen-button-cell"><button class="xiaowen-voice {{voiceTarget === 'xiaowen' && voicePressing ? 'pressing' : ''}} {{readOnly || operationBusy || resultSavePending ? 'is-disabled' : ''}}" bindtouchstart="pressXiaoWenVoice" bindtouchend="releaseVoice" bindtouchcancel="cancelVoice" aria-disabled="{{readOnly || operationBusy || resultSavePending}}" aria-label="长按语音输入"><image src="/assets/mic.svg" mode="aspectFit"></image></button></view>
+        <view class="xiaowen-button-cell"><button wx:if="{{xiaowenRunning}}" class="ai-stop" bindtap="cancelXiaoWen" aria-label="停止回复"><view />停止</button><button wx:else class="xiaowen-send {{readOnly || operationBusy || voiceBusy || resultSavePending || !xiaowenComposer ? 'is-disabled' : ''}}" bindtap="sendXiaoWen" aria-disabled="{{readOnly || operationBusy || voiceBusy || resultSavePending || !xiaowenComposer}}">{{operationBusy ? '处理中' : '发送'}}</button></view>
       </view>
       <view wx:if="{{xiaowenView === 'preview' && candidateStatus === 'ready'}}" class="article-review-note">确认使用后才会替换正文，请留意事实与细节。</view>
       <view wx:if="{{xiaowenView === 'preview' && candidateStatus === 'ready'}}" class="candidate-actions">
-        <button bindtap="dismissCandidate" disabled="{{operationBusy || resultSavePending}}">暂不使用</button>
-        <button class="candidate-apply" bindtap="applyCandidate" disabled="{{operationBusy || candidateStale}}">用这篇</button>
+        <button bindtap="dismissCandidate" disabled="{{readOnly || operationBusy || resultSavePending}}">暂不使用</button>
+        <button class="candidate-apply" bindtap="applyCandidate" disabled="{{readOnly || operationBusy || candidateStale}}">用这篇</button>
       </view>
     </view>
   </view>

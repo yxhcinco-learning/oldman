@@ -46,6 +46,7 @@ try {
   assert.equal((await mini.currentPage()).path, 'pages/home/index', '先回首页，避免打断正在编辑的作品');
   await mini.evaluate(() => {
     const serviceModule = require('services.js');
+    serviceModule.pauseMiniServices();
     const original = serviceModule.miniServices;
     const services = original();
     const storage = require('storage/repository.js');
@@ -60,7 +61,9 @@ try {
     };
     const repository = replace(services.repository, new storage.MiniWorkRepository(services.files, root));
     const writer = replace(services.writer, new storage.MiniDraftWriter(repository));
-    const qa = { original, originals, root, queue: [], requests: [], pending: [], consent: services.aiConsent.ensure };
+    const qa = { original, originals, root, queue: [], requests: [], pending: [], consent: services.aiConsent.ensure, accountSnapshot: services.account.snapshot };
+    // This fixture permits non-billing AI/voice adapters only; it never acquires a real account.
+    services.account.snapshot = () => ({ status: 'authenticated', account: null, error: '', generation: services.generation });
     const transport = { request(request) {
       qa.requests.push(request);
       const item = qa.queue.shift();
@@ -70,7 +73,7 @@ try {
       }), cancel() {} };
     } };
     replace(services.articleAi, new (require('ai/controller.js').MiniArticleAiController)(repository, writer, transport));
-    replace(services.conversations, new (require('state/conversation-memory.js').ConversationMemory)());
+    replace(services.conversations, new (require('state/conversation-memory.js').ConversationMemory)((id, state) => writer.setWritingState(id, state)));
     // Exercise the real speech state machine; only recorder/network/permission are non-billing fixtures.
     qa.speechStarts = 0;
     replace(services.speech, new (require('speech/session.js').MiniSpeechSession)({
@@ -264,11 +267,11 @@ try {
   await new Promise(resolve => setTimeout(resolve, 300));
   await current('editor');
   check('处理中收起，后台结果回到同会话且不改正文', (await page.data('session.turns')).at(-1).status === 'ready' && await page.data('body') === '用户后来修改的正文。');
-  check('JSON v5 备份跨独立仓库恢复保留模式/历史', await mini.evaluate(async () => {
+  check('JSON v6 备份跨独立仓库恢复保留模式/历史', await mini.evaluate(async () => {
     const q = getApp().__dialogueQa; const raw = await q.services.repository.exportBackup();
     const restored = new (require('storage/repository.js').MiniWorkRepository)(q.services.files, q.root + '-restore');
     await restored.importBackup(raw); const snapshot = await restored.load();
-    return JSON.parse(raw).schemaVersion === 5 && snapshot.sessions.length === 1 && snapshot.sessions[0].conversation.materials.length === 2;
+    return JSON.parse(raw).schemaVersion === 6 && snapshot.sessions.length === 1 && snapshot.sessions[0].conversation.materials.length === 2;
   }));
   await page.callMethod('openXiaoWen');
   await page.callMethod('showHistory');
@@ -364,6 +367,7 @@ try {
       if (q.save) q.services.repository.save = q.save;
       await q.services.writer.flush();
       q.services.aiConsent.ensure = q.consent;
+      q.services.account.snapshot = q.accountSnapshot;
       for (const { target, state } of q.originals.reverse()) {
         for (const key of Object.keys(target)) if (!(key in state)) delete target[key];
         Object.assign(target, state);

@@ -1,4 +1,23 @@
 .profile-hero { margin: 28px 0 32px; }
+.account-panel { margin-bottom: 20px; padding: 24px 0; border-top: 1px solid #e4e6e1; border-bottom: 1px solid #e4e6e1; }
+.account-heading { display: flex; align-items: center; gap: 16px; }
+.account-avatar { display: flex; width: 64px; height: 64px; flex: 0 0 64px; align-items: center; justify-content: center; overflow: hidden; border-radius: 50%; background: #e8eee9; color: #416657; font: 26px "Songti SC", serif; }
+.account-avatar image { width: 64px; height: 64px; }
+.account-copy { min-width: 0; }
+.account-name { color: #153b2e; font-size: 22px; line-height: 32px; overflow-wrap: anywhere; }
+.account-status, .account-note { margin-top: 6px; color: #717974; font-size: 14px; line-height: 24px; }
+.account-note { margin-top: 14px; }
+.account-primary { width: 100%; min-height: 56px; margin-top: 20px; border-radius: 30px; background: #153b2e; color: #fff; font-size: 18px; line-height: 56px; }
+.account-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.account-links button { min-height: 48px; margin: 0; padding: 0 10px; color: #416657; background: transparent; font-size: 16px; line-height: 48px; }
+.sync-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin: 12px 0 24px; }
+.sync-row text { display: block; color: #153b2e; font-size: 17px; line-height: 28px; }
+.sync-row small { color: #717974; font-size: 14px; line-height: 22px; }
+.sync-row button { flex-shrink: 0; min-height: 48px; margin: 0; padding: 0 14px; border-radius: 24px; background: #e8eee9; color: #153b2e; font-size: 16px; line-height: 48px; }
+.backup-sheet .avatar-choose { display: flex; width: 100%; max-width: none; align-items: center; justify-content: center; gap: 16px; min-height: 80px; margin: 0 0 20px; color: #153b2e; background: #e8eee9; border-radius: 16px; font-size: 18px; }
+.avatar-choose image { width: 56px; height: 56px; border-radius: 50%; }
+.nickname-label { display: block; color: #416657; font-size: 16px; line-height: 28px; }
+.nickname-input { height: 56px; margin-top: 8px; padding: 0 16px; border: 1px solid #e4e6e1; border-radius: 12px; background: #fff; font-size: 18px; }
 .tool-list { display: flex; width: 100%; flex-direction: column; gap: 12px; }
 .tool-row { display: flex; width: 100%; }
 .tool { display: grid; width: 100%; max-width: none; min-height: 88px; flex: 1; margin: 0; grid-template-columns: 52px minmax(0, 1fr) 24px; align-items: center; gap: 14px; padding: 16px; border: 1px solid #e4e6e1; border-radius: 18px; background: #fff; color: #153b2e; text-align: left; }

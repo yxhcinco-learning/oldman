@@ -23,6 +23,22 @@ afterEach(async () => {
 });
 
 describe('小程序最小身份 SQLite 仓储', () => {
+  it('真实 schema 1 迁移保留原身份与 token，并在正式登录时接管', async () => {
+    const { store, path, directory } = await setup();
+    const old = store.issueSession('wx-migration', 'legacy-openid');
+    store.close();
+    resources.find(item => item.store === store)!.store = undefined;
+    const database = new DatabaseSync(path);
+    database.exec('DROP TABLE cloud_operations; DROP TABLE cloud_works; DROP TABLE mini_accounts; ALTER TABLE mini_sessions DROP COLUMN kind; ALTER TABLE mini_sessions DROP COLUMN revoked_reason; PRAGMA user_version=1;');
+    database.close();
+    const migrated = new MiniIdentityStore({ path });
+    resources.push({ store: migrated, directory });
+    expect(migrated.authenticate(old.token).userId).toBe(old.userId);
+    const current = migrated.issueSession('wx-migration', 'legacy-openid', 'account');
+    expect(current.userId).toBe(old.userId);
+    expect(() => migrated.authenticate(old.token)).toThrow();
+    expect(() => migrated.issueSession('wx-migration', 'legacy-openid')).toThrow('account_upgrade_required');
+  });
   it('迁移文件库、启用 WAL 并分表保存账号与私有作品', async () => {
     const { store, path, directory } = await setup();
     expect(store.statistics()).toMatchObject({ users: 0, identities: 0, sessions: 0, usedCodes: 0, journalMode: 'wal', schemaVersion: 2 });

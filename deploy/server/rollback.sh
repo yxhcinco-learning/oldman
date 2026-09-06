@@ -19,9 +19,9 @@ usage_db=/var/lib/suiyue-yousheng/usage.sqlite
 
 # A normal code rollback never restores, deletes or rewrites data. Refuse only
 # when the selected release's known schema ceiling cannot read the databases.
-/usr/bin/node "$script_dir/sqlite-db.mjs" check "$identity_db" 1
-/usr/bin/node "$script_dir/sqlite-db.mjs" check "$topics_db" 1
-/usr/bin/node "$script_dir/sqlite-db.mjs" check "$usage_db" 1
+/usr/bin/node "$script_dir/sqlite-db.mjs" check-release "$identity_db" "$target" auth
+/usr/bin/node "$script_dir/sqlite-db.mjs" check-release "$topics_db" "$target" topics
+/usr/bin/node "$script_dir/sqlite-db.mjs" check-release "$usage_db" "$target" usage
 rollback_on_error() {
   local status="${1:-$?}"
   trap - ERR
@@ -35,7 +35,7 @@ ln -sfn "$target" "$current"
 systemctl restart suiyue-gateway.service suiyue-web.service
 /usr/bin/curl -fsS --max-time 5 http://127.0.0.1:3012/api/health >/dev/null
 /usr/bin/curl -fsS --max-time 5 http://127.0.0.1:3011/ >/dev/null
-/usr/bin/node "$script_dir/sqlite-db.mjs" check "$identity_db" 1
-/usr/bin/node "$script_dir/sqlite-db.mjs" check "$topics_db" 1
-/usr/bin/node "$script_dir/sqlite-db.mjs" check "$usage_db" 1
+/usr/bin/node "$script_dir/sqlite-db.mjs" check-release "$identity_db" "$target" auth
+/usr/bin/node "$script_dir/sqlite-db.mjs" check-release "$topics_db" "$target" topics
+/usr/bin/node "$script_dir/sqlite-db.mjs" check-release "$usage_db" "$target" usage
 trap - ERR

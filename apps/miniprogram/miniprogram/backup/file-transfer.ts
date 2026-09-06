@@ -1,4 +1,4 @@
-import { articleText, effectiveSegments, externalArticleText, parseBackupBundle, type ArticleSession, type Draft } from '../domain/core';
+import { articleText, effectiveSegments, externalArticleText, parseBackupBundle, type ArticleSession, type Draft, type WritingState } from '../domain/core';
 import type { MiniWorkRepository } from '../storage/repository';
 import type { LocalFileSystem } from '../storage/file-system';
 
@@ -58,8 +58,9 @@ export class MiniBackupController {
     return path;
   }
 
-  async rescue(draft: Draft, session?: ArticleSession | null) {
-    const raw = this.repository.rescueExport(draft, [], session ? [session] : []);
+  async rescue(draft: Draft, session?: ArticleSession | null, writingState?: WritingState) {
+    const state = writingState ?? (await this.repository.getAggregate(draft.id))?.writingState;
+    const raw = this.repository.rescueExport(draft, [], session ? [session] : [], state ? [{ workId: draft.id, state }] : []);
     parseBackupBundle(raw);
     return this.writeAndShare(raw, `岁月有声-救援-${exportName('json', this.now()).replace('岁月有声-备份-', '')}`);
   }

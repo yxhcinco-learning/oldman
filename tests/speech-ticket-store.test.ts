@@ -5,6 +5,18 @@ import { SpeechTicketError, SpeechTicketStore } from '../server/speech-ticket-st
 const ticket = (number: number) => `speech_ticket_${number}`.padEnd(43, 'x');
 
 describe('一次性小程序语音 ticket', () => {
+  it('账号接管后拒绝未用票据，并保留已用连接的原会话校验器', () => {
+    let valid = true;
+    const store = new SpeechTicketStore();
+    const validate = () => { if (!valid) throw new Error('session_replaced'); };
+    const connecting = store.issue('author', 'speech', validate);
+    const connected = store.consume(connecting.ticket);
+    const unused = store.issue('author', 'speech', validate);
+    valid = false;
+    expect(() => connected.validateSession!()).toThrow('session_replaced');
+    expect(() => store.consume(unused.ticket)).toThrow('session_replaced');
+    expect(store.size()).toBe(0);
+  });
   it('签发高熵等价 ticket，并在第一次消费时原子删除', () => {
     let number = 0;
     const store = new SpeechTicketStore({ now: () => 1000, randomTicket: () => ticket(++number) });

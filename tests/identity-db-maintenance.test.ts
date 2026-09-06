@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { execFile } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -58,5 +58,10 @@ describe('SQLite 数据库部署维护', () => {
 
     await expect(execute(process.execPath, [script, 'check', databasePath, '1'])).rejects.toMatchObject({ code: 2 });
     await expect(execute(process.execPath, [compatibilityScript, 'check', databasePath, '2'])).resolves.toMatchObject({ stdout: expect.stringContaining('schema 2') });
+    await expect(execute(process.execPath, [script, 'check-release', databasePath, directory, 'auth'])).rejects.toMatchObject({ code: 2 });
+    await mkdir(join(directory, 'deploy'));
+    await writeFile(join(directory, 'deploy/schema-ceilings.json'), JSON.stringify({ auth: 2, topics: 1, usage: 1 }));
+    await expect(execute(process.execPath, [script, 'check-release', databasePath, directory, 'auth'])).resolves.toMatchObject({ stdout: expect.stringContaining('compatibility verified') });
+    await expect(execute(process.execPath, [script, 'check-release', databasePath, directory, 'topics'])).rejects.toMatchObject({ code: 2 });
   });
 });

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { emptyDraft, newSession, startInterview, type Draft, type ArticleSession } from '../miniprogram/domain/core';
 
 const services = vi.hoisted(() => ({
-  repository: { load: vi.fn() }, writer: { seed: vi.fn(), preserve: vi.fn(), recoverPending: vi.fn(), pendingSession: vi.fn() },
+  sync: { open: vi.fn() }, articleAi: { isRunning: () => false }, repository: { load: vi.fn() }, writer: { seed: vi.fn(), preserve: vi.fn().mockResolvedValue(undefined), write: vi.fn(), recoverPending: vi.fn(), pendingSession: vi.fn() },
   conversations: { read: () => ({ composer: '', requestStatus: 'idle', error: '' }) },
 }));
 vi.mock('../miniprogram/services', () => ({ miniServices: () => services }));
@@ -26,15 +26,15 @@ async function navigationPage() {
   vi.stubGlobal('Page', (page: EditorPage) => { definition = page; });
   await import('../miniprogram/pages/editor/index');
   const draft = { ...emptyDraft(), inputMode: 'text' as const, textDraft: '未保存正文' };
-  return { ...definition, data: { ...definition.data, draft, body: draft.textDraft, session: startInterview(newSession(draft), draft, 'start') },
-    setData(value: Record<string, unknown>) { Object.assign(this.data, value); }, scheduleSave() {} };
+  return { ...definition, services, data: { ...definition.data, readOnly: false, draft, body: draft.textDraft, session: startInterview(newSession(draft), draft, 'start') },
+    setData(value: Record<string, unknown>) { Object.assign(this.data, value); }, scheduleSave() {}, refreshCloudState: async () => {} };
 }
 
 describe('小程序编辑器读取与展示失败隔离', () => {
   it('跨页保存失败保留原页正文，重试成功才跳转', async () => {
     const redirectTo = vi.fn().mockResolvedValue({});
     vi.stubGlobal('wx', { redirectTo });
-    services.writer.preserve.mockRejectedValueOnce(new Error('本机空间不足')).mockResolvedValue(undefined);
+    services.writer.write.mockRejectedValueOnce(new Error('本机空间不足')).mockResolvedValue({ revision: 1 });
     const page = await navigationPage();
     await page.openXiaoWen();
     expect(redirectTo).not.toHaveBeenCalled();
@@ -46,13 +46,13 @@ describe('小程序编辑器读取与展示失败隔离', () => {
     const redirectTo = vi.fn();
     vi.stubGlobal('wx', { redirectTo });
     let release!: () => void;
-    services.writer.preserve.mockReturnValue(new Promise<void>(resolve => { release = resolve; }));
+    services.writer.write.mockReturnValue(new Promise(resolve => { release = () => resolve({ revision: 1 }); }));
     const page = await navigationPage();
     const opening = page.openXiaoWen();
     await page.openXiaoWen();
     page.onBodyInput({ detail: { value: '更新的正文' } });
     release(); await opening;
-    expect(services.writer.preserve).toHaveBeenCalledOnce();
+    expect(services.writer.write).toHaveBeenCalledOnce();
     expect(redirectTo).not.toHaveBeenCalled();
     expect(page.data.body).toBe('更新的正文');
   });
@@ -64,7 +64,7 @@ describe('小程序编辑器读取与展示失败隔离', () => {
     let definition!: EditorPage;
     vi.stubGlobal('Page', (page: EditorPage) => { definition = page; });
     await import('../miniprogram/pages/editor/index');
-    const page = { ...definition, data: { ...definition.data },
+    const page = { ...definition, services, data: { ...definition.data },
       setData(value: Record<string, unknown>) { Object.assign(this.data, value); },
       syncXiaoWen() { throw new Error('conversationView is not a function'); } };
     await page.open(draft.id);
