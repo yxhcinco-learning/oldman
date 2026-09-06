@@ -44,7 +44,7 @@ describe('AI 辅助来源与导出披露', () => {
     const work = workFromDraft({ ...draft, id: session.workId });
     const raw = makeBackup([work], null, [session]);
     const encoded = JSON.parse(raw) as { schemaVersion: number; disclosures: Array<Record<string, unknown>> };
-    expect(encoded.schemaVersion).toBe(4);
+    expect(encoded.schemaVersion).toBe(5);
     expect(encoded.disclosures[0]).toMatchObject({ workId: work.id, aiAssisted: true, basis: 'applied-ai-candidate', appliedCandidateCount: 1,
       notice: AI_ASSISTANCE_DISCLOSURE });
     expect(parseBackupBundle(raw).disclosures).toEqual([aiDisclosureFor(work.id, session)]);

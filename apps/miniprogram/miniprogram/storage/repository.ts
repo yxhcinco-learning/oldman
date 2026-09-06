@@ -253,7 +253,7 @@ export class MiniWorkRepository {
       }
       const current = await this.readAggregate(draftSnapshot.id);
       if ((current?.work.revision ?? 0) !== expectedRevision || current?.work.deletedAt) throw new MiniStorageError('conflict');
-      if (!current && !hasContent(draftSnapshot)) return null;
+      if (!current && !hasContent(draftSnapshot) && !sessionSnapshot?.turns.length && !sessionSnapshot?.conversation) return null;
       const work = workFromDraft(draftSnapshot, current?.work);
       const aggregate: WorkAggregate = { app: 'suiyue-yousheng', schemaVersion: LOCAL_SCHEMA_VERSION,
         savedAt: this.now().toISOString(), work, session: sessionSnapshot ?? current?.session ?? null };

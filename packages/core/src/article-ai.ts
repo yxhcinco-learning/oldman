@@ -2,11 +2,11 @@ import { z } from 'zod';
 import { articleText, newId, type Draft } from './writing.js';
 
 const id = z.string().min(1).max(128);
-export const aiActionSchema = z.enum(['regular', 'polish', 'question', 'rewrite', 'chat', 'interview', 'compose']);
+export const aiActionSchema = z.enum(['regular', 'polish', 'question', 'rewrite', 'chat', 'interview', 'compose', 'dialogue']);
 export type AiAction = z.infer<typeof aiActionSchema>;
 export const ACTION_LABELS: Record<AiAction, string> = {
   regular: '常规优化', polish: '润色文笔', question: '文字追问', rewrite: '对话调整', chat: '调整文章',
-  interview: '小文采访', compose: '整理成文章',
+  interview: '小文采访', compose: '整理成文章', dialogue: '与小文对话',
 };
 export const versionSchema = z.object({
   id, createdAt: z.iso.datetime(), source: z.enum(['baseline', 'manual', 'regular', 'polish', 'rewrite', 'restore']),
@@ -16,9 +16,34 @@ export type ArticleVersion = z.infer<typeof versionSchema>;
 export const VERSION_LABELS: Record<ArticleVersion['source'], string> = {
   baseline: '开始记录', manual: '手动编辑', regular: '常规优化', polish: '润色文笔', rewrite: '对话调整', restore: '恢复内容',
 };
+export const dialogueCommandSchema = z.enum(['send', 'start', 'finish', 'change', 'confirm-edit']);
+export type DialogueCommand = z.infer<typeof dialogueCommandSchema>;
+export const conversationMessageSchema = z.object({
+  id, role: z.enum(['user', 'assistant', 'system']), text: z.string().min(1).max(12000), turnId: id.optional(),
+}).strict();
+export const conversationSchema = z.object({
+  mode: z.enum(['conversation', 'interview']), messages: z.array(conversationMessageSchema).max(60000),
+  materials: z.array(z.object({ id, text: z.string().min(1).max(12000), sourceMessageId: id, supersedes: id.optional() }).strict()).max(10000),
+  pendingEdit: z.string().max(12000).optional(),
+}).strict().superRefine((value, ctx) => {
+  const messages = new Map(value.messages.map(message => [message.id, message]));
+  const materials = new Map(value.materials.map(material => [material.id, material]));
+  if (messages.size !== value.messages.length || materials.size !== value.materials.length) ctx.addIssue({ code: 'custom', message: '重复会话来源' });
+  for (const material of value.materials) {
+    const source = messages.get(material.sourceMessageId);
+    if (!source || source.role !== 'user' || !source.text.includes(material.text) || material.supersedes === material.id ||
+      (material.supersedes && (!materials.has(material.supersedes) || value.materials.indexOf(materials.get(material.supersedes)!) >= value.materials.indexOf(material)))) {
+      ctx.addIssue({ code: 'custom', message: '无效素材来源' });
+    }
+  }
+});
+export type XiaoWenConversation = z.infer<typeof conversationSchema>;
 export const aiResultSchema = z.object({
   answer: z.string().trim().min(1).max(8000), body: z.string().min(1).max(20000).optional(),
   citedVersionIds: z.array(id).max(20).default([]),
+  dialogue: z.object({ intent: z.enum(['reply', 'start', 'finish', 'confirm-edit', 'edit']),
+    material: z.object({ text: z.string().min(1).max(12000), supersedes: id.optional() }).strict().optional(),
+  }).strict().optional(),
 }).strict();
 export type AiResult = z.infer<typeof aiResultSchema>;
 const NON_CHANGE_CLAUSE = /(?:[（(]\s*(?:未变|无变化|无修改)\s*[）)]|保持不变|维持不变|原样保留|无需修改|没有变化|无实际变化)/;
@@ -39,7 +64,8 @@ export function resultSummary(result: AiResult, originalBody: string): string {
   return result.body === undefined ? result.answer : actualChangeSummary(result.answer);
 }
 export const turnSchema = z.object({
-  id, createdAt: z.iso.datetime(), action: aiActionSchema, prompt: z.string().max(2000), inputVersionId: id,
+  id, createdAt: z.iso.datetime(), action: aiActionSchema, prompt: z.string().max(12000), inputVersionId: id,
+  command: dialogueCommandSchema.optional(),
   status: z.enum(['running', 'ready', 'applied', 'dismissed', 'answered', 'failed', 'cancelled']),
   result: aiResultSchema.optional(), appliedVersionId: id.optional(), error: z.string().max(1000).optional(),
   omittedRecords: z.number().int().nonnegative().optional(),
@@ -47,6 +73,7 @@ export const turnSchema = z.object({
 export type AiTurn = z.infer<typeof turnSchema>;
 export const articleSessionSchema = z.object({
   workId: id, versions: z.array(versionSchema).min(1).max(10000), turns: z.array(turnSchema).max(10000),
+  conversation: conversationSchema.optional(),
 }).strict().superRefine((session, ctx) => {
   const versions = new Set(session.versions.map(v => v.id));
   if (versions.size !== session.versions.length || new Set(session.turns.map(t => t.id)).size !== session.turns.length) {
@@ -59,7 +86,7 @@ export const articleSessionSchema = z.object({
       ctx.addIssue({ code: 'custom', message: '无效的优化结果' });
     }
     if (turn.status === 'applied' && !turn.appliedVersionId) ctx.addIssue({ code: 'custom', message: '缺少应用版本' });
-    if (turn.status === 'answered' && (!['question', 'chat', 'interview', 'compose'].includes(turn.action) || !turn.result || Boolean(turn.result.body))) {
+    if (turn.status === 'answered' && (!['question', 'chat', 'interview', 'compose', 'dialogue'].includes(turn.action) || !turn.result || Boolean(turn.result.body))) {
       ctx.addIssue({ code: 'custom', message: '无效的追问结果' });
     }
   }
@@ -115,9 +142,18 @@ export function recoverSession(session: ArticleSession): ArticleSession {
 }
 export function copySession(session: ArticleSession, workId: string): ArticleSession {
   const ids = new Map(session.versions.map(version => [version.id, newId()]));
-  return recoverSession({ workId, versions: session.versions.map(v => ({ ...v, id: ids.get(v.id)! })), turns: session.turns.map(t => ({
-    ...t, id: newId(), inputVersionId: ids.get(t.inputVersionId)!,
+  const turnIds = new Map(session.turns.map(turn => [turn.id, newId()]));
+  const messageIds = new Map(session.conversation?.messages.map(message => [message.id, newId()]) ?? []);
+  const materialIds = new Map(session.conversation?.materials.map(material => [material.id, newId()]) ?? []);
+  const conversation = session.conversation && { ...session.conversation,
+    messages: session.conversation.messages.map(message => ({ ...message, id: messageIds.get(message.id)!,
+      ...(message.turnId ? { turnId: turnIds.get(message.turnId) } : {}) })),
+    materials: session.conversation.materials.map(material => ({ ...material, id: materialIds.get(material.id)!,
+      sourceMessageId: messageIds.get(material.sourceMessageId)!, ...(material.supersedes ? { supersedes: materialIds.get(material.supersedes)! } : {}) })),
+  };
+  return recoverSession({ workId, ...(conversation ? { conversation } : {}), versions: session.versions.map(v => ({ ...v, id: ids.get(v.id)! })), turns: session.turns.map(t => ({
+    ...t, id: turnIds.get(t.id)!, inputVersionId: ids.get(t.inputVersionId)!,
     ...(t.appliedVersionId ? { appliedVersionId: ids.get(t.appliedVersionId)! } : {}),
-    ...(t.result ? { result: { ...t.result, citedVersionIds: t.result.citedVersionIds.map(ref => ids.get(ref)!) } } : {}),
+    ...(t.result ? { result: { ...t.result, citedVersionIds: t.result.citedVersionIds.map(ref => ids.get(ref)!), ...(t.result.dialogue?.material?.supersedes ? { dialogue: { ...t.result.dialogue, material: { ...t.result.dialogue.material, supersedes: materialIds.get(t.result.dialogue.material.supersedes)! } } } : {}) } } : {}),
   })) });
 }

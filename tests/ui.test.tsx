@@ -81,7 +81,7 @@ it('writes, edits the body on the current page, saves, reopens and restores from
   expect(await screen.findByRole('textbox', { name: '文章正文' })).toHaveValue('我修改了这一段。\n\n我想把这一刻写下来。');
 });
 it('previews a real optimization before applying and persists an undo as history', async () => {
-  const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId, result: { answer: '调整标点。', body: '窗前的雨，\n落进了风里。\n\n我想把这一刻写下来。', citedVersionIds: [] } }));
+  const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId, result: { dialogue: { intent: 'edit' as const }, answer: '调整标点。', body: '窗前的雨，\n落进了风里。\n\n我想把这一刻写下来。', citedVersionIds: [] } }));
   const repository = repo(); render(<ProductApp repository={repository} aiTransport={transport} />); await startWriting();
   const before = (await repository.load()).works[0]; openXiaoWen();
   expect(screen.queryByText('演示模式 · 不影响作品')).not.toBeInTheDocument();
@@ -126,11 +126,11 @@ it('previews a real optimization before applying and persists an undo as history
 });
 it('answers in the article conversation and exposes an actual cited version without modifying the body', async () => {
   localStorage.setItem('suiyue-article-ai-consent-v2', 'yes');
-  const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId, result: { answer: '原文仍在这个版本中。', citedVersionIds: [request.current.id] } }));
+  const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId, result: { dialogue: { intent: 'reply' as const }, answer: '原文仍在这个版本中。', citedVersionIds: [request.current.id] } }));
   const repository = repo(); const view = render(<ProductApp repository={repository} aiTransport={transport} />); await startWriting(); const before = (await repository.load()).works[0];
   openXiaoWen(); fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '我原来写的内容呢？' } });
   fireEvent.click(screen.getByRole('button', { name: '发送' })); await screen.findByText('原文仍在这个版本中。');
-  expect(transport.mock.calls[0][0].action).toBe('chat');
+  expect(transport.mock.calls[0][0].action).toBe('dialogue');
   fireEvent.click(screen.getByRole('button', { name: '查看引用记录 1' })); expect(screen.getByRole('region', { name: '修改记录正文' })).toHaveTextContent('窗前的雨');
   expect((await repository.load()).works[0].draft.textDraft).toEqual(before.draft.textDraft);
   view.unmount(); render(<ProductApp repository={repository} aiTransport={transport} />);
@@ -140,8 +140,8 @@ it('answers in the article conversation and exposes an actual cited version with
 it('turns an explicit conversational request into a preview and applies it only after confirmation', async () => {
   localStorage.setItem('suiyue-article-ai-consent-v2', 'yes');
   const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId, result: request.prompt.startsWith('只把第一段')
-    ? { answer: '只让第一段更温暖。', body: request.current.body.replace('窗前的雨', '窗前温柔的雨'), citedVersionIds: [] }
-    : { answer: '这是只读回答。', citedVersionIds: [request.current.id] } }));
+    ? { dialogue: { intent: 'edit' as const }, answer: '只让第一段更温暖。', body: request.current.body.replace('窗前的雨', '窗前温柔的雨'), citedVersionIds: [] }
+    : { dialogue: { intent: 'reply' as const }, answer: '这是只读回答。', citedVersionIds: [request.current.id] } }));
   const repository = repo(); render(<ProductApp repository={repository} aiTransport={transport} />); await startWriting();
   const before = (await repository.load()).works[0].draft.textDraft;
   openXiaoWen();
@@ -154,7 +154,7 @@ it('turns an explicit conversational request into a preview and applies it only 
   expect(screen.getByText('待应用')).toBeInTheDocument();
   expect(screen.queryByRole('region', { name: '调整后全文' })).not.toBeInTheDocument();
   expect((await repository.load()).works[0].draft.textDraft).toBe(before);
-  expect(transport.mock.calls[0][0]).toMatchObject({ action: 'chat', prompt: '只把第一段写得更温暖，其他不变' });
+  expect(transport.mock.calls[0][0]).toMatchObject({ action: 'dialogue', prompt: '只把第一段写得更温暖，其他不变' });
   fireEvent.click(screen.getByRole('button', { name: '查看调整结果' }));
   expect(await screen.findByRole('region', { name: '调整后全文' })).toHaveTextContent('窗前温柔的雨');
   expect(screen.getByText('请核对人物、动作和经历。')).toBeInTheDocument();
@@ -168,12 +168,12 @@ it('turns an explicit conversational request into a preview and applies it only 
   expect((await repository.load()).sessions[0].versions.at(-1)?.source).toBe('rewrite');
   fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '刚才改了哪里？' } });
   fireEvent.click(screen.getByRole('button', { name: '发送' })); await screen.findByText('这是只读回答。');
-  expect(transport.mock.calls[1][0].action).toBe('chat');
+  expect(transport.mock.calls[1][0].action).toBe('dialogue');
 });
 it('keeps the modification explanation when a candidate is not adopted', async () => {
   localStorage.setItem('suiyue-article-ai-consent-v2', 'yes');
   const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId,
-    result: { answer: '调整了第一段的语序和节奏。', body: request.current.body.replace('窗前的雨', '雨落窗前'), citedVersionIds: [] } }));
+    result: { dialogue: { intent: 'edit' as const }, answer: '调整了第一段的语序和节奏。', body: request.current.body.replace('窗前的雨', '雨落窗前'), citedVersionIds: [] } }));
   const repository = repo(); render(<ProductApp repository={repository} aiTransport={transport} />); await startWriting();
   const before = (await repository.load()).works[0].draft.textDraft;
   openXiaoWen();
@@ -193,7 +193,7 @@ it('keeps the modification explanation when a candidate is not adopted', async (
 it('shows unchanged output as having no body change outside the assistant bubble', async () => {
   localStorage.setItem('suiyue-article-ai-consent-v2', 'yes');
   const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId,
-    result: { answer: '没有需要修改的内容。', body: request.current.body, citedVersionIds: [] } }));
+    result: { dialogue: { intent: 'edit' as const }, answer: '没有需要修改的内容。', body: request.current.body, citedVersionIds: [] } }));
   render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting();
   openXiaoWen();
   fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '帮我整理文章' } });
@@ -206,7 +206,7 @@ it('shows unchanged output as having no body change outside the assistant bubble
 it('submits a free-form polish request without exposing a preset shortcut', async () => {
   localStorage.setItem('suiyue-article-ai-consent-v2', 'yes');
   const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId,
-    result: { answer: '改善了句式衔接。', body: `${request.current.body}\n`, citedVersionIds: [] } }));
+    result: { dialogue: { intent: 'edit' as const }, answer: '改善了句式衔接。', body: `${request.current.body}\n`, citedVersionIds: [] } }));
   render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting();
   openXiaoWen();
   expect(screen.queryByRole('button', { name: '把文字写顺' })).not.toBeInTheDocument();
@@ -216,7 +216,7 @@ it('submits a free-form polish request without exposing a preset shortcut', asyn
   expect(await screen.findByText('改善了句式衔接。')).toBeInTheDocument();
   expect(within(screen.getByLabelText('文章对话记录')).getByText('把文字写顺')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '查看调整结果' })).toBeInTheDocument();
-  expect(transport.mock.calls[0][0]).toMatchObject({ action: 'chat', prompt: '把文字写顺' });
+  expect(transport.mock.calls[0][0]).toMatchObject({ action: 'dialogue', prompt: '把文字写顺' });
 });
 it('recovers unfinished current-page body editing after remount', async () => {
   const repository = repo(); const view = render(<ProductApp repository={repository} />); await startWriting();
@@ -435,7 +435,7 @@ it('keeps a XiaoWen request running while minimized and reports processing then 
   const transport = vi.fn(async (request: AiRequest, signal: AbortSignal) => {
     requestSignal = signal;
     await new Promise<void>(resolve => { continueRequest = resolve; });
-    return { requestId: request.requestId, result: { answer: '整理完成。', body: `${request.current.body}\n`, citedVersionIds: [] } };
+    return { requestId: request.requestId, result: { dialogue: { intent: 'edit' as const }, answer: '整理完成。', body: `${request.current.body}\n`, citedVersionIds: [] } };
   });
   render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting();
   openXiaoWen();
@@ -471,9 +471,9 @@ it('reports a minimized XiaoWen request failure on the toolbar and keeps it avai
   fireEvent.click(opener);
   expect(await screen.findByRole('alert')).toHaveTextContent('暂时无法完成，请稍后再试。');
 });
-it('preserves unsent text while minimized and rejects an empty article locally', async () => {
+it('preserves unsent text while minimized and allows a conversation with an empty article', async () => {
   localStorage.setItem('suiyue-article-ai-consent-v2', 'yes');
-  const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId, result: { answer: `回答：${request.prompt}`, citedVersionIds: [] } }));
+  const transport = vi.fn(async (request: AiRequest) => ({ requestId: request.requestId, result: { dialogue: { intent: 'reply' as const }, answer: `回答：${request.prompt}`, citedVersionIds: [] } }));
   render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting(); openXiaoWen();
   fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '未发送内容' } });
   fireEvent.click(screen.getByRole('button', { name: '收起小文' }));
@@ -486,8 +486,8 @@ it('preserves unsent text while minimized and rejects an empty article locally',
   fireEvent.click(screen.getByRole('button', { name: '打开小文' }));
   fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '请帮我看看' } });
   fireEvent.click(screen.getByRole('button', { name: '发送' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('先写下一句');
-  expect(transport).not.toHaveBeenCalled();
+  expect(await screen.findByText('回答：请帮我看看')).toBeInTheDocument();
+  expect(transport).toHaveBeenCalledOnce();
 });
 it('keeps copy failures persistent while ordinary assistant notices are transient', async () => {
   const repository = repo(); render(<ProductApp repository={repository} />); await startWriting();

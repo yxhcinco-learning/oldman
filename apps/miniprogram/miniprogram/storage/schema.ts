@@ -1,10 +1,11 @@
 import { articleSessionSchema, draftSchema, workSchema, z, type ArticleSession, type Work } from '../domain/core';
 
-export const LOCAL_SCHEMA_VERSION = 1 as const;
+export const LOCAL_SCHEMA_VERSION = 2 as const;
+const localVersionSchema = z.union([z.literal(1), z.literal(2)]).transform(() => LOCAL_SCHEMA_VERSION);
 
 export const aggregateSchema = z.object({
   app: z.literal('suiyue-yousheng'),
-  schemaVersion: z.literal(LOCAL_SCHEMA_VERSION),
+  schemaVersion: localVersionSchema,
   savedAt: z.iso.datetime(),
   work: workSchema,
   session: articleSessionSchema.nullable(),
@@ -30,14 +31,14 @@ export const indexEntrySchema = z.object({
 }).strict();
 
 export const repositoryIndexSchema = z.object({
-  schemaVersion: z.literal(LOCAL_SCHEMA_VERSION),
+  schemaVersion: localVersionSchema,
   generatedAt: z.iso.datetime(),
   entries: z.array(indexEntrySchema).max(10000),
 }).strict();
 export type RepositoryIndex = z.infer<typeof repositoryIndexSchema>;
 
 export const recoveryRecordSchema = z.object({
-  schemaVersion: z.literal(LOCAL_SCHEMA_VERSION),
+  schemaVersion: localVersionSchema,
   workId: z.string().min(1).max(128),
   expectedRevision: z.number().int().nonnegative(),
   recoveryRevision: z.number().int().positive(),

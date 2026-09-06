@@ -58,10 +58,10 @@ describe('IndexedDB works and recovery', () => {
     await repo.clearRecovery(draft.id); expect((await repo.load()).recovery).toBeNull();
   });
   it('does not delete a database from a newer version', async () => {
-    const name = crypto.randomUUID(); const db = await openDB(name, 3, { upgrade(db) { db.createObjectStore('future'); } });
+    const name = crypto.randomUUID(); const db = await openDB(name, 99, { upgrade(db) { db.createObjectStore('future'); } });
     await db.put('future', 'important', 'data'); db.close();
     const repo = new IndexedWorkRepository(name); await expect(repo.load()).rejects.toBeTruthy();
-    const verify = await openDB(name, 3); expect(await verify.get('future', 'data')).toBe('important'); verify.close();
+    const verify = await openDB(name, 99); expect(await verify.get('future', 'data')).toBe('important'); verify.close();
   });
 });
 
@@ -100,7 +100,7 @@ describe('portable backups', () => {
   });
   it('rejects invalid or future backups without changing stored works', async () => {
     const repo = repository(); await repo.save(writing(), 0); const before = await repo.load();
-    for (const raw of ['{broken', makeBackup(before.works).replace('"schemaVersion": 4', '"schemaVersion": 99'), '{"app":"other"}']) {
+    for (const raw of ['{broken', makeBackup(before.works).replace('"schemaVersion": 5', '"schemaVersion": 99'), '{"app":"other"}']) {
       await expect(repo.importBackup(raw)).rejects.toBeTruthy(); expect(await repo.load()).toEqual(before);
     }
   });

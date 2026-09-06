@@ -2,6 +2,7 @@ import { ACTION_LABELS, MAX_ARTICLE_CHARS, aiResponseSchema, buildAiRequest, che
   newVersion, recoverSession, sameDocument, splitDraft, type AiAction, type AiRequest, type AiResponse, type AiTurn,
   type ArticleSession, type Draft, type Work } from '../domain/core';
 import type { MiniDraftWriter, MiniWorkRepository } from '../storage/repository';
+import { prepareDialogue, settleDialogue, startInterview, type DialogueCommand } from '../domain/core';
 
 const zodParseContext = { jitless: true } as const;
 
@@ -38,40 +39,63 @@ type ActiveRequest = { workId: string; turnId: string; cancel(): void; timer: Re
 function validationMessage(draft: Draft, action: AiAction, prompt: string, busy: boolean) {
   const body = documentOf(draft).body;
   if (busy) return '小文正在处理上一条请求，请稍候。';
-  if (!['interview', 'compose'].includes(action) && !body.trim()) return '先写下一句，再请小文帮忙。';
+  if (!['interview', 'compose', 'dialogue'].includes(action) && !body.trim()) return '先写下一句，再请小文帮忙。';
   if (action === 'interview' && !body.trim() && !draft.topicSnapshot && !draft.materials.length) return '先选一个话题，或在文章里写下一点内容。';
   if (action === 'compose' && !draft.materials.some(material => material.selected)) return '还没有可以整理的回答。';
   if (draft.pendingVoice.trim() || draft.segmentEdit) return '请先取消或完成待确认语音，再使用小文。';
   if (body.length > MAX_ARTICLE_CHARS) return '每篇最多 12000 字，请先分篇整理。原文不会被截断。';
-  if (prompt.length > 2000 || ['question', 'rewrite', 'chat'].includes(action) && !prompt.trim()) return '请输入 2000 字以内的问题或调整要求。';
+  if (prompt.length > (action === 'dialogue' ? 12000 : 2000) || ['question', 'rewrite', 'chat', 'dialogue'].includes(action) && !prompt.trim()) return '请输入长度范围内的问题或调整要求。';
   return '';
 }
 
 export class MiniArticleAiController {
   private active: ActiveRequest | null = null;
+  private preparation: { workId: string } | null = null;
+  private listeners = new Set<(workId: string) => void>();
+  subscribe(listener: (workId: string) => void) { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; }
 
   constructor(private readonly repository: MiniWorkRepository, private readonly writer: MiniDraftWriter,
     private readonly transport: MiniAiTransport = new UnavailableMiniAiTransport()) {}
 
   isRunning(workId: string) {
-    return this.active?.workId === workId;
+    return this.active?.workId === workId || this.preparation?.workId === workId;
+  }
+
+  async startInterview(draft: Draft, session: ArticleSession | null) {
+    if (this.active || this.preparation) throw new Error('小文正在处理上一条请求，请稍候。');
+    this.preparation = { workId: draft.id };
+    try { return await this.save(draft, startInterview(session ?? newSession(draft), draft, newId())); }
+    finally { this.preparation = null; }
   }
 
   async run(draft: Draft, existingSession: ArticleSession | null, action: AiAction, prompt = '', turnPrompt?: string,
-    onStarted?: (context: MiniAiContext & { turnId: string }) => void): Promise<MiniAiRunResult> {
+    onStarted?: (context: MiniAiContext & { turnId: string }) => void, command: DialogueCommand = 'send', retryId?: string): Promise<MiniAiRunResult> {
+    if (this.active || this.preparation) return { draft, session: existingSession ?? newSession(draft), work: null, accepted: false, turnId: null, error: '小文正在处理上一条请求，请稍候。' };
+    const preparation = { workId: draft.id };
+    this.preparation = preparation;
+    try { return await this.execute(draft, existingSession, action, prompt, turnPrompt, onStarted, command, retryId); }
+    finally { if (this.preparation === preparation) this.preparation = null; this.listeners.forEach(listener => listener(draft.id)); }
+  }
+
+  private async execute(draft: Draft, existingSession: ArticleSession | null, action: AiAction, prompt: string, turnPrompt?: string,
+    onStarted?: (context: MiniAiContext & { turnId: string }) => void, command: DialogueCommand = 'send', retryId?: string): Promise<MiniAiRunResult> {
     const error = validationMessage(draft, action, prompt, Boolean(this.active));
     const fallbackSession = existingSession ? (this.active ? existingSession : recoverSession(existingSession)) : newSession(draft);
     if (error) return { draft, session: fallbackSession, work: null, accepted: false, turnId: null, error };
 
     let session = checkpointSession(fallbackSession, draft);
-    const turnId = newId();
+    const turnId = retryId ?? newId();
+    if (retryId && !session.turns.some(turn => turn.id === retryId && ['failed', 'cancelled'].includes(turn.status))) return { draft, session, work: null, accepted: false, turnId: null, error: '这条消息不能重试。' };
     let request: AiRequest;
-    try { request = buildAiRequest(session, action, prompt.trim(), turnId, { topicSnapshot: draft.topicSnapshot, materials: draft.materials }); }
+    try {
+      if (action === 'dialogue') session = prepareDialogue(session, draft, turnId, prompt, command);
+      request = buildAiRequest(session, action, prompt.trim(), turnId, { topicSnapshot: draft.topicSnapshot, materials: draft.materials, command });
+    }
     catch { return { draft, session, work: null, accepted: false, turnId: null, error: '当前内容无法建立小文请求，原文未改变。' }; }
-    const turn: AiTurn = { id: turnId, createdAt: new Date().toISOString(), action,
+    const turn: AiTurn = { id: turnId, createdAt: new Date().toISOString(), action, ...(action === 'dialogue' ? { command } : {}),
       prompt: turnPrompt?.trim() || (prompt.trim() || ACTION_LABELS[action]), inputVersionId: request.current.id,
       status: 'running', omittedRecords: request.omittedRecords };
-    session = { ...session, turns: [...session.turns, turn] };
+    session = { ...session, turns: [...session.turns.filter(item => item.id !== turnId), turn] };
 
     let work: Work | null;
     try { work = await this.writer.write(draft, session); }
@@ -91,6 +115,7 @@ export class MiniArticleAiController {
     const active: ActiveRequest = { workId: draft.id, turnId, cancel: operation.cancel,
       timer: setTimeout(() => this.cancel(draft.id, '小文请求已超时，原文未改变。'), 125000), cancelled: false };
     this.active = active;
+    this.preparation = null;
     try {
       const response = aiResponseSchema.parse(await operation.response, zodParseContext);
       if (active.cancelled) return { ...(await active.settlement!), accepted: true, turnId, error: '' };
@@ -132,6 +157,11 @@ export class MiniArticleAiController {
     return this.save(draft, { ...session, turns: session.turns.map(item => item.id === turnId ? { ...item, status: 'dismissed' } : item) });
   }
 
+  async continueInterview(draft: Draft, session: ArticleSession) {
+    if (this.isRunning(draft.id) || session.conversation?.mode !== 'interview') throw new Error('当前不能更改访谈确认。');
+    return this.save(draft, { ...session, conversation: { ...session.conversation, pendingEdit: undefined } });
+  }
+
   async apply(draft: Draft, session: ArticleSession, turnId: string) {
     const turn = session.turns.find(item => item.id === turnId);
     const base = session.versions.find(version => version.id === turn?.inputVersionId);
@@ -140,7 +170,7 @@ export class MiniArticleAiController {
       throw new Error('正文已发生变化，请根据最新内容重新整理；旧结果仍可查看。');
     }
     const nextDraft: Draft = { ...draft, inputMode: 'text', textDraft: turn.result.body, segments: splitDraft(turn.result.body, draft.segments) };
-    if (!['regular', 'polish', 'rewrite', 'chat', 'compose'].includes(turn.action)) throw new Error('这类回答不会改动正文。');
+    if (!['regular', 'polish', 'rewrite', 'chat', 'compose', 'dialogue'].includes(turn.action)) throw new Error('这类回答不会改动正文。');
     const source: 'regular' | 'polish' | 'rewrite' = turn.action === 'regular' || turn.action === 'polish' ? turn.action : 'rewrite';
     const version = newVersion(nextDraft, source);
     return this.save(nextDraft, { ...session, versions: [...session.versions, version],
@@ -173,17 +203,22 @@ export class MiniArticleAiController {
   }
 
   private async settle(turnId: string, update: (turn: AiTurn) => AiTurn): Promise<MiniAiContext> {
+    const reduce = (current: ArticleSession): ArticleSession => {
+      const turn = current.turns.find(item => item.id === turnId && item.status === 'running');
+      if (!turn) return current;
+      const next = update(turn);
+      if (turn.action === 'dialogue' && next.result) return settleDialogue(current, turnId, next.result);
+      return { ...current, turns: current.turns.map(item => item.id === turnId ? next : item) };
+    };
     const activeWorkId = this.active?.turnId === turnId ? this.active.workId : undefined;
     if (!activeWorkId) {
       const snapshot = await this.repository.load();
       const session = snapshot.sessions.find(item => item.turns.some(turn => turn.id === turnId))
         ?? (snapshot.recoverySession?.turns.some(turn => turn.id === turnId) ? snapshot.recoverySession : undefined);
       if (!session) throw new Error('当前文章会话已不存在。');
-      return this.writer.updateLatestSession(session.workId, current => ({ ...current,
-        turns: current.turns.map(turn => turn.id === turnId && turn.status === 'running' ? update(turn) : turn) }));
+      return this.writer.updateLatestSession(session.workId, reduce);
     }
-    return this.writer.updateLatestSession(activeWorkId, current => ({ ...current,
-      turns: current.turns.map(turn => turn.id === turnId && turn.status === 'running' ? update(turn) : turn) }));
+    return this.writer.updateLatestSession(activeWorkId, reduce);
   }
 
   private async save(draft: Draft, session: ArticleSession): Promise<MiniAiContext> {

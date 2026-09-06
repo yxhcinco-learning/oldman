@@ -23,12 +23,13 @@ export class IndexedWorkRepository implements WorkRepository {
   constructor(private readonly name = 'suiyue-yousheng') {}
   private db() {
     if (!this.connection) {
-      this.connection = openDB<WritingDB>(this.name, 3, {
+      this.connection = openDB<WritingDB>(this.name, 4, {
         upgrade(db, oldVersion) {
           if (oldVersion < 1) { db.createObjectStore('works', { keyPath: 'id' }); db.createObjectStore('recovery'); }
           if (oldVersion < 2) db.createObjectStore('articleSessions', { keyPath: 'workId' });
           // v3 adds optional topic/material fields inside existing records. They
           // are normalized lazily and persisted on the next ordinary save.
+          // v4 adds the unified conversation in articleSessions, migrated lazily.
         },
         blocking: () => { void this.connection?.then(db => db.close()); this.connection = undefined; },
         terminated: () => { this.connection = undefined; },
@@ -57,9 +58,9 @@ export class IndexedWorkRepository implements WorkRepository {
     if ((current?.revision ?? 0) !== expected || current?.deletedAt) {
       tx.abort(); await tx.done.catch(() => {}); throw new ConflictError();
     }
-    const next = !current && !hasContent(draft) ? null : workFromDraft(draft, current);
+    const next = !current && !hasContent(draft) && !session?.turns.length && !session?.conversation ? null : workFromDraft(draft, current);
     if (next) await tx.objectStore('works').put(next);
-    if (next && session) await tx.objectStore('articleSessions').put(session);
+    if (session) await tx.objectStore('articleSessions').put(session);
     await tx.objectStore('recovery').put({ draft: structuredClone(draft), revision: next?.revision ?? 0 }, 'active');
     await tx.done;
     return next;

@@ -4,6 +4,7 @@ import { createGateway } from '../server/gateway';
 import { loadAiConfiguration, systemPrompt, type AiGatewayOptions } from '../server/article-ai';
 import { emptyDraft } from '../lib/domain/writing';
 import { newSession } from '../lib/domain/article-ai';
+import { prepareDialogue } from '../packages/core/src/conversation';
 import { buildAiRequest } from '../features/ai/protocol';
 import { snapshotTopic } from '../lib/domain/topics';
 import { REVIEWED_TOPIC_CATALOG } from '../server/topic-catalog';
@@ -17,6 +18,20 @@ const response = (content: unknown = { answer: '整理了标点。', body: '周�
 async function gateway(options: Partial<AiGatewayOptions> = {}) {
   const app = await createGateway({ origin, ai: { configuration, fetch: vi.fn(async () => response()), ...options } }); gateways.push(app); return app;
 }
+it('uses one structured dialogue call for greetings and rejects unsolicited interview candidates', async () => {
+  const draft = emptyDraft({ topicWritingMode: 'interview' });
+  const request = buildAiRequest(prepareDialogue(newSession(draft), draft, 'greeting', '你好', 'send'), 'dialogue', '你好', 'greeting');
+  const fetch = vi.fn(async () => response({ answer: '您好，咱们慢慢聊。', dialogue: { intent: 'reply' }, citedVersionIds: [] }));
+  const app = await gateway({ fetch });
+  const valid = await app.inject({ method: 'POST', url: '/api/ai/turn', headers: { origin }, payload: request });
+  expect(valid.statusCode).toBe(200);
+  expect(valid.json().result.dialogue.intent).toBe('reply');
+  expect(fetch).toHaveBeenCalledOnce();
+  fetch.mockImplementation(async () => response({ answer: '整理好了', body: '未经请求的正文', dialogue: { intent: 'reply' }, citedVersionIds: [] }));
+  const invalid = await app.inject({ method: 'POST', url: '/api/ai/turn', headers: { origin }, payload: { ...request, requestId: 'invalid' } });
+  expect(invalid.statusCode).toBeGreaterThanOrEqual(400);
+  expect(systemPrompt('dialogue')).toContain('先接住问候');
+});
 it('turns unnecessary spoken phrasing into natural written expression without weakening content boundaries', () => {
   const regular = systemPrompt('regular');
   expect(regular).toContain('处理强度不能只停留在标点和分段');

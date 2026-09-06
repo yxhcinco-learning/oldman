@@ -105,31 +105,20 @@ export function ProductApp({ repository, aiTransport, topicTransport = defaultTo
     setHomeSurface(mode === 'normal' ? 'works' : 'topics');
     await workspace.newWork({ topicSnapshot: snapshotTopic(topic), topicWritingMode: mode });
     operationReporter(mode === 'normal' ? 'writing.started.topic' : 'writing.started.interview');
-    if (mode === 'interview') { assistantOpenRef.current = true; setAssistantStatus('idle'); setAssistantOpen(true); }
+    if (mode === 'interview' && await assistant.startInterview()) { assistantOpenRef.current = true; setAssistantStatus('idle'); setAssistantOpen(true); }
   };
   const closeAssistant = () => {
     const draft = state.draft;
     const current = assistant.getSnapshot();
-    const prompt = assistantComposer.workId === draft?.id ? assistantComposer.prompt.trim() : '';
     const session = draft ? workspace.getSession(draft.id) : undefined;
-    const emptyFirstInterview = Boolean(draft?.topicSnapshot && draft.topicWritingMode === 'interview'
-      && !draft.title.trim() && !articleText(effectiveSegments(draft)).trim() && !draft.pendingVoice.trim() && !draft.segmentEdit?.text.trim()
-      && !draft.materials.length && !prompt && !session?.turns.length && !current.busy);
     assistantOpenRef.current = false; setAssistantOpen(false);
     setAssistantStatus(current.busy ? 'processing' : current.error ? 'error' : 'idle');
-    if (emptyFirstInterview) {
-      setAssistantComposer({ workId: null, prompt: '' });
-      setAssistantStatus('idle');
-      setHomeSurface('topics');
-      void workspace.finish();
-      return;
-    }
-    if (draft?.topicWritingMode === 'interview') setHomeSurface('works');
+    if (session?.conversation?.mode === 'interview') setHomeSurface('works');
   };
   const assistantPrompt = assistantComposer.workId === state.draft?.id ? assistantComposer.prompt : '';
   const menuWorks = state.works.filter(work => Boolean(work.deletedAt) === (menu === 'trash'));
   return <main className="stage"><section ref={shell} className={`phone-shell ${state.draft ? 'app-view editor-screen' : 'home-screen'}`} aria-label="岁月有声写作应用">
-    {state.loading ? <div className="loading-state" role="status">正在打开本机作品…</div> : state.draft ? <Editor draft={state.draft} latestTopic={latestTopic} update={draft => { void workspace.update(draft); }} onSave={() => void finish()} onBack={() => void finish()} onAssistant={openAssistant} onInterview={() => { void workspace.update({ ...state.draft!, topicWritingMode: 'interview' }); openAssistant(); }} assistantStatus={assistantStatus} saveStatus={state.saveStatus} /> :
+    {state.loading ? <div className="loading-state" role="status">正在打开本机作品…</div> : state.draft ? <Editor draft={state.draft} latestTopic={latestTopic} update={draft => { void workspace.update(draft); }} onSave={() => void finish()} onBack={() => void finish()} onAssistant={openAssistant} onInterview={() => { void assistant.startInterview().then(ok => { if (ok) openAssistant(); }); }} assistantStatus={assistantStatus} saveStatus={state.saveStatus} /> :
       <WorksHome works={state.works} topics={topics} topicsStatus={topicsStatus} surface={homeSurface} onSurface={setHomeSurface} onRetryTopics={() => { setTopicsStatus('loading'); loadTopics(); }} onTopic={topic => { setSelectedTopic(topic); operationReporter('topic.opened'); }} onNew={() => { setHomeSurface('works'); operationReporter('writing.started.blank'); void workspace.newWork(); }} onOpen={work => { setHomeSurface('works'); void workspace.open(work); }} onMenu={() => setMenu('library')} />}
     {state.error && <div className="storage-error" role="alert"><p>{state.error}</p><div>{state.draft && <button type="button" onClick={() => void workspace.update(state.draft!)}>重试保存</button>}<button type="button" onClick={backup}>导出当前备份</button></div></div>}
     {notice && <div className={`toast ${state.draft ? state.draft.segmentEdit ? 'segment' : `editor ${state.draft.inputMode}` : 'home'}`} role="status">{notice}</div>}

@@ -102,21 +102,15 @@
       </view>
 
       <scroll-view wx:if="{{xiaowenView === 'chat'}}" class="xiaowen-messages" scroll-y scroll-into-view="xiaowen-end">
-        <view class="xiaowen-turn" wx:for="{{xiaowenTurns}}" wx:key="id">
-          <view class="xiaowen-user-message">{{item.prompt}}</view>
-          <view class="xiaowen-answer-row">
-            <view class="assistant-avatar">文</view>
-            <view class="xiaowen-answer">
-              <view wx:if="{{item.aiLabel}}" class="ai-origin-label">{{item.aiLabel}}</view>
-              <view class="xiaowen-answer-label">{{item.hasCandidate ? '小文的修改说明' : '小文的回答'}}</view>
-              <view>{{item.answer}}</view>
-              <view class="xiaowen-turn-actions" wx:if="{{item.hasCandidate || item.canRetry || item.canUndo}}">
-                <button wx:if="{{item.hasCandidate}}" data-id="{{item.id}}" bindtap="showCandidate">查看{{item.editLabel}}结果</button>
-                <button wx:if="{{item.canRetry}}" data-id="{{item.id}}" bindtap="retryTurn">重新发送</button>
-                <button wx:if="{{item.canUndo}}" data-id="{{item.id}}" bindtap="undoTurn">撤销{{item.editLabel}}</button>
-              </view>
-              <view class="xiaowen-turn-status">{{item.status}}</view>
-            </view>
+        <view class="ai-mode-bar"><text>普通对话</text><button bindtap="startInterview" disabled="{{operationBusy || voiceBusy}}">开启访谈</button></view>
+        <view wx:for="{{conversationMessages}}" wx:key="id" class="xiaowen-turn">
+          <view class="{{item.role === 'user' ? 'xiaowen-user-message' : 'xiaowen-answer'}}">
+            <view wx:if="{{item.ai}}" class="ai-origin-label">{{aiAssistanceLabel}}</view>
+            <view>{{item.text}}</view>
+            <button wx:if="{{item.hasCandidate}}" data-id="{{item.turnId}}" bindtap="showCandidate">查看调整结果</button>
+            <view wx:if="{{item.error}}" class="xiaowen-error">{{item.error}}</view>
+            <button wx:if="{{item.canRetry}}" data-id="{{item.turnId}}" bindtap="retryTurn" disabled="{{operationBusy}}">重新发送</button>
+            <button wx:if="{{item.hasCandidate && item.status === 'applied'}}" data-id="{{item.turnId}}" bindtap="undoTurn">撤销</button>
           </view>
         </view>
         <view id="xiaowen-end"></view>
@@ -146,7 +140,7 @@
       </scroll-view>
 
       <view wx:if="{{xiaowenView === 'chat'}}" class="xiaowen-composer">
-        <textarea value="{{xiaowenComposer}}" maxlength="2000" auto-height placeholder="问小文，或提要求" placeholder-style="color:#858e88;line-height:30px" disabled="{{operationBusy || voiceBusy}}"
+        <textarea value="{{xiaowenComposer}}" maxlength="12000" auto-height placeholder="问小文，或提要求" placeholder-style="color:#858e88;line-height:30px" disabled="{{operationBusy || voiceBusy}}"
           adjust-position="false" show-confirm-bar="false" cursor-spacing="20" bindinput="onXiaoWenInput" bindkeyboardheightchange="onKeyboardHeight"></textarea>
         <view wx:if="{{voiceTarget === 'xiaowen' && (voicePressing || voicePhase !== 'idle')}}" class="xiaowen-speech-status">{{voiceText || voiceMessage || (voicePressing ? '已按住，松开结束' : '正在准备语音…')}}</view>
         <view class="xiaowen-button-cell"><button class="xiaowen-voice {{voiceTarget === 'xiaowen' && voicePressing ? 'pressing' : ''}} {{operationBusy ? 'is-disabled' : ''}}" bindtouchstart="pressXiaoWenVoice" bindtouchend="releaseVoice" bindtouchcancel="cancelVoice" aria-disabled="{{operationBusy}}" aria-label="长按语音输入"><image src="/assets/mic.svg" mode="aspectFit"></image></button></view>

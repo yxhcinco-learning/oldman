@@ -46,13 +46,14 @@ export class Workspace {
     if (this.listeners.size) this.checkpointTimer = setTimeout(() => { void this.checkpoint(); }, 1200);
     return this.persist(draft, !hadSession || completedInput ? session : undefined);
   }
-  private persist(draft: Draft, session?: ArticleSession): Promise<boolean> {
+  private persist(draft: Draft, session?: ArticleSession, deferSession = false): Promise<boolean> {
     session ??= this.dirtySessions.has(draft.id) ? this.getSession(draft.id) : undefined;
-    if (session) this.dirtySessions.add(draft.id);
+    if (session && !deferSession) this.dirtySessions.add(draft.id);
     const serial = ++this.serial;
-    this.patch({ draft, saveStatus: 'saving', error: null, ...(session ? { sessions: this.state.sessions.filter(s => s.workId !== draft.id).concat(session) } : {}) });
+    this.patch({ draft, saveStatus: 'saving', error: null, ...(session && !deferSession ? { sessions: this.state.sessions.filter(s => s.workId !== draft.id).concat(session) } : {}) });
     const savedSession = session;
     return this.writer.write(draft, session).then(work => {
+      if (savedSession && deferSession) this.patch({ sessions: this.state.sessions.filter(s => s.workId !== draft.id).concat(savedSession) });
       if (savedSession && this.getSession(draft.id) === savedSession) this.dirtySessions.delete(draft.id);
       const works = work ? [...this.state.works.filter(w => w.id !== work.id), work].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) : this.state.works;
       this.patch({ works, ...(serial === this.serial ? { saveStatus: 'saved' as const, error: null } : {}) });
@@ -70,9 +71,9 @@ export class Workspace {
   }
   updateSession(workId: string, update: (session: ArticleSession) => ArticleSession): Promise<boolean> {
     const draft = this.state.draft;
-    const session = this.getSession(workId);
-    if (!draft || draft.id !== workId || !session) return Promise.resolve(false);
-    return this.persist(draft, update(session));
+    if (!draft || draft.id !== workId) return Promise.resolve(false);
+    const session = this.getSession(workId) ?? newSession(draft);
+    return this.persist(draft, update(session), true);
   }
   async addMaterial(material: WritingMaterial) {
     const draft = this.state.draft;
@@ -95,7 +96,7 @@ export class Workspace {
       this.patch({ error: '正文已发生变化，请根据最新内容重新优化；旧结果仍可查看。' }); return false;
     }
     const next = { ...draft, segments: splitDraft(turn.result.body, draft.segments), textDraft: turn.result.body };
-    const source = ['chat', 'compose'].includes(turn.action) ? 'rewrite' : turn.action;
+    const source = ['chat', 'compose', 'dialogue'].includes(turn.action) ? 'rewrite' : turn.action;
     if (source !== 'regular' && source !== 'polish' && source !== 'rewrite') return false;
     const version = newVersion(next, source);
     return this.commitArticle(next, { ...session, versions: [...session.versions, version],

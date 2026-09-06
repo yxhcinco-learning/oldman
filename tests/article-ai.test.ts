@@ -15,6 +15,49 @@ afterEach(async () => { for (const workspace of workspaces.splice(0)) workspace.
 const transport: AiTransport = async request => ({ requestId: request.requestId, result: request.action === 'question'
   ? { answer: '见原文。', citedVersionIds: [request.current.id] }
   : { answer: '整理了标点。', body: request.current.body + '。', citedVersionIds: [] } });
+
+it('keeps greetings as raw messages and persists semantic mode changes without changing an empty article', async () => {
+  const { workspace, repo } = await setup('');
+  const fake = vi.fn<AiTransport>(async request => ({ requestId: request.requestId, result: {
+    answer: '您好，想聊什么？', dialogue: { intent: request.prompt === '你来问我吧' ? 'start' : 'reply' }, citedVersionIds: [] } }));
+  const controller = new ArticleAiController(workspace, fake);
+  await controller.run('dialogue', '你好');
+  expect(workspace.getSession()?.conversation?.materials).toEqual([]);
+  expect((await repo.load()).sessions?.[0].conversation?.messages[0].text).toBe('你好');
+  await controller.run('dialogue', '你来问我吧');
+  expect(workspace.getSession()?.conversation?.mode).toBe('interview');
+  expect(workspace.state.draft?.textDraft).toBe('');
+  expect(fake).toHaveBeenCalledTimes(2);
+});
+
+it('persists button finish before requesting and retries failed generation without duplicate messages', async () => {
+  const { workspace } = await setup('');
+  const fake = vi.fn<AiTransport>(async request => {
+    expect(workspace.getSession()?.conversation?.mode).toBe('conversation');
+    if (fake.mock.calls.length === 1) throw new Error('离线');
+    return { requestId: request.requestId, result: { answer: '还没有足够内容整理。', dialogue: { intent: 'finish' }, citedVersionIds: [] } };
+  });
+  const controller = new ArticleAiController(workspace, fake);
+  await controller.startInterview();
+  await controller.run('dialogue', '结束访谈并整理', undefined, 'finish');
+  const failed = workspace.getSession()!.turns.at(-1)!;
+  const count = workspace.getSession()!.conversation!.messages.length;
+  expect(failed.status).toBe('failed');
+  await controller.run('dialogue', failed.prompt, undefined, 'finish', failed.id);
+  expect(workspace.getSession()!.turns).toHaveLength(1);
+  expect(workspace.getSession()!.conversation!.messages).toHaveLength(count + 1);
+  expect(workspace.getSession()!.conversation!.mode).toBe('conversation');
+});
+
+it('does not show a mode switch or send a request when its local save fails', async () => {
+  const { workspace, repo } = await setup('');
+  const fake = vi.fn<AiTransport>();
+  const controller = new ArticleAiController(workspace, fake);
+  vi.spyOn(repo, 'save').mockRejectedValue(new Error('存储已满'));
+  expect(await controller.startInterview()).toBe(false);
+  expect(workspace.getSession()?.conversation?.mode).not.toBe('interview');
+  expect(fake).not.toHaveBeenCalled();
+});
 async function setup(text = '第一段\n\n第二段') {
   const repo = new IndexedWorkRepository(crypto.randomUUID()); repos.push(repo);
   const workspace = new Workspace(repo); workspaces.push(workspace); await workspace.initialize();

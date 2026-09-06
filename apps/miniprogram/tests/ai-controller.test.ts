@@ -39,6 +39,44 @@ const setup = (transport: MiniAiTransport) => {
 };
 
 describe('小程序小文文章会话', () => {
+  it('空正文问候只保存原始消息，语义开启仍共用同一会话', async () => {
+    const transport = new ResultTransport({ answer: '您好，您想聊什么？', dialogue: { intent: 'start' }, citedVersionIds: [] });
+    const { controller, repository } = setup(transport);
+    const draft = writing('');
+    const first = await controller.run(draft, null, 'dialogue', '你来问我吧');
+    expect(first.error).toBe('');
+    expect(first.session.conversation?.mode).toBe('interview');
+    expect(first.session.conversation?.materials).toEqual([]);
+    expect(first.session.conversation?.messages[0].text).toBe('你来问我吧');
+    expect((await repository.load()).sessions[0].conversation?.mode).toBe('interview');
+    expect(documentOf(first.draft).body).toBe('');
+  });
+
+  it('结束整理失败保持普通模式，重试不重复原始消息或切换记录', async () => {
+    const transport = new ResultTransport(new Error('离线'));
+    const { controller, repository, writer } = setup(transport);
+    const draft = writing('');
+    const started = await controller.startInterview(draft, null);
+    const failed = await controller.run(draft, started.session, 'dialogue', '结束访谈并整理', undefined, undefined, 'finish');
+    expect(failed.session.conversation?.mode).toBe('conversation');
+    const retryController = new MiniArticleAiController(repository, writer, new ResultTransport({ answer: '内容还不足以成文。', dialogue: { intent: 'finish' }, citedVersionIds: [] }));
+    const retry = await retryController.run(draft, failed.session, 'dialogue', '结束访谈并整理', undefined, undefined, 'finish', failed.turnId!);
+    expect(retry.error).toBe('');
+    expect(retry.session.turns).toHaveLength(1);
+    expect(retry.session.conversation?.messages.filter(message => message.role === 'user')).toHaveLength(1);
+    expect(retry.session.conversation?.mode).toBe('conversation');
+  });
+
+  it('保存准备期间也拒绝重复请求', async () => {
+    const transport = new ResultTransport({ answer: '您好。', dialogue: { intent: 'reply' }, citedVersionIds: [] });
+    const { controller } = setup(transport);
+    const draft = writing('');
+    const first = controller.run(draft, null, 'dialogue', '你好');
+    const duplicate = await controller.run(draft, null, 'dialogue', '你好');
+    expect(duplicate.accepted).toBe(false);
+    expect((await first).error).toBe('');
+    expect(transport.requests).toHaveLength(1);
+  });
   it('保存单次请求、完整候选和说明，明确应用后才改变正文，并可撤销', async () => {
     const transport = new ResultTransport({ answer: '把时间顺序说得更清楚，并保留了原有事实。', body: '那年秋天，我回到老院子。', citedVersionIds: [] });
     const { controller, writer } = setup(transport);

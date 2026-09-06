@@ -6,13 +6,12 @@ import { ACTION_LABELS, AI_ASSISTANCE_LABEL, VERSION_LABELS, documentOf, externa
 import { Workspace } from '../writing/workspace';
 import { VoiceDictationButton } from '../speech/VoiceDictationButton';
 import { ArticleAiController } from './session';
-import { newId } from '../../lib/domain/writing';
+import { conversationOf } from '../../packages/core/src/conversation';
+import { newSession, type DialogueCommand } from '../../lib/domain/article-ai';
 
 type Page = 'chat' | 'preview' | 'history' | 'version' | 'consent';
 type Feedback = { message: string; kind: 'notice' | 'warning' };
 const CONSENT_KEY = 'suiyue-article-ai-consent-v2';
-const FIRST_INTERVIEW_INTRO = '您好，我是小文，您的写作助手。接下来我们围绕这个话题聊一聊，我一次问一个问题。';
-const FIRST_INTERVIEW_QUESTION = '先请您简单介绍一下自己吧。';
 const TURN_LABELS: Record<AiTurn['status'], string> = {
   running: '正在处理', ready: '待应用', applied: '已应用', dismissed: '未采用', answered: '已回答', failed: '未完成', cancelled: '已取消',
 };
@@ -22,16 +21,11 @@ function timeLabel(value: string) {
     year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
   });
 }
-function turnPromptLabel(turn: AiTurn) {
-  if (turn.prompt.trim()) return turn.prompt;
-  if (turn.action === 'regular') return '常规优化全文';
-  if (turn.action === 'polish') return '润色全文';
-  return ACTION_LABELS[turn.action];
-}
+
 function turnStateLabel(turn: AiTurn, baseBody?: string) {
   return turn.result?.body !== undefined && baseBody !== undefined && turn.result.body === baseBody ? '无正文变化' : TURN_LABELS[turn.status];
 }
-function isConversationEdit(action: AiAction) { return action === 'rewrite' || action === 'chat' || action === 'compose'; }
+function isConversationEdit(action: AiAction) { return action === 'rewrite' || action === 'chat' || action === 'compose' || action === 'dialogue'; }
 function editLabel(action: AiAction) { return action === 'compose' ? '整理' : isConversationEdit(action) ? '调整' : '优化'; }
 
 export function ArticleAssistant({ workspace, controller, onClose, onBackup, prompt, onPromptChange }: {
@@ -47,7 +41,7 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
   const [saving, setSaving] = useState(false);
   const [voiceActive, setVoiceActive] = useState(false);
   const [consent, setConsent] = useState(hasConsent);
-  const [pending, setPending] = useState<{ action: AiAction; prompt: string; turnPrompt?: string; clearPrompt: boolean } | null>(null);
+  const [pending, setPending] = useState<{ action: AiAction; prompt: string; turnPrompt?: string; clearPrompt: boolean; command?: DialogueCommand; retryId?: string } | null>(null);
   const [historyCount, setHistoryCount] = useState(30);
   const restoreBase = useRef<{ title: string; body: string } | null>(null);
   const promptInput = useRef<HTMLTextAreaElement>(null);
@@ -57,7 +51,8 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
   const aiAssisted = isWorkAiAssisted(session);
   const chatScroll = useRef<HTMLDivElement>(null);
   const lastTurn = session?.turns.at(-1);
-  const interviewMode = draft?.topicWritingMode === 'interview' && Boolean(draft.topicSnapshot);
+  const conversation = draft ? conversationOf(session ?? newSession(draft), draft) : null;
+  const interviewMode = conversation?.mode === 'interview';
   useEffect(() => { chatScroll.current?.scrollTo({ top: chatScroll.current.scrollHeight }); }, [page, lastTurn?.id, lastTurn?.status, draft?.materials.length]);
   useEffect(() => {
     if (feedback?.kind !== 'notice') return;
@@ -88,15 +83,15 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
   const titles: Record<Page, string> = { chat: '小文', preview: previewTitle, history: '修改记录', version: previewTitle, consent: '使用小文前，请您了解' };
   const showTurn = (id: string) => { setSelectedId(id); setOriginal(false); setFeedback(null); setPage('preview'); };
   const showVersion = (id: string) => { setSelectedId(id); restoreBase.current = documentOf(draft); setFeedback(null); setPage('version'); };
-  const run = async (action: AiAction, userPrompt: string, turnPrompt?: string, clearPrompt = false) => {
+  const run = async (action: AiAction, userPrompt: string, turnPrompt?: string, clearPrompt = false, command: DialogueCommand = 'send', retryId?: string) => {
     setFeedback(null); setPage('chat');
-    const id = await controller.run(action, userPrompt, turnPrompt);
+    const id = await controller.run(action, userPrompt, turnPrompt, command, retryId);
     if (id && clearPrompt) onPromptChange('');
     if (id && action === 'compose' && workspace.getSession()?.turns.find(item => item.id === id)?.result?.body) showTurn(id);
   };
-  const request = (action: AiAction, question = '', turnPrompt?: string, clearPrompt = false) => {
-    if (!consent) { setPending({ action, prompt: question, turnPrompt, clearPrompt }); setPage('consent'); return; }
-    void run(action, question, turnPrompt, clearPrompt);
+  const request = (action: AiAction, question = '', turnPrompt?: string, clearPrompt = false, command: DialogueCommand = 'send', retryId?: string) => {
+    if (!consent) { setPending({ action, prompt: question, turnPrompt, clearPrompt, command, retryId }); setPage('consent'); return; }
+    void run(action, question, turnPrompt, clearPrompt, command, retryId);
   };
   const apply = async () => {
     if (!turn || busy) return;
@@ -120,42 +115,14 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
     else { showVersion(before.id); setFeedback({ message: '应用后正文又有修改，请先核对记录。恢复会替换当前全文。', kind: 'warning' }); }
   };
   const close = () => { if (!saving) onClose(); };
-  const chatComposer = () => <form className="ai-composer" onSubmit={event => event.preventDefault()}>
-    <label className="visually-hidden" htmlFor="article-ai-question">问问小文</label>
-    <div className="ai-composer-row"><textarea ref={promptInput} id="article-ai-question" value={prompt} onChange={event => onPromptChange(event.target.value)} disabled={busy || voiceActive} maxLength={2000}
-      rows={1} placeholder="问小文，或提要求" />
-      <div className="ai-composer-actions"><VoiceDictationButton value={prompt} onChange={text => onPromptChange(text.slice(0, 2000))} disabled={busy} onActiveChange={setVoiceActive} />
-        <button type="button" className="primary-button ai-send" disabled={busy || voiceActive || !prompt.trim()} onClick={() => request('chat', prompt, undefined, true)}><Icon name="spark" />发送</button></div>
+  const chatComposer = () => <form className="ai-composer" onSubmit={event => { event.preventDefault(); request('dialogue', prompt, undefined, true); }}>
+    <label className="visually-hidden" htmlFor="article-ai-question">{interviewMode ? '回复小文' : '问问小文'}</label>
+    <div className="ai-composer-row"><textarea ref={promptInput} id="article-ai-question" value={prompt} onChange={event => onPromptChange(event.target.value)}
+      disabled={busy || voiceActive} maxLength={12000} rows={1} placeholder={interviewMode ? '回复小文' : '问小文，或提要求'} />
+      <div className="ai-composer-actions"><VoiceDictationButton ariaSubject={interviewMode ? '回复' : '要求'} value={prompt} onChange={text => onPromptChange(text.slice(0, 12000))} disabled={busy} onActiveChange={setVoiceActive} />
+        <button type="submit" className="primary-button ai-send" disabled={busy || voiceActive || !prompt.trim()}>发送</button></div>
     </div>
   </form>;
-  const interviewMaterials = draft.materials.filter(material => material.source === 'interview-answer');
-  const interviewTurns = session?.turns.filter(item => item.action === 'interview') ?? [];
-  const firstInterviewQuestion = interviewMaterials.length === 0 && interviewTurns.length === 0;
-  const generatedInterviewQuestion = interviewTurns.slice().reverse().find(item => item.status === 'answered' && item.result)?.result?.answer;
-  const interviewQuestion = firstInterviewQuestion ? FIRST_INTERVIEW_QUESTION
-    : generatedInterviewQuestion ?? draft.topicSnapshot?.starterQuestion ?? '您最想从哪一段经历说起？';
-  const saveInterviewAnswer = async () => {
-    const answer = prompt.trim();
-    if (!answer || busy) return;
-    setSaving(true);
-    const ok = await workspace.addMaterial({ id: newId(), source: 'interview-answer', text: answer, question: interviewQuestion, createdAt: new Date().toISOString(), selected: true });
-    setSaving(false);
-    if (ok) { onPromptChange(''); request('interview', '继续采访', '继续问我'); }
-  };
-  const lastInterviewMaterial = interviewMaterials.at(-1);
-  const waitingForQuestion = lastInterviewMaterial?.question === FIRST_INTERVIEW_QUESTION
-    ? !generatedInterviewQuestion
-    : lastInterviewMaterial?.question === interviewQuestion;
-  const interviewComposer = () => <div className="interview-footer">
-    {interviewMaterials.some(material => material.selected) && <button className="interview-compose-link" type="button" disabled={busy} onClick={() => request('compose', '根据采访回答整理成文章', '整理成文章')}>整理成文章</button>}
-    <form className="ai-composer" onSubmit={event => { event.preventDefault(); void saveInterviewAnswer(); }}>
-      <label className="visually-hidden" htmlFor="interview-answer">回复小文</label>
-      <div className="ai-composer-row"><textarea ref={promptInput} id="interview-answer" value={prompt} onChange={event => onPromptChange(event.target.value)} disabled={busy || voiceActive || waitingForQuestion} maxLength={12000} rows={1} placeholder="回复小文" />
-        <div className="ai-composer-actions"><VoiceDictationButton value={prompt} onChange={text => onPromptChange(text.slice(0, 12000))} disabled={busy || waitingForQuestion} onActiveChange={setVoiceActive} ariaSubject="回复" />
-          <button type="submit" className="primary-button ai-send" disabled={busy || voiceActive || waitingForQuestion || !prompt.trim()}>发送</button></div>
-      </div>
-    </form>
-  </div>;
 
   return <Dialog className={`article-ai-dialog xiaowen-panel ai-page-${page}`} title={titles[page]} closeLabel="收起小文" onClose={close} headerActions={page === 'chat' ? <>
     <button type="button" onClick={() => { setFeedback(null); setPage('history'); }} aria-label="查看修改记录"><Icon name="book" /></button>
@@ -178,7 +145,7 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
         <div className="ai-result-actions"><button type="button" onClick={() => { setPending(null); setPage('chat'); }}>暂不使用</button>
           <button type="button" className="primary-button" onClick={() => {
             setConsent(true); try { localStorage.setItem(CONSENT_KEY, 'yes'); } catch { /* Session-only consent is sufficient. */ }
-            const next = pending; setPending(null); if (next) void run(next.action, next.prompt, next.turnPrompt, next.clearPrompt); else setPage('chat');
+            const next = pending; setPending(null); if (next) void run(next.action, next.prompt, next.turnPrompt, next.clearPrompt, next.command, next.retryId); else setPage('chat');
           }}>同意并继续</button></div>
       </div>}
 
@@ -198,38 +165,46 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
         {stale && !['question', 'interview'].includes(turn.action) && <button className="ai-secondary" type="button" disabled={busy} onClick={() => request(turn.action, isConversationEdit(turn.action) ? turn.prompt : '')}>按最新正文重新{editLabel(turn.action)}</button>}
       </>}
 
-      {page === 'chat' && interviewMode && <div className="ai-interview" aria-label="小文采访">
-        <p className="interview-topic">聊聊：{draft.topicSnapshot!.title}</p>
-        <div className="interview-conversation" ref={chatScroll} role="log" aria-label="小文采访对话">
-          {interviewMaterials.map(material => <div key={material.id} className="interview-exchange">
-            <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="message-bubble">{material.question === FIRST_INTERVIEW_QUESTION && <p className="interview-intro">{FIRST_INTERVIEW_INTRO}</p>}
-              {interviewTurns.some(item => item.status === 'answered' && item.result?.answer === material.question) && <strong className="ai-origin-label inline">{AI_ASSISTANCE_LABEL}</strong>}<p>{material.question}</p></div></div>
-            <div className="message-row user"><div className="message-bubble"><p>{material.text}</p></div></div>
-          </div>)}
-          {!waitingForQuestion && <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="message-bubble interview-current-question">{firstInterviewQuestion && <p className="interview-intro">{FIRST_INTERVIEW_INTRO}</p>}
-            {!firstInterviewQuestion && Boolean(generatedInterviewQuestion) && <strong className="ai-origin-label inline">{AI_ASSISTANCE_LABEL}</strong>}<p>{interviewQuestion}</p>{!firstInterviewQuestion && <button type="button" disabled={busy} onClick={() => request('interview', '换个问题', '换个问题')}>换个问题</button>}</div></div>}
-          {waitingForQuestion && ai.busy && <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="message-bubble"><p>小文正在想下一个问题…</p></div></div>}
-          {waitingForQuestion && !ai.busy && ai.error && <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="message-bubble interview-current-question"><p>刚才没有接上，您的回答已经留下了。</p><button type="button" onClick={() => request('interview', '继续采访', '继续问我')}>再试一次</button></div></div>}
+      {page === 'chat' && conversation && <>
+        <div className="ai-mode-bar">
+          <span>{interviewMode ? '访谈中' : '普通对话'}</span>
+          {interviewMode
+            ? <button type="button" disabled={busy || voiceActive} onClick={() => request('dialogue', '结束访谈并整理', undefined, false, 'finish')}>结束访谈并整理</button>
+            : <button type="button" disabled={busy || voiceActive} onClick={() => void controller.startInterview()}>开启访谈</button>}
         </div>
-        {interviewComposer()}
-      </div>}
-
-      {page === 'chat' && !interviewMode && <>
-        <div className="ai-conversation" ref={chatScroll} aria-label="文章对话记录">
-          {session?.turns.map(item => <div key={item.id} className="ai-turn">
-            <div className="message-row user"><div className="message-bubble">{turnPromptLabel(item)}</div></div>
-            <div className="message-row assistant"><span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span><div className="ai-assistant-message"><div className="message-bubble">
-                {item.result && <strong className="ai-origin-label inline">{AI_ASSISTANCE_LABEL}</strong>}
-                {item.result && <strong className="ai-answer-label">{item.result.body ? '小文的修改说明' : '小文的回答'}</strong>}
-                <p>{item.result ? resultSummary(item.result, session?.versions.find(v => v.id === item.inputVersionId)?.body ?? '') : item.error || '正在处理…'}</p>
-                {Boolean(item.omittedRecords) && <p className="ai-note">较早记录未发送，仍保存在本机。</p>}
-                {item.result?.body && <div className="ai-turn-actions"><button className="ai-turn-primary" type="button" onClick={() => showTurn(item.id)}>查看{editLabel(item.action)}结果</button>
-                {item.status === 'applied' && <button className="ai-turn-undo" type="button" aria-label={`撤销这次${editLabel(item.action)}`} disabled={busy} onClick={() => undo(item)}><Icon name="undo" />撤销</button>}</div>}
-                {item.result?.citedVersionIds.map((id, i) => <button type="button" key={id} onClick={() => showVersion(id)}>查看引用记录 {i + 1}</button>)}
-                {['failed', 'cancelled'].includes(item.status) && <button type="button" disabled={busy} onClick={() => request(item.action, ['question', 'rewrite', 'chat', 'interview', 'compose'].includes(item.action) ? item.prompt : '')}>重新{item.action === 'question' || item.action === 'interview' ? '提问' : item.action === 'rewrite' ? '调整' : item.action === 'chat' ? '发送' : item.action === 'compose' ? '整理' : '生成'}</button>}
-              </div><div className="ai-turn-meta"><span className="ai-turn-state">{turnStateLabel(item, session?.versions.find(v => v.id === item.inputVersionId)?.body)}</span><time>{timeLabel(item.createdAt)}</time></div></div></div>
-          </div>)}
+        {draft.topicSnapshot && <p className="interview-topic">聊聊：{draft.topicSnapshot.title}</p>}
+        <div className="ai-conversation" ref={chatScroll} role="log" aria-label={interviewMode ? '小文采访对话' : '文章对话记录'}>
+          {conversation.messages.map(message => {
+            const item = session?.turns.find(t => t.id === message.turnId);
+            return <div key={message.id} className={message.role === 'system' ? 'ai-note' : `message-row ${message.role}`}>
+              {message.role === 'assistant' && <span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span>}
+              <div className={message.role === 'assistant' ? 'ai-assistant-message' : ''}>
+              <div className={message.role === 'system' ? '' : 'message-bubble'}>
+                {message.role === 'assistant' && item?.result && <strong className="ai-origin-label inline">{AI_ASSISTANCE_LABEL}</strong>}
+                {message.role === 'assistant' && item?.result && <strong>{item.result.body ? '小文的修改说明' : '小文的回答'}</strong>}
+                <p>{message.role === 'assistant' && item?.result ? resultSummary(item.result, session?.versions.find(v => v.id === item.inputVersionId)?.body ?? '') : message.text}</p>
+                {message.role === 'assistant' && item?.result?.citedVersionIds.map((id, index) => <button type="button" key={id} onClick={() => showVersion(id)}>查看引用记录 {index + 1}</button>)}
+                {message.role === 'user' && item && ['failed', 'cancelled'].includes(item.status) && <>
+                  <p>{item.error}</p><button type="button" disabled={busy} onClick={() => request(item.action, item.prompt, undefined, false, item.command, item.id)}>重新发送</button>
+                </>}
+              </div>
+                {message.role === 'assistant' && item?.result?.body && <div className="ai-turn-meta">
+                  <button className="ai-turn-primary" type="button" onClick={() => showTurn(item.id)}>查看{editLabel(item.action)}结果</button>
+                  <span className="ai-turn-state">{turnStateLabel(item, session?.versions.find(v => v.id === item.inputVersionId)?.body)}</span>
+                  {item.status === 'applied' && <button className="ai-turn-undo" type="button" disabled={busy} onClick={() => undo(item)}>撤销这次{editLabel(item.action)}</button>}
+                </div>}
+              </div>
+            </div>;
+          })}
+          {busy && <p role="status">小文正在处理…</p>}
         </div>
+        {interviewMode && conversation.pendingEdit && <button type="button" disabled={busy}
+          onClick={() => request('dialogue', conversation.pendingEdit!, undefined, false, 'confirm-edit')}>结束访谈并继续修改</button>}
+        {interviewMode && conversation.pendingEdit && <button type="button" disabled={busy} onClick={() => {
+          setSaving(true); void workspace.updateSession(draft.id, current => ({ ...current, conversation: { ...current.conversation!, pendingEdit: undefined } })).finally(() => setSaving(false));
+        }}>继续访谈</button>}
+        {interviewMode && conversation.materials.length > 0 && <button type="button" disabled={busy}
+          onClick={() => request('dialogue', '换个问题', undefined, false, 'change')}>换个问题</button>}
         {chatComposer()}
       </>}
 

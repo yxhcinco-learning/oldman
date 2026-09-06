@@ -126,9 +126,9 @@ it('uses XiaoWen to save answers as materials, ask one next question and compose
   localStorage.setItem('suiyue-article-ai-consent-v2', 'yes');
   const topic = REVIEWED_TOPIC_CATALOG[0];
   const store = repository();
-  const ai = vi.fn<AiTransport>(async request => ({ requestId: request.requestId, result: request.action === 'interview'
-    ? { answer: '那次尝试中，最难解决的一步是什么？', citedVersionIds: [] }
-    : { answer: '采用了您关于第一次接触电脑的回答。', body: '九十年代，我第一次尝试用电脑备课，是从练习打字开始的。', citedVersionIds: [] } }));
+  const ai = vi.fn<AiTransport>(async request => ({ requestId: request.requestId, result: request.command !== 'finish'
+    ? { dialogue: { intent: 'reply', material: { text: request.prompt } }, answer: '那次尝试中，最难解决的一步是什么？', citedVersionIds: [] }
+    : { dialogue: { intent: 'finish' }, answer: '采用了您关于第一次接触电脑的回答。', body: '九十年代，我第一次尝试用电脑备课，是从练习打字开始的。', citedVersionIds: [] } }));
   render(<ProductApp repository={store} topicTransport={transport([topic])} aiTransport={ai} />);
   await openTopics();
   fireEvent.click(await screen.findByRole('button', { name: new RegExp(topic.title) }));
@@ -147,22 +147,23 @@ it('uses XiaoWen to save answers as materials, ask one next question and compose
     const saved = (await store.load()).recovery?.draft;
     expect(saved?.topicSnapshot?.id).toBe(topic.id);
     expect(saved?.topicWritingMode).toBe('interview');
-    expect(saved?.materials).toHaveLength(1);
-    expect(saved?.materials[0]).toMatchObject({ source: 'interview-answer', selected: true, question: '先请您简单介绍一下自己吧。' });
+    expect((await store.load()).sessions[0].conversation?.materials).toHaveLength(1);
+    expect((await store.load()).sessions[0].conversation?.materials[0].sourceMessageId).toBeTruthy();
     expect(saved?.textDraft).toBe('');
   });
   expect(await screen.findByText('那次尝试中，最难解决的一步是什么？')).toBeInTheDocument();
-  expect(ai.mock.calls[0][0]).toMatchObject({ action: 'interview', current: { body: '' }, materials: [{ source: 'interview-answer' }] });
-  const compose = screen.getByRole('button', { name: '整理成文章' });
+  expect(ai.mock.calls[0][0]).toMatchObject({ action: 'dialogue', current: { body: '' }, conversation: { mode: 'interview', materials: [] } });
+  const compose = screen.getByRole('button', { name: '结束访谈并整理' });
   await waitFor(() => expect(compose).toBeEnabled());
   fireEvent.click(compose);
-  expect(await screen.findByRole('region', { name: '整理后全文' })).toHaveTextContent('九十年代，我第一次尝试用电脑备课');
+  fireEvent.click(await screen.findByRole('button', { name: '查看调整结果' }));
+  expect(await screen.findByRole('region', { name: '调整后全文' })).toHaveTextContent('九十年代，我第一次尝试用电脑备课');
   expect((await store.load()).recovery?.draft.textDraft).toBe('');
-  fireEvent.click(screen.getByRole('button', { name: '采用这篇文章' }));
+  fireEvent.click(screen.getByRole('button', { name: '应用调整' }));
   await waitFor(async () => expect((await store.load()).recovery?.draft.textDraft).toContain('九十年代'));
 });
 
-it('returns an untouched first interview to the topic list without leaving an empty work', async () => {
+it('retains the mode and history when an untouched interview is minimized', async () => {
   const topic = REVIEWED_TOPIC_CATALOG[0];
   const store = repository();
   render(<ProductApp repository={store} topicTransport={transport([topic])} />);
@@ -172,11 +173,10 @@ it('returns an untouched first interview to the topic list without leaving an em
   expect(screen.queryByRole('button', { name: '先暂停' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: '回到文章' })).not.toBeInTheDocument();
   fireEvent.click(await screen.findByRole('button', { name: '收起小文' }));
-  expect(await screen.findByRole('heading', { name: '热门话题', level: 1 })).toBeInTheDocument();
-  await waitFor(async () => {
-    expect((await store.load()).recovery).toBeNull();
-    expect((await store.load()).works).toEqual([]);
-  });
+  expect(await screen.findByRole('group', { name: '文章正文' })).toBeInTheDocument();
+  expect((await store.load()).sessions[0].conversation?.mode).toBe('interview');
+  fireEvent.click(screen.getByRole('button', { name: '打开小文' }));
+  expect(await screen.findByText('访谈中')).toBeVisible();
 });
 
 it('enters the article with a visible loading state after an answer while the next question is processing', async () => {
@@ -186,7 +186,7 @@ it('enters the article with a visible loading state after an answer while the ne
   let complete = () => {};
   const ai = vi.fn<AiTransport>(async request => {
     await new Promise<void>(resolve => { complete = resolve; });
-    return { requestId: request.requestId, result: { answer: '您最想从哪一段经历继续说起？', citedVersionIds: [] } };
+    return { requestId: request.requestId, result: { dialogue: { intent: 'reply' }, answer: '您最想从哪一段经历继续说起？', citedVersionIds: [] } };
   });
   render(<ProductApp repository={store} topicTransport={transport([topic])} aiTransport={ai} />);
   await openTopics();
@@ -199,7 +199,7 @@ it('enters the article with a visible loading state after an answer while the ne
   expect(await screen.findByRole('group', { name: '文章正文' })).toBeInTheDocument();
   expect(screen.getByText('小文正在整理刚才的回答…')).toBeVisible();
   expect(screen.getByRole('button', { name: '打开小文，正在处理' })).toBeInTheDocument();
-  expect((await store.load()).works[0].draft.materials[0].text).toBe('我退休前教了三十多年语文。');
+  expect((await store.load()).sessions[0].conversation?.messages.at(-1)?.text).toBe('我退休前教了三十多年语文。');
   complete();
   expect(await screen.findByRole('button', { name: '打开小文，有新回复' })).toBeInTheDocument();
 });
@@ -217,6 +217,6 @@ it('preserves an unsaved interview answer when the next-question request fails',
   fireEvent.click(screen.getByRole('button', { name: '发送' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('采访服务暂时不可用');
   expect(screen.getByRole('log', { name: '小文采访对话' })).toHaveTextContent('这段话还没有保存，请不要丢掉。');
-  expect(await screen.findByRole('button', { name: '再试一次' })).toBeInTheDocument();
+  expect(await screen.findByRole('button', { name: '重新发送' })).toBeInTheDocument();
   expect(screen.getByRole('group', { name: '文章正文' })).not.toHaveTextContent('这段话还没有保存');
 });

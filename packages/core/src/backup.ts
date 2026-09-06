@@ -39,7 +39,8 @@ const backupV3 = z.object({ app: z.literal('suiyue-yousheng'), schemaVersion: z.
 const backupV4 = z.object({ app: z.literal('suiyue-yousheng'), schemaVersion: z.literal(4), exportedAt: z.iso.datetime(),
   works: z.array(workSchema).max(10000), sessions: z.array(articleSessionSchema).max(10000),
   disclosures: z.array(aiDisclosureSchema).max(10000) }).strict();
-export const backupSchema = z.discriminatedUnion('schemaVersion', [backupV1, backupV2, backupV3, backupV4]);
+const backupV5 = backupV4.extend({ schemaVersion: z.literal(5) });
+export const backupSchema = z.discriminatedUnion('schemaVersion', [backupV1, backupV2, backupV3, backupV4, backupV5]);
 export const MAX_BACKUP_BYTES = 10 * 1024 * 1024;
 export function parseBackup(raw: string): Work[] {
   return parseBackupBundle(raw).works;
@@ -59,7 +60,7 @@ export function parseBackupBundle(raw: string): { works: Work[]; sessions: Artic
   }
   const byWork = new Map(sessions.map(session => [session.workId, session]));
   const disclosures = works.map(work => aiDisclosureFor(work.id, byWork.get(work.id)));
-  if (result.data.schemaVersion === 4) {
+  if ((result.data.schemaVersion === 4 || result.data.schemaVersion === 5)) {
     const received = new Map(result.data.disclosures.map(disclosure => [disclosure.workId, disclosure]));
     if (received.size !== works.length || result.data.disclosures.length !== works.length || disclosures.some(expected => {
       const actual = received.get(expected.workId);
@@ -70,14 +71,14 @@ export function parseBackupBundle(raw: string): { works: Work[]; sessions: Artic
 }
 export function makeBackup(works: Work[], current?: Draft | null, sessions: ArticleSession[] = []): string {
   let items = cloneValue(works);
-  if (current && hasContent(current)) {
+  if (current && (hasContent(current) || sessions.some(session => session.workId === current.id && (session.turns.length || session.conversation)))) {
     const snapshot = workFromDraft(current, items.find(w => w.id === current.id));
     items = [...items.filter(w => w.id !== current.id), snapshot];
   }
   const ids = new Set(items.map(w => w.id));
   const includedSessions = sessions.filter(s => ids.has(s.workId));
   const byWork = new Map(includedSessions.map(session => [session.workId, session]));
-  return JSON.stringify({ app: 'suiyue-yousheng', schemaVersion: 4, exportedAt: new Date().toISOString(), works: items,
+  return JSON.stringify({ app: 'suiyue-yousheng', schemaVersion: 5, exportedAt: new Date().toISOString(), works: items,
     sessions: includedSessions, disclosures: items.map(work => aiDisclosureFor(work.id, byWork.get(work.id))) }, null, 2);
 }
 export function asImportedCopy(source: Work): Work {

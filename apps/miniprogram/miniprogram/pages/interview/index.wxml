@@ -5,25 +5,25 @@
       <view class="interview-title">小文访谈</view>
     </view>
   </view>
+  <view class="ai-mode-bar"><text>{{mode === 'interview' ? '访谈中' : '普通对话'}}</text><button wx:if="{{mode === 'interview'}}" bindtap="composeArticle" disabled="{{saving || voiceBusy}}">结束访谈并整理</button></view>
   <scroll-view class="messages" scroll-y scroll-into-view="current-question" aria-label="小文访谈对话">
     <view wx:if="{{draft && draft.topicSnapshot}}" class="interview-topic">聊聊：{{draft.topicSnapshot.title}}</view>
     <view class="message {{item.role}}" wx:for="{{messages}}" wx:key="id">
-      <view wx:if="{{item.role === 'assistant'}}" class="avatar"><image src="/assets/leaf.svg" mode="aspectFit"></image></view><view class="bubble">{{item.text}}</view>
+      <view wx:if="{{item.role === 'assistant'}}" class="avatar"><image src="/assets/leaf.svg" mode="aspectFit"></image></view><view class="bubble"><view>{{item.text}}</view><view wx:if="{{item.ai}}" class="ai-origin-label">AI 辅助生成 · 请核对</view>
+        <view wx:if="{{item.error}}">{{item.error}}</view><button wx:if="{{item.canRetry}}" data-id="{{item.turnId}}" bindtap="retryTurn" disabled="{{saving}}">重新发送</button></view>
     </view>
-    <view id="current-question" class="message assistant current">
-      <view class="avatar"><image src="/assets/leaf.svg" mode="aspectFit"></image></view>
-      <view class="bubble interview-current-question"><view>{{question}}</view><view wx:if="{{hasAnswers}}" class="change-question" bindtap="changeQuestion" role="button" aria-label="换个问题">换个问题</view></view>
-    </view>
+    <view id="current-question" class="interview-current-question"><view wx:if="{{hasAnswers}}" class="change-question" bindtap="changeQuestion" role="button">换个问题</view></view>
+    <view wx:if="{{pendingEdit}}"><button bindtap="confirmEdit" disabled="{{saving}}">结束访谈并继续修改</button><button bindtap="continueInterview" disabled="{{saving}}">继续访谈</button></view>
+    <view wx:if="{{saving}}">小文正在处理…<button bindtap="cancelRequest">取消请求</button></view>
   </scroll-view>
   <view class="interview-footer">
-    <view wx:if="{{hasAnswers}}" class="compose-link-row"><view class="compose-link" bindtap="composeArticle" role="button" aria-label="整理成文章">整理成文章</view></view>
     <view wx:if="{{error}}" class="interview-error" role="alert">{{error}}</view>
     <view wx:if="{{voicePressing || voicePhase !== 'idle'}}" class="interview-error">{{voiceText || voiceMessage || (voicePressing ? '已按住，松开结束' : '正在准备语音…')}}</view>
     <view class="composer-row">
       <textarea value="{{composer}}" maxlength="12000" auto-height placeholder="回复小文" placeholder-style="color:#858e88;line-height:30px" disabled="{{saving || voiceBusy}}" disable-default-padding="{{true}}"
         adjust-position="false" show-confirm-bar="false" cursor-spacing="20" bindinput="onComposer" bindfocus="onComposerFocus" bindblur="onComposerBlur" bindkeyboardheightchange="onKeyboardHeight"></textarea>
       <view class="composer-button-cell"><button class="voice {{voicePressing ? 'pressing' : ''}} {{saving ? 'is-disabled' : ''}}" bindtouchstart="pressDictation" bindtouchend="releaseDictation" bindtouchcancel="cancelDictation" aria-disabled="{{saving}}" aria-label="长按语音回答" hover-class="none"><image src="/assets/mic.svg" mode="aspectFit"></image></button></view>
-      <view class="composer-button-cell"><button class="send {{saving || voiceBusy || !composer ? 'is-disabled' : ''}}" bindtap="sendAnswer" aria-disabled="{{saving || voiceBusy || !composer}}" hover-class="none">{{saving ? '保存中' : '发送'}}</button></view>
+      <view class="composer-button-cell"><button class="send {{saving || voiceBusy || !composer ? 'is-disabled' : ''}}" bindtap="sendAnswer" aria-disabled="{{saving || voiceBusy || !composer}}" hover-class="none">{{saving ? '处理中' : '发送'}}</button></view>
     </view>
   </view>
 </view>
