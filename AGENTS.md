@@ -5,7 +5,7 @@
 ## 规范入口
 
 - 当前阶段与接手入口：[当前状态](docs/STATUS.md)。
-- 开工先核对活跃模块与退役内容：[维护范围](docs/CLIENT-SCOPE.md)；产品范围与功能状态：[产品边界](docs/PRODUCT.md)。
+- 产品范围、维护边界与功能能力：[产品边界](docs/PRODUCT.md)。
 - 预期行为与验收场景：[OpenSpec](openspec/)，实施前阅读本次已确认变更的 proposal、specs、design、tasks。
 - 视觉与交互：[设计规范](DESIGN-SYSTEM.md)；模块、数据流与技术决策：[架构](docs/ARCHITECTURE.md)。
 - 环境、命令、Git 工作流及验证分级：[开发说明](docs/DEVELOPMENT.md)；执行结果与待办：[验收记录](docs/ACCEPTANCE.md)。

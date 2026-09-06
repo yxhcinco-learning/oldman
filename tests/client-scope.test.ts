@@ -1,9 +1,11 @@
 // @vitest-environment node
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { ESLint } from 'eslint';
 import ts from 'typescript';
-import { checkDocuments, localLinkTargets } from '../scripts/check-docs.mjs';
+import { checkDocumentLinks, checkDocuments, localLinkTargets } from '../scripts/check-docs.mjs';
 
 const read = (path: string) => readFileSync(path, 'utf8');
 it('serves operations without the retired H5 entry or global theme', () => {
@@ -44,7 +46,7 @@ it('extracts local Markdown links without treating external links or fenced exam
   expect(localLinkTargets('[状态](docs/STATUS.md#当前结论) [说明](<my%20file.md>) [站点](https://example.com) [锚](#a)\n```md\n[示例](missing.md)\n```'))
     .toEqual(['docs/STATUS.md', 'my file.md']);
 });
-it('excludes the archive from checks and release archives', () => {
+it('excludes archived runtime from code checks and release archives', () => {
   expect(JSON.parse(read('tsconfig.json')).exclude).toContain('archive');
   expect(read('eslint.config.mjs')).toContain('archive/**');
   expect(read('vitest.config.ts')).toContain("include: ['tests/**/*.test.{ts,tsx}']");
@@ -53,4 +55,27 @@ it('excludes the archive from checks and release archives', () => {
   expect(manifest.dependencies.idb).toBeUndefined();
   expect(manifest.scripts['build:admin']).toBeTruthy();
   expect(manifest.scripts['build:web']).toBeUndefined();
+});
+
+it('checks historical document links without requiring retired code or screenshots', () => {
+  const root = mkdtempSync(join(tmpdir(), 'suiyue-doc-links-'));
+  try {
+    writeFileSync(join(root, 'evidence.md'), '[有效](target.md#section) [已移走](missing.md) [截图](old.png) [源码](old.ts)');
+    writeFileSync(join(root, 'target.md'), '# 已归档原文');
+    expect(checkDocumentLinks(root, 'evidence.md', { markdownOnly: true }))
+      .toEqual(['文档引用失效: evidence.md -> missing.md']);
+    expect(checkDocumentLinks(root, 'evidence.md')).toHaveLength(3);
+    expect(checkDocumentLinks(root, 'absent.md')).toEqual(['文档不存在: absent.md']);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+it('keeps stage evidence archived and removes redundant root redirects', () => {
+  expect(checkDocuments().archiveCount).toBeGreaterThan(0);
+  expect(existsSync('docs/CLIENT-SCOPE.md')).toBe(false);
+  expect(existsSync('docs/XIAOWEN-FLOW-REVIEW.md')).toBe(false);
+  expect(existsSync('docs/archive/phase-one/XIAOWEN-FLOW-REVIEW.md')).toBe(true);
+  expect(read('docs/PRODUCT.md')).toContain('## 维护范围');
+  expect(read('docs/ARCHITECTURE.md')).toContain('三个独立状态');
 });

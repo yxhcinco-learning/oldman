@@ -1,10 +1,12 @@
-> 适用范围（2026-09-06）：小程序为唯一用户端，网页仅运营后台。H5 专属 UI/浏览器实现条款仅作历史兼容记录，不是后续需求或验收门槛；共享业务、后端与后台要求继续有效。详见仓库 docs/CLIENT-SCOPE.md 与 active-client-scope 规范。
+> 适用范围（2026-09-06）：小程序为唯一用户端，网页仅运营后台。H5 专属 UI/浏览器实现条款仅作历史兼容记录，不是后续需求或验收门槛；共享业务、后端与后台要求继续有效。详见仓库 docs/PRODUCT.md 与 active-client-scope 规范。
 
 # article-ai-session Specification
 
 ## Purpose
 
 规定每篇文章共享持久会话和历史版本的行为，涵盖 DeepSeek 常规优化、润色文笔、只读文字追问、全文预览确认、恢复、服务边界与兼容备份。
+
+访谈开关、语义承接与结束整理统一维护于 [xiaowen-conversation-modes](../xiaowen-conversation-modes/spec.md)；本规范负责文章候选、采用/恢复与兼容请求边界。
 ## Requirements
 ### Requirement: Article scoped persistent context
 系统 SHALL 为每篇作品保存独立会话、操作状态和不可变正文版本；手动编辑和 AI 操作共享同一上下文，未采用建议 MUST 与实际正文区分。

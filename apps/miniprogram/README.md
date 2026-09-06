@@ -1,6 +1,6 @@
 # 微信小程序开发工程
 
-这是“岁月有声”的唯一用户端。根目录 Vinext 工程只提供运营后台；H5 试验端已归档。小程序、后端与后台直接使用 `packages/core`，边界见 [CLIENT-SCOPE](../../docs/CLIENT-SCOPE.md)。
+这是“岁月有声”的唯一用户端。根目录 Vinext 工程只提供运营后台；H5 试验端已归档。小程序、后端与后台直接使用 `packages/core`，边界见 [产品边界](../../docs/PRODUCT.md)。
 
 最新阶段结论见[当前状态](../../docs/STATUS.md)，不要从历史记录重复索要 AppID 或密钥。
 
@@ -12,4 +12,4 @@
 
 用微信开发者工具导入本目录即可。AppSecret 尚未配置时，本地写作仍可使用；微信身份、AI 和语音接口会明确显示暂不可用，不会伪造成功状态。
 
-2026-09-06 已切正式 AppID，本机私有配置显式启用域名校验，真实换码与HTTP成功、WSS鉴权拒绝路径通过；域名为 `https://suiyue.maicong.chat` / `wss://suiyue.maicong.chat`。用户已配置合法域名并确认 Android 基础语音/小文正常；iOS 尚未验证，平台材料由用户在独立发布清单处理，不代表已上传或发布。详见[正式AppID验收](../../docs/FORMAL-APPID-ACCEPTANCE.md)。
+联机环境、合法域名及线上服务配置以[部署说明](../../docs/DEPLOYMENT.md)为准；真机与发布准备状态见[当前状态](../../docs/STATUS.md)，不在工程入口复制阶段验收结论。

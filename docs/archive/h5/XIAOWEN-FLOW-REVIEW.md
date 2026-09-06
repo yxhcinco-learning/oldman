@@ -1,4 +1,4 @@
-> 历史双端审查；当前待办见 [现行流程记录](../../XIAOWEN-FLOW-REVIEW.md)。
+> 历史双端审查；当前待办见 [现行流程记录](../phase-one/XIAOWEN-FLOW-REVIEW.md)。
 
 # 小文会话全流程梳理（2026-09-06）
 

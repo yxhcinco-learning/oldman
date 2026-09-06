@@ -1,4 +1,4 @@
-> 历史快照（2026-09-06 退役前），不是当前产品要求。当前范围见 [CLIENT-SCOPE](../../CLIENT-SCOPE.md)。
+> 历史快照（2026-09-06 退役前），不是当前产品要求。当前范围见 [产品边界](../../PRODUCT.md)。
 
 # 架构与决策
 
@@ -73,7 +73,7 @@ H5 保留小文面板，小程序访谈保留全屏。模式条显示“访谈�
 
 小程序共享依赖的本地生成版本附带 bundle 内容指纹，npm 二次构建前后检查会话函数导出的存在与类型；六个会话函数在平台边界显式再导出。显式刷新命令完成后只清理当前项目 compile 缓存，使 TypeScript 导入图重新编译，绝不清理作品/文件/身份。编辑器读取与展示错误隔离：展示失败保留已读草稿、修订及正文，不另造空草稿；模拟器回归通过独立存储根及假 transport 验证真实页面，不在生产代码加入测试分支。
 
-常规优化、润色文笔、两个只读快捷意图和自由对话共用会话展示，不自动跳转 preview。应用或放弃只更新 status/正文，保留原 answer；“修改记录”继续使用 Dialog 页头操作槽，候选的查看结果与撤销为同一消息操作组。普通成功确认使用约3秒的非模态 toast，状态仍持久保存在 turn 和修改记录；冲突、失败和覆盖风险保持内容流内持续可见。统一反馈的基础实现见 [会话反馈验收](../../AI-CONVERSATION-FEEDBACK-ACCEPTANCE.md)，紧凑化结果和统一页头尺寸证据见 [语音与结果反馈验收](../../AI-VOICE-RESULT-FEEDBACK-ACCEPTANCE.md)及[修改记录页头统一验收](../../AI-RECORD-HEADER-ACCEPTANCE.md)。
+常规优化、润色文笔、两个只读快捷意图和自由对话共用会话展示，不自动跳转 preview。应用或放弃只更新 status/正文，保留原 answer；“修改记录”继续使用 Dialog 页头操作槽，候选的查看结果与撤销为同一消息操作组。普通成功确认使用约3秒的非模态 toast，状态仍持久保存在 turn 和修改记录；冲突、失败和覆盖风险保持内容流内持续可见。统一反馈的基础实现见 [会话反馈验收](AI-CONVERSATION-FEEDBACK-ACCEPTANCE.md)，紧凑化结果和统一页头尺寸证据见 [语音与结果反馈验收](AI-VOICE-RESULT-FEEDBACK-ACCEPTANCE.md)及[修改记录页头统一验收](AI-RECORD-HEADER-ACCEPTANCE.md)。
 
 移动端根画布以 `window.visualViewport` 的高度和顶部偏移更新 CSS 变量，不支持时回退 `100dvh`；页头、正文滚动区和底部工具栏继续由同一 flex 布局管理。正文语音收起是编辑器内存展示状态，只在空闲且没有待确认文字时提供，收起后不渲染语音舞台或额外展开条；正文点击间隔由编辑器内存判定，单击恢复语音，350ms内第二次点击切换到当前页受控 textarea。触屏/触控笔另以600ms计时和10px移动阈值识别长按，不调用 `preventDefault` 或显式 pointer capture；原生 `contextmenu` 也可进入同一路径。第二次点击或长按坐标通过共享的标准 `caretPositionFromPoint` / WebKit `caretRangeFromPoint` 兼容层取得预览段落内偏移，再叠加前置段落与双换行分隔映射到 textarea 的 UTF-16 折叠 selection；空白或 API 不可用回退到文末。标题从正文区移到页头按钮，独立 `Dialog` 使用本地标题草稿和原生单行输入，确认时才更新 `Draft.title`；打开或取消不改变正文 `inputMode`、正文、待确认文字或恢复状态。普通正文不再建立 `segmentEdit`，旧的未完成普通段落编辑在恢复时合并并迁移到当前页文字模式；`segmentEdit.id === 'pending'` 的语音待确认编辑继续使用独立页面，并用同一坐标兼容层把真实转写内的点击偏移传给独立 textarea，不计状态提示；取消只清除 `segmentEdit`，完成才把编辑值写回 `pendingVoice`。
 

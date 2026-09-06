@@ -1,4 +1,4 @@
-> 历史快照（2026-09-06 退役前），不是当前产品要求。当前范围见 [CLIENT-SCOPE](../../CLIENT-SCOPE.md)。
+> 历史快照（2026-09-06 退役前），不是当前产品要求。当前范围见 [产品边界](../../PRODUCT.md)。
 
 # 岁月有声 · H5
 
@@ -32,7 +32,7 @@ npm run dev
 
 - [产品边界](../../../docs/PRODUCT.md)、[设计规范](../../../DESIGN-SYSTEM.md)、[架构与决策](../../../docs/ARCHITECTURE.md)
 - [AI 开发约定](../../../AGENTS.md)、[开发与验收](../../../docs/DEVELOPMENT.md)
-- [隐私与数据边界](../../../docs/PRIVACY.md)、[工程迁移与清理](../../../docs/CLEANUP.md)
+- [隐私与数据边界](../../../docs/PRIVACY.md)、[工程迁移与清理](../phase-one/CLEANUP-BASELINE-20260906.md)
 - [本地验收与待办记录](../../../docs/ACCEPTANCE.md)
 - 当前 OpenSpec change ID：`add-wechat-miniprogram-client`（这是规范变更标识，不是 Git 分支名；正式 AppID 尚未取得，因此变更保持活动）
 

@@ -2,13 +2,13 @@
 
 ## 开工顺序
 
-先读 AGENTS.md、[当前状态](STATUS.md)、[维护范围](CLIENT-SCOPE.md)、产品和本次 OpenSpec。小程序是唯一用户端；网页目录只服务运营后台。历史 H5 资料在[归档](archive/h5/README.md)，不可作为新需求、依赖或验收门槛。
+先读 AGENTS.md、[当前状态](STATUS.md)、[产品边界](PRODUCT.md)和本次 OpenSpec。小程序是唯一用户端；网页目录只服务运营后台。历史 H5 资料在[归档](archive/h5/README.md)，不可作为新需求、依赖或验收门槛。
 
 日常在当前仓库 main 工作，不另建副本或擅自操作分支。每个通过检查的小阶段仅提交本任务文件，不自动推送、部署或上传。OpenSpec CLI 使用锁定版本：npx openspec list，按实际变更 ID 读取 proposal/specs/design/tasks，完成且证据齐全后 npx openspec archive <change-id> --yes，同步后再次验证。
 
 ## 命令与端口
 
-使用 .nvmrc 的 Node 24.14.1，在仓库根目录 npm ci。导入 apps/miniprogram 到微信开发者工具；正式 AppID 已在本机私有配置和服务端配套接入，私有配置与秘密不进 Git。实际证据及平台待办见[正式AppID验收](FORMAL-APPID-ACCEPTANCE.md)。
+使用 .nvmrc 的 Node 24.14.1，在仓库根目录 npm ci。导入 apps/miniprogram 到微信开发者工具；本机身份与私有配置规则见[小程序工程说明](../apps/miniprogram/README.md)，私有配置与秘密不进 Git。
 
 | 命令 | 当前职责 |
 | --- | --- |
@@ -16,7 +16,7 @@
 | npm run dev:admin | 独立运营后台，访问 http://localhost:3001/admin/topics |
 | npm run dev:server | 独立网关，微信/AI/语音/话题/运营 API |
 | npm run check | 类型、Lint、活跃测试、严格 OpenSpec、文档引用、敏感与依赖边界 |
-| npm run docs:check | 本地维护文档链接与正式规格 Purpose，不联网或校验历史截图存在性 |
+| npm run docs:check | 维护文档链接、归档 Markdown 引用与正式规格 Purpose；不联网或校验历史截图存在性 |
 | npm run build | 共享核心、运营后台、小程序；不发布 |
 | npm run build:admin | 运营后台构建，不包含退役 H5 |
 | npm run test:server-admin | 后端、共享契约与运营 UI 测试 |
@@ -35,11 +35,9 @@
 
 服务配置仍在忽略的 .env.local；服务器秘密位于 /etc/suiyue-yousheng/runtime.env。正文/语音/身份失败均不回退假数据。[语音配置](SPEECH-SETUP.md)、[部署](DEPLOYMENT.md)、[隐私](PRIVACY.md)保留有效服务边界。旧 localhost 数据不迁移、不清除，已归档浏览器操作不再是开发入口。
 
-小程序接入与统一会话的技术收尾已完成，见[技术验收](TECHNICAL-CLOSURE-20260906.md)；下一步可独立规划云端作品与账号，不能把当前最小身份视为已有云同步。新AppID基础体验已获用户确认，平台材料由用户负责、保留发布清单，iOS未验证；不要重复挂起已验收的旧任务。新增行为仍先立OpenSpec。
-
 ## 小程序本地验收入口
 
-共享接口变化后执行 `npm run devtool:build-npm --workspace @suiyue/miniprogram`，刷新实际 npm 运行包并验证导出；命令只清代码编译缓存，不清作品、文件或身份。然后执行普通编译。开发者工具若显示首页白屏且自动化超时，先查原生编译和模拟器启动日志；本阶段完整退出并重新打开 IDE 后恢复，不能将单纯构建成功当运行成功。
+共享接口变化后执行 `npm run devtool:build-npm --workspace @suiyue/miniprogram`，刷新实际 npm 运行包并验证导出；命令只清代码编译缓存，不清作品、文件或身份。然后执行普通编译。开发者工具若显示首页白屏且自动化超时，先查原生编译和模拟器启动日志；排除编译错误后可重新启动 IDE 复核，不能将单纯构建成功当运行成功。
 
 独立自动化入口 `node apps/miniprogram/scripts/qa-dialogue-simulator.mjs`：通过 CLI `auto --project <小程序绝对路径> --auto-port 9420 --port <当前IDE端口>` 启用，等待编译后连接。`MINI_AUTOMATOR_PATH` 指向本机独立安装的 miniprogram-automator，`MINI_QA_OUTPUT` 指向非提交截图目录。开始前停首页、无用户编辑；运行期间不要修改小程序源码（热编译会重置替身），结束恢复原服务和首页。测试使用每次独立 qa-dialogue 目录、模拟网络响应，不上传、不调用付费模型。脚本输出实际窗口尺寸；360×640、390×844、430×932分别设置真实模拟器机型，不用 mock 系统信息冒充尺寸验收。
 

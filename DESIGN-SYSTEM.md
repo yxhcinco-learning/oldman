@@ -1,6 +1,6 @@
 # 岁月有声 · Echoes of Time 设计规范
 
-本文件是唯一用户端——微信小程序的现行视觉规范。运营后台使用 features/topic-admin 的独立企业管理台设计，不套用适老纸面风格。H5 试验端已退役，历史预览位于 archive/h5/previews；旧桌面/H5 验收不再是产品门槛。范围见 [维护矩阵](docs/CLIENT-SCOPE.md)，行为见 [OpenSpec](openspec/README.md)。
+本文件是唯一用户端——微信小程序的现行视觉规范。运营后台使用 features/topic-admin 的独立企业管理台设计，不套用适老纸面风格。H5 试验端已退役，历史预览位于 archive/h5/previews；旧桌面/H5 验收不再是产品门槛。范围见 [维护矩阵](docs/PRODUCT.md)，行为见 [OpenSpec](openspec/README.md)。
 
 ## 1. 气质与范围
 

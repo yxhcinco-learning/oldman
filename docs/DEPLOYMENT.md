@@ -4,20 +4,20 @@
 
 - **后端网关：`7cb0521-gateway`**，独立目录 `/opt/suiyue-yousheng/releases/7cb0521-gateway`；安装的网关unit固定指向该目录。包含最新共享依赖、改文撤回和短材料成文提示。
 - **运营网页：仍为 `483d8f4`**，`current` 未切换，网页unit/PID未变。不能仅查看current就判断网关版本；用 `systemctl show suiyue-gateway -p WorkingDirectory` 核对。
-- 本轮只授权网关，未调用整体 `activate-release.sh`、未更新Nginx/网页/小程序包。原unit/运行配置/三库受限备份：`/var/lib/suiyue-yousheng/backups/gateway-7cb0521`。数据schema/inode不变，详见[技术收尾](TECHNICAL-CLOSURE-20260906.md)。
+- 本轮只授权网关，未调用整体 `activate-release.sh`、未更新Nginx/网页/小程序包。原unit/运行配置/三库受限备份：`/var/lib/suiyue-yousheng/backups/gateway-7cb0521`。数据schema/inode不变，详见[技术收尾](archive/phase-one/TECHNICAL-CLOSURE-20260906.md)。
 - 仅回滚本次网关时，核对备份后将该目录的 `gateway.service` 以0644安装回 `/etc/systemd/system/suiyue-gateway.service`，执行daemon-reload并只重启网关，检查健康及业务拒绝路径；不回退数据库或用量、不改current和网页。旧整体rollback脚本只切current，不适用于当前固定路径网关。未来明确整体部署时，activate-release会重新安装统一路径unit，需先记录两服务各自回滚目标。
 
 以下为历史整体部署流程和原运行记录，不覆盖上面的最新分服务版本。
 
-> 2026-09-06 范围更新：小程序是唯一用户端，H5 已在本地源码归档。本文件下述 Basic Auth/H5 验证记录描述既有线上版本，不能作为继续发布 H5 的要求。新构建网页仅为运营后台，根路径转入 /admin/topics；服务端兼容 API 与原鉴权暂保留。本次未部署或停站。后端检查不自动授权网页部署，维护矩阵见 [CLIENT-SCOPE](CLIENT-SCOPE.md)。
+> 2026-09-06 范围更新：小程序是唯一用户端，H5 已在本地源码归档。本文件下述 Basic Auth/H5 验证记录描述既有线上版本，不能作为继续发布 H5 的要求。新构建网页仅为运营后台，根路径转入 /admin/topics；服务端兼容 API 与原鉴权暂保留。本次未部署或停站。后端检查不自动授权网页部署，维护矩阵见 [产品边界](PRODUCT.md)。
 
-本说明只适用于用户另行授权后的少量同事临时体验，不表示正式开放。固定入口为 `https://suiyue.maicong.chat`；测试期用户网页继续使用 Nginx Basic Auth，小程序只绕过明确列出的在线接口并使用自身业务会话，内部话题后台使用独立应用会话。应用仍无用户端可见注册、云端文章或跨设备同步。`build-topic-editorial-backend` 最初仅更新模板；2026-09-06 用户另行授权后，受控环境已激活 `00f8a46` 并补齐话题后台及用量保护配置，真实会话结果与未通过项见[统一会话验收](XIAOWEN-CONVERSATION-ACCEPTANCE.md)。
+本说明只适用于用户另行授权后的少量同事临时体验，不表示正式开放。固定入口为 `https://suiyue.maicong.chat`；测试期用户网页继续使用 Nginx Basic Auth，小程序只绕过明确列出的在线接口并使用自身业务会话，内部话题后台使用独立应用会话。应用仍无用户端可见注册、云端文章或跨设备同步。`build-topic-editorial-backend` 最初仅更新模板；2026-09-06 用户另行授权后，受控环境已激活 `00f8a46` 并补齐话题后台及用量保护配置，真实会话结果与未通过项见[统一会话验收](archive/phase-one/XIAOWEN-CONVERSATION-ACCEPTANCE.md)。
 
-2026-09-06 18:36（Asia/Shanghai）受控测试站点更新至 `483d8f4`，回滚版本为 `fc9cdc0`。仅更新既有站点及共享服务，小程序未上传；发布验证与限制见[统一会话验收](XIAOWEN-CONVERSATION-ACCEPTANCE.md#受控测试站点更新2026-09-06-1836)。
+2026-09-06 18:36（Asia/Shanghai）受控测试站点更新至 `483d8f4`，回滚版本为 `fc9cdc0`。仅更新既有站点及共享服务，小程序未上传；发布验证与限制见[统一会话验收](archive/phase-one/XIAOWEN-CONVERSATION-ACCEPTANCE.md#受控测试站点更新2026-09-06-1836)。
 
 ## 固定拓扑与文件
 
-2026-09-06 后续正式身份配置：用户明确授权代理代填微信凭据，已按受限临时文件、SFTP 校验、原配置/身份库备份及清理流程完成，仅重启网关，活动代码版本仍为 `483d8f4`。这是下述默认用户手填流程的本次授权例外，不扩大为其他凭据或发布授权。具体证据和剩余事项见[正式 AppID 接入验收](FORMAL-APPID-ACCEPTANCE.md)。
+2026-09-06 后续正式身份配置：用户明确授权代理代填微信凭据，已按受限临时文件、SFTP 校验、原配置/身份库备份及清理流程完成，仅重启网关，活动代码版本仍为 `483d8f4`。这是下述默认用户手填流程的本次授权例外，不扩大为其他凭据或发布授权。具体证据和剩余事项见[正式 AppID 接入验收](archive/phase-one/FORMAL-APPID-ACCEPTANCE.md)。
 
 - Lighthouse：`lhins-pg6lbxtx`（`ap-guangzhou`），只保留公网 80/443；SSH/TAT 管理边界不由本项目扩大。
 - Nginx：TLS、安全头、按 IP 限流；用户网页 `/`、原 `/api/ai/*`、`/api/health`、`/api/speech/status`、原 `/api/speech` 和精确 `/api/operations/events` 保持 Basic Auth。匿名事件位置关闭 access log、保留 Origin 并使用独立 IP 限流；精确 `/api/topics`、安全 ID 形状的 `/api/topics/<id>`、已列出的小程序接口关闭 Basic Auth。`/admin/topics`、`/_next/static/*` 和 `/api/admin/*` 也关闭 Basic Auth，但后台页面由应用登录保护，管理 API 继续校验会话、精确 Origin、CSRF 和 JSON。未列出的 `/api/mini/*` 和其他 API 拒绝。

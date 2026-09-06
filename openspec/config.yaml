@@ -1,6 +1,6 @@
 schema: spec-driven
 context: |
-  岁月有声：微信小程序为唯一用户端，网页只做对应运营后台。H5 试验端已退役，源码在 archive/h5，资料在 docs/archive/h5，不参与活跃依赖、编译、测试或发布。先读 docs/CLIENT-SCOPE.md，不能恢复双端需求或 H5 账号同步。
+  岁月有声：微信小程序为唯一用户端，网页只做对应运营后台。H5 试验端已退役，源码在 archive/h5，资料在 docs/archive/h5，不参与活跃依赖、编译、测试或发布。先读 docs/PRODUCT.md，不能恢复双端需求或 H5 账号同步。
   原生 TypeScript/WXML/WXSS 小程序 + packages/core 共享领域协议 + Node/Fastify 后端；React/Vinext 只提供运营后台。服务与后台直接依赖共享核心，不经 H5 features/lib。npm 完整 check/build 只覆盖活跃工程。
   阶段、AppID 配套、线上分版和验收状态先读 docs/STATUS.md，再用 openspec list 查询实际活跃变更；历史任务不代表当前待办，不在本上下文复制阶段结论。数据格式与能力以产品、架构及现行 specs 为准，身份/token 不跨 AppID 自动迁移。
   用户已停用 GPT Sites，本地工程不保留 Sites/Cloudflare 发布接入，不重新初始化站点或操作旧线上站点。
