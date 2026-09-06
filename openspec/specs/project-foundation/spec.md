@@ -6,19 +6,15 @@
 定义正式工程从已验收界面到可持续交付的基础约束，包括唯一仓库根目录、可逆开发、分级验证、统一命名、诚实外部交付，以及退役发布接入与残余缓存的安全清理要求。
 ## Requirements
 ### Requirement: Approved interface fidelity
-工程 SHALL 以已验收设计基线（Git 提交 28fd5e4）为界面回归基准；除已批准的真实状态和数据能力外，不新增功能或常驻入口，不因产品化改变原卡片、编辑器及语音区域的布局。
+工程 SHALL 以现行 DESIGN-SYSTEM.md 与已确认 OpenSpec 为小程序界面依据，运营后台保持独立设计；Git 提交 28fd5e4 仅是历史来源，不是当前像素基线，不恢复演示或退役 H5 入口。
 
-#### Scenario: Open the real work library
-- **WHEN** 用户查看真实作品首页
-- **THEN** 卡片沿用已验收的内边距、标题和右对齐时间/继续写，不展示卡片更多按钮或下方回收站、体验 AI 演示快捷入口；时间按真实本地日期显示，状态不虚构完成进度
+#### Scenario: Review a current product screen
+- **WHEN** 调整作品、语音、小文或数据工具界面
+- **THEN** 按现行小程序设计及真实状态验收，保留适老触控、保存与错误补救；运营后台单独做浏览器回归
 
-#### Scenario: Access approved data tools
-- **WHEN** 用户打开首页现有的更多入口
-- **THEN** 可以备份、恢复、管理及回收作品；关闭后首页结构不改变，既有作品数据不删除
-
-#### Scenario: Write or enter a demo
-- **WHEN** 用户编辑正文、单段或进入聊天/优化演示
-- **THEN** 编辑器不增加保存工具行，保存状态复用原控件与反馈；单段提示和字数沿用已验收设计，演示仅保留必要隔离标识，不影响真实内容
+#### Scenario: Locate a historical preview
+- **WHEN** 查阅归档模拟页面或设计截图
+- **THEN** 仅用于追溯，不作为产品依赖、当前要求或测试通过证据
 
 ### Requirement: Reversible scoped development
 工程 SHALL 保留已验收基线（Git 提交 28fd5e4）及其后正式版本，遵循 AGENTS 和 OpenSpec，源码不包含缓存、密钥、原音或私密正文；在当前仓库根目录开发。
@@ -118,7 +114,7 @@
 
 #### Scenario: Locate the official clients
 - **WHEN** 开发者从仓库根目录检查工程结构
-- **THEN** 运营后台、原生小程序、共享核心和网关均由同一 OpenSpec、锁文件策略与验证入口管理，`ask_job` 只提供临时 AppID 参考且不被修改
+- **THEN** 运营后台、原生小程序、共享核心和网关均由同一 OpenSpec、锁文件策略与验证入口管理，本机私有配置承载正式 AppID，不依赖其他项目或借用身份
 
 #### Scenario: Start operations development
 - **WHEN** 开发者继续运行现有 `npm run dev`
@@ -136,11 +132,11 @@
 - **THEN** 类型、边界或打包检查失败，不能以开发者工具暂时可运行作为通过
 
 ### Requirement: Safe mini-program project configuration
-仓库提交的微信项目配置 MUST 不包含借用的真实 AppID、AppSecret、上传密钥或用户私密数据；本机 MAY 通过已忽略的 `project.private.config.json` 配置临时 AppID，常规 npm 和微信 CLI 验证 MUST NOT 自动上传、提审或发布。
+仓库提交的微信项目配置 MUST 不包含借用的真实 AppID、AppSecret、上传密钥或用户私密数据；本机 MAY 通过已忽略的 `project.private.config.json` 配置实际 AppID，常规 npm 和微信 CLI 验证 MUST NOT 自动上传、提审或发布。
 
 #### Scenario: Inspect tracked mini-program files
 - **WHEN** 执行 Git 文件与敏感信息检查
-- **THEN** 只能看到安全占位 AppID 和无秘密的配置形状，临时真实 AppID private config 不在跟踪列表中
+- **THEN** 只能看到安全占位 AppID 和无秘密的配置形状，实际 AppID private config 不在跟踪列表中
 
 #### Scenario: Run a local developer-tool check
 - **WHEN** 本机微信开发者工具已登录且小程序构建完成

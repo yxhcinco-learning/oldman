@@ -48,7 +48,7 @@
 - **THEN** 旧候选不可直接应用；后续手改不得被撤销功能静默清除
 
 #### Scenario: Storage fails
-- **WHEN** 应用或保存会话时 IndexedDB 写入失败
+- **WHEN** 应用或保存会话时本机聚合写入失败
 - **THEN** 不声称成功；保留原存储、候选和内存补救备份，重试与导出可达
 
 ### Requirement: Read only textual follow up
@@ -62,19 +62,19 @@
 Key SHALL 仅由服务端读取；首次发送前说明数据去向；请求 MUST 受来源、体积、时限、并发和用量频率限制，不记录凭据或用户内容。
 
 #### Scenario: Consent and pending input
-- **WHEN** 未同意数据发送、正文为空/超长，或有待确认语音/段落
-- **THEN** 不发送付费请求，提示用户处理后再试
+- **WHEN** 未同意数据发送、请求超限，或正文编辑类兼容 action 遇到空正文、待确认语音/段落
+- **THEN** 不发送付费请求，提示用户处理后再试；统一 dialogue 允许空正文交流，正文待确认语音独立保留且不进入请求，采用仍受保护
 
 #### Scenario: Cancel and configuration failure
-- **WHEN** 用户取消/关闭请求，或配置无效、网络超时、额度不足
-- **THEN** 尽力终止上游并显示真实状态，迟到回复不应用；语音与本机编辑仍可使用
+- **WHEN** 用户明确停止请求，或配置无效、网络超时、额度不足
+- **THEN** 尽力终止上游并显示真实状态，迟到回复不应用；语音与本机编辑仍可使用；只收起小文不取消请求
 
 ### Requirement: Compatible local backup and migration
-数据库 SHALL 以非破坏升级增加会话存储；JSON v2 SHALL 包含版本与会话并继续接受 v1，导入 MUST 先完整校验再创建关联独立的新副本。
+本机存储 SHALL 以非破坏升级保留会话；当前 JSON v5 SHALL 包含版本、连续消息、素材与来源并继续接受 v1–v4，导入 MUST 先完整校验再创建关联独立的新副本。
 
 #### Scenario: Upgrade and restore
-- **WHEN** 打开 v1 数据库或导入 v1/v2 备份
-- **THEN** 已有正文与草稿保持；v2 的会话、版本和引用随新副本正确映射，回收站恢复保留历史
+- **WHEN** 打开旧本机聚合或导入 v1–v5 备份
+- **THEN** 已有正文与草稿保持；新版中的会话、版本和引用随新副本正确映射，回收站恢复保留历史
 
 #### Scenario: Invalid associations or future schema
 - **WHEN** 备份包含不匹配的作品/版本引用、损坏内容或未知版本
@@ -109,7 +109,7 @@ Key SHALL 仅由服务端读取；首次发送前说明数据去向；请求 MUS
 
 #### Scenario: Persist and restore conversational edits
 - **WHEN** 统一会话请求被回答、采用、放弃、取消或刷新后重新打开文章
-- **THEN** 本机会话保留用户原文字、回答或修改说明、真实状态、输入版本和可选应用版本；JSON v2 可导出恢复新旧 action 的关联，已有作品与旧备份无需迁移
+- **THEN** 本机会话保留用户原文字、回答或修改说明、真实状态、输入版本和可选应用版本；JSON v5 可导出恢复新旧 action 的关联，旧备份按兼容迁移规则恢复，不丢失已有作品
 
 ### Requirement: Accurate current-turn change explanations
 系统 SHALL 让优化或改文的修改说明只描述本轮候选相对输入正文的实际变化；说明 MUST 不把明确标注“未变”“保持不变”“无需修改”的内容或把同一引文替换成自身的条目列为修改。校正 MUST 不增加模型请求，不改变候选正文、引用、状态或确认流程。
@@ -127,34 +127,34 @@ Key SHALL 仅由服务端读取；首次发送前说明数据去向；请求 MUS
 - **THEN** 系统继续明确显示本次保留原文、未产生正文修改，并忽略模型声称的修改
 
 ### Requirement: User-invoked XiaoWen interview mode
-文章会话 SHALL 将采访实现为用户主动选择的小文工作模式，而不是独立通用聊天入口或第二个助手。采访中小文 MUST 每轮只提出一个基于当前议题、已确认正文或前序回答的问题，并不得在提问响应中返回或应用候选正文。
+文章会话 SHALL 将访谈实现为同一小文会话的持久开关，不显示第二个助手或两种模式分类。访谈允许承接问候、解释、反问、回顾和纠正，每轮最多一个追问；普通回答 MUST 不生成候选正文。
 
 #### Scenario: Ask one grounded question
-- **WHEN** 用户进入采访模式且存在可用议题背景或前序素材
-- **THEN** 小文用简短承接提出一个具体、容易回答的问题，不编造用户职业、经历、态度或事件事实，不同时提出问题清单
+- **WHEN** 用户在访谈中提供实质回答
+- **THEN** 小文自然承接并最多追问一个具体问题，不编造职业、经历、态度或事件事实，不同时提出问题清单
 
 #### Scenario: Introduce XiaoWen before the first answer
-- **WHEN** 用户首次打开一个没有采访回答和采访轮次的话题采访
-- **THEN** 界面用简短静态消息说明“小文”是写作助手、会围绕话题一次问一个问题，并先请用户简单介绍自己；这一步不发送文章、素材或 AI 请求
+- **WHEN** 用户首次打开话题访谈
+- **THEN** 使用精简静态介绍与称呼、大致年龄、从事行业三个可选引导；无话题先澄清想聊什么，已有交流不重复介绍，打开不请求模型
 
-#### Scenario: Skip, pause or leave interview
-- **WHEN** 用户选择换个问题、暂停采访或返回正常写作
-- **THEN** “换个问题”只替换当前问题；关闭小文即暂停并回到文章，已有回答、正文和背景保留，不自动继续提问、不自动成文，重开后恢复采访
+#### Scenario: Skip or minimize interview
+- **WHEN** 用户选择换个问题或收起小文
+- **THEN** 换题只换角度；收起返回同篇文章且保留访谈、消息与输入，不取消进行中请求、不结束或自动成文，重开不自动提问
 
 #### Scenario: Keep one primary interview action
-- **WHEN** 用户查看当前问题和采访输入区
-- **THEN** 输入区只提供文字、点按语音和单一“发送”；不常驻“保存回答”“继续问我”“先暂停”“回到文章”或素材勾选表单，存在回答时可另提供一个次级“整理成文章”动作
+- **WHEN** 用户查看访谈输入区
+- **THEN** 输入区只提供文字、长按语音和单一发送；顶部提供“结束访谈并整理”，没有暂停、只结束不整理或中途独立成文操作
 
 #### Scenario: Reject an unexpected interview candidate
-- **WHEN** 上游在采访提问响应中意外返回完整正文或其他可应用内容
-- **THEN** 控制器丢弃候选部分，只保存合规问题或把结果标记失败，不创建待应用状态
+- **WHEN** 上游在没有明确整理或改文授权的访谈回复中返回正文
+- **THEN** 按统一结构化协议拒绝未授权候选，不创建待应用状态，不自动重试
 
 ### Requirement: Explicit composition from interview material
 小文 SHALL 只在用户明确请求后使用被允许的采访素材、当前正文和议题快照生成完整文章候选；候选 MUST 继续遵守当前预览、事实核对、基准检查、应用、放弃和版本追溯规则。
 
 #### Scenario: Compose from selected material
-- **WHEN** 用户确认参与本次成文的采访回答并点击整理成文章
-- **THEN** 系统生成一份独立候选及材料说明，区分来源事实、用户观点和连接性表达，确认前正文保持不变
+- **WHEN** 用户点击“结束访谈并整理”或自然语言明确要求整理
+- **THEN** 按钮先保存结束模式再请求独立候选，自然语言结束在有效结果保存后生效；区分来源事实、用户观点和连接性表达，确认前正文保持不变
 
 #### Scenario: Material is insufficient or contradictory
 - **WHEN** 采访素材缺少关键事实或不同回答明显冲突
@@ -162,10 +162,10 @@ Key SHALL 仅由服务端读取；首次发送前说明数据去向；请求 MUS
 
 #### Scenario: Cancel or fail composition
 - **WHEN** 用户取消请求，或请求断网、超时、配置/额度失败、输出无效
-- **THEN** 系统不自动重试计费请求，已保存素材和原文保持，会话显示真实失败及显式重试入口
+- **THEN** 系统不自动重试计费请求，已保存素材和原文保持，会话显示真实失败及显式重试入口；显式结束后不重新开启访谈
 
 ### Requirement: Compatible XiaoWen request actions
-文章会话 SHALL 在正式界面只提供自由输入、会话语音和单一“发送”，不得展示固定快捷指令。自由输入 MUST 通过既有 `chat` 单次请求处理回答、追问或待确认改文候选。系统 MUST 继续兼容 `regular`、`polish` 及内部精确提示“接着问我”“讲清楚了吗”的 `question` action，以读取旧会话并保留已验证的只读边界，但不得为兼容能力增加可见按钮、自动请求、客户端关键词分类或第二次模型调用。
+文章会话 SHALL 在正式界面只提供自由输入、会话语音和单一“发送”，不得展示固定快捷指令。自由输入 MUST 通过 protocolVersion=2 的 `dialogue` 单次请求处理语义切换、回答、追问或待确认改文候选；旧 `chat` 仅保留兼容。系统 MUST 继续兼容 `regular`、`polish` 及内部精确提示“接着问我”“讲清楚了吗”的 `question` action，以读取旧会话并保留已验证的只读边界，但不得为兼容能力增加可见按钮、自动请求、客户端关键词分类或第二次模型调用。
 
 #### Scenario: Ask one grounded continuation question
 - **WHEN** 兼容调用方对非空正文以 `question` 发送精确内部提示“接着问我”
@@ -185,11 +185,11 @@ Key SHALL 仅由服务端读取；首次发送前说明数据去向；请求 MUS
 
 #### Scenario: Send one free-form request
 - **WHEN** 用户在会话输入非空要求并点击“发送”
-- **THEN** 系统只发起一次 `chat` 请求并在同一会话显示用户原文字、生成过程和后续回答或待确认候选；发送开始后清空输入，不额外运行 `question`、`regular` 或 `polish`
+- **THEN** 系统只发起一次 `dialogue` 请求并在同一会话显示用户原文字、生成过程和后续回答或待确认候选；发送开始后清空输入，不额外运行 `question`、`regular` 或 `polish`
 
 #### Scenario: Reject an unavailable request locally
-- **WHEN** 正文为空、超过 12000 字、有待确认语音或段落编辑，或另一请求正在进行
-- **THEN** 系统不发送请求、不建立可应用候选并显示既有可补救提示；正文、尚未发送的输入、文章会话和待确认内容保持
+- **WHEN** 请求超过既有体积限制、对话语音尚在准备或收尾、另一请求正在进行，或结果等待本机保存补救
+- **THEN** 系统不发送重复请求并保留输入和补救入口；正文为空不阻止对话，正文待确认内容独立保留、不进入请求且仍保护采用操作
 
 #### Scenario: Consent, failure and cancellation
 - **WHEN** 用户首次发送自由要求、拒绝数据发送同意，或请求遇到取消、断网、超时、配置/额度错误、无效输出

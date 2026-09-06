@@ -44,4 +44,3 @@
 #### Scenario: Change the mini-program AppID
 - **WHEN** 临时开发 AppID 被正式 AppID 替换
 - **THEN** 新 AppID 从隔离的空本地空间开始；只有用户明确选择的有效备份可以迁移业务内容，系统不尝试读取或合并旧 AppID 文件
-

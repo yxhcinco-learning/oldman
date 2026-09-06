@@ -23,4 +23,3 @@
 #### Scenario: Review retained compatibility
 - **WHEN** 发现旧 JSON 导入、线上兼容 AI/语音/事件接口或回滚备份
 - **THEN** 记录保留理由，不因 H5 退役移除接口、削弱鉴权或清空数据；删除须另行确认调用方与授权
-

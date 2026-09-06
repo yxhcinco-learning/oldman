@@ -140,4 +140,3 @@ Key SHALL 仅由服务端读取；首次发送前说明数据去向；请求 MUS
 #### Scenario: Ignore an unexpected candidate from a read-only intention
 - **WHEN** 上游为“接着问我”或“讲清楚了吗”的只读追问错误返回完整正文
 - **THEN** 系统丢弃候选正文，只保存可核对的回答或将无效结果标记失败，不创建待应用/已应用状态，不升级数据库或备份格式
-

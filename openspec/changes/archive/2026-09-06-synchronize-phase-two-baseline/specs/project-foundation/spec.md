@@ -32,4 +32,3 @@
 #### Scenario: Run a local developer-tool check
 - **WHEN** 本机微信开发者工具已登录且小程序构建完成
 - **THEN** 自动化可以打开、编译或生成本地预览证据，但除非用户另行明确授权，不执行 upload、submit 或 release 类操作
-

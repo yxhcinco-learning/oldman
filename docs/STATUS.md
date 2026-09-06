@@ -53,3 +53,5 @@
 4. 按确认范围建立新的 OpenSpec 后实现，不重启 H5，不混入运营账号体系，不自动部署或调用批量计费服务。
 
 本次清理的实际变更及验证见[清理记录](CLEANUP.md)，验收总入口见[验收索引](ACCEPTANCE.md)。
+
+第二阶段前清理已完成并[归档](../openspec/changes/archive/2026-09-06-synchronize-phase-two-baseline/tasks.md)。本次收尾时无活跃 change；新会话仍须执行 `npx openspec list`，不要将这个时间点的快照当作永久状态。

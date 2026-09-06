@@ -41,4 +41,3 @@
 #### Scenario: Encounter failure while switching or composing
 - **WHEN** 保存素材、读取背景或生成候选失败
 - **THEN** 系统保留已经输入的正文和可恢复素材，显示真实错误及重试或导出补救，不用空内容覆盖或声称成文成功
-

@@ -58,7 +58,7 @@
 - **THEN** 系统保留内存内容、报告真实问题并提供重试或救援导出，不显示为已保存、不覆盖较新正文
 
 #### Scenario: Do not keep a content-free topic draft as a work
-- **WHEN** 新建的议题关联草稿只有背景快照，尚无标题、正文、待确认语音或用户素材，并且用户离开该草稿
+- **WHEN** 新建的议题关联草稿只有背景快照，尚无标题、正文、待确认语音、用户消息或素材，也没有已保存的访谈模式或会话记录，并且用户离开该草稿
 - **THEN** 系统可以保留编辑期间的崩溃恢复记录，但离开时不得把它作为“未命名作品”留在作品列表；已有用户内容或素材仍按普通作品保存
 
 ### Requirement: Compatible topic and material backup
@@ -73,25 +73,25 @@
 - **THEN** 旧版按普通作品恢复；无效新版整批拒绝且已有数据库保持，不删库、不部分导入
 
 ### Requirement: Client-specific local persistence with one saving meaning
-系统 SHALL 在网页端继续使用当前 Origin 的 IndexedDB，在微信小程序端使用当前微信用户、当前 AppID 和当前设备的本地用户文件；两个客户端只有各自持久写入成功后才能显示“已保存”，且 MUST NOT 将该状态描述为云备份、永久保存或跨设备同步。
-
-#### Scenario: Save in the web client
-- **WHEN** 用户在网页端完成一次作品写入
-- **THEN** 内容只进入该浏览器 Origin 的 IndexedDB，现有 revision、恢复和冲突语义保持，不因小程序身份服务而上传
+系统 SHALL 在微信小程序使用当前微信用户、当前 AppID 和当前设备隔离的本地用户文件，只有持久写入成功才能显示“已保存”；MUST NOT 描述为云备份、永久保存或跨设备同步。退役 H5 的 IndexedDB 只保留数据兼容边界，不是活跃客户端要求。
 
 #### Scenario: Save in the mini-program client
-- **WHEN** 用户在小程序完成一次作品聚合写入
-- **THEN** 内容只进入该微信用户和 AppID 隔离的用户文件，服务端身份库不接收正文、素材、会话或备份
+- **WHEN** 用户完成一次作品聚合写入
+- **THEN** 内容只进入该微信用户和 AppID 隔离的用户文件，服务端最小身份库不接收正文、素材、会话或备份
 
 #### Scenario: Local persistence is unavailable
-- **WHEN** 任一客户端的本地持久化失败或可用数据被系统清理
-- **THEN** 系统显示真实未保存/不可恢复状态并保留可用内存内容与救援导出，不声称可从微信身份或服务器找回作品
+- **WHEN** 本地持久化失败或可用数据被系统清理
+- **THEN** 显示真实未保存/不可恢复状态并保留可用内存与救援导出，不声称可从微信身份或服务器找回作品
+
+#### Scenario: Encounter old browser data
+- **WHEN** 清理工程或切换小程序身份
+- **THEN** 不访问、合并或清空旧浏览器作品，已有合法 JSON 备份仍可显式导入副本
 
 ### Requirement: Portable backup is the only cross-client transfer
-网页和小程序 SHALL 使用兼容的版本化 JSON 业务备份作为显式跨 Origin、设备、微信用户或 AppID 的迁移方式；导入 MUST 校验后创建新副本，不得迁移业务 token、OpenID 或覆盖目标客户端作品。
+小程序 SHALL 使用兼容的版本化 JSON 业务备份作为显式跨设备、微信用户或 AppID 的迁移方式，并接受旧 H5 备份；导入 MUST 校验后创建新副本，不得迁移业务 token、OpenID 或覆盖目标客户端作品。
 
 #### Scenario: Transfer between web and mini program
-- **WHEN** 用户从一个受支持客户端导出 JSON 并在另一个客户端手工导入
+- **WHEN** 用户手持小程序或旧 H5 的 JSON 备份并在小程序手工导入
 - **THEN** 作品、未完成输入、话题/采访材料、文章会话和版本按 schema 恢复为新副本，身份与本地存储位置按目标客户端重新建立
 
 #### Scenario: Change the mini-program AppID
