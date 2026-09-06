@@ -240,6 +240,9 @@ describe('微信小程序公共工程配置', () => {
     }
     expect(editor).toContain('不会发送给小文');
     expect(editorController).toContain('AI_ASSISTANCE_LABEL');
-    expect(editor).toContain('确认应用前不会进入正文');
+    expect(editor).toContain('确认使用后才会替换正文');
+    expect(editor).toContain('看看文章');
+    expect(editor).not.toContain('candidate-summary');
+    expect(editor).not.toContain('查看候选');
   });
 });

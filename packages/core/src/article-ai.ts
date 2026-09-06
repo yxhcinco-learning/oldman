@@ -63,6 +63,10 @@ export function resultSummary(result: AiResult, originalBody: string): string {
   if (result.body === originalBody) return '本次保留原文，未产生正文修改。';
   return result.body === undefined ? result.answer : actualChangeSummary(result.answer);
 }
+export function readableResultSummary(result: AiResult, originalBody: string): string {
+  const summary = resultSummary(result, originalBody);
+  return result.body === undefined ? summary : summary.replace(/(?:请)?查看候选(?:全文|结果|文章|稿)?/g, '看看文章');
+}
 export const turnSchema = z.object({
   id, createdAt: z.iso.datetime(), action: aiActionSchema, prompt: z.string().max(12000), inputVersionId: id,
   command: dialogueCommandSchema.optional(),

@@ -40,6 +40,10 @@
 ### Requirement: Finish with a reviewable candidate
 明确结束访谈 MUST 进入普通对话并整理为待确认候选，不提供只结束不整理选项；访谈中改文要求 MUST 先确认结束，保留原要求再生成候选。
 
+#### Scenario: Read and choose the article
+- **WHEN** 用户查看小文生成的文章
+- **THEN** 消息入口显示“看看文章”，不使用“查看候选”等内部术语；预览以“整理后的文章／调整后的文章”为标题，保留轻量 AI 来源提醒、状态与对照入口，正文独立滚动，不重复消息中的整理说明卡片；固定底部“暂不使用／用这篇”，说明确认后才替换正文，冲突、撤销和保存规则不变
+
 #### Scenario: Finish by button or language
 - **WHEN** 用户点击结束访谈并整理或明确表达相同意图
 - **THEN** 记录模式切换，生成候选或材料不足说明，只有明确采用才写入正文

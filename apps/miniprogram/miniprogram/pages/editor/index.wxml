@@ -91,10 +91,10 @@
   <view wx:if="{{xiaowenOpen}}" class="xiaowen-mask" style="bottom: {{keyboardHeight}}px" catchtouchmove="noop">
     <view class="xiaowen-panel" role="dialog" aria-modal="true" aria-label="小文文章会话">
       <view class="sheet-handle"></view>
-      <view class="xiaowen-brand">岁月有声</view>
+      <view wx:if="{{xiaowenView !== 'preview'}}" class="xiaowen-brand">岁月有声</view>
       <view class="xiaowen-header">
         <view wx:if="{{xiaowenView !== 'chat'}}" class="xiaowen-back" bindtap="backToConversation" role="button" aria-label="返回小文对话">‹</view>
-        <view class="xiaowen-title"><text>{{xiaowenView === 'preview' ? candidateTitle : xiaowenView === 'history' ? '修改记录' : '小文'}}</text><small wx:if="{{xiaowenView !== 'chat'}}">所有内容保存在本机</small></view>
+        <view class="xiaowen-title"><text>{{xiaowenView === 'preview' ? candidateTitle : xiaowenView === 'history' ? '修改记录' : '小文'}}</text></view>
         <view class="xiaowen-header-actions">
           <view wx:if="{{xiaowenView === 'chat'}}" class="history-button" bindtap="showHistory" role="button" aria-label="查看修改记录"><image class="book-image" src="/assets/book.svg" mode="aspectFit"></image></view>
           <view class="xiaowen-close" bindtap="closeXiaoWen" role="button" aria-label="收起小文"><image class="close-image" src="/assets/close.svg" mode="aspectFit"></image></view>
@@ -105,10 +105,9 @@
       <scroll-view wx:if="{{xiaowenView === 'chat'}}" class="xiaowen-messages" scroll-y scroll-into-view="xiaowen-end-{{conversationMessages.length}}-{{xiaowenRunning ? 1 : 0}}-{{xiaowenError ? 1 : 0}}">
         <view wx:for="{{conversationMessages}}" wx:key="id" class="xiaowen-turn">
           <view class="{{item.role === 'user' ? 'xiaowen-user-message' : 'xiaowen-answer'}}">
-            <view wx:if="{{item.hasCandidate}}" class="ai-origin-label">{{aiAssistanceLabel}}</view>
             <view>{{item.text}}</view>
             <view wx:if="{{item.pending}}" class="reply-pending"><text class="thinking-dots">•••</text><button bindtap="cancelXiaoWen">取消请求</button></view>
-            <button wx:if="{{item.hasCandidate}}" data-id="{{item.turnId}}" bindtap="showCandidate">查看调整结果</button>
+            <button wx:if="{{item.hasCandidate}}" class="article-result-link" data-id="{{item.turnId}}" bindtap="showCandidate"><text>看看文章</text><text aria-hidden="true">›</text></button>
             <view wx:if="{{item.error}}" class="xiaowen-error">{{item.error}}</view>
             <button wx:if="{{item.canRetry}}" data-id="{{item.turnId}}" bindtap="retryTurn" disabled="{{operationBusy}}">重新发送</button>
             <button wx:if="{{item.hasCandidate && item.status === 'applied'}}" data-id="{{item.turnId}}" bindtap="undoTurn">撤销</button>
@@ -119,18 +118,18 @@
         <view id="xiaowen-end-{{conversationMessages.length}}-{{xiaowenRunning ? 1 : 0}}-{{xiaowenError ? 1 : 0}}"></view>
       </scroll-view>
 
-      <scroll-view wx:elif="{{xiaowenView === 'preview'}}" class="xiaowen-preview" scroll-y>
-        <view class="ai-origin-label">{{aiAssistanceLabel}}，确认应用前不会进入正文。</view>
+      <view wx:if="{{xiaowenView === 'preview'}}" class="article-review-note">小文用 AI 帮您整理了一版，您看看是否合意。</view>
+      <view wx:if="{{xiaowenView === 'preview'}}">
         <view class="candidate-meta"><text>{{candidateStatus === 'ready' ? '待应用' : candidateStatus === 'applied' ? '已应用' : '仅供查看'}}</text>
-          <button bindtap="toggleCandidateOriginal">{{candidateShowOriginal ? '查看候选全文' : '对照原文'}}</button></view>
-        <view class="candidate-summary"><strong>小文的{{candidateEditLabel}}说明</strong><text>{{candidateSummary}}</text></view>
+          <button wx:if="{{candidateOriginalBody}}" bindtap="toggleCandidateOriginal">{{candidateShowOriginal ? '回到新文章' : '对照原文'}}</button></view>
+      </view>
+      <scroll-view wx:if="{{xiaowenView === 'preview'}}" class="xiaowen-preview" scroll-y>
         <view class="candidate-full-text" user-select>{{candidateShowOriginal ? candidateOriginalBody : candidateBody}}</view>
-        <view class="candidate-note">请核对人物、时间、动作和经历；确认前正文保持不变。</view>
         <view wx:if="{{candidateStale}}" class="xiaowen-error">正文已发生变化。旧结果仅供查看，请根据最新正文重新整理。</view>
         <view wx:if="{{xiaowenError}}" class="xiaowen-error">{{xiaowenError}}</view>
       </scroll-view>
 
-      <scroll-view wx:else class="xiaowen-history" scroll-y>
+      <scroll-view wx:if="{{xiaowenView === 'history'}}" class="xiaowen-history" scroll-y>
         <view class="candidate-note">每次手动编辑、应用和恢复都会留下记录。</view>
         <view wx:if="{{aiAssisted}}" class="ai-origin-label history-disclosure">这篇文章曾应用 AI 辅助候选；后续手动修改或恢复不会删除这条历史说明。</view>
         <view wx:if="{{xiaowenVersions.length === 0}}" class="history-empty">暂无修改记录</view>
@@ -147,9 +146,10 @@
         <view class="xiaowen-button-cell"><button class="xiaowen-voice {{voiceTarget === 'xiaowen' && voicePressing ? 'pressing' : ''}} {{operationBusy ? 'is-disabled' : ''}}" bindtouchstart="pressXiaoWenVoice" bindtouchend="releaseVoice" bindtouchcancel="cancelVoice" aria-disabled="{{operationBusy}}" aria-label="长按语音输入"><image src="/assets/mic.svg" mode="aspectFit"></image></button></view>
         <view class="xiaowen-button-cell"><button class="xiaowen-send {{operationBusy || voiceBusy || !xiaowenComposer ? 'is-disabled' : ''}}" bindtap="sendXiaoWen" aria-disabled="{{operationBusy || voiceBusy || !xiaowenComposer}}">{{operationBusy ? '处理中' : '发送'}}</button></view>
       </view>
-      <view wx:elif="{{xiaowenView === 'preview' && candidateStatus === 'ready'}}" class="candidate-actions">
-        <button bindtap="dismissCandidate" disabled="{{operationBusy}}">先不修改</button>
-        <button class="candidate-apply" bindtap="applyCandidate" disabled="{{operationBusy || candidateStale}}">应用{{candidateEditLabel}}</button>
+      <view wx:if="{{xiaowenView === 'preview' && candidateStatus === 'ready'}}" class="article-review-note">确认使用后才会替换正文，请留意事实与细节。</view>
+      <view wx:if="{{xiaowenView === 'preview' && candidateStatus === 'ready'}}" class="candidate-actions">
+        <button bindtap="dismissCandidate" disabled="{{operationBusy}}">暂不使用</button>
+        <button class="candidate-apply" bindtap="applyCandidate" disabled="{{operationBusy || candidateStale}}">用这篇</button>
       </view>
     </view>
   </view>

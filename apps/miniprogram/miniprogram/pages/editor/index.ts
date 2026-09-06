@@ -440,7 +440,7 @@ Page({
     if (!draft || !turn?.result?.body || !base) return;
     this.dismissKeyboard();
     this.setData({ xiaowenView: 'preview', selectedTurnId: turnId,
-      candidateTitle: actionEditLabel(turn) === '整理' ? '看看整理后的文章' : '看看调整后的全文',
+      candidateTitle: actionEditLabel(turn) === '整理' ? '整理后的文章' : '调整后的文章',
       candidateSummary: resultSummary(turn.result, base.body), candidateBody: turn.result.body, candidateOriginalBody: base.body,
       candidateShowOriginal: false, candidateStale: !sameDocument(base, documentOf(draft)), candidateStatus: turn.status,
       candidateEditLabel: actionEditLabel(turn), xiaowenError: '' });

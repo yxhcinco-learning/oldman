@@ -156,10 +156,10 @@ it('uses XiaoWen to save answers as materials, ask one next question and compose
   const compose = screen.getByRole('button', { name: '访谈已开启，结束访谈并整理' });
   await waitFor(() => expect(compose).toBeEnabled());
   fireEvent.click(compose);
-  fireEvent.click(await screen.findByRole('button', { name: '查看调整结果' }));
+  fireEvent.click(await screen.findByRole('button', { name: '看看文章' }));
   expect(await screen.findByRole('region', { name: '调整后全文' })).toHaveTextContent('九十年代，我第一次尝试用电脑备课');
   expect((await store.load()).recovery?.draft.textDraft).toBe('');
-  fireEvent.click(screen.getByRole('button', { name: '应用调整' }));
+  fireEvent.click(screen.getByRole('button', { name: '用这篇' }));
   await waitFor(async () => expect((await store.load()).recovery?.draft.textDraft).toContain('九十年代'));
 });
 

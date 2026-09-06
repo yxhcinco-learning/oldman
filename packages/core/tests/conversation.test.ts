@@ -12,6 +12,13 @@ function setup(mode: 'normal' | 'interview' = 'interview', prompt = '你好', co
 const reply = (answer: string): AiResult => ({ answer, citedVersionIds: [], dialogue: { intent: 'reply' } });
 
 describe('统一小文会话', () => {
+  it('旧结果阅读指引使用文章而非候选，不改原始回复和正文', () => {
+    const { draft, session } = setup('interview', '结束访谈并整理', 'finish');
+    const settled = settleDialogue(session, 'turn-1', { answer: '已根据您的经历整理，请查看候选。', body: '我从前在学校工作。', citedVersionIds: [], dialogue: { intent: 'finish' } });
+    expect(conversationView(settled, draft).at(-1)?.text).toBe('已根据您的经历整理，看看文章。');
+    expect(settled.turns[0].result?.answer).toContain('请查看候选');
+    expect(settled.turns[0].result?.body).toBe('我从前在学校工作。');
+  });
   it('等待、失败、重试和结果共用助手位置且不持久化占位', () => {
     const { draft, session } = setup();
     const raw = JSON.stringify(session);

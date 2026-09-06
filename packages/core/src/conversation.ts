@@ -1,4 +1,4 @@
-import { type AiResult, type ArticleSession, type DialogueCommand, type XiaoWenConversation } from './article-ai.js';
+import { readableResultSummary as resultSummary, type AiResult, type ArticleSession, type DialogueCommand, type XiaoWenConversation } from './article-ai.js';
 import type { Draft } from './writing.js';
 
 export const INTERVIEW_INTRO = '您好，我是小文，您的写作助手。接下来我们围绕这个话题聊一聊。';
@@ -16,7 +16,7 @@ export function conversationView(session: ArticleSession, draft: Draft) {
   return messages.map(message => {
     const turn = session.turns.find(item => item.id === message.turnId);
     return { ...message, turnId: turn?.id ?? '', hasCandidate: message.role === 'assistant' && Boolean(turn?.result?.body),
-      text: message.role === 'system' && message.text === '已结束访谈，正在整理' ? '已结束访谈' : message.text,
+      text: message.role === 'system' && message.text === '已结束访谈，正在整理' ? '已结束访谈' : message.role === 'assistant' && turn?.result?.body ? resultSummary(turn.result, session.versions.find(version => version.id === turn.inputVersionId)?.body ?? '') : message.text,
       pending: message.role === 'assistant' && turn?.status === 'running',
       canRetry: message.role === 'assistant' && Boolean(turn && ['failed', 'cancelled'].includes(turn.status)),
       error: message.role === 'assistant' && turn && ['failed', 'cancelled'].includes(turn.status) ? turn.error || (turn.status === 'cancelled' ? '已取消，原文未改变。' : '小文暂时没有接上，请重试。') : '', ai: message.role === 'assistant' && Boolean(turn?.result),

@@ -112,16 +112,15 @@ button.mic { position: relative; display: grid; width: 76px; min-width: 76px; ma
 .xiaowen-progress { display: flex; min-height: 48px; margin: 10px 0; padding: 8px 12px; align-items: center; justify-content: space-between; gap: 8px; border-radius: 12px; background: #e8eee9; color: #153b2e; font-size: 14px; line-height: 22px; }
 .xiaowen-progress button { display: flex; min-height: 44px; margin: 0; padding: 6px 10px; align-items: center; justify-content: center; background: #fff; color: #6f351c; font-size: 13px; line-height: 20px; }
 .xiaowen-preview, .xiaowen-history { min-height: 60px; flex: 1; padding: 10px 0 16px; }
-.candidate-meta { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 8px; color: #416657; font-size: 13px; line-height: 20px; }
-.candidate-meta button { display: flex; min-height: 44px; margin: 0; padding: 6px; align-items: center; background: transparent; color: #153b2e; font-size: 13px; line-height: 20px; text-decoration: underline; }
-.candidate-summary { padding: 12px 14px; border-radius: 14px; background: #e8eee9; color: #416657; font-size: 14px; line-height: 23px; }
-.candidate-summary strong, .candidate-summary text { display: block; }
-.candidate-summary strong { margin-bottom: 4px; color: #153b2e; }
+.candidate-meta { display: flex; min-height: 48px; align-items: center; justify-content: space-between; gap: 8px; color: #717974; font-size: 14px; line-height: 20px; }
+.candidate-meta button { display: flex; min-height: 48px; margin: 0; padding: 8px 0 8px 12px; align-items: center; background: transparent; color: #416657; font-size: 16px; line-height: 26px; }
+.article-review-note { flex-shrink: 0; margin: 8px 0; color: #717974; font-size: 14px; line-height: 20px; }
+.xiaowen-answer .article-result-link { display: flex; width: 100%; min-height: 48px; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0 0; padding: 10px 16px; border-radius: 24px; background: #e8eee9; color: #153b2e; font-size: 16px; line-height: 26px; }
 .ai-origin-label { padding: 8px 10px; border-radius: 10px; background: #f4eadf; color: #944924; font-size: 13px; font-weight: 600; line-height: 20px; }
 .xiaowen-answer .ai-origin-label { margin-bottom: 5px; padding: 0; background: transparent; }
 .history-disclosure { margin: 8px 0; }
 .history-ai-label { display: block; margin: 2px 0; color: #944924; font-size: 12px; line-height: 18px; }
-.candidate-full-text { margin-top: 10px; padding: 20px; border-radius: 16px; background: #fff; color: #1b1c1c; font-size: 18px; line-height: 32px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.candidate-full-text { padding: 8px 0 16px; color: #1b1c1c; font-size: 18px; line-height: 32px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .candidate-note { margin: 10px 0; color: #717974; font-size: 14px; line-height: 22px; }
 .candidate-actions { display: grid; width: 100%; min-width: 0; flex: 0 0 auto; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding-top: 10px; }
 .candidate-actions button { display: flex; width: 100%; min-width: 0; min-height: 56px; margin: 0; padding: 10px 12px; align-items: center; justify-content: center; border-radius: 28px; background: #e8eee9; color: #153b2e; font-size: 16px; line-height: 24px; }

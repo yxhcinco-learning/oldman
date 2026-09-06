@@ -121,6 +121,7 @@ try {
   let turn = (await page.data('session.turns')).at(-1);
   await page.callMethod('openCandidate', turn.id);
   check('结束候选标明整理，不误标优化', await page.data('candidateEditLabel') === '整理');
+  check('预览删除重复说明并使用清楚的文章操作', await page.data('candidateTitle') === '整理后的文章' && !await page.$('.candidate-summary') && !await page.$('.xiaowen-brand') && await (await page.$('.candidate-apply')).text() === '用这篇');
   await mini.screenshot({ path: resolve(output, 'candidate.png') });
   await (await page.$('.candidate-apply')).tap();
   await current('editor');
