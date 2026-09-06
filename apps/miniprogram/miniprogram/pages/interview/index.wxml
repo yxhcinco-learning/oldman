@@ -1,3 +1,4 @@
+<import src="../../ui/dictation-feedback.wxml" />
 <view class="interview-page" style="padding-bottom: {{keyboardHeight}}px">
   <view class="interview-header" style="height: {{navigationHeight}}px;">
     <view class="interview-nav-row" style="top: {{navigationRowTop}}px; height: 48px; padding-right: {{menuReserve}}px;">
@@ -26,7 +27,7 @@
     </view>
 
     <view wx:if="{{!resultSavePending && error && !messages[messages.length - 1].error}}" class="interview-error" role="alert">{{error}}</view>
-    <view wx:if="{{voicePressing || voicePhase !== 'idle'}}" class="interview-error">{{voiceText || voiceMessage || (voicePressing ? '已按住，松开结束' : '正在准备语音…')}}</view>
+    <template is="dictation-feedback" data="{{phase: voicePhase, text: voiceText, message: voiceMessage, pressing: voicePressing}}" />
     <view class="composer-row">
       <textarea value="{{composer}}" maxlength="12000" auto-height placeholder="{{mode === 'interview' ? '回复小文' : '问小文，或提要求'}}" placeholder-style="color:#858e88;line-height:30px" disabled="{{saving || voiceBusy || resultSavePending}}" disable-default-padding="{{true}}"
         adjust-position="{{false}}" show-confirm-bar="{{false}}" cursor-spacing="20" bindinput="onComposer" bindfocus="onComposerFocus" bindblur="onComposerBlur" bindkeyboardheightchange="onKeyboardHeight"></textarea>

@@ -1,5 +1,6 @@
 // Explicit local DevTools regression. No production AI requests or user storage writes.
 // MINI_AUTOMATOR_PATH points to an independently installed miniprogram-automator package.
+// MINI_QA_DICTATION_ONLY=1 runs just the two-page speech regression; no real microphone or ASR.
 /* eslint-disable @typescript-eslint/no-require-imports -- DevTools evaluate executes CommonJS in the app service. */
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -70,6 +71,14 @@ try {
     } };
     replace(services.articleAi, new (require('ai/controller.js').MiniArticleAiController)(repository, writer, transport));
     replace(services.conversations, new (require('state/conversation-memory.js').ConversationMemory)());
+    // Exercise the real speech state machine; only recorder/network/permission are non-billing fixtures.
+    qa.speechStarts = 0;
+    replace(services.speech, new (require('speech/session.js').MiniSpeechSession)({
+      permissions: { ensure: async () => {} }, tickets: { issue: async () => 'qa-ticket' },
+      sockets: { connect: () => ({ onOpen() {}, onMessage(fn) { qa.speechEvent = value => fn(JSON.stringify(value)); }, onError() {}, onClose() {},
+        sendBinary: async () => {}, sendText: async text => { if (JSON.parse(text).type === 'end') setTimeout(() => qa.speechEvent({ type: 'done' }), 0); }, close() {} }) },
+      recorder: { start(_options, handlers) { qa.speechStarts++; qa.recorder = handlers; handlers.start(); }, stop() { qa.recorder.stop(); } },
+    }));
     services.aiConsent.ensure = async () => true;
     qa.services = services;
     getApp().__dialogueQa = qa;
@@ -77,6 +86,7 @@ try {
   installed = true;
   await mini.reLaunch('/pages/editor/index?xiaowen=compose');
   await current('editor');
+  if (!process.env.MINI_QA_DICTATION_ONLY) {
   check('空编辑器加载，无 conversationView 异常', await page.data('error') === '');
   check('无话题空会话提供非持久化问候，无空绿色主题区', (await page.$$('.topic-heading')).length === 0 && Boolean(await page.$('.topic-absent')) && (await page.data('conversationMessages'))[0].text === '您好，我是小文。您想聊点什么？' && ((await conversation())?.messages.length ?? 0) === 0);
   await send('你好', { result: result('reply', '您好！您想聊什么？') });
@@ -293,6 +303,55 @@ try {
   await page.callMethod('retryResultSave');
   check('重试保存保住完整回复和原正文，不重复请求', !await page.data('resultSavePending') && (await page.data('session.turns')).at(-1).result.body === '应保住的完整整理结果' && await requestCount() === beforeRescue + 1 && await page.data('body') === version.body);
   await mini.screenshot({ path: resolve(output, 'final.png') });
+  }
+  for (const kind of ['editor', 'interview']) {
+    if (kind === 'interview') { await page.callMethod('startInterview'); await current('interview'); }
+    const draft = { ...await page.data('draft'), pendingVoice: '正文尚未确认的口述' };
+    await mini.evaluate(async draft => { const q = getApp().__dialogueQa; await q.services.writer.write(draft, getCurrentPages().at(-1).data.session); }, draft);
+    await page.setData({ draft });
+    const voiceSelector = kind === 'editor' ? '.xiaowen-voice' : '.voice';
+    const sendSelector = kind === 'editor' ? '.xiaowen-send' : '.send';
+    const inputSelector = kind === 'editor' ? '.xiaowen-composer textarea' : '.composer-row textarea';
+    const press = kind === 'editor' ? 'pressXiaoWenVoice' : 'pressDictation';
+    const release = kind === 'editor' ? 'releaseVoice' : 'releaseDictation';
+    const before = await (await page.$(voiceSelector)).offset();
+    const calls = await requestCount();
+    await (await page.$(inputSelector)).input('');
+    await page.callMethod(press);
+    await new Promise(resolve => setTimeout(resolve, 220));
+    await mini.evaluate(() => getApp().__dialogueQa.speechEvent({ type: 'ready' }));
+    await mini.evaluate(() => getApp().__dialogueQa.speechEvent({ type: 'transcript', text: '我想写首诗，可以吗？', final: false }));
+    await page.callMethod(press); // A second touch must not retarget/restart an active recording.
+    const voice = await page.$(voiceSelector);
+    const position = await voice.offset();
+    const sendPosition = await (await page.$(sendSelector)).offset();
+    check(`${kind}录音中三列不移位、麦克风48px且转写说明可见`, Math.abs(position.top - before.top) <= 2 && Math.abs(position.left - before.left) <= 2 && Math.abs((await voice.size()).width - 48) <= 1 && Math.abs(sendPosition.top - position.top) <= 2 && (await (await page.$('.dictation-caption')).text()).includes('松开结束'));
+    await mini.screenshot({ path: resolve(output, `dictation-${kind}.png`) });
+    await (await page.$(sendSelector)).tap();
+    await new Promise(resolve => setTimeout(resolve, 300)); // DevTools tap acknowledges before the page handler runs.
+    check(`${kind}录音未结束不能发送`, await requestCount() === calls);
+    await page.callMethod(release);
+    await new Promise(resolve => setTimeout(resolve, 150));
+    check(`${kind}松开只填对话输入且保留正文待确认语音`, await page.data(kind === 'editor' ? 'xiaowenComposer' : 'composer') === '我想写首诗，可以吗？' && await page.data('draft.pendingVoice') === draft.pendingVoice && await requestCount() === calls && !await page.data('voiceBusy'));
+    await send('我想写首诗，可以吗？', { result: result('reply', '可以，我们先聊聊您想写的感受。') });
+    check(`${kind}转写后可发送且未确认正文不进入请求`, await requestCount() === calls + 1 && await page.data('draft.pendingVoice') === draft.pendingVoice && !await mini.evaluate(() => JSON.stringify(getApp().__dialogueQa.requests.at(-1)).includes('正文尚未确认的口述')));
+    const starts = await mini.evaluate(() => getApp().__dialogueQa.speechStarts);
+    await page.callMethod(press);
+    await page.callMethod(release);
+    await new Promise(resolve => setTimeout(resolve, 220));
+    check(`${kind}短按不启动录音`, await mini.evaluate(() => getApp().__dialogueQa.speechStarts) === starts && !await page.data('voiceBusy') && !await page.$('.dictation-feedback'));
+    await page.callMethod(press);
+    await new Promise(resolve => setTimeout(resolve, 220));
+    await mini.evaluate(() => {
+      const q = getApp().__dialogueQa;
+      q.speechEvent({ type: 'ready' });
+      q.speechEvent({ type: 'transcript', text: '这是一段较长的语音转写，用来验证输入区不会持续增高。'.repeat(12), final: false });
+    });
+    check(`${kind}长转写高度受限且按钮位置稳定`, (await (await page.$('.dictation-transcript')).size()).height <= 90 && Math.abs((await (await page.$(voiceSelector)).offset()).top - before.top) <= 2);
+    await mini.screenshot({ path: resolve(output, `dictation-long-${kind}.png`) });
+    await page.callMethod(kind === 'editor' ? 'cancelVoice' : 'cancelDictation');
+    check(`${kind}取消手势丢弃本次转写且不发送`, !await page.data('voiceBusy') && await page.data(kind === 'editor' ? 'xiaowenComposer' : 'composer') === '' && await requestCount() === calls + 1);
+  }
   console.info(JSON.stringify({ passed: passed.length, modelCalls: 0, screenshots: output }));
 } finally {
   if (installed) {

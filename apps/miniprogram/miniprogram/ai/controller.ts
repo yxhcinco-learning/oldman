@@ -43,7 +43,7 @@ function validationMessage(draft: Draft, action: AiAction, prompt: string, busy:
   if (!['interview', 'compose', 'dialogue'].includes(action) && !body.trim()) return '先写下一句，再请小文帮忙。';
   if (action === 'interview' && !body.trim() && !draft.topicSnapshot && !draft.materials.length) return '先选一个话题，或在文章里写下一点内容。';
   if (action === 'compose' && !draft.materials.some(material => material.selected)) return '还没有可以整理的回答。';
-  if (draft.pendingVoice.trim() || draft.segmentEdit) return '请先取消或完成待确认语音，再使用小文。';
+  if (action !== 'dialogue' && (draft.pendingVoice.trim() || draft.segmentEdit)) return '请先取消或完成待确认语音，再使用小文。';
   if (body.length > MAX_ARTICLE_CHARS) return '每篇最多 12000 字，请先分篇整理。原文不会被截断。';
   if (prompt.length > (action === 'dialogue' ? 12000 : 2000) || ['question', 'rewrite', 'chat', 'dialogue'].includes(action) && !prompt.trim()) return '请输入长度范围内的问题或调整要求。';
   return '';

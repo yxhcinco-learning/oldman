@@ -19,8 +19,8 @@ interface PageDefinition {
 
 afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
-describe('收到回复待保存时的页面操作锁', () => {
-  it.each(['editor', 'interview'])('%s 的事件入口不只依赖按钮视觉禁用', async kind => {
+describe('收到回复待保存及录音中的页面操作锁', () => {
+  it.each(['editor', 'interview'].flatMap(kind => ['resultSavePending', 'voiceBusy', 'voicePressing'].map(lock => ({ kind, lock }))))('$kind 的 $lock 事件入口不只依赖按钮视觉禁用', async ({ kind, lock }) => {
     vi.resetModules();
     let definition!: PageDefinition;
     vi.stubGlobal('Page', (page: PageDefinition) => { definition = page; });
@@ -28,7 +28,7 @@ describe('收到回复待保存时的页面操作锁', () => {
     else await import('../miniprogram/pages/interview/index');
     const draft = emptyDraft();
     const setData = vi.fn();
-    const page = { ...definition, data: { ...definition.data, draft, body: '', session: newSession(draft), resultSavePending: true }, setData };
+    const page = { ...definition, data: { ...definition.data, draft, body: '', session: newSession(draft), [lock]: true }, setData };
     if (kind === 'editor') {
       await page.runXiaoWen('dialogue', '再次发送');
       await page.startInterview();

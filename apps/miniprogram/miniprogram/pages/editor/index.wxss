@@ -138,12 +138,11 @@ button.mic { position: relative; display: grid; width: 76px; min-width: 76px; ma
 .history-item text { min-width: 0; overflow: hidden; color: #1b1c1c; font-size: 14px; line-height: 22px; text-overflow: ellipsis; white-space: nowrap; }
 .history-item small, .history-empty { display: block; margin-top: 4px; color: #717974; font-size: 13px; line-height: 20px; }
 .xiaowen-composer { display: grid; width: 100%; min-width: 0; grid-template-columns: minmax(0, 1fr) 48px 72px; align-items: end; gap: 8px; padding-top: 10px; }
-.xiaowen-speech-status { grid-column: 1 / -1; padding: 6px 9px; border-radius: 9px; background: #e8eee9; color: #416657; font-size: 13px; line-height: 20px; }
 .xiaowen-composer textarea { display: block; width: 100%; height: 52px; min-height: 52px; max-height: 148px; margin: 0; padding: 10px 12px; overflow-y: auto; border: 1px solid #e4e6e1; border-radius: 16px; background: #fff; color: #1b1c1c; font-size: 18px; line-height: 30px; }
 .xiaowen-button-cell { display: flex; min-width: 0; align-items: flex-end; }
 .xiaowen-voice, .xiaowen-send { display: flex; width: 100%; min-width: 0; height: 48px; min-height: 48px; max-height: 48px; flex: 1; margin: 0; padding: 8px; align-items: center; justify-content: center; border-radius: 24px; font-size: 16px; line-height: 24px; }
 .xiaowen-voice { background: #e8eee9; color: #153b2e; transition: background .1s ease, transform .1s ease; }
-.xiaowen-voice.pressing { background: #944924; transform: scale(.94); }
+.xiaowen-voice.pressing { background: #e6eddf; box-shadow: inset 0 0 0 2px #416657; }
 .xiaowen-voice image { width: 22px; height: 22px; }
 .xiaowen-send { background: #153b2e; color: #fff; }
 .xiaowen-voice.is-disabled, .xiaowen-send.is-disabled { pointer-events: none; }

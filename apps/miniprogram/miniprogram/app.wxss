@@ -73,4 +73,8 @@ button::after { border: 0; }
 @keyframes reply-dot { 0%,65%,100% { opacity: .4; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-2px); } }
 .ai-stop { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; width: 72px; padding: 8px; border-radius: 24px; background: #e8eee9; color: #153b2e; font-size: 16px; line-height: 24px; }
 .ai-stop > span, .ai-stop > view { display: block; width: 9px; height: 9px; flex: 0 0 9px; border-radius: 2px; background: currentColor; }
+.dictation-feedback { flex-shrink: 0; margin-top: 8px; margin-bottom: 8px; padding: 10px 12px; border-radius: 12px; background: #e8eee9; color: #416657; }
+.dictation-caption { font-size: 14px; line-height: 22px; }
+.dictation-transcript { max-height: 90px; margin-top: 4px; color: #1b1c1c; font-size: 18px; line-height: 30px; overflow-wrap: anywhere; }
+.dictation-failed { background: #f5e8df; color: #6f351c; }
 @media (prefers-reduced-motion: reduce) { .topic-moving, .reply-pending > i, .reply-pending > view { animation: none; } .topic-window { overflow-x: auto; } }

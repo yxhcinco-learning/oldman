@@ -134,7 +134,7 @@ Page({
 
   async runDialogue(prompt: string, command: DialogueCommand = 'send', retryId?: string) {
     const draft = this.data.draft;
-    if (!draft || !prompt.trim() || this.data.saving || this.data.voiceBusy || this.data.resultSavePending) return;
+    if (!draft || !prompt.trim() || this.data.saving || this.data.voiceBusy || this.data.voicePressing || this.data.resultSavePending) return;
     this.setData({ saving: true, error: '' });
     try {
       if (!await miniServices().aiConsent.ensure()) { this.setData({ error: '没有发送给小文，输入仍然保留。' }); return; }
@@ -177,7 +177,7 @@ Page({
   changeQuestion() { void this.runDialogue('换个问题', 'change'); },
   confirmEdit() { void this.runDialogue(this.data.pendingEdit, 'confirm-edit'); },
   async continueInterview() {
-    if (!this.data.draft || !this.data.session || this.data.saving || this.data.resultSavePending) return;
+    if (!this.data.draft || !this.data.session || this.data.saving || this.data.voiceBusy || this.data.voicePressing || this.data.resultSavePending) return;
     this.setData({ saving: true });
     try {
       const result = await miniServices().articleAi.continueInterview(this.data.draft, this.data.session);
@@ -197,7 +197,7 @@ Page({
   },
 
   pressDictation() {
-    if (this.data.saving || this.data.resultSavePending) return;
+    if (this.data.saving || this.data.resultSavePending || this.data.voiceBusy || this.data.voicePressing) return;
     this.setData({ error: '', voicePressing: true });
     speechHold.press(() => void miniServices().speech.start(text => this.acceptDictation(text)));
   },
@@ -230,7 +230,7 @@ Page({
 
   async composeArticle() { await this.runDialogue('结束访谈并整理', 'finish'); },
   async toggleInterview() {
-    if (this.data.saving || this.data.voiceBusy || this.data.resultSavePending || !this.data.draft) return;
+    if (this.data.saving || this.data.voiceBusy || this.data.voicePressing || this.data.resultSavePending || !this.data.draft) return;
     if (this.data.mode === 'interview') { await this.composeArticle(); return; }
     this.setData({ saving: true, error: '' });
     try {

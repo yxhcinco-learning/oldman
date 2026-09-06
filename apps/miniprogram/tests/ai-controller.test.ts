@@ -39,6 +39,19 @@ const setup = (transport: MiniAiTransport) => {
 };
 
 describe('小程序小文文章会话', () => {
+  it('正文待确认语音不拦对话也不进请求；采用和旧正文动作仍保护原文', async () => {
+    const transport = new ResultTransport({ answer: '可以一起写。', body: '小诗一首', dialogue: { intent: 'edit' }, citedVersionIds: [] });
+    const { controller, repository } = setup(transport);
+    const draft = { ...writing('已确认正文'), pendingVoice: '还未确认的私密口述' };
+    const result = await controller.run(draft, null, 'dialogue', '我想写首诗，可以吗？');
+    expect(result.accepted).toBe(true);
+    expect(transport.requests).toHaveLength(1);
+    expect(JSON.stringify(transport.requests)).not.toContain(draft.pendingVoice);
+    expect((await repository.load()).works[0].draft.pendingVoice).toBe(draft.pendingVoice);
+    await expect(controller.apply(result.draft, result.session, result.turnId!)).rejects.toThrow('正文已发生变化');
+    expect((await controller.run(result.draft, result.session, 'polish')).accepted).toBe(false);
+    expect(transport.requests).toHaveLength(1);
+  });
   it('回复保存失败保住结果，重开恢复并重试保存，不重复调用或发布模式', async () => {
     const files = new MemoryFileSystem();
     const repository = new MiniWorkRepository(files, '/reply-rescue', clock);

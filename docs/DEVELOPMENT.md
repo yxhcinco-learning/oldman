@@ -42,4 +42,6 @@
 
 独立自动化入口 `node apps/miniprogram/scripts/qa-dialogue-simulator.mjs`：通过 CLI `auto --project <小程序绝对路径> --auto-port 9420 --port <当前IDE端口>` 启用，等待编译后连接。`MINI_AUTOMATOR_PATH` 指向本机独立安装的 miniprogram-automator，`MINI_QA_OUTPUT` 指向非提交截图目录。开始前停首页、无用户编辑；运行期间不要修改小程序源码（热编译会重置替身），结束恢复原服务和首页。测试使用每次独立 qa-dialogue 目录、模拟网络响应，不上传、不调用付费模型。脚本输出实际窗口尺寸；360×640、390×844、430×932分别设置真实模拟器机型，不用 mock 系统信息冒充尺寸验收。
 
+上述模拟器脚本默认包含两页长按语音回归；设置 `MINI_QA_DICTATION_ONLY=1` 可只运行语音定点检查。真实前端语音状态机接设备/权限/Socket替身，覆盖录音布局、短按、取消、转写后发送以及正文待确认内容隔离，不申请真实麦克风权限或使用 ASR。DevTools 的 `tap()` 返回不等于页面事件已执行，断言和下一步松手前须等待事件落地；不能把测试触摸延迟当成产品自动发送。
+
 `scripts/dialogue-live-check.ts` 是显式真实模型入口：默认3次问候/素材/整理，`--pending-edit` 最多3次改文/反问/撤回，`--cancel-edit` 为单次撤回定点复验。先估算费用，每次最多30000输入估算tokens/2048输出tokens，失败即停、不自动重试；不纳入 CI。本地费用单价未配置不代表免费。

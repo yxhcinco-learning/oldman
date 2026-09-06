@@ -207,12 +207,13 @@ Page({
   },
 
   pressBodyVoice() {
+    if (this.data.xiaowenOpen || this.data.voiceBusy || this.data.voicePressing) return;
     this.setData({ voiceTarget: 'body', voicePressing: true, notice: '', error: '' });
     speechHold.press(() => void miniServices().speech.start(text => this.acceptBodyDictation(text)));
   },
 
   pressXiaoWenVoice() {
-    if (this.data.operationBusy || this.data.resultSavePending) return;
+    if (this.data.operationBusy || this.data.resultSavePending || this.data.voiceBusy || this.data.voicePressing) return;
     this.setData({ voiceTarget: 'xiaowen', voicePressing: true, xiaowenError: '' });
     speechHold.press(() => void miniServices().speech.start(text => this.acceptXiaoWenDictation(text)));
   },
@@ -423,7 +424,7 @@ Page({
 
   async startInterview() {
     const draft = this.currentDraft();
-    if (!draft || this.data.operationBusy || this.data.voiceBusy || this.data.resultSavePending) return;
+    if (!draft || this.data.operationBusy || this.data.voiceBusy || this.data.voicePressing || this.data.resultSavePending) return;
     try {
       this.adoptAiContext(await miniServices().articleAi.startInterview(draft, this.data.session));
       await this.openXiaoWen();
@@ -449,7 +450,7 @@ Page({
 
   async runXiaoWen(action: AiAction, prompt: string, turnPrompt?: string, command: DialogueCommand = 'send', retryId?: string) {
     const draft = this.currentDraft();
-    if (!draft || this.data.operationBusy || this.data.resultSavePending) return;
+    if (!draft || this.data.operationBusy || this.data.voiceBusy || this.data.voicePressing || this.data.resultSavePending) return;
     this.setData({ operationBusy: true });
     try {
     if (!await miniServices().aiConsent.ensure()) {
