@@ -55,7 +55,7 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
   const conversation = draft ? conversationOf(session ?? newSession(draft), draft) : null;
   const interviewMode = conversation?.mode === 'interview';
   const messages = draft ? conversationView(session ?? newSession(draft), draft) : [];
-  useEffect(() => { chatScroll.current?.scrollTo({ top: chatScroll.current.scrollHeight }); }, [page, lastTurn?.id, lastTurn?.status, draft?.materials.length]);
+  useEffect(() => { chatScroll.current?.scrollTo({ top: chatScroll.current.scrollHeight }); }, [page, lastTurn?.id, lastTurn?.status, messages.length, draft?.materials.length]);
   useEffect(() => {
     if (feedback?.kind !== 'notice') return;
     const current = feedback;
@@ -165,7 +165,7 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
           setSaving(false); if (ok) { setPage('chat'); setFeedback({ message: '未采用，正文未变。', kind: 'notice' }); }
         }}>暂不使用</button><button type="button" className="primary-button" disabled={busy || stale || Boolean(draft.pendingVoice.trim()) || Boolean(draft.segmentEdit)} onClick={() => void apply()}>用这篇</button></div></>}
         {turn.status === 'applied' && <button className="ai-secondary" type="button" disabled={busy} onClick={() => undo(turn)}>撤销这次{editLabel(turn.action)}</button>}
-        {stale && !['question', 'interview'].includes(turn.action) && <button className="ai-secondary" type="button" disabled={busy} onClick={() => request(turn.action, isConversationEdit(turn.action) ? turn.prompt : '')}>按最新正文重新{editLabel(turn.action)}</button>}
+        {turn.status === 'ready' && stale && !['question', 'interview'].includes(turn.action) && <button className="ai-secondary" type="button" disabled={busy} onClick={() => request(turn.action, isConversationEdit(turn.action) ? turn.prompt : '')}>按最新正文重新{editLabel(turn.action)}</button>}
       </>}
 
       {page === 'chat' && conversation && <>

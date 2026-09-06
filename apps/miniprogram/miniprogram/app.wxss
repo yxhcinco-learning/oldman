@@ -48,6 +48,7 @@ button::after { border: 0; }
 @media (prefers-reduced-motion: reduce) { .thinking-dots { animation: none; } }
 .xiaowen-topic { flex: 0 0 auto; padding: 0 24px 8px; color: #944924; font-size: 14px; line-height: 22px; overflow-wrap: anywhere; }
 .conversation-topic { flex: 0 0 auto; min-width: 0; padding: 12px 24px 0; margin: 0; border-radius: 0; background: #e8eee9; }
+.conversation-event { padding: 4px 0; color: #717974; font-size: 14px; line-height: 22px; background: transparent; }
 .topic-heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .topic-heading image, .topic-heading > .icon { flex: 0 0 22px; width: 22px; height: 22px; color: #416657; }
 .topic-window { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; font-size: 18px; line-height: 28px; color: #153b2e; }

@@ -118,6 +118,10 @@ it('previews a real optimization before applying and persists an undo as history
   expect(resultAction.parentElement).toBe(undoAction.parentElement);
   expect(screen.queryByText('和小文聊聊')).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: '开启访谈' }).closest('section')).toHaveClass('topic-compact');
+  fireEvent.click(resultAction);
+  expect(screen.queryByText('按最新正文重新调整')).not.toBeInTheDocument();
+  expect(screen.queryByText(/正文已发生变化/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: '返回上一级' }));
   fireEvent.click(screen.getByRole('button', { name: '查看修改记录' }));
   expect(screen.getByText(/这篇文章曾应用 AI 辅助候选/)).toBeInTheDocument();
   expect(screen.getAllByText('AI 辅助生成 · 请核对').length).toBeGreaterThan(0);
@@ -431,6 +435,24 @@ it('uses a bounded autosizing conversation input beside voice and explicit send 
   fireEvent.change(input, { target: { value: '' } });
   expect(input.style.height).toBe('52px');
   expect(input.style.overflowY).toBe('hidden');
+});
+it('停止后只在助手回复位置保留一次反馈，开启访谈清除旧请求错误', async () => {
+  localStorage.setItem('suiyue-article-ai-consent-v2', 'yes');
+  const transport = vi.fn(async (_request: AiRequest, signal: AbortSignal) => {
+    await new Promise<void>((_resolve, reject) => signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true }));
+    throw new Error('unexpected completion');
+  });
+  render(<ProductApp repository={repo()} aiTransport={transport} />); await startWriting(); openXiaoWen();
+  fireEvent.change(screen.getByLabelText('问问小文'), { target: { value: '请帮我看看' } });
+  fireEvent.click(screen.getByRole('button', { name: '发送' }));
+  await waitFor(() => expect(transport).toHaveBeenCalledOnce());
+  fireEvent.click(screen.getByRole('button', { name: '停止回复' }));
+  await screen.findByRole('button', { name: '重新发送' });
+  expect(screen.getAllByRole('alert')).toHaveLength(1);
+  expect(screen.getByRole('alert').closest('.message-bubble')).not.toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '开启访谈' }));
+  await screen.findByText('访谈中');
+  expect(screen.getAllByRole('alert')).toHaveLength(1);
 });
 it('keeps a XiaoWen request running while minimized and reports processing then unread completion', async () => {
   localStorage.setItem('suiyue-article-ai-consent-v2', 'yes');

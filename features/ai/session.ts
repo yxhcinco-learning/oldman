@@ -30,7 +30,7 @@ export class ArticleAiController {
   async startInterview() {
     const draft = this.workspace.state.draft;
     if (!draft || this.active || this.state.busy) return false;
-    this.patch({ busy: true });
+    this.patch({ busy: true, error: '' });
     try { return await this.workspace.updateSession(draft.id, session => startInterview(session, draft, newId())); }
     finally { this.patch({ busy: false }); }
   }
@@ -90,7 +90,7 @@ export class ArticleAiController {
   async cancel() {
     const active = this.active;
     if (!active) return;
-    this.active = undefined; active.controller.abort(); this.patch({ busy: false, error: '已取消请求，原文未改变。' });
+    this.active = undefined; active.controller.abort(); this.patch({ busy: false, error: '' });
     const session = this.workspace.getSession(active.workId);
     if (!session?.turns.some(t => t.id === active.id && t.status === 'running')) return;
     await this.workspace.updateSession(active.workId, current => ({ ...current, turns: current.turns.map(t => t.id === active.id && t.status === 'running'

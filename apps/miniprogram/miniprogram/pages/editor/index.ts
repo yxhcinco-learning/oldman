@@ -432,7 +432,7 @@ Page({
     if (!id) return;
     void miniServices().articleAi.cancel(id).then(context => {
       if (context) this.adoptAiContext(context);
-      this.setData({ operationBusy: false, xiaowenRunning: false, xiaowenError: '已取消请求，正文未改变。' });
+      this.setData({ operationBusy: false, xiaowenRunning: false, xiaowenError: '' });
     });
   },
 
@@ -446,7 +446,7 @@ Page({
     this.setData({ xiaowenView: 'preview', selectedTurnId: turnId,
       candidateTitle: actionEditLabel(turn) === '整理' ? '整理后的文章' : '调整后的文章',
       candidateSummary: resultSummary(turn.result, base.body), candidateBody: turn.result.body, candidateOriginalBody: base.body,
-      candidateShowOriginal: false, candidateStale: !sameDocument(base, documentOf(draft)), candidateStatus: turn.status,
+      candidateShowOriginal: false, candidateStale: turn.status === 'ready' && !sameDocument(base, documentOf(draft)), candidateStatus: turn.status,
       candidateEditLabel: actionEditLabel(turn), xiaowenError: '' });
   },
 

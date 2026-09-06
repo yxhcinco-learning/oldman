@@ -145,7 +145,11 @@ try {
   const undoAction = await page.$('.article-result-actions .article-undo');
   check('看看文章与撤销同排并保留触控高度', readAction && undoAction && Math.abs((await readAction.offset()).top - (await undoAction.offset()).top) <= 2 && (await undoAction.size()).height >= 48);
   await mini.screenshot({ path: resolve(output, 'applied-actions.png') });
-  await undoAction.tap();
+  check('系统切换事件不冒充助手气泡', (await page.$$('.conversation-event')).length > 0);
+  await readAction.tap();
+  check('已采用文章再看不误报版本冲突', await page.data('candidateStatus') === 'applied' && !await page.data('candidateStale'));
+  await page.callMethod('backToConversation');
+  await (await page.$('.article-result-actions .article-undo')).tap();
   await current('editor');
   check('撤销恢复原文且保留版本', await page.data('body') === '');
   await send('你来问我吧', { result: result('start', '我们接着聊，那次判断发生了什么？') }, 'interview');
