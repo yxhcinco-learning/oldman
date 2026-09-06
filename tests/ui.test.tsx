@@ -114,7 +114,10 @@ it('previews a real optimization before applying and persists an undo as history
   const undoAction = screen.getByRole('button', { name: '撤销这次调整' });
   expect(resultAction).toHaveClass('article-result-link');
   expect(undoAction).toHaveClass('ai-turn-undo');
-  expect(resultAction.closest('.ai-assistant-message')).toBe(undoAction.closest('.ai-assistant-message'));
+  expect(resultAction.parentElement).toHaveClass('ai-turn-actions');
+  expect(resultAction.parentElement).toBe(undoAction.parentElement);
+  expect(screen.queryByText('和小文聊聊')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '开启访谈' }).closest('section')).toHaveClass('topic-compact');
   fireEvent.click(screen.getByRole('button', { name: '查看修改记录' }));
   expect(screen.getByText(/这篇文章曾应用 AI 辅助候选/)).toBeInTheDocument();
   expect(screen.getAllByText('AI 辅助生成 · 请核对').length).toBeGreaterThan(0);

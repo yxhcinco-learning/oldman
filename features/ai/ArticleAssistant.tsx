@@ -185,11 +185,13 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
                 {message.canRetry && item && <>
                   <p role="alert">{message.error}</p><button type="button" disabled={busy} onClick={() => request(item.action, item.prompt, undefined, false, item.command, item.id)}>重新发送</button>
                 </>}
-                {message.hasCandidate && item && <button className="article-result-link" type="button" onClick={() => showTurn(item.id)}>看看文章 <Icon name="chevron" /></button>}
+                {message.hasCandidate && item && <div className="ai-turn-actions">
+                  <button className="article-result-link ai-turn-primary" type="button" onClick={() => showTurn(item.id)}>看看文章 <Icon name="chevron" /></button>
+                  {item.status === 'applied' && <button className="ai-turn-undo" type="button" disabled={busy} aria-label={`撤销这次${editLabel(item.action)}`} onClick={() => undo(item)}><Icon name="undo" />撤销</button>}
+                </div>}
               </div>
                 {message.role === 'assistant' && item?.result?.body && <div className="ai-turn-meta">
                   <span className="ai-turn-state">{turnStateLabel(item, session?.versions.find(v => v.id === item.inputVersionId)?.body)}</span>
-                  {item.status === 'applied' && <button className="ai-turn-undo" type="button" disabled={busy} onClick={() => undo(item)}>撤销这次{editLabel(item.action)}</button>}
                 </div>}
               </div>
             </div>;

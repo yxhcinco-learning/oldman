@@ -87,6 +87,8 @@ try {
   await new Promise(resolve => setTimeout(resolve, 300));
   check('长主题实际测量溢出并启用单行滚动', await page.data('topicDistance') > 0 && (await (await page.$('.topic-window')).size()).height <= 30);
   await mini.screenshot({ path: resolve(output, 'topic-long.png') });
+  const fullTopic = await page.$('.conversation-topic');
+  check('访谈主题通栏且高度紧凑', (await fullTopic.offset()).left === 0 && (await fullTopic.size()).height <= 96);
   await page.setData({ draft: { ...originalDraft, topicSnapshot: { ...originalDraft.topicSnapshot, title: '短主题' } } });
   await page.callMethod('onResize');
   await new Promise(resolve => setTimeout(resolve, 300));
@@ -137,7 +139,13 @@ try {
   await (await page.$('.candidate-apply')).tap();
   await current('editor');
   check('明确采用才写入正文', await page.data('body') === '我在工厂工作了三十年。');
-  await page.callMethod('undoTurn', { currentTarget: { dataset: { id: turn.id } } });
+  const compactTopic = await page.$('.conversation-topic.topic-compact');
+  check('结束后顶部收为一行并去除闲聊标签', compactTopic && (await compactTopic.size()).height <= 60 && !await page.$('.topic-state'));
+  const readAction = await page.$('.article-result-actions .article-result-link');
+  const undoAction = await page.$('.article-result-actions .article-undo');
+  check('看看文章与撤销同排并保留触控高度', readAction && undoAction && Math.abs((await readAction.offset()).top - (await undoAction.offset()).top) <= 2 && (await undoAction.size()).height >= 48);
+  await mini.screenshot({ path: resolve(output, 'applied-actions.png') });
+  await undoAction.tap();
   await current('editor');
   check('撤销恢复原文且保留版本', await page.data('body') === '');
   await send('你来问我吧', { result: result('start', '我们接着聊，那次判断发生了什么？') }, 'interview');

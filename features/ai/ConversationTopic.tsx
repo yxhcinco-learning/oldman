@@ -12,12 +12,12 @@ export function ConversationTopic({ title, interview, disabled, onToggle }: { ti
     const observer = new ResizeObserver(measure);
     observer.observe(viewport.current);
     return () => observer.disconnect();
-  }, [title]);
-  return <section className="conversation-topic">
+  }, [title, interview]);
+  return <section className={`conversation-topic${!interview ? ' topic-compact' : ''}`}>
     {title && <div className="topic-heading"><Icon name="book" /><div ref={viewport} className="topic-window" title={title}>
       <span ref={text} className={`topic-text ${distance > 1 ? 'topic-moving' : ''}`} style={{ '--topic-distance': `-${distance}px`, '--topic-duration': `${Math.max(7, distance / 16 + 3)}s` } as CSSProperties}>{title}</span>
     </div></div>}
-    <div className="ai-mode-bar"><span className="topic-state">{interview ? '访谈中' : '和小文聊聊'}</span>
+    <div className="ai-mode-bar">{interview && <span className="topic-state">访谈中</span>}
       <button type="button" disabled={disabled} aria-label={interview ? '访谈已开启，结束访谈并整理' : '开启访谈'} onClick={onToggle}>{interview ? '结束访谈并整理' : '开启访谈'}</button>
     </div>
   </section>;

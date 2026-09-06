@@ -88,6 +88,11 @@ button.mic { position: relative; display: grid; width: 76px; min-width: 76px; ma
 .dialog-actions .confirm { background: #153b2e; color: #fff; }
 .xiaowen-panel { display: flex; width: 100%; height: min(72vh, 620px); max-height: calc(100% - 48px); flex: 0 1 auto; flex-direction: column; padding: 12px 24px max(8px, env(safe-area-inset-bottom)); overflow: hidden; overscroll-behavior: contain; border-radius: 24px 24px 0 0; background: #fbf9f8; }
 .xiaowen-panel > .sheet-handle { margin-bottom: 16px; }
+.xiaowen-panel > .conversation-topic { margin: 8px -24px 0; }
+.article-result-actions { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; margin-top: 12px; }
+.xiaowen-answer .article-result-actions .article-result-link { flex: 1; min-width: 0; width: auto; margin: 0; padding: 10px 12px; white-space: nowrap; }
+.article-result-actions .article-undo { display: flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 4px; min-height: 48px; width: auto; margin: 0; padding: 8px; background: transparent; color: #416657; font-size: 16px; line-height: 26px; white-space: nowrap; }
+.article-undo image { width: 18px; height: 18px; }
 .xiaowen-header { display: flex; min-height: 48px; align-items: center; justify-content: space-between; gap: 8px; }
 .xiaowen-title { min-width: 60px; flex: 1; }
 .xiaowen-header text { display: block; color: #153b2e; font-family: "Songti SC", serif; font-size: 20px; font-weight: 600; line-height: 28px; }
@@ -151,6 +156,7 @@ button.mic { position: relative; display: grid; width: 76px; min-width: 76px; ma
   .body-wrap { padding-right: 20px; padding-left: 20px; }
   .editor-toolbar { padding-right: 12px; padding-left: 12px; gap: 6px; }
   .voice-stage, .title-dialog, .pending-dialog, .xiaowen-panel { padding-right: 20px; padding-left: 20px; }
+  .xiaowen-panel > .conversation-topic { margin-left: -20px; margin-right: -20px; }
   .xiaowen { padding-right: 12px; padding-left: 12px; }
   .dialog-actions { gap: 8px; }
 }
