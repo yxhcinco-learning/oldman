@@ -6,6 +6,8 @@
 
 日常在当前仓库 main 工作，不另建副本或擅自操作分支。每个通过检查的小阶段仅提交本任务文件，不自动推送、部署或上传。OpenSpec CLI 使用锁定版本：npx openspec list，按实际变更 ID 读取 proposal/specs/design/tasks，完成且证据齐全后 npx openspec archive <change-id> --yes，同步后再次验证。
 
+项目 OpenSpec CLI 固定为 1.12.0，使用 `npx openspec` 或 npm 脚本调用本地依赖；全局安装独立更新，不决定项目版本。升级时执行 `npm install --save-dev --save-exact @fission-ai/openspec@<目标版本>`，再执行 `npx openspec update` 刷新项目技能。新版技能位于 `.agents/skills/`，包含归档所需的规格同步技能；保留现有工作流选择。核对生成文件差异、通过完整检查与构建后，一起提交依赖声明、锁文件和项目技能。
+
 ## 命令与端口
 
 使用 .nvmrc 的 Node 24.14.1，在仓库根目录 npm ci。导入 apps/miniprogram 到微信开发者工具；本机身份与私有配置规则见[小程序工程说明](../apps/miniprogram/README.md)，私有配置与秘密不进 Git。
