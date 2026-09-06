@@ -1,5 +1,6 @@
 import { cloudChangesSchema, cloudMutationResultSchema, cloudWorkSchema, type CloudMutation } from '../domain/core';
 import { AccountRequestError, type AccountPlatform, type MiniSessionAuthorizer } from '../auth/account-client';
+import { errorMessage } from '../ui/error-message';
 
 export class MiniCloudTransport {
   constructor(private readonly auth: MiniSessionAuthorizer, private readonly platform: AccountPlatform) {}
@@ -8,7 +9,7 @@ export class MiniCloudTransport {
     if (result.statusCode < 200 || result.statusCode >= 300) {
       const error = result.data as { code?: unknown; error?: unknown } | null;
       throw new AccountRequestError(typeof error?.code === 'string' ? error.code : 'cloud_unavailable',
-        typeof error?.error === 'string' && error.error.length < 400 ? error.error : '云保存暂不可用，请重试。', result.statusCode);
+        errorMessage(error?.error, '同步暂未完成，请重试。'), result.statusCode);
     }
     return result.data;
   }

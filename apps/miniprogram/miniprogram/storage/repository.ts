@@ -27,8 +27,8 @@ export interface RepositorySnapshot {
 
 export class MiniSessionSaveError extends Error {
   constructor(readonly context: { draft: Draft; session: ArticleSession; work: Work | null }, readonly durable: boolean) {
-    super(durable ? '小文回复尚未写入作品，已保留本机恢复记录。请重试保存，不会重新请求小文。'
-      : '小文回复仅暂存于内存，请勿关闭微信。请重试保存或救援导出，不会重新请求小文。');
+    super(durable ? '回复暂未保存到作品，已保留恢复副本。请重试保存。'
+      : '回复还未保存，请先重试或导出当前内容，暂时不要关闭微信。');
     this.name = 'MiniSessionSaveError';
   }
 }
@@ -44,7 +44,7 @@ function assertReplyPreserved(stored: ArticleSession | null | undefined, next: A
     return !incoming || stableJson(incoming.result) !== stableJson(turn.result)
       || Boolean(turn.appliedVersionId && (incoming.appliedVersionId !== turn.appliedVersionId || incoming.status !== turn.status))
       || Boolean(turn.revertedVersionId && incoming.revertedVersionId !== turn.revertedVersionId);
-  })) throw new MiniStorageError('conflict', { message: '小文已有新的回复，旧状态未覆盖。请重新打开小文或先救援导出。' });
+  })) throw new MiniStorageError('conflict', { message: '小文已有新的回复，旧状态未覆盖。请重新打开小文或先导出当前内容。' });
 }
 const zodParseContext = { jitless: true } as const;
 
@@ -270,7 +270,12 @@ export class MiniWorkRepository {
     return { recovery: { draft: record.draft, revision: record.expectedRevision }, session: record.session, writingState: record.writingState };
   }
 
-  async load(): Promise<RepositorySnapshot> {
+  load(): Promise<RepositorySnapshot> {
+    // Loading also rebuilds the index and cleans journals; it is a storage transaction.
+    return this.enqueue(() => this.loadInternal()).catch(error => { throw storageError(error); });
+  }
+
+  private async loadInternal(): Promise<RepositorySnapshot> {
     await this.initialize();
     const index = await this.rebuildIndex();
     const aggregates: WorkAggregate[] = [];
@@ -287,7 +292,7 @@ export class MiniWorkRepository {
         if (name !== `${record.workId}.result.json` || !record.session) throw new Error('invalid');
         const stored = aggregates.find(item => item.work.id === record.workId);
         if (stored && stableJson(stored.session) === stableJson(record.session)) {
-          await this.clearPendingSession(record.workId);
+          await this.clearPendingSessionInternal(record.workId);
         } else pendingSessions.push(record);
       } catch {
         this.issues.push({ category: 'corrupt', message: '一份小文回复恢复记录暂时无法读取，原文件仍保留。', fileName: name });
@@ -310,7 +315,11 @@ export class MiniWorkRepository {
     });
   }
 
-  async clearPendingSession(id: string) {
+  clearPendingSession(id: string) {
+    return this.enqueue(() => this.clearPendingSessionInternal(id));
+  }
+
+  private async clearPendingSessionInternal(id: string) {
     workFileName(id);
     await this.safeRemove(`${this.paths.root}/${id}.result.json`);
   }
@@ -329,7 +338,7 @@ export class MiniWorkRepository {
       const journalPath = `${this.paths.root}/${draftSnapshot.id}.result.json`;
       if (await this.files.exists(journalPath)) {
         const journal = recoveryRecordSchema.parse(JSON.parse(await this.files.readText(journalPath)), zodParseContext);
-        if (stableJson(journal.session) !== stableJson(sessionSnapshot)) throw new MiniStorageError('conflict', { message: '请先保存已收到的小文回复，或救援导出。' });
+        if (stableJson(journal.session) !== stableJson(sessionSnapshot)) throw new MiniStorageError('conflict', { message: '请先保存已收到的小文回复，或导出当前内容。' });
       }
       // Aggregate commit may succeed before index/cleanup fails. Explicit retry is idempotent.
       if (current?.work.revision === expectedRevision + 1 && stableJson(current.work.draft) === stableJson(draftSnapshot)
@@ -473,8 +482,11 @@ export class MiniWorkRepository {
     });
   }
 
-  async allAggregates(includeClaimed = false): Promise<WorkAggregate[]> {
-    await this.flush();
+  allAggregates(includeClaimed = false): Promise<WorkAggregate[]> {
+    return this.enqueue(() => this.readAllAggregates(includeClaimed)).catch(error => { throw storageError(error); });
+  }
+
+  private async readAllAggregates(includeClaimed: boolean): Promise<WorkAggregate[]> {
     await this.initialize();
     const values: WorkAggregate[] = [];
     for (const name of await this.files.list(this.paths.works)) {
@@ -523,7 +535,7 @@ export class MiniWorkRepository {
         if (current.work.revision !== cloud.operationRevision) await this.recoveryCopy(current);
         await this.safeRemove(workFilePath(this.paths, id));
         await this.clearRecoveryInternal(id);
-        await this.clearPendingSession(id);
+        await this.clearPendingSessionInternal(id);
         await this.rebuildIndex();
         return;
       }
@@ -563,11 +575,11 @@ export class MiniWorkRepository {
       if (await this.files.exists(this.paths.recovery)) {
         const record = recoveryRecordSchema.parse(JSON.parse(await this.files.readText(this.paths.recovery)), zodParseContext);
         if (record.workId === remote.id && record.expectedRevision === (current?.work.revision ?? 0)) {
-          throw new MiniStorageError('conflict', { message: '本机还有待恢复输入，请先保存或救援导出，再同步云作品。' });
+          throw new MiniStorageError('conflict', { message: '本机还有待恢复输入，请先保存或导出当前内容，再同步云作品。' });
         }
       }
       if (await this.files.exists(`${this.paths.root}/${remote.id}.result.json`)) {
-        throw new MiniStorageError('conflict', { message: '本机还有小文回复待保存，请先重试保存或救援导出。' });
+        throw new MiniStorageError('conflict', { message: '本机还有小文回复待保存，请先重试保存或导出当前内容。' });
       }
       if (current && (current.cloud?.syncedRevision ?? 0) < current.work.revision) await this.recoveryCopy(current);
       if (remote.purged || !remote.snapshot) {
@@ -657,7 +669,7 @@ export class MiniDraftWriter {
     const sessionSnapshot = session ? clone(session) : undefined;
     const writingState = this.writingStates.get(snapshot.id);
     const job = this.tail.catch(() => undefined).then(async () => {
-      if (this.pending.has(snapshot.id)) throw new Error('请先保存小文已收到的回复，或救援导出。');
+      if (this.pending.has(snapshot.id)) throw new Error('请先保存小文已收到的回复，或导出当前内容。');
       const next = await this.repository.save(snapshot, this.revisions.get(snapshot.id) ?? 0, sessionSnapshot, writingState);
       this.revisions.set(snapshot.id, next?.revision ?? 0);
       return next;
@@ -671,7 +683,7 @@ export class MiniDraftWriter {
     const sessionSnapshot = session ? clone(session) : undefined;
     const writingState = this.writingStates.get(snapshot.id);
     const job = this.tail.catch(() => undefined).then(async () => {
-      if (this.pending.has(snapshot.id)) throw new Error('请先保存小文已收到的回复，或救援导出。');
+      if (this.pending.has(snapshot.id)) throw new Error('请先保存小文已收到的回复，或导出当前内容。');
       await this.repository.writeRecovery(snapshot, this.revisions.get(snapshot.id) ?? 0, sessionSnapshot, writingState);
     });
     this.tail = job;

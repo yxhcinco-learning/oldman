@@ -17,6 +17,7 @@
 .sync-muted { background: #9ba59d; }
 .sync-row button { width: auto; max-width: none; min-width: 48px; min-height: 48px; margin: -10px 0; padding: 10px 4px; background: transparent; color: #416657; font-size: 16px; line-height: 26px; }
 .account-error { margin-top: 12px; color: #944924; font-size: 14px; line-height: 22px; }
+.sync-row .account-error { flex: 1; min-width: 0; margin-top: 0; }
 .profile-section-label { margin-bottom: 12px; color: #717974; font-size: 14px; line-height: 22px; }
 .tool-list { width: 100%; padding: 0 16px; border-radius: 16px; background: #fff; box-shadow: 0 4px 20px rgba(21, 59, 46, .03); }
 .tool-list .tool { display: flex; width: 100%; max-width: none; min-width: 0; min-height: 64px; align-items: center; gap: 16px; padding: 16px 0; border-radius: 0; background: transparent; color: #153b2e; text-align: left; }
@@ -53,3 +54,5 @@
   .backup-sheet { padding-right: 20px; padding-left: 20px; }
   .sheet-tools > button { padding-right: 14px; padding-left: 14px; }
 }
+
+.backup-status { margin-bottom: 16px; color: #717974; font-size: 14px; line-height: 22px; }

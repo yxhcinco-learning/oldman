@@ -7,8 +7,7 @@
       <view class="interview-title">小文</view>
     </view>
   </view>
-  <view class="cloud-save-row" role="status"><text>{{syncLabel}}</text><button wx:if="{{requiresLogin}}" bindtap="goToAccount">微信登录</button><button wx:elif="{{canReconnect}}" bindtap="reconnectCloud">重试</button></view>
-  <view wx:if="{{cloudMessage}}" class="cloud-message">{{cloudMessage}}</view>
+  <view wx:if="{{!error && !resultSavePending && (requiresLogin || canReconnect || cloudMessage)}}" class="cloud-save-row" role="status"><text class="cloud-message">{{cloudMessage || (requiresLogin ? '请重新登录后继续。' : '暂时无法编辑，请重试。')}}</text><button wx:if="{{requiresLogin}}" bindtap="goToAccount">微信登录</button><button wx:elif="{{canReconnect}}" bindtap="reconnectCloud">重试</button></view>
   <view class="interview-context"><view class="conversation-topic {{mode !== 'interview' ? 'topic-compact' : ''}} {{draft.topicSnapshot ? '' : 'topic-absent'}}">
     <view wx:if="{{draft && draft.topicSnapshot}}" class="topic-heading"><image src="/assets/book.svg" /><view class="topic-window"><text class="topic-text {{topicDistance > 1 ? 'topic-moving' : ''}}" style="--topic-distance: -{{topicDistance || 0}}px; --topic-duration: {{topicDuration || 7}}s">{{draft.topicSnapshot.title}}</text></view></view>
     <view class="ai-mode-bar"><text wx:if="{{mode === 'interview'}}" class="topic-state">访谈中</text><button bindtap="toggleInterview" disabled="{{readOnly || saving || voiceBusy || resultSavePending}}">{{mode === 'interview' ? '结束访谈并整理' : '开启访谈'}}</button></view></view>
@@ -26,10 +25,10 @@
   <view class="interview-footer">
     <view wx:if="{{resultSavePending}}" class="interview-error" role="alert">
       <view>{{resultSaveMessage}}</view>
-      <view class="result-save-actions"><button bindtap="retryResultSave" disabled="{{saving}}">重试保存</button><button bindtap="exportRescue">救援导出</button></view>
+      <view class="result-save-actions"><button bindtap="retryResultSave" disabled="{{saving}}">重试保存</button><button bindtap="exportRescue">导出当前内容</button></view>
     </view>
 
-    <view wx:if="{{!resultSavePending && error && !messages[messages.length - 1].error}}" class="interview-error" role="alert">{{error}}</view>
+    <view wx:if="{{!resultSavePending && error && !messages[messages.length - 1].error}}" class="interview-error" role="alert"><view>{{error}}</view><view wx:if="{{inputSaveFailed}}" class="result-save-actions"><button bindtap="saveComposer" disabled="{{saving}}">重试保存</button><button bindtap="exportRescue">导出当前内容</button></view></view>
     <template is="dictation-feedback" data="{{phase: voicePhase, text: voiceText, message: voiceMessage, pressing: voicePressing}}" />
     <view class="composer-row">
       <textarea value="{{composer}}" maxlength="12000" auto-height placeholder="{{mode === 'interview' ? '回复小文' : '问小文，或提要求'}}" placeholder-style="color:#858e88;line-height:30px" disabled="{{readOnly || saving || voiceBusy || resultSavePending}}" disable-default-padding="{{true}}"

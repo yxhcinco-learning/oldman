@@ -3,6 +3,7 @@ import { AccountRequestError, type MiniAccountClient } from '../auth/account-cli
 import type { MiniCloudTransport } from '../network/cloud';
 import type { MiniDraftWriter, MiniWorkRepository } from '../storage/repository';
 import type { WorkAggregate } from '../storage/schema';
+import { errorMessage } from '../ui/error-message';
 
 export interface SyncState { status: 'local' | 'syncing' | 'ready' | 'paused' | 'error'; error: string }
 export class MiniCloudSync {
@@ -46,7 +47,7 @@ export class MiniCloudSync {
     if (this.flight) return this.flight;
     this.failed = false;
     this.flight = this.run().catch(error => {
-      if (this.active) { this.failed = true; if (!(error instanceof AccountRequestError && error.status === 413)) this.readyIds.clear(); this.publish({ status: 'error', error: error instanceof Error ? error.message : '云保存失败，内容仍保留在本机。' }); }
+      if (this.active) { this.failed = true; if (!(error instanceof AccountRequestError && error.status === 413)) this.readyIds.clear(); this.publish({ status: 'error', error: errorMessage(error, '同步暂未完成，请重试。') }); }
       throw error;
     }).finally(() => { this.flight = undefined; });
     return this.flight;

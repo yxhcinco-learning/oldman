@@ -1,3 +1,4 @@
+import { errorMessage } from '../../ui/error-message';
 import { accountPage } from '../../auth/page';
 import { openLogin } from '../../auth/navigation';
 import { writingAccess } from '../../sync/writing-access';
@@ -29,7 +30,7 @@ accountPage({
   alive: true,
   data: {
     ...navigationMetrics(),
-    readOnly: true, cloudVersion: 0, syncLabel: '正在读取', cloudMessage: '', requiresLogin: false, canReconnect: false,
+    readOnly: true, cloudVersion: 0, syncLabel: '正在读取', cloudMessage: '', requiresLogin: false, canReconnect: false, inputSaveFailed: false,
     draft: null as Draft | null,
     session: null as ArticleSession | null,
     revision: 0,
@@ -83,7 +84,7 @@ accountPage({
     try {
       if (!await this.saveComposer() || services !== miniServices()) return;
       await openLogin({ url: '/pages/interview/index?id=' + encodeURIComponent(id ?? ''), workId: id, source: services });
-    } catch (error) { this.setData({ error: error instanceof Error ? error.message : '登录页暂时无法打开，请重试。' }); }
+    } catch (error) { this.setData({ error: errorMessage(error, '登录页暂时无法打开，请重试。') }); }
     finally { this.loginOpening = false; }
   },
   async refreshCloudState() {
@@ -93,7 +94,10 @@ accountPage({
       void this.saveComposer();
     }
     const id = this.data.draft?.id;
-    const aggregate = id ? await this.services.repository.getAggregate(id) : null;
+    const aggregate = id ? await this.services.repository.getAggregate(id).catch(error => {
+      this.setData({ readOnly: true, error: errorMessage(error, '作品暂时无法读取，请重试。') }); return undefined;
+    }) : null;
+    if (aggregate === undefined) return;
     if (this.services !== miniServices() || !this.alive || this.data.draft?.id !== id) return;
     if (aggregate && aggregate.work.revision !== this.data.revision && !this.checkingCloud && !this.composerDirty && !this.services.articleAi.isRunning(aggregate.work.id)) {
       await this.open(aggregate.work.id, false); return;
@@ -149,7 +153,7 @@ accountPage({
     try {
       if (id && verify && !this.services.articleAi.isRunning(id)) {
         try { await this.services.sync.open(id); }
-        catch (error) { this.setData({ cloudMessage: error instanceof Error ? error.message : '请联网核对云作品。' }); }
+        catch (error) { this.setData({ cloudMessage: errorMessage(error, '请联网核对云作品。') }); }
       }
       const snapshot = await this.services.repository.load();
       if (this.services !== miniServices() || !this.alive) return;
@@ -188,7 +192,7 @@ accountPage({
         error: memory.error || snapshot.issues.map(item => item.message).join(' ') });
       await this.refreshCloudState();
     } catch (error) {
-      this.setData({ error: error instanceof Error ? error.message : '采访暂时无法打开。' });
+      this.setData({ error: errorMessage(error, '采访暂时无法打开。') });
     }
   },
 
@@ -202,6 +206,7 @@ accountPage({
 
   scheduleComposerSave() {
     this.composerDirty = true; this.composerVersion++;
+    this.setData({ syncLabel: '正在保存…' });
     if (this.composerTimer) clearTimeout(this.composerTimer);
     this.composerTimer = setTimeout(() => { this.composerTimer = undefined; void this.saveComposer(); }, 700);
   },
@@ -214,11 +219,12 @@ accountPage({
       const work = await this.services.writer.write(this.data.draft, this.data.session ?? undefined);
       this.composerDirty = version !== this.composerVersion;
       if (this.services !== miniServices() || !this.alive) return !this.composerDirty;
-      this.setData({ revision: work?.revision ?? this.data.revision });
+      this.setData({ revision: work?.revision ?? this.data.revision, inputSaveFailed: false, error: '' });
+      void this.refreshCloudState();
       return !this.composerDirty;
     } catch (error) {
       await this.services.writer.preserve(this.data.draft, this.data.session ?? undefined).catch(() => undefined);
-      this.setData({ error: error instanceof Error ? error.message : '输入尚未保存，请重试或救援导出。' }); return false;
+      this.setData({ inputSaveFailed: true, error: errorMessage(error, '输入尚未保存，请重试或导出当前内容。') }); return false;
     }
   },
   onComposerFocus() {
@@ -279,7 +285,7 @@ accountPage({
         void wx.redirectTo({ url: `/pages/editor/index?id=${encodeURIComponent(draft.id)}&xiaowen=compose` });
       }
     } catch (error) {
-      this.setData({ error: error instanceof Error ? error.message : '小文暂时没有接上，输入仍然保留。' });
+      this.setData({ error: errorMessage(error, '小文暂时没有接上，输入仍然保留。') });
       const pending = this.services.writer.pendingSession(draft.id);
       if (pending) this.setData({ resultSavePending: true, resultSaveMessage: pending.durable ? '回复已留在本机恢复记录中，请先保存到作品。' : '回复仅暂存于内存，请勿关闭微信。',
         messages: this.data.messages.map(message => ({ ...message, text: message.pending ? '' : message.text, pending: false, canRetry: false, error: '' })).filter(message => message.text || message.hasCandidate) });
@@ -290,13 +296,13 @@ accountPage({
     if (!this.data.draft || this.data.saving) return;
     this.setData({ saving: true });
     try { await this.services.writer.retrySessionSave(this.data.draft.id); await this.open(this.data.draft.id); }
-    catch (error) { this.setData({ error: error instanceof Error ? error.message : '回复仍未保存，请救援导出。', resultSaveMessage: error instanceof Error ? error.message : '回复仍未保存，请救援导出。' }); }
+    catch (error) { this.setData({ error: errorMessage(error, '回复仍未保存，请导出当前内容。'), resultSaveMessage: errorMessage(error, '回复仍未保存，请导出当前内容。') }); }
     finally { this.setData({ saving: false }); }
   },
   async exportRescue() {
     if (!this.data.draft) return;
     try { await this.services.backups.rescue(this.data.draft, this.services.writer.pendingSession(this.data.draft.id)?.context.session ?? this.data.session, this.services.conversations.read(this.data.draft.id)); }
-    catch (error) { this.setData({ error: error instanceof Error ? error.message : '救援导出失败。', resultSaveMessage: error instanceof Error ? error.message : '救援导出失败，请重试保存。' }); }
+    catch (error) { this.setData({ error: errorMessage(error, '导出当前内容失败。'), resultSaveMessage: errorMessage(error, '导出当前内容失败，请重试保存。') }); }
   },
 
   changeQuestion() { void this.runDialogue('换个问题', 'change'); },
@@ -366,7 +372,7 @@ accountPage({
     try {
       await this.services.articleAi.startInterview(this.data.draft, this.data.session);
       await this.open(this.data.draft.id);
-    } catch (error) { this.setData({ error: error instanceof Error ? error.message : '访谈尚未开启，请重试。' }); }
+    } catch (error) { this.setData({ error: errorMessage(error, '访谈尚未开启，请重试。') }); }
     finally { this.setData({ saving: false }); }
   },
 

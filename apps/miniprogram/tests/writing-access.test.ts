@@ -12,13 +12,20 @@ describe('云作品编辑与真实确认状态', () => {
   const sync = { canEdit: () => true, snapshot: () => ({ status: 'ready', error: '' }) } as unknown as MiniCloudSync;
   it('只将云确认覆盖的本机版本标为已同步', () => {
     const value = { ...aggregate, work: { ...aggregate.work, revision: 1 } };
-    expect(writingAccess(value, account, sync).syncLabel).toBe('已同步');
-    expect(writingAccess({ ...value, work: { ...value.work, revision: 2 } }, account, sync).syncLabel).toBe('未上传');
-    expect(writingAccess(value, account, sync, false).syncLabel).toBe('正在保存到本机');
+    expect(writingAccess(value, account, sync).syncLabel).toBe('已保存到云端');
+    expect(writingAccess({ ...value, work: { ...value.work, revision: 2 } }, account, sync).syncLabel).toBe('已保存到本机');
+    expect(writingAccess(value, account, sync, false).syncLabel).toBe('正在保存…');
+  });
+  it('空白稿无标签，已确认作品不受其他同步活动影响', () => {
+    expect(writingAccess(null, account, sync).syncLabel).toBe('');
+    const syncing = { ...sync, snapshot: () => ({ status: 'syncing', error: '' }) } as unknown as MiniCloudSync;
+    expect(writingAccess(null, account, syncing).syncLabel).toBe('');
+    expect(writingAccess({ ...aggregate, work: { ...aggregate.work, revision: 1 } }, account, syncing).syncLabel).toBe('已保存到云端');
+    expect(writingAccess({ ...aggregate, cloud: emptyCloudMetadata() }, account, syncing).syncLabel).toBe('正在同步…');
   });
   it('接管或未校验时锁住云作品，本机新稿仍可编辑', () => {
     const paused = { ...sync, canEdit: () => false } as unknown as MiniCloudSync;
-    expect(writingAccess(aggregate, { ...account, status: 'replaced' }, paused)).toMatchObject({ readOnly: true, syncLabel: '需重新登录' });
+    expect(writingAccess(aggregate, { ...account, status: 'replaced' }, paused)).toMatchObject({ readOnly: true, syncLabel: '请重新登录' });
     expect(writingAccess({ ...aggregate, cloud: emptyCloudMetadata() }, { ...account, status: 'offline' }, paused).readOnly).toBe(false);
   });
   it('游客不展示无关账号错误与重连，接管与网络错误提供不同操作', () => {

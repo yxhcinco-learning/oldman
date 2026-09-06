@@ -11,11 +11,10 @@
     </view>
   </view>
 
-  <view class="cloud-save-row" role="status"><text>{{syncLabel}}</text><button wx:if="{{requiresLogin}}" bindtap="goToAccount">微信登录</button><button wx:elif="{{canReconnect}}" bindtap="reconnectCloud">重试</button></view>
-  <view wx:if="{{cloudMessage}}" class="cloud-message">{{cloudMessage}}</view>
-  <view wx:if="{{error}}" class="editor-error" role="alert">
+  <view wx:if="{{!error && !resultSavePending && (requiresLogin || canReconnect || cloudMessage)}}" class="cloud-save-row" role="status"><text class="cloud-message">{{cloudMessage || (requiresLogin ? '请重新登录后继续。' : '暂时无法编辑，请重试。')}}</text><button wx:if="{{requiresLogin}}" bindtap="goToAccount">微信登录</button><button wx:elif="{{canReconnect}}" bindtap="reconnectCloud">重试</button></view>
+  <view wx:if="{{error && !resultSavePending}}" class="editor-error" style="top: {{navigationHeight}}px" role="alert">
     <scroll-view scroll-y class="error-copy">{{error}}</scroll-view>
-    <view class="error-actions"><button bindtap="saveNow">重试保存</button><button bindtap="exportRescue">救援导出</button></view>
+    <view class="error-actions"><button bindtap="saveNow">重试保存</button><button bindtap="exportRescue">导出当前内容</button></view>
   </view>
   <view class="visually-hidden" role="status">{{saving ? '正在自动保存' : saved ? '已自动保存到当前设备' : ''}}</view>
   <view wx:if="{{notice}}" class="editor-notice" role="status">{{notice}}</view>
@@ -107,7 +106,7 @@
 
       <view wx:if="{{resultSavePending}}" class="reply-save" role="alert">
         <view>{{resultSaveMessage}}</view>
-        <view class="result-save-actions"><button bindtap="retryResultSave" disabled="{{operationBusy}}">重试保存</button><button bindtap="exportRescue">救援导出</button></view>
+        <view class="result-save-actions"><button bindtap="retryResultSave" disabled="{{operationBusy}}">重试保存</button><button bindtap="exportRescue">导出当前内容</button></view>
       </view>
       <view wx:if="{{xiaowenView === 'chat'}}" class="conversation-topic topic-compact {{draft.topicSnapshot ? '' : 'topic-absent'}}"><view wx:if="{{draft && draft.topicSnapshot}}" class="topic-heading"><image src="/assets/book.svg" /><view class="topic-window"><text class="topic-text {{topicDistance > 1 ? 'topic-moving' : ''}}" style="--topic-distance: -{{topicDistance || 0}}px; --topic-duration: {{topicDuration || 7}}s">{{draft.topicSnapshot.title}}</text></view></view><view class="ai-mode-bar"><button bindtap="startInterview" disabled="{{readOnly || operationBusy || voiceBusy || resultSavePending}}">开启访谈</button></view></view>
       <scroll-view wx:if="{{xiaowenView === 'chat'}}" class="xiaowen-messages" scroll-y scroll-into-view="xiaowen-end-{{conversationMessages.length}}-{{xiaowenRunning ? 1 : 0}}-{{xiaowenError ? 1 : 0}}">

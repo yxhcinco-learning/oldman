@@ -9,7 +9,6 @@
   <view wx:if="{{loading}}" class="topic-state">正在加载热门话题…</view>
   <view wx:elif="{{error}}" class="topic-state error-panel" role="alert">
     <view class="state-title">{{error}}</view>
-    <view class="state-help">不影响本机文章和写作。</view>
     <button bindtap="loadTopics">重新加载</button>
   </view>
   <view wx:elif="{{topics.length === 0}}" class="topic-state">暂时没有新内容。</view>

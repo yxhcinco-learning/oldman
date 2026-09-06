@@ -1,3 +1,4 @@
+import { errorMessage } from '../../ui/error-message';
 import { accountPage } from '../../auth/page';
 import { writingAccess } from '../../sync/writing-access';
 import { countWords, formatTime, type Work } from '../../domain/core';
@@ -54,7 +55,7 @@ accountPage({
     try {
       await services.writer.flush();
       let cloudIssue = '';
-      if (connect) try { await services.sync.sync(); } catch (error) { cloudIssue = error instanceof Error ? error.message : '云端尚未连接。'; }
+      if (connect) try { await services.sync.sync(); } catch (error) { cloudIssue = errorMessage(error, '云端尚未连接。'); }
       const snapshot = await services.repository.load();
       if (services !== miniServices()) return;
       const cards = snapshot.works.map(work => { const aggregate = snapshot.aggregates?.find(item => item.work.id === work.id) ?? null;
@@ -62,7 +63,7 @@ accountPage({
       this.setData({ loading: false, cards, visible: cards.filter(item => item.deleted === this.data.recycle),
         issue: cloudIssue || services.sync.snapshot().error || snapshot.issues.map(item => item.message).join(' ') });
     } catch (error) {
-      this.setData({ loading: false, issue: error instanceof Error ? error.message : '本机作品暂时无法读取。' });
+      this.setData({ loading: false, issue: errorMessage(error, '本机作品暂时无法读取。') });
     }
   },
 
@@ -77,7 +78,7 @@ accountPage({
 
   startWriting() {
     wx.navigateTo({ url: '/pages/editor/index', fail: error => {
-      const issue = error.errMsg || '写作页暂时无法打开，请重试。';
+      const issue = errorMessage(error, '写作页暂时无法打开，请重试。');
       this.setData({ issue });
       wx.showToast({ title: '写作页暂时无法打开，请重试', icon: 'none' });
     } });
@@ -93,14 +94,14 @@ accountPage({
     const id = String(event.currentTarget.dataset.id);
     const revision = Number(event.currentTarget.dataset.revision);
     try { await this.observed!.sync.lifecycle(id, 'trash', revision); await this.refresh(); }
-    catch (error) { this.setData({ issue: error instanceof Error ? error.message : '移入回收站失败。' }); }
+    catch (error) { this.setData({ issue: errorMessage(error, '移入回收站失败。') }); }
   },
 
   async restore(event: WechatMiniprogram.TouchEvent) {
     const id = String(event.currentTarget.dataset.id);
     const revision = Number(event.currentTarget.dataset.revision);
     try { await this.observed!.sync.lifecycle(id, 'restore', revision); await this.refresh(); }
-    catch (error) { this.setData({ issue: error instanceof Error ? error.message : '恢复失败。' }); }
+    catch (error) { this.setData({ issue: errorMessage(error, '恢复失败。') }); }
   },
 
   viewRecovery(event: WechatMiniprogram.TouchEvent) {
@@ -109,13 +110,13 @@ accountPage({
   async promoteRecovery(event: WechatMiniprogram.TouchEvent) {
     const services = this.observed!;
     try { await services.repository.promoteRecovery(String(event.currentTarget.dataset.id)); await this.refresh(); }
-    catch (error) { this.setData({ issue: error instanceof Error ? error.message : '另存失败，恢复稿仍保留。' }); }
+    catch (error) { this.setData({ issue: errorMessage(error, '另存失败，恢复稿仍保留。') }); }
   },
   async exportRecovery(event: WechatMiniprogram.TouchEvent) {
     const services = this.observed!;
     try { const item = await services.repository.getAggregate(String(event.currentTarget.dataset.id));
       if (item && services === miniServices()) await services.backups.rescue(item.work.draft, item.session, item.writingState);
-    } catch (error) { this.setData({ issue: error instanceof Error ? error.message : '恢复稿导出失败。' }); }
+    } catch (error) { this.setData({ issue: errorMessage(error, '恢复稿导出失败。') }); }
   },
   permanentlyDelete(event: WechatMiniprogram.TouchEvent) {
     const id = String(event.currentTarget.dataset.id);
@@ -125,7 +126,7 @@ accountPage({
       success: result => {
         if (!result.confirm || services !== miniServices()) return;
         void services.sync.lifecycle(id, 'purge', revision).then(() => this.refresh()).catch(error => {
-          this.setData({ issue: error instanceof Error ? error.message : '永久删除失败，作品仍保留在回收站。' });
+          this.setData({ issue: errorMessage(error, '永久删除失败，作品仍保留在回收站。') });
         });
       } });
   },

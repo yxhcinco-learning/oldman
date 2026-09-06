@@ -1,3 +1,4 @@
+import { errorMessage } from '../../ui/error-message';
 import { accountPage } from '../../auth/page';
 import { emptyDraft, formatTime, isTopicCurrent, snapshotTopic, type WritingTopic } from '../../domain/core';
 import { miniTopics } from '../../network/topics';
@@ -41,7 +42,7 @@ accountPage({
         sources: topic.sources.map(source => ({ id: source.id, title: source.title, publisher: source.publisher,
           route: `/pages/source/index?url=${encodeURIComponent(source.url)}&title=${encodeURIComponent(source.title)}` })) });
     } catch (error) {
-      this.setData({ loading: false, error: error instanceof Error ? error.message : '话题暂时无法打开。' });
+      this.setData({ loading: false, error: errorMessage(error, '话题暂时无法打开。') });
     }
   },
 
@@ -65,7 +66,7 @@ accountPage({
       const route = mode === 'interview' ? '/pages/interview/index' : '/pages/editor/index';
       void wx.redirectTo({ url: `${route}?id=${encodeURIComponent(draft.id)}` });
     } catch (error) {
-      this.setData({ error: error instanceof Error ? error.message : '暂时无法建立本机草稿。' });
+      this.setData({ error: errorMessage(error, '暂时无法建立本机草稿。') });
     }
   },
 

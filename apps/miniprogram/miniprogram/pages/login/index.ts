@@ -1,3 +1,4 @@
+import { errorMessage } from '../../ui/error-message';
 import { miniServices, loginMiniAccount, refreshMiniAccount } from '../../services';
 import { finishLogin } from '../../auth/navigation';
 
@@ -26,7 +27,7 @@ Page({
       else await loginMiniAccount();
       await finishLogin(() => this.visible && version === this.visibilityVersion);
     } catch (error) {
-      if (this.visible && version === this.visibilityVersion) this.setData({ error: error instanceof Error ? error.message : '微信登录未成功，请重试。' });
+      if (this.visible && version === this.visibilityVersion) this.setData({ error: errorMessage(error, '微信登录未成功，请重试。') });
     } finally {
       const state = miniServices().account.snapshot();
       this.setData({ busy: false, signedIn: state.status === 'authenticated' || state.status === 'offline' && Boolean(state.account) });

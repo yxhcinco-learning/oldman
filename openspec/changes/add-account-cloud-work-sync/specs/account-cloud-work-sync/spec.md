@@ -51,6 +51,10 @@
 - **WHEN** 最新快照或恢复稿无法落盘
 - **THEN** 不覆盖当前内存、不开放云作品编辑，显示真实失败并提供有限重试或救援
 
+#### Scenario: List refresh overlaps a cloud receipt
+- **WHEN** 页面读取列表、同步确认与本机保存同时发生
+- **THEN** 同一账号仓储按同一队列读取、替换文件及重建索引，不把替换中的文件当作丢失或损坏；仅清理时已不存在的文件可忽略，其他失败保留重试与恢复路径
+
 ### Requirement: Safe initial ownership migration
 系统 SHALL 在主动登录后自动认领当前游客空间尚未归属的作品及回收站，MUST 持久记录归属并允许迁移重试。
 

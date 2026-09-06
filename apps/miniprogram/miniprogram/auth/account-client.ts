@@ -1,5 +1,6 @@
 import { accountLoginSchema, accountProfileSchema, type AccountProfile } from '../domain/core';
 import type { AuthenticatedMiniResponse } from './client';
+import { errorMessage } from '../ui/error-message';
 
 export type AccountStatus = 'guest' | 'connecting' | 'authenticated' | 'offline' | 'expired' | 'replaced';
 export interface AccountState { status: AccountStatus; account: AccountProfile | null; error: string; generation: number }
@@ -18,7 +19,7 @@ export class AccountRequestError extends Error {
 const payloadError = (response: AuthenticatedMiniResponse<unknown>) => {
   const payload = response.data as { code?: unknown; error?: unknown } | null;
   return new AccountRequestError(typeof payload?.code === 'string' ? payload.code : 'request_failed',
-    typeof payload?.error === 'string' && payload.error.length < 400 ? payload.error : '暂时无法连接云端，请稍后重试。', response.statusCode);
+    errorMessage(payload?.error, '暂时无法连接云端，请稍后重试。'), response.statusCode);
 };
 
 export class MiniAccountClient implements MiniSessionAuthorizer {

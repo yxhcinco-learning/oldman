@@ -43,6 +43,11 @@ export class WxLocalFileSystem implements LocalFileSystem {
   }
 
   async remove(path: string) {
-    this.manager.unlinkSync(path);
+    try { this.manager.unlinkSync(path); }
+    catch (error) {
+      const message = String((error as { errMsg?: unknown })?.errMsg ?? (error instanceof Error ? error.message : error));
+      // Cleanup is idempotent; other errors must still reach the recovery flow.
+      if (!/no such file|not found|file (?:not exist|does not exist)|ENOENT/i.test(message)) throw error;
+    }
   }
 }

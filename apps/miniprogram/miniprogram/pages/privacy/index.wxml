@@ -3,7 +3,7 @@
   <view class="privacy-section"><view>微信登录与作品保存</view><text>点击微信授权登录后，首次使用会自动创建账号。本机尚未归属的作品（含回收站）会自动保存到该账号，包括正文、修改记录、小文会话、素材及已保存的输入。头像和昵称可以稍后选填，不需要手机号。</text></view>
   <view class="privacy-section"><view>换设备与退出</view><text>同一时间在一台设备使用。在其他设备登录后，这台设备会暂停在线操作。退出登录会隐藏账号作品，尚未上传的内容仍保留在原账号的本机空间。</text></view>
   <view class="privacy-section"><view>小文与语音</view><text>您明确发送并同意后，必要的文章和对话才会发送给 DeepSeek。语音在授权麦克风后由腾讯云转成文字，不保存原音。登录不会自动录音，也不会自动发送小文请求。</text></view>
-  <view class="privacy-section"><view>本机保存与备份</view><text>“本机已保存”表示文字留在这台设备；“已同步”表示对应内容已保存到云端。未上传的内容请保留设备或导出备份。备份文件包含完整作品和会话，请妥善保管。</text></view>
+  <view class="privacy-section"><view>本机保存与备份</view><text>“已保存到本机”表示文字留在这台设备；“已保存到云端”表示对应内容已完成同步。尚未同步的内容请保留设备或导出备份。备份文件包含完整作品和会话，请妥善保管。</text></view>
   <view class="privacy-section"><view>删除作品</view><text>回收站中的作品可以恢复。永久删除会清除在线正文和会话，其他设备下次连接同步时清理缓存；不会立即擦除离线设备或历史运维备份。</text></view>
   <button class="secondary-action" bindtap="openContract">查看微信隐私保护指引</button>
   <view wx:if="{{error}}" class="error-panel">{{error}}</view>

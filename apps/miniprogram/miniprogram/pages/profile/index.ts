@@ -1,3 +1,4 @@
+import { errorMessage } from '../../ui/error-message';
 import { accountPage } from '../../auth/page';
 import { miniServices, refreshMiniAccount } from '../../services';
 import { openLogin, clearLoginReturn } from '../../auth/navigation';
@@ -31,17 +32,19 @@ accountPage({
     const state = services.account.snapshot(), sync = services.sync.snapshot();
     let readError = '';
     const works = await services.repository.allAggregates().catch(error => {
-      readError = error instanceof Error ? error.message : '本机作品暂时无法读取。'; return [];
+      readError = errorMessage(error, '本机作品暂时无法读取。'); return [];
     });
     if (services !== miniServices()) return;
     const unsent = works.filter(item => !item.cloud?.recoveryOf && (!item.cloud?.version || item.cloud.operation || item.work.revision !== item.cloud.syncedRevision)).length;
     const accountText = { guest: '登录后保存您的作品', connecting: '正在登录', authenticated: '编辑头像与昵称', offline: '当前离线', expired: '登录已过期', replaced: '已在其他设备登录' }[state.status];
     const needsLogin = ['guest', 'expired', 'replaced', 'connecting'].includes(state.status);
+    const cloudIssue = state.error || (sync.status === 'error' ? sync.error : '');
     this.setData({ account: state.account, status: state.status, accountText,
-      needsLogin, canReconnect: Boolean(state.account && !needsLogin && (sync.status === 'error' || sync.status === 'paused' || state.status === 'offline' || unsent)),
-      syncText: readError ? '本机作品读取失败' : needsLogin && state.account ? '需重新登录' : sync.status === 'syncing' ? '正在同步' : sync.status === 'ready' ? unsent ? `${unsent} 篇作品未上传` : '作品已同步' : state.account ? '未上传' : '作品保存在本机',
+      needsLogin, canReconnect: Boolean(state.account && !needsLogin && sync.status !== 'syncing' && (readError || sync.status === 'error' || state.status === 'offline')),
+      syncText: readError ? '作品暂时无法读取' : needsLogin && state.account ? '请重新登录' : sync.status === 'syncing' ? '正在同步…'
+        : !works.length ? '还没有作品' : unsent ? `${unsent} 篇待同步` : works.every(item => item.cloud?.recoveryOf) ? '恢复稿保存在本机' : '作品已保存到云端',
       exportLabel: state.status === 'authenticated' ? '导出全部备份' : '导出本机备份',
-      cloudError: readError || (state.account ? state.error || sync.error : '') });
+      cloudError: readError || (state.account && cloudIssue ? errorMessage(cloudIssue, '保存暂未完成，请重试。') : '') });
     if (!state.account?.hasAvatar) { this.setData({ avatarPath: '' }); return; }
     const path = services.repository.paths.root + '/avatar-' + state.account.avatarVersion + '.jpg';
     try {
@@ -63,7 +66,7 @@ accountPage({
   async reconnect() {
     this.setData({ busy: '正在核对云作品…', error: '', notice: '' });
     try { await refreshMiniAccount(); }
-    catch (error) { this.setData({ error: error instanceof Error ? error.message : '连接未成功。' }); }
+    catch (error) { this.setData({ error: errorMessage(error, '连接未成功。') }); }
     finally { this.setData({ busy: '' }); await this.refreshState(); }
   },
   logout() { this.setData({ logoutOpen: true, error: '' }); setTabBarHidden(this, true); },
@@ -79,7 +82,7 @@ accountPage({
       clearLoginReturn();
       if (services.account.snapshot().error) throw new Error(services.account.snapshot().error);
       await wx.reLaunch({ url: '/pages/login/index' });
-    } catch (error) { this.setData({ error: error instanceof Error ? error.message : '暂时未能退出，请重试。' }); }
+    } catch (error) { this.setData({ error: errorMessage(error, '暂时未能退出，请重试。') }); }
     finally { this.setData({ busy: '' }); }
   },
   openProfile() { this.setData({ editingProfile: true, nicknameInput: this.data.account?.nickname ?? '', nicknameValid: true, error: '' }); setTabBarHidden(this, true); },
@@ -93,7 +96,7 @@ accountPage({
     const services = miniServices();
     this.setData({ busy: '正在保存昵称…', error: '' });
     try { await services.account.updateNickname(this.data.nicknameInput); if (services === miniServices()) this.closeProfile(); }
-    catch (error) { this.setData({ error: error instanceof Error ? error.message : '昵称未保存。' }); }
+    catch (error) { this.setData({ error: errorMessage(error, '昵称未保存。') }); }
     finally { this.setData({ busy: '' }); await this.refreshState(); }
   },
   async chooseAvatar(event: WechatMiniprogram.CustomEvent<{ avatarUrl: string }>) {
@@ -107,7 +110,7 @@ accountPage({
       const data = manager.readFileSync(event.detail.avatarUrl);
       if (!(data instanceof ArrayBuffer)) throw new Error('无法读取头像，请重新选择。');
       await services.account.updateAvatar(data);
-    } catch (error) { this.setData({ error: error instanceof Error ? error.message : '头像未保存，请重试。' }); }
+    } catch (error) { this.setData({ error: errorMessage(error, '头像未保存，请重试。') }); }
     finally { this.setData({ busy: '' }); await this.refreshState(); }
   },
   openMenu() { setTabBarHidden(this, true); this.setData({ menuOpen: true, notice: '', error: '' }); },
@@ -122,8 +125,8 @@ accountPage({
       if (services.account.snapshot().status === 'authenticated') await services.sync.sync();
       if (services !== miniServices()) throw new Error('账号已变化，请重新导出。');
       await services.backups.exportAll();
-      this.setData({ notice: '已打开微信文件分享，请保存每份 JSON 备份。' });
-    } catch (error) { this.setData({ error: error instanceof Error ? error.message : '备份导出失败。' }); }
+      this.setData({ notice: '备份已准备好，请在微信中保存文件。' });
+    } catch (error) { this.setData({ error: errorMessage(error, '备份导出失败。') }); }
     finally { this.setData({ busy: '' }); }
   },
   async importBackup() {
@@ -132,7 +135,7 @@ accountPage({
     try {
       const count = await services.backups.chooseAndImport();
       if (services === miniServices()) this.setData({ notice: count ? '已恢复 ' + count + ' 篇作品副本。' : '' });
-    } catch (error) { this.setData({ error: error instanceof Error ? error.message : '备份导入失败，原作品未改变。' }); }
+    } catch (error) { this.setData({ error: errorMessage(error, '备份导入失败，原作品未改变。') }); }
     finally { this.setData({ busy: '' }); }
   },
   noop() {},

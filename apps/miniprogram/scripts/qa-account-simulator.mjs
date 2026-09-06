@@ -79,11 +79,13 @@ try {
   await mini.switchTab('/pages/profile/index');
   await new Promise(resolve => setTimeout(resolve, 500));
   let page = await mini.currentPage();
+  await page.callMethod('refreshState');
+  check('空账号不显示未上传或无缘由重试', await page.data('syncText') === '还没有作品' && !await page.data('canReconnect'));
   // Render documented account states without authenticating with WeChat or writing profile data.
   check('资料行完整占用可用宽度', (await (await page.$('.account-heading')).size()).width >= info.windowWidth - 52);
   check('作品工具共有三行且每行至少64px', (await page.$$('.tool-list .tool')).length === 4 && (await page.$$('.support-list .tool')).length === 1 && (await (await page.$('.tool')).size()).height >= 64);
-  await page.setData({ account: { id: 'qa-account', nickname: '', hasAvatar: false, avatarVersion: 0 }, status: 'authenticated', needsLogin: false, canReconnect: false, accountText: '编辑头像与昵称', syncText: '作品已同步' });
-  check('正常个人中心无重连与重复登录按钮', !await page.$('.sync-row button') && !await page.$('.account-primary') && !!await page.$('.logout-button'));
+  await page.setData({ account: { id: 'qa-account', nickname: '', hasAvatar: false, avatarVersion: 0 }, status: 'authenticated', needsLogin: false, canReconnect: false, accountText: '编辑头像与昵称', syncText: '还没有作品' });
+  check('正常个人中心无常驻同步状态与重复登录按钮', !await page.$('.sync-row') && !await page.$('.account-primary') && !!await page.$('.logout-button'));
   await mini.screenshot({ path: resolve(output, 'profile-signed-in.png') });
   await page.callMethod('logout');
   check('退出提供明确确认和取消入口', await page.data('logoutOpen') && !!await page.$('.logout-actions'));
@@ -104,14 +106,40 @@ try {
   await page.setData({ status: 'replaced', needsLogin: true, accountText: '已在其他设备登录', error: '已在其他设备登录，请主动微信登录。' });
   await mini.screenshot({ path: resolve(output, 'profile-replaced.png') });
   check('接管状态提供明确主动登录入口', (await (await page.$('.account-primary')).text()).includes('在此设备继续'));
+  await mini.reLaunch('/pages/works/index');
+  await new Promise(resolve => setTimeout(resolve, 500));
+  page = await mini.currentPage();
+  await waitFor(async () => !await page.data('loading'), '空作品列表');
+  check('作品空态无过期游客与自动上传说明', !(await (await page.$('.empty-state')).text()).includes('未登录'));
+  await mini.screenshot({ path: resolve(output, 'works-empty.png') });
   await mini.reLaunch('/pages/editor/index?xiaowen=compose');
   await new Promise(resolve => setTimeout(resolve, 500));
   page = await mini.currentPage();
   await waitFor(async () => await page.data('accountReady') && !!await page.data('draft') && !await page.data('readOnly'), '作品可编辑');
+  await page.callMethod('closeXiaoWen');
+  check('空白新稿不显示保存上传标签', !await page.data('syncLabel') && !await page.$('.cloud-save-row'));
+  await mini.screenshot({ path: resolve(output, 'editor-empty.png') });
   await page.callMethod('focusText');
   await page.callMethod('onBodyInput', { detail: { value: '这篇正文已经保存在本机。' } });
   await page.callMethod('flushAutoSave');
   check('正文先落盘再输入小文草稿', await page.data('body') === '这篇正文已经保存在本机。' && await page.data('saved'));
+  await page.callMethod('refreshCloudState');
+  check('正常写作不常驻同步上传提示', await page.data('syncLabel') === '已保存到本机' && !await page.$('.cloud-save-row'));
+  await mini.evaluate(() => {
+    const qa = getApp().__accountQa;
+    const write = qa.services.writer.write;
+    qa.services.writer.write = async function () {
+      qa.services.writer.write = write;
+      throw new Error("unlinkSync:fail no such file or directory, unlink 'wxfile://usr/qa/index.json.bak'");
+    };
+  });
+  await page.callMethod('saveNow');
+  check('底层保存异常不展示路径并保留正文', !/unlink|wxfile|\.bak/.test(await page.data('error')) && !!await page.data('error') && await page.data('body') === '这篇正文已经保存在本机。');
+  check('保存失败不叠加云提示，两个补救按钮同排且可触达', !await page.$('.cloud-save-row') && !await page.$('.cloud-message') && (await page.$$('.error-actions button')).length === 2
+    && (await (await page.$('.error-actions')).size()).height <= 56 && (await (await page.$('.error-actions button')).size()).height >= 48);
+  await mini.screenshot({ path: resolve(output, 'editor-save-error.png') });
+  await page.callMethod('saveNow');
+  check('重试保存成功后收起错误并保留正文', await page.data('saved') && !await page.data('error'));
   await page.callMethod('onXiaoWenInput', { detail: { value: '只在输入框里，还没发送给小文。' } });
   await page.callMethod('flushAutoSave');
   const id = (await page.data('draft')).id;
@@ -131,11 +159,24 @@ try {
   await waitFor(async () => await page.data('accountReady') && await page.data('xiaowenComposer') === '只在输入框里，还没发送给小文。', '原输入恢复');
   check('登录后回到原作品并保留未发送输入', await page.data('body') === '这篇正文已经保存在本机。');
   await page.callMethod('closeXiaoWen');
-  await page.setData({ readOnly: true, canReconnect: true, cloudVersion: 1, syncLabel: '未上传', cloudMessage: '网络不可用，当前输入已保存在本机。' });
+  await page.setData({ readOnly: true, canReconnect: true, cloudVersion: 1, syncLabel: '已保存到本机', cloudMessage: '网络已断开，编辑已暂停。请联网后重试。' });
   const body = await page.data('body');
   await page.callMethod('onBodyInput', { detail: { value: '不应被允许的新输入' } });
   check('暂停状态的原生输入与事件入口都不能改正文', await page.data('body') === body && !!await page.$('.cloud-message'));
   await mini.screenshot({ path: resolve(output, 'editor-paused.png') });
+  const concurrency = await mini.evaluate(async () => {
+    const { MiniWorkRepository } = require('storage/repository.js');
+    const { emptyDraft } = require('domain/core.js');
+    const qa = getApp().__accountQa;
+    const root = wx.env.USER_DATA_PATH + '/qa-save-race-' + Date.now();
+    const repository = new MiniWorkRepository(qa.services.files, root, undefined, 'qa-author');
+    const draft = { ...emptyDraft(), inputMode: 'text', textDraft: '并发回归原文' };
+    await repository.save(draft, 0);
+    const results = await Promise.allSettled([repository.load(), repository.load(), repository.save({ ...draft, textDraft: '并发回归新文字' }, 1), repository.load()]);
+    const restarted = await new MiniWorkRepository(qa.services.files, root, undefined, 'qa-author').load();
+    return { successful: results.every(result => result.status === 'fulfilled'), restored: restarted.works[0]?.draft.textDraft === '并发回归新文字', issues: restarted.issues.length };
+  });
+  check('实际微信文件 API 并发保存与读取通过，重建仓储保留最新内容', concurrency.successful && concurrency.restored && concurrency.issues === 0);
   console.info(JSON.stringify({ width: info.windowWidth, height: info.windowHeight, passed: passed.length, paidCalls: 0, realWeChatLogin: false }));
   await writeFile(resolve(output, 'account-ui-result.json'), JSON.stringify({ window: { width: info.windowWidth, height: info.windowHeight }, passed, realWeChatLogin: false, paidCalls: 0 }, null, 2));
 } finally {

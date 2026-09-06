@@ -45,4 +45,18 @@ describe('WxLocalFileSystem', () => {
 
     await expect(new WxLocalFileSystem(wxFiles).readText('/data/index.json')).rejects.toThrow('编码无效');
   });
+
+  it.each([
+    new Error("unlinkSync:fail no such file or directory, unlink 'wxfile://usr/index.json.bak'"),
+    { errMsg: 'unlink:fail file not exist' },
+  ])('清理已经不存在的备份是幂等操作', async error => {
+    const files = new WxLocalFileSystem(manager({ unlinkSync: vi.fn(() => { throw error; }) }));
+    await expect(files.remove('wxfile://usr/index.json.bak')).resolves.toBeUndefined();
+  });
+
+  it('删除权限失败不能被当成缺失文件忽略', async () => {
+    const error = { errMsg: 'unlinkSync:fail permission denied' };
+    const files = new WxLocalFileSystem(manager({ unlinkSync: vi.fn(() => { throw error; }) }));
+    await expect(files.remove('wxfile://usr/index.json.bak')).rejects.toBe(error);
+  });
 });

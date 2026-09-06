@@ -1,3 +1,4 @@
+import { errorMessage } from '../../ui/error-message';
 import { accountPage } from '../../auth/page';
 import { isTopicCurrent, type WritingTopic } from '../../domain/core';
 import { miniTopics } from '../../network/topics';
@@ -31,7 +32,7 @@ accountPage({
     this.setData({ loading: true, error: '' });
     try { this.setData({ loading: false, topics: (await miniTopics.list({ limit: 5 })).map(asCard) }); }
     catch (error) {
-      const message = error instanceof Error && error.message ? error.message : '热门话题暂时不可用。';
+      const message = errorMessage(error, '热门话题暂时不可用。');
       this.setData({ loading: false, topics: [], error: message });
     }
   },

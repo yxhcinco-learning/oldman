@@ -70,7 +70,7 @@ describe('小程序编辑器读取与展示失败隔离', () => {
       setData(value: Record<string, unknown>) { Object.assign(this.data, value); },
       syncXiaoWen() { throw new Error('conversationView is not a function'); } };
     await page.open(draft.id);
-    expect(page.data).toMatchObject({ draft, body: '必须保留的本机正文', revision: 7, error: 'conversationView is not a function' });
+    expect(page.data).toMatchObject({ draft, body: '必须保留的本机正文', revision: 7, error: '本机作品暂时无法读取。' });
     expect(services.writer.seed).toHaveBeenCalledExactlyOnceWith(draft.id, 7);
   });
 });

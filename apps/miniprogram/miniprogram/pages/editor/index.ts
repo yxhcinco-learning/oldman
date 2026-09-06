@@ -1,3 +1,4 @@
+import { errorMessage } from '../../ui/error-message';
 import { accountPage } from '../../auth/page';
 import { openLogin } from '../../auth/navigation';
 import { writingAccess } from '../../sync/writing-access';
@@ -168,7 +169,7 @@ accountPage({
     try {
       if (!await this.flushAutoSave() || services !== miniServices()) return;
       await openLogin({ url: '/pages/editor/index?id=' + encodeURIComponent(id ?? '') + (this.data.xiaowenOpen ? '&xiaowen=compose' : ''), workId: id, source: services });
-    } catch (error) { this.setData({ error: error instanceof Error ? error.message : '登录页暂时无法打开，请重试。' }); }
+    } catch (error) { this.setData({ error: errorMessage(error, '登录页暂时无法打开，请重试。') }); }
     finally { this.loginOpening = false; }
   },
   async refreshCloudState() {
@@ -178,7 +179,10 @@ accountPage({
       void this.flushAutoSave();
     }
     const id = this.data.draft?.id;
-    const aggregate = id ? await this.services.repository.getAggregate(id) : null;
+    const aggregate = id ? await this.services.repository.getAggregate(id).catch(error => {
+      this.setData({ readOnly: true, error: errorMessage(error, '作品暂时无法读取，请重试。') }); return undefined;
+    }) : null;
+    if (aggregate === undefined) return;
     if (this.services !== miniServices() || !this.alive || this.data.draft?.id !== id) return;
     if (aggregate && aggregate.work.revision !== this.data.revision && !this.checkingCloud && this.data.saved && !this.services.articleAi.isRunning(aggregate.work.id)) {
       await this.open(aggregate.work.id, false, false); return;
@@ -204,7 +208,7 @@ accountPage({
     try {
       if (id && verify) {
         try { await this.services.sync.open(id); }
-        catch (error) { this.setData({ cloudMessage: error instanceof Error ? error.message : '请联网核对云作品。' }); }
+        catch (error) { this.setData({ cloudMessage: errorMessage(error, '请联网核对云作品。') }); }
       }
       const snapshot = await this.services.repository.load();
       if (this.services !== miniServices() || !this.alive) return;
@@ -235,7 +239,7 @@ accountPage({
       if (compose) this.setData({ xiaowenOpen: true, xiaowenView: 'chat' });
     } catch (error) {
       // Rendering a loaded conversation must never replace the work with a blank draft.
-      this.setData({ error: error instanceof Error ? error.message : '本机作品暂时无法读取。' });
+      this.setData({ error: errorMessage(error, '本机作品暂时无法读取。') });
     }
   },
 
@@ -252,6 +256,7 @@ accountPage({
   },
 
   scheduleSave() {
+    this.setData({ syncLabel: '正在保存…' });
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       saveTimer = undefined;
@@ -432,7 +437,7 @@ accountPage({
       void this.refreshCloudState();
       return saved;
     } catch (error) {
-      this.setData({ saving: false, saved: false, error: error instanceof Error ? error.message : '保存失败，当前文字仍保留在页面中。' });
+      this.setData({ saving: false, saved: false, error: errorMessage(error, '保存失败，当前文字仍保留在页面中。') });
       await this.services.writer.preserve(draft, this.data.session ?? undefined).catch(() => undefined);
       return false;
     }
@@ -483,9 +488,9 @@ accountPage({
     const draft = this.currentDraft();
     if (!draft) return;
     const pending = this.services.writer.pendingSession(draft.id);
-    try { await this.services.backups.rescue(draft, pending?.context.session ?? this.data.session, this.services.conversations.read(draft.id)); this.setData({ notice: '已打开救援备份分享。' }); }
-    catch (error) { this.setData({ error: error instanceof Error ? error.message : '救援导出失败。',
-      ...(pending ? { resultSaveMessage: error instanceof Error ? error.message : '救援导出失败，请重试保存。' } : {}) }); }
+    try { await this.services.backups.rescue(draft, pending?.context.session ?? this.data.session, this.services.conversations.read(draft.id)); this.setData({ notice: '已导出当前内容。' }); }
+    catch (error) { this.setData({ error: errorMessage(error, '导出当前内容失败。'),
+      ...(pending ? { resultSaveMessage: errorMessage(error, '导出当前内容失败，请重试保存。') } : {}) }); }
   },
 
   async retryResultSave() {
@@ -501,9 +506,9 @@ accountPage({
       if (draft && !this.data.saved) this.scheduleSave();
       if (context.session.conversation?.mode === 'interview') await this.openXiaoWen();
     } catch (error) {
-      this.setData({ xiaowenError: error instanceof Error ? error.message : '回复仍未保存，请救援导出。' });
+      this.setData({ xiaowenError: errorMessage(error, '回复仍未保存，请导出当前内容。') });
       this.syncXiaoWen(this.data.draft, this.data.session);
-      this.setData({ resultSaveMessage: error instanceof Error ? error.message : '回复仍未保存，请救援导出。' });
+      this.setData({ resultSaveMessage: errorMessage(error, '回复仍未保存，请导出当前内容。') });
     }
     finally { this.setData({ operationBusy: false }); }
   },
@@ -534,7 +539,7 @@ accountPage({
         }
         await wx.redirectTo({ url: `/pages/interview/index?id=${encodeURIComponent(draft.id)}` });
       } catch (error) {
-        this.setData({ saved: false, error: error instanceof Error ? error.message : '尚未保存，当前文字仍在本页。请重试保存或救援导出。' });
+        this.setData({ saved: false, error: errorMessage(error, '尚未保存，当前文字仍在本页。请重试保存或导出当前内容。') });
       } finally { this.setData({ navigationSaving: false }); }
       return;
     }
@@ -550,7 +555,7 @@ accountPage({
     try {
       this.adoptAiContext(await this.services.articleAi.startInterview(draft, this.data.session));
       await this.openXiaoWen();
-    } catch (error) { this.setData({ xiaowenError: error instanceof Error ? error.message : '模式尚未保存。' }); }
+    } catch (error) { this.setData({ xiaowenError: errorMessage(error, '模式尚未保存。') }); }
   },
 
   closeXiaoWen() {
@@ -600,7 +605,7 @@ accountPage({
     this.setData({ operationBusy: false, xiaowenRunning: false });
     if (this.alive && this.services === miniServices() && editorVisible && this.data.xiaowenOpen && result.session.conversation?.mode === 'interview') await this.openXiaoWen();
     } catch (error) {
-      this.setData({ xiaowenError: error instanceof Error ? error.message : '小文状态尚未保存，请重试。' });
+      this.setData({ xiaowenError: errorMessage(error, '小文状态尚未保存，请重试。') });
       this.syncXiaoWen(this.data.draft, this.data.session);
     } finally { this.setData({ operationBusy: false }); }
   },
@@ -663,7 +668,7 @@ accountPage({
       const context = await this.services.articleAi.restoreVersion(draft, this.data.session, this.data.selectedVersionId, this.data.versionBaseline);
       this.adoptAiContext(context);
       this.setData({ xiaowenView: 'history', notice: '已恢复这一版，原内容仍在修改记录中。' });
-    } catch (error) { this.setData({ xiaowenError: error instanceof Error ? error.message : '恢复失败，原文未改变。' }); }
+    } catch (error) { this.setData({ xiaowenError: errorMessage(error, '恢复失败，原文未改变。') }); }
     finally { this.setData({ operationBusy: false }); }
   },
 
@@ -677,7 +682,7 @@ accountPage({
       const context = await this.services.articleAi.apply(draft, session, this.data.selectedTurnId);
       this.adoptAiContext(context);
       this.setData({ operationBusy: false, xiaowenView: 'chat', notice: `已应用${this.data.candidateEditLabel}并保存到本机。` });
-    } catch (error) { this.setData({ operationBusy: false, xiaowenError: error instanceof Error ? error.message : '候选暂时无法应用。' }); }
+    } catch (error) { this.setData({ operationBusy: false, xiaowenError: errorMessage(error, '候选暂时无法应用。') }); }
   },
 
   async dismissCandidate() {
@@ -690,7 +695,7 @@ accountPage({
       const context = await this.services.articleAi.dismiss(draft, session, this.data.selectedTurnId);
       this.adoptAiContext(context);
       this.setData({ operationBusy: false, xiaowenView: 'chat', notice: '未采用，正文没有变化。' });
-    } catch (error) { this.setData({ operationBusy: false, xiaowenError: error instanceof Error ? error.message : '候选暂时无法放弃。' }); }
+    } catch (error) { this.setData({ operationBusy: false, xiaowenError: errorMessage(error, '候选暂时无法放弃。') }); }
   },
 
   undoTurn(event: WechatMiniprogram.TouchEvent) {
@@ -703,7 +708,7 @@ accountPage({
     void this.services.articleAi.undo(draft, session, turnId).then(context => {
       this.adoptAiContext(context);
       this.setData({ operationBusy: false, xiaowenView: 'chat', notice: '已恢复修改前内容，并保留修改记录。' });
-    }).catch(error => this.setData({ operationBusy: false, xiaowenError: error instanceof Error ? error.message : '这次修改暂时无法撤销。' }));
+    }).catch(error => this.setData({ operationBusy: false, xiaowenError: errorMessage(error, '这次修改暂时无法撤销。') }));
   },
 
   async goBack() {

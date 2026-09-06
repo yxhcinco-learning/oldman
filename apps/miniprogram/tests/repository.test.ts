@@ -9,6 +9,40 @@ const clock = () => new Date('2026-09-01T00:00:00.000Z');
 const writing = (text: string, title = ''): Draft => completeVoice({ ...emptyDraft(), title, pendingVoice: text });
 
 describe('小程序本地作品仓储', () => {
+  it('账号列表并发刷新和保存不会争用索引备份，重启后保留最新正文', async () => {
+    const files = new MemoryFileSystem();
+    const repository = new MiniWorkRepository(files, '/concurrent', clock, 'author');
+    const draft = writing('原文');
+    await repository.save(draft, 0);
+    const next = { ...draft, inputMode: 'text' as const, textDraft: '最新正文' };
+    const results = await Promise.allSettled([repository.load(), repository.load(), repository.save(next, 1), repository.load()]);
+    expect(results.map(result => result.status)).toEqual(['fulfilled', 'fulfilled', 'fulfilled', 'fulfilled']);
+    const reopened = await new MiniWorkRepository(files, '/concurrent', clock, 'author').load();
+    expect(reopened.works[0].draft.textDraft).toBe('最新正文');
+    expect(reopened.issues).toEqual([]);
+  });
+
+  it('聚合替换中读取等待提交，不能漏掉暂时位于备份的作品', async () => {
+    const files = new MemoryFileSystem();
+    const repository = new MiniWorkRepository(files, '/read-during-save', clock, 'author');
+    const draft = writing('原文');
+    await repository.save(draft, 0);
+    let moved!: () => void, resume!: () => void;
+    const reachedBackup = new Promise<void>(resolve => { moved = resolve; });
+    const continueSave = new Promise<void>(resolve => { resume = resolve; });
+    const rename = files.rename.bind(files);
+    files.rename = async (from, to) => {
+      await rename(from, to);
+      if (from === workFilePath(repository.paths, draft.id)) { moved(); await continueSave; }
+    };
+    const saving = repository.save({ ...draft, inputMode: 'text', textDraft: '新文字' }, 1);
+    await reachedBackup;
+    const reading = repository.allAggregates();
+    resume();
+    await saving;
+    expect((await reading)[0]?.work.draft.textDraft).toBe('新文字');
+  });
+
   it('跨页保留排在在途自动保存之后，使用新 revision 保住新输入', async () => {
     const repository = new MiniWorkRepository(new MemoryFileSystem(), '/race', clock);
     const writer = new MiniDraftWriter(repository);

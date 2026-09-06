@@ -69,7 +69,7 @@ button.mic { position: relative; display: grid; width: 76px; min-width: 76px; ma
 .editor-error { background: #f5e8df; color: #6f351c; }
 .error-copy { max-height: 60px; }
 .error-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-.error-actions button { display: flex; min-height: 48px; margin: 0; padding: 8px 14px; align-items: center; justify-content: center; border-radius: 24px; background: #fff; color: #6f351c; font-size: 14px; line-height: 22px; }
+.error-actions button { display: flex; flex: 1; width: 0; min-width: 0; min-height: 48px; margin: 0; padding: 8px; align-items: center; justify-content: center; border-radius: 24px; background: #fff; color: #6f351c; font-size: 16px; line-height: 26px; }
 .dialog-mask, .xiaowen-mask { position: fixed; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: flex-end; background: rgba(15, 29, 24, .2); backdrop-filter: blur(8px); transition: bottom .15s ease; }
 .dialog-mask { z-index: 30; }
 .xiaowen-mask { z-index: 28; }
@@ -167,4 +167,4 @@ button.mic { position: relative; display: grid; width: 76px; min-width: 76px; ma
 
 .cloud-save-row { flex-shrink:0; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:4px 24px; min-height:28px; font-size:14px; color:#627363; }
 .cloud-save-row button { width:auto; max-width:none; min-width:48px; margin:0; padding:8px 0 8px 12px; min-height:48px; line-height:26px; font-size:16px; background:transparent; color:#416657; border-radius:0; }
-.cloud-message { flex-shrink:0; padding:4px 24px 8px; color:#8a5638; font-size:14px; line-height:1.5; }
+.cloud-message { flex:1; min-width:0; color:#8a5638; font-size:14px; line-height:1.5; }
