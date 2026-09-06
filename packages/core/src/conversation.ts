@@ -26,7 +26,8 @@ export function conversationView(session: ArticleSession, draft: Draft) {
     return { ...message, turnId: turn?.id ?? '', hasCandidate: message.role === 'assistant' && Boolean(turn?.result?.body),
       text: message.role === 'system' && message.text === '已结束访谈，正在整理' ? '已结束访谈' : message.role === 'assistant' && turn?.result?.body ? resultSummary(turn.result, session.versions.find(version => version.id === turn.inputVersionId)?.body ?? '') : message.text,
       pending: message.role === 'assistant' && turn?.status === 'running',
-      canRetry: message.role === 'assistant' && Boolean(turn && ['failed', 'cancelled'].includes(turn.status)),
+      canRetry: message.role === 'assistant' && Boolean(turn && ['failed', 'cancelled'].includes(turn.status))
+        && (turn?.action !== 'dialogue' || stored.at(-1)?.turnId === turn.id),
       error: message.role === 'assistant' && turn && ['failed', 'cancelled'].includes(turn.status) ? turn.error || (turn.status === 'cancelled' ? '已取消，原文未改变。' : '小文暂时没有接上，请重试。') : '', ai: message.role === 'assistant' && Boolean(turn?.result),
       status: turn?.status ?? '' };
   });
@@ -67,7 +68,10 @@ export function startInterview(session: ArticleSession, draft: Draft, eventId: s
 
 export function prepareDialogue(session: ArticleSession, draft: Draft, turnId: string, prompt: string, command: DialogueCommand): ArticleSession {
   let conversation = conversationOf(session, draft);
-  if (conversation.messages.some(message => message.turnId === turnId)) return { ...session, conversation };
+  if (conversation.messages.some(message => message.turnId === turnId)) {
+    if (conversation.messages.at(-1)?.turnId !== turnId) throw new Error('这条消息之后已有新的交流，请在当前对话重新说明要求。');
+    return { ...session, conversation };
+  }
   if (command === 'confirm-edit' && !conversation.pendingEdit) throw new Error('没有待确认的修改要求。');
   if (command === 'finish' || command === 'confirm-edit') {
     conversation = { ...conversation, mode: 'conversation', pendingEdit: undefined,
@@ -83,6 +87,7 @@ export function validateDialogueResult(result: AiResult, mode: XiaoWenConversati
   if (!detail) throw new Error('小文返回的会话状态不完整，请重试。');
   if (['finish', 'confirm-edit'].includes(command) && detail.intent !== 'finish') throw new Error('小文没有完成结束访谈请求。');
   if (detail.intent === 'confirm-edit' && mode !== 'interview') throw new Error('当前不是访谈模式。');
+  if (detail.intent === 'cancel-edit' && mode !== 'interview') throw new Error('当前没有访谈修改确认。');
   if (result.body && !(detail.intent === 'finish' || (mode === 'conversation' && detail.intent === 'edit'))) throw new Error('本轮对话不允许生成正文。');
   if (detail.material && (!prompt.includes(detail.material.text) || (detail.material.supersedes && !materials.some(material => material.id === detail.material!.supersedes)))) {
     throw new Error('小文引用的回答无法核对。');
@@ -103,6 +108,8 @@ export function settleDialogue(session: ArticleSession, turnId: string, result: 
   const sourceMessageId = conversation.messages.find(message => message.turnId === turnId && message.role === 'user')?.id;
   if (detail.material && !sourceMessageId) throw new Error('当前回答来源已不存在。');
   const materials = detail.material ? [...conversation.materials, { id: `m-${turnId}`, sourceMessageId: sourceMessageId!, ...detail.material }] : conversation.materials;
-  return { ...session, conversation: { mode, messages, materials, pendingEdit: detail.intent === 'confirm-edit' ? turn.prompt : undefined },
+  const pendingEdit = detail.intent === 'confirm-edit' ? turn.prompt
+    : mode !== 'interview' || detail.intent === 'cancel-edit' ? undefined : conversation.pendingEdit;
+  return { ...session, conversation: { mode, messages, materials, pendingEdit },
     turns: session.turns.map(item => item.id === turnId ? { ...item, result, status: result.body ? 'ready' : 'answered', error: undefined } : item) };
 }

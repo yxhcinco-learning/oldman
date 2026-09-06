@@ -66,6 +66,7 @@ Page({
     candidateStatus: '' as AiTurn['status'] | '',
     candidateEditLabel: '调整',
     operationBusy: false,
+    navigationSaving: false,
     voicePhase: 'idle' as MiniSpeechState['phase'],
     voiceText: '',
     voiceMessage: '',
@@ -123,7 +124,7 @@ Page({
         topicSources: draft.topicSnapshot?.sources.map(source => ({ id: source.id, title: source.title,
           route: `/pages/source/index?url=${encodeURIComponent(source.url)}&title=${encodeURIComponent(source.title)}` })) ?? [] });
       this.syncXiaoWen(draft, session);
-      if (session && hadInterruptedRequest) void miniServices().writer.preserve(draft, session).catch(() => undefined);
+      if (session && hadInterruptedRequest) await miniServices().writer.preserve(draft, session);
       if (compose) this.setData({ xiaowenOpen: true, xiaowenView: 'chat' });
     } catch (error) {
       // Rendering a loaded conversation must never replace the work with a blank draft.
@@ -303,7 +304,7 @@ Page({
     try {
       const work = await miniServices().writer.write(draft, this.data.session ?? undefined);
       const saved = Boolean(work) && savingVersion === draftVersion;
-      this.setData({ draft, revision: work?.revision ?? this.data.revision, saving: false, saved, error: '' });
+      this.setData({ ...(savingVersion === draftVersion ? { draft } : {}), revision: work?.revision ?? this.data.revision, saving: false, saved, error: '' });
       return saved;
     } catch (error) {
       this.setData({ saving: false, saved: false, error: error instanceof Error ? error.message : '保存失败，当前文字仍保留在页面中。' });
@@ -356,10 +357,22 @@ Page({
   },
 
   async openXiaoWen() {
+    if (this.data.navigationSaving) return;
     const draft = this.currentDraft();
     if (draft && conversationOf(this.data.session ?? newSession(draft), draft).mode === 'interview') {
-      await miniServices().writer.preserve(draft, this.data.session ?? undefined).catch(() => undefined);
-      void wx.redirectTo({ url: `/pages/interview/index?id=${encodeURIComponent(draft.id)}` });
+      this.setData({ navigationSaving: true, error: '' });
+      const savingVersion = draftVersion;
+      if (saveTimer) { clearTimeout(saveTimer); saveTimer = undefined; }
+      try {
+        await miniServices().writer.preserve(draft, this.data.session ?? undefined);
+        if (savingVersion !== draftVersion) {
+          this.setData({ error: '刚才又有新的输入，请保存后再打开小文。' });
+          return;
+        }
+        await wx.redirectTo({ url: `/pages/interview/index?id=${encodeURIComponent(draft.id)}` });
+      } catch (error) {
+        this.setData({ saved: false, error: error instanceof Error ? error.message : '尚未保存，当前文字仍在本页。请重试保存或救援导出。' });
+      } finally { this.setData({ navigationSaving: false }); }
       return;
     }
     this.dismissKeyboard();

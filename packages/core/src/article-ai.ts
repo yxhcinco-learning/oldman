@@ -41,7 +41,7 @@ export type XiaoWenConversation = z.infer<typeof conversationSchema>;
 export const aiResultSchema = z.object({
   answer: z.string().trim().min(1).max(8000), body: z.string().min(1).max(20000).optional(),
   citedVersionIds: z.array(id).max(20).default([]),
-  dialogue: z.object({ intent: z.enum(['reply', 'start', 'finish', 'confirm-edit', 'edit']),
+  dialogue: z.object({ intent: z.enum(['reply', 'start', 'finish', 'confirm-edit', 'cancel-edit', 'edit']),
     material: z.object({ text: z.string().min(1).max(12000), supersedes: id.optional() }).strict().optional(),
   }).strict().optional(),
 }).strict();

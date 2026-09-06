@@ -12,6 +12,38 @@ function setup(mode: 'normal' | 'interview' = 'interview', prompt = '你好', co
 const reply = (answer: string): AiResult => ({ answer, citedVersionIds: [], dialogue: { intent: 'reply' } });
 
 describe('统一小文会话', () => {
+  it('待确认改文经反问和纠正仍保留，新要求替换，明确取消不退出', () => {
+    const { draft, session } = setup('interview', '帮我修改第二段');
+    let current = settleDialogue(session, 'turn-1', { ...reply('确认吗？'), dialogue: { intent: 'confirm-edit' } });
+    const follow = (id: string, prompt: string, result: AiResult) => {
+      current = prepareDialogue(current, draft, id, prompt, 'send');
+      current.turns.push({ ...session.turns[0], id, prompt });
+      current = settleDialogue(current, id, result);
+    };
+    follow('t2', '你准备怎么改？', reply('可以理顺时间顺序。'));
+    expect(current.conversation?.pendingEdit).toBe('帮我修改第二段');
+    follow('t3', '是1991年', { ...reply('记下了'), dialogue: { intent: 'reply', material: { text: '是1991年' } } });
+    expect(current.conversation?.pendingEdit).toBe('帮我修改第二段');
+    follow('t4', '改第一段就好', { ...reply('确认吗？'), dialogue: { intent: 'confirm-edit' } });
+    expect(current.conversation?.pendingEdit).toBe('改第一段就好');
+    follow('t5', '先不用修改了', { ...reply('好，接着聊'), dialogue: { intent: 'cancel-edit' } });
+    expect(current.conversation?.pendingEdit).toBeUndefined();
+    expect(current.conversation?.mode).toBe('interview');
+    expect(articleSessionSchema.safeParse(current).success).toBe(true);
+  });
+
+  it('早期相关素材与原话成对选入，排除被纠正材料，准确记录省略', () => {
+    const { session } = setup('interview', '回到早年水产养殖的经历');
+    session.conversation!.messages = Array.from({ length: 80 }, (_, i) => ({ id: `u${i}`, role: 'user', text: i < 2 ? '早年水产养殖的经历' : `后来日常经历${i}` }));
+    session.conversation!.materials = session.conversation!.messages.map((m, i) => ({ id: `m${i}`, sourceMessageId: m.id, text: m.text, ...(i === 1 ? { supersedes: 'm0' } : {}) }));
+    const request = buildAiRequest(session, 'dialogue', '回到早年水产养殖的经历', 'next');
+    expect(request.conversation!.materials.some(m => m.id === 'm1')).toBe(true);
+    expect(request.conversation!.materials.some(m => m.id === 'm0')).toBe(false);
+    expect(request.conversation!.messages.some(m => m.id === 'u1')).toBe(true);
+    expect(request.omittedMaterials).toBe(80 - request.conversation!.materials.length);
+    expect(request.omittedMessages).toBe(80 - request.conversation!.messages.length);
+    expect(aiRequestSchema.safeParse(request).success).toBe(true);
+  });
   it('无话题空会话问候只作展示，首次访谈先问想聊什么', () => {
     const draft = emptyDraft(); const session = newSession(draft);
     expect(conversationView(session, draft)[0].text).toBe('您好，我是小文。您想聊点什么？');

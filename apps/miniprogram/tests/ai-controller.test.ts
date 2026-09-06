@@ -39,6 +39,19 @@ const setup = (transport: MiniAiTransport) => {
 };
 
 describe('小程序小文文章会话', () => {
+  it('重新开启访谈后不能重试旧结束请求，不发网络请求或覆盖新模式', async () => {
+    const transport = new ResultTransport(new Error('离线'));
+    const { controller } = setup(transport);
+    const draft = writing('');
+    const started = await controller.startInterview(draft, null);
+    const failed = await controller.run(draft, started.session, 'dialogue', '结束访谈并整理', undefined, undefined, 'finish');
+    const reopened = await controller.startInterview(draft, failed.session);
+    const retry = await controller.run(draft, reopened.session, 'dialogue', '结束访谈并整理', undefined, undefined, 'finish', failed.turnId!);
+    expect(retry.accepted).toBe(false);
+    expect(retry.error).toContain('已有新的交流');
+    expect(retry.session.conversation).toEqual(reopened.session.conversation);
+    expect(transport.requests).toHaveLength(1);
+  });
   it('空正文问候只保存原始消息，语义开启仍共用同一会话', async () => {
     const transport = new ResultTransport({ answer: '您好，您想聊什么？', dialogue: { intent: 'start' }, citedVersionIds: [] });
     const { controller, repository } = setup(transport);

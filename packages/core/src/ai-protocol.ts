@@ -35,12 +35,19 @@ export const aiResponseSchema = z.object({
 }).strict();
 export type AiResponse = z.infer<typeof aiResponseSchema>;
 
+function relevantFirst<T extends { text: string }>(items: T[], prompt: string): T[] {
+  const query = prompt.toLocaleLowerCase().replace(/\s/g, '').slice(0, 2000);
+  const grams = [...new Set(Array.from({ length: Math.max(0, query.length - 1) }, (_, i) => query.slice(i, i + 2)))];
+  return items.map((item, index) => ({ item, index, score: grams.reduce((sum, gram) => sum + Number(item.text.toLocaleLowerCase().includes(gram)), 0) }))
+    .sort((a, b) => b.score - a.score || b.index - a.index).map(({ item }) => item);
+}
+
 /** The full local archive is retained; only a bounded selection crosses the network. */
 export function buildAiRequest(session: ArticleSession, action: AiAction, prompt: string, requestId: string, context: { topicSnapshot?: TopicSnapshot | null; materials?: WritingMaterial[]; command?: DialogueCommand } = {}): AiRequest {
   const current = session.versions.at(-1)!;
   const contextual = ['interview', 'compose', 'dialogue'].includes(action);
   const allCandidates = contextual && action !== 'dialogue' ? (context.materials ?? []).filter(material => action !== 'compose' || material.selected) : [];
-  const candidates = allCandidates.slice(-24);
+  const candidates = [...new Set([...allCandidates.slice(-8).reverse(), ...relevantFirst(allCandidates, prompt)])].slice(0, 24);
   const request: AiRequest = { workId: session.workId, requestId, action, prompt, current, versions: [], turns: [],
     ...(contextual && context.topicSnapshot ? { topicSnapshot: context.topicSnapshot } : {}), materials: [], omittedRecords: 0, omittedMaterials: 0 };
   if (action === 'dialogue') {
@@ -51,17 +58,25 @@ export function buildAiRequest(session: ArticleSession, action: AiAction, prompt
     request.conversation = { ...source, messages: [], materials: [] };
     const recent = source.messages.slice(-32);
     const superseded = new Set(source.materials.map(material => material.supersedes).filter(Boolean));
-    const selected = source.materials.filter(material => !superseded.has(material.id)).slice(-24);
-    const sourceIds = new Set(selected.map(material => material.sourceMessageId));
-    const messages = source.messages.filter(message => recent.includes(message) || sourceIds.has(message.id));
-    for (const message of messages.slice().reverse()) {
+    const effective = source.materials.filter(material => !superseded.has(material.id));
+    const selected = [...new Set([...effective.slice(-8).reverse(), ...relevantFirst(effective, prompt)])].slice(0, 24);
+    for (const message of recent.slice().reverse()) {
       const next: AiRequest = { ...request, conversation: { ...request.conversation!, messages: [message, ...request.conversation!.messages] } };
       if (JSON.stringify(next).length < MAX_CONTEXT_CHARS - 20000) request.conversation = next.conversation;
     }
-    for (const material of selected.filter(item => request.conversation!.messages.some(message => message.id === item.sourceMessageId))) {
-      const next: AiRequest = { ...request, conversation: { ...request.conversation!, materials: [...request.conversation!.materials, { ...material, supersedes: undefined }] } };
+    for (const material of selected) {
+      const origin = source.messages.find(message => message.id === material.sourceMessageId);
+      if (!origin) continue;
+      const messages = request.conversation!.messages.some(message => message.id === origin.id)
+        ? request.conversation!.messages : [...request.conversation!.messages, origin];
+      const next: AiRequest = { ...request, conversation: { ...request.conversation!, messages,
+        materials: [...request.conversation!.materials, { ...material, supersedes: undefined }] } };
       if (JSON.stringify(next).length < MAX_CONTEXT_CHARS - 128) request.conversation = next.conversation;
     }
+    const order = new Map(source.messages.map((message, index) => [message.id, index]));
+    request.conversation!.messages.sort((a, b) => order.get(a.id)! - order.get(b.id)!);
+    const materialOrder = new Map(source.materials.map((material, index) => [material.id, index]));
+    request.conversation!.materials.sort((a, b) => materialOrder.get(a.id)! - materialOrder.get(b.id)!);
     request.omittedMessages = source.messages.length - request.conversation!.messages.length;
     request.omittedMaterials = source.materials.length - request.conversation!.materials.length;
   }

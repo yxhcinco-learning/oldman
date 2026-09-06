@@ -91,7 +91,8 @@ export class MiniArticleAiController {
       if (action === 'dialogue') session = prepareDialogue(session, draft, turnId, prompt, command);
       request = buildAiRequest(session, action, prompt.trim(), turnId, { topicSnapshot: draft.topicSnapshot, materials: draft.materials, command });
     }
-    catch { return { draft, session, work: null, accepted: false, turnId: null, error: '当前内容无法建立小文请求，原文未改变。' }; }
+    catch (failure) { return { draft, session: fallbackSession, work: null, accepted: false, turnId: null,
+      error: failure instanceof Error && failure.name !== 'ZodError' ? failure.message : '当前内容无法建立小文请求，原文未改变。' }; }
     const turn: AiTurn = { id: turnId, createdAt: new Date().toISOString(), action, ...(action === 'dialogue' ? { command } : {}),
       prompt: turnPrompt?.trim() || (prompt.trim() || ACTION_LABELS[action]), inputVersionId: request.current.id,
       status: 'running', omittedRecords: request.omittedRecords };
