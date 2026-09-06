@@ -26,10 +26,12 @@ conversation.mode 是持久模式唯一来源。共享 prepareDialogue / settleD
 
 服务端原 /api/ai、/api/speech 与匿名事件路径暂保留为独立兼容协议和回归接口；其实现已不依赖 H5。保留接口不代表保留 H5 产品，也不允许绕过既有 Origin、鉴权、限流和用量边界。未来删接口须单独盘点调用方和部署配置。
 
+整理短材料仅重排和润顺已有表达，不把助手追问或未提供的伤情/心理补入作者经历；提示词明确逐句来源核对，固定联调与人工语义复核分别留证，不宣称模型可被提示词完全消除幻觉。
+
 ## 运营与部署
 
 后台继续独立管理员会话、HttpOnly/Secure/SameSite Cookie、Origin、CSRF 和修订并发保护；候选不绕过人工审核。后台预览是运营内容预览，不复用或启动 H5 应用。
 
-保留现有 Node 24、TypeScript、React/Vinext 和 npm 工具链用于管理台与服务，删除 H5 独有 IndexedDB/Tailwind 依赖。服务使用 Nginx + 两个 systemd 单元、回环 3011/3012 和 release 外三库。suiyue-web 是历史单元名，后续构建内容为运营后台；本次没有部署，线上现状按部署记录，不因本地根路由变化自动退役线上 H5。
+保留现有 Node 24、TypeScript、React/Vinext 和 npm 工具链用于管理台与服务，删除 H5 独有 IndexedDB/Tailwind 依赖。服务使用 Nginx + 两个 systemd 单元、回环 3011/3012 和 release 外三库。仅网关已授权独立部署7cb0521，安装unit固定release路径；current及网页仍483d8f4，不因本地根路由变化自动退役线上H5。分别按[部署记录](DEPLOYMENT.md)核对两服务版本及回滚目标，不用current推断网关版本。
 
 新增依赖边界扫描禁止活跃代码回引归档与旧兼容层；check/build 保留后台、服务、共享核心和小程序验证，不安装归档依赖、不运行历史 H5 UI 测试。Git archive 排除 archive/ 与 docs/archive/。

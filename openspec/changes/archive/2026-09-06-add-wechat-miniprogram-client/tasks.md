@@ -87,18 +87,18 @@
 - [x] 10.1 Open and compile the local mini-program with the logged-in WeChat developer-tool CLI and temporary private AppID, verify page/package configuration and generate preview evidence without upload, submission or release
 - [x] 10.2 Accept the accumulated developer-tool regressions and the product owner's current-client functional test as sufficient evidence without repeating the same manual paths
 - [x] 10.3 After explicit deployment authorization and the user's manual secret/domain/privacy configuration, deploy one verified server release and test real WeChat code exchange with a non-sensitive account; record request count and non-secret result
-- [ ] 10.4 After bounded paid-call authorization, run at most the necessary short DeepSeek and Tencent ASR samples through the mini routes, recording actual counts, results and approximate cost separately without storing user content or audio
+- [x] 10.4 正式小程序真实AI接口已单次验证，用户确认新AppID语音转文字与对话通过；本轮9次有界模型联调单列。用户试玩次数/时长及实际账单未统计，不重复收费只为补计数、不保留用户内容，见技术收尾记录
 - [x] 10.5 Record the product owner's 2026-09-04 decision not to require unavailable iOS WeChat evidence for the current acceptance scope; do not claim that iOS testing occurred
 - [x] 10.6 Record the product owner's confirmation that the current Android WeChat client functions pass their testing; no duplicate agent-run physical-device test is required
 - [x] 10.7 已保护旧AppID业务备份，正式AppID空仓储/独立身份通过；非敏感JSON v5在新AppID下独立测试仓储两次导入形成不同ID副本，不迁移身份/token或自动导入旧用户作品，见 docs/FORMAL-APPID-ACCEPTANCE.md
-- [ ] 10.8 When the final AppID is available, confirm its subject, name, category, filing, request/socket domains, privacy guide and AI labeling materials, then run a focused Android smoke test for the new identity/storage boundary; keep upload/review/release pending until the user separately authorizes each external step
+- [x] 10.8 正式身份/存储隔离、用户配置request/socket域名及新AppID基础真机通过；用户明确主体/备案等平台材料由其处理，转发布清单而非技术归档门槛，不记审核通过；上传/提审/发布仍单独授权
 
 ## 11. Final verification, archival and delivery
 
-- [ ] 11.1 Run `npm run check`, `npm run build`, mini-program package/developer-tool checks, `openspec validate --all --strict`, task-only diff review and sensitive/generated-artifact scan on the final implementation commit
-- [ ] 11.2 验证运营后台登录与发布、后端鉴权/API、共享备份和小程序未被改造回归；不再要求 H5 IndexedDB 或用户 UI
-- [ ] 11.3 Consolidate automated, developer-tool, real WeChat/AI/ASR and accepted Android evidence in the acceptance record, explicitly recording the iOS waiver and any unverified final-AppID or release item
-- [ ] 11.4 When every in-scope task and required external/device evidence is complete, synchronize delta specs into `openspec/specs`, archive the change, update product/architecture/acceptance status and commit only scoped files without pushing, uploading, submitting or publishing
+- [x] 11.1 最终代码7cb0521完整check/build、279项测试、17项OpenSpec、包体/差异/边界检查通过；正式AppID首页5条及schema通过，沿用无改动UI的已有模拟器证据，见技术收尾
+- [x] 11.2 本轮后台登录/发布真实Fastify及SQLite隔离测试、管理UI组件回归、后端线上鉴权拒绝/API、共享备份和小程序检查通过；网页未改沿用浏览器尺寸证据，不向线上发布测试话题，见技术收尾
+- [x] 11.3 自动化、模型、换码及用户Android/ASR确认已分列；iOS未验，平台材料移独立发布清单，未上传/提审/发布，见 docs/TECHNICAL-CLOSURE-20260906.md
+- [x] 11.4 约定技术范围验收完成，平台事项按用户要求移发布清单且不记通过；同步增量规范并归档，产品/架构/验收记录更新，仅本地提交；已授权网关部署单列，未推送或上传/提审/发布小程序
 
 ## 退役范围（不是验收通过）
 

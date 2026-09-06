@@ -1,7 +1,10 @@
-> 适用范围（2026-09-06）：小程序为唯一用户端，网页仅运营后台。H5 专属 UI/浏览器实现条款仅作历史兼容记录，不是后续需求或验收门槛；共享业务、后端与后台要求继续有效。详见仓库 docs/CLIENT-SCOPE.md 与 active-client-scope 规范。
+# ai-content-labeling Specification
 
-## ADDED Requirements
+> 当前范围：小程序是唯一用户端，网页仅运营后台；H5专属描述只作历史兼容，不构成新需求或依赖。平台材料由用户处理，技术归档不代表正式发布审核通过。
 
+## Purpose
+定义小文回复、全文预览及对外导出的AI来源表达和可追溯性，并将程序证据与用户负责的正式平台审核材料分开。
+## Requirements
 ### Requirement: Visible AI-origin disclosure in interaction
 系统 MUST 在完整候选和候选预览附近提供用户可感知的“AI 辅助生成、需要核对”标识，并 SHALL 将模型输出与用户原文、采访回答、议题来源和程序状态文字分开表达。聊天回答通过小文身份和助手气泡区分，不逐条重复核对提示。
 
@@ -11,7 +14,7 @@
 
 #### Scenario: Review a full candidate
 - **WHEN** 小文返回可应用的完整正文
-- **THEN** 会话和全文预览都显示 AI 辅助标识及核对提示，当前正文保持不变直到用户明确应用
+- **THEN** 会话通过小文身份及“看看文章”入口区分来源，全文预览显示轻量 AI 辅助标识及核对提示，不在结果气泡重复堆叠标签；当前正文保持不变直到用户明确应用
 
 #### Scenario: Show user-authored content
 - **WHEN** 用户查看自己手写正文、原始采访回答或议题来源

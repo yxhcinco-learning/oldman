@@ -2,6 +2,25 @@
 
 ## MODIFIED Requirements
 
+### Requirement: Versioned private application runtime
+系统 MUST 将固定提交构建为独立 release，并以专用非登录用户和两个受 systemd 托管的回环进程运行运营网页与 Fastify 网关；进程 MUST 支持开机启动、异常重启、SIGTERM 优雅停止、健康检查和上一 release 回滚。持久化微信身份库、话题库与匿名用量库 MUST 位于 release 外并在迁移前分别检查和备份，部署不得停止或复用其他项目的服务、端口、目录或数据库。
+
+#### Scenario: Activate a verified release
+- **WHEN** 用户授权整体更新且新 release 通过哈希、依赖、构建、三份数据库备份/迁移和回环健康检查
+- **THEN** `current` 原子指向该 release，仅重启授权的岁月有声网页和网关，两个进程只监听未占用的 `127.0.0.1` 端口并在异常后受限重启
+
+#### Scenario: Activate only the gateway
+- **WHEN** 用户仅授权后端网关更新
+- **THEN** 使用独立已验证release与固定网关unit路径，备份旧unit/运行配置和三库，失败恢复旧网关；不切换网页current、不改网页unit或进程、不触发网页部署和小程序上传。分别记录两服务实际版本，回滚仅恢复网关且不回退已消费用量
+
+#### Scenario: Release fails before or after activation
+- **WHEN** 构建、任一数据库检查或迁移、健康检查、systemd 启动或公网验证失败
+- **THEN** 不覆盖上一 release；恢复授权范围的版本指向、服务及同轮失败迁移前三份数据库，其他站点与数据保持不变，并分别隔离失败副本供排查
+
+#### Scenario: Roll back code after successful data migration
+- **WHEN** 已成功激活的新代码需要普通代码回滚
+- **THEN** 回滚只切代码版本而不删除、覆盖或降级微信身份库、话题库与用量库，数据库恢复只用于失败迁移的同轮补救，已消费额度不得因回滚恢复
+
 ### Requirement: Fixed protected same-origin HTTPS
 公网服务 MUST 只使用固定的 `https://suiyue.maicong.chat` 与对应 WSS，由 Nginx 在 80/443 提供 TLS、反向代理和分层访问保护；网页 `/`、原 `/api/ai/*` 与原 `/api/speech` MUST 继续受 Basic Auth 和精确浏览器 Origin 保护，小程序只能访问明确列出的只读话题、登录及 `/api/mini/*` 路由，其中在线业务 MUST 由 Fastify 验证 Bearer 会话或单次语音 ticket。应用端口不得通过云防火墙或公网地址开放。
 
@@ -23,6 +42,12 @@
 
 ### Requirement: Proxy-layer temporary controls
 网页测试期 Basic Auth MUST 继续位于反向代理层，并对普通请求及原 AI/语音入口提供简单按 IP 限流；小程序精确豁免路由 MUST 另有按 IP、业务用户、会话或 ticket 的相称限流。应用现有 AI 并发、频率、超时和 ASR 连接/时长/字节限制 MUST 保留。网页临时认证 SHALL 只创建有限的 `admin01`、`admin02` 类测试条目和各不相同的四位数字口令，明文只保存在本机受限私密交付文件中，服务器只保存 htpasswd 哈希；小程序不得复用这些口令，也不得新增可见账号、邀请码或密码流程。
+
+独立 `/admin/topics` 与 `/api/admin/*` MUST 由应用管理员会话、Origin、CSRF 和登录限流保护，不得使用体验者 Basic Auth 或小程序业务会话作为后台授权。
+
+#### Scenario: Access the independent editorial console
+- **WHEN** 访问者打开后台页面或管理 API
+- **THEN** Nginx转发且不使用体验者Basic Auth；任何管理读取、写入或AI调用前，应用验证独立后台身份和对应安全条件
 
 #### Scenario: Request bursts exceed a bound
 - **WHEN** 单一 IP、网页凭据、小程序用户或会话短时间超过代理或应用限制
@@ -46,6 +71,8 @@
 
 ### Requirement: Server-only secrets and safe operations logs
 Linux 网关 MUST 使用 `ASR_CREDENTIAL_SOURCE=project` 从 root-only 服务端环境文件加载腾讯云 ASR 凭据，并从同一文件加载 DeepSeek Key、微信小程序 AppID/AppSecret 和身份库路径；秘密不得进入 Git、网页或小程序客户端、构建包、release、命令输出或日志。操作日志 MUST 只记录 requestId、action、status、durationMs、可用的 tokens 和固定 errorCategory，不得记录正文、会话内容、音频、Key、AppSecret、OpenID、业务 token、Authorization、Cookie、语音 ticket、签名 URL 或上游私密响应。
+
+独立后台审计 MAY 保存授权编辑actor及内容entity、动作、修订与时间，但不得保存密码、Cookie、CSRF、模型reasoning或上游私密响应；不把后台审计扩展为用户对话日志。
 
 #### Scenario: Start with valid protected configuration
 - **WHEN** root-only 环境文件包含完整项目来源 ASR 凭据、精确网页 Origin、有效 DeepSeek 配置、微信 AppID/AppSecret 和可写身份库路径
@@ -135,3 +162,7 @@ Linux 网关 MUST 使用 `ASR_CREDENTIAL_SOURCE=project` 从 root-only 服务端
 #### Scenario: Request a formal release
 - **WHEN** 用户明确授权提审或发布且全部自动、平台与真机证据通过
 - **THEN** 只上传已验证提交，记录版本和审核结果，不修改 `ask_job` 代码或发布其业务版本；任一必要证据缺失则保持待办
+
+#### Scenario: Close the technical implementation separately
+- **WHEN** 用户明确只要求本阶段完成程序，并自行负责主体、备案、类目和平台材料，且程序/接口及已约定真机验收已通过
+- **THEN** 技术变更可同步归档，外部材料转入独立发布清单，不标记为合规或审核通过；上传、提审和发布仍需单独授权及当时完整核对
