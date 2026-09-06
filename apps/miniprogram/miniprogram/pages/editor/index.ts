@@ -405,8 +405,9 @@ Page({
     this.setData({ operationBusy: true, xiaowenStatus: 'idle', xiaowenError: '' });
     const result = await miniServices().articleAi.run(draft, this.data.session, action, prompt, turnPrompt, started => {
       this.adoptAiContext(started);
-      miniServices().conversations.clearComposer(draft.id);
-      this.setData({ xiaowenComposer: '', xiaowenRunning: true });
+      const clearComposer = command === 'send' && !retryId && this.data.xiaowenComposer === prompt;
+      if (clearComposer) miniServices().conversations.clearComposer(draft.id);
+      this.setData({ ...(clearComposer ? { xiaowenComposer: '' } : {}), xiaowenRunning: true });
     }, command, retryId);
     this.adoptAiContext(result);
     if (!result.accepted) {

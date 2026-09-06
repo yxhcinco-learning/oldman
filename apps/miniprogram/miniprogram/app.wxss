@@ -60,6 +60,9 @@ button::after { border: 0; }
 .conversation-topic.topic-compact { display: flex; align-items: center; gap: 12px; padding-top: 4px; padding-bottom: 4px; }
 .topic-compact .topic-heading { flex: 1; min-width: 0; }
 .conversation-topic.topic-compact .ai-mode-bar { flex: 0 0 auto; margin-top: 0; margin-left: auto; }
+.conversation-topic.topic-absent { display: block; padding-top: 0; padding-bottom: 0; background: transparent; }
+.conversation-topic.topic-absent .ai-mode-bar { margin: 0; min-height: 48px; justify-content: flex-end; }
+.topic-absent .topic-state { margin-right: auto; }
 @media (max-width: 370px) { .conversation-topic { padding-right: 20px; padding-left: 20px; } }
 .conversation-topic .ai-mode-bar button { flex-shrink: 0; min-height: 48px; padding: 10px 0 10px 12px; border: 0; border-radius: 0; background: transparent; color: #416657; font-size: 14px; line-height: 22px; white-space: nowrap; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 5px; }
 .topic-state { color: #416657; font-size: 14px; line-height: 22px; white-space: nowrap; }

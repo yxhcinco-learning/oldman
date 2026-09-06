@@ -1,11 +1,19 @@
-import { readableResultSummary as resultSummary, type AiResult, type ArticleSession, type DialogueCommand, type XiaoWenConversation } from './article-ai.js';
+import { documentOf, readableResultSummary as resultSummary, type AiResult, type ArticleSession, type DialogueCommand, type XiaoWenConversation } from './article-ai.js';
 import type { Draft } from './writing.js';
 
 export const INTERVIEW_INTRO = '您好，我是小文，您的写作助手。接下来我们围绕这个话题聊一聊。';
 export const INTERVIEW_FIRST_QUESTION = '先简单认识一下吧：怎么称呼您，大概什么年纪，之前主要做哪一行？挑方便的说就好。';
+const GENERAL_INTRO = '您好，我是小文，您的写作助手。';
+function interviewOpening(conversation: XiaoWenConversation, draft: Draft) {
+  if (conversation.materials.length) return '我们接着刚才聊的内容。您还想补充哪一部分？';
+  if (documentOf(draft).body.trim()) return '我们就从您写下的内容聊起。您最想聊哪一部分？';
+  return draft.topicSnapshot ? INTERVIEW_FIRST_QUESTION : '您想聊哪段经历，或最近有什么想说的？';
+}
 
 export function conversationView(session: ArticleSession, draft: Draft) {
-  const source = conversationOf(session, draft).messages;
+  const stored = conversationOf(session, draft).messages;
+  // Empty-state greeting is presentation only, never material or persisted history.
+  const source = stored.length ? stored : [{ id: 'conversation-welcome', role: 'assistant' as const, text: '您好，我是小文。您想聊点什么？' }];
   const messages = source.flatMap(message => {
     const turn = session.turns.find(item => item.id === message.turnId);
     const pending = message.role === 'user' && turn && ['running', 'failed', 'cancelled'].includes(turn.status)
@@ -41,8 +49,8 @@ export function conversationOf(session: ArticleSession, draft: Draft): XiaoWenCo
     }
   }
   if (draft.topicWritingMode === 'interview' && !messages.length) {
-    messages.push({ id: 'interview-intro', role: 'assistant', text: INTERVIEW_INTRO },
-      { id: 'interview-first', role: 'assistant', text: INTERVIEW_FIRST_QUESTION });
+    messages.push({ id: 'interview-intro', role: 'assistant', text: draft.topicSnapshot ? INTERVIEW_INTRO : GENERAL_INTRO },
+      { id: 'interview-first', role: 'assistant', text: interviewOpening({ mode: 'interview', messages: [], materials }, draft) });
   }
   return { mode: draft.topicWritingMode === 'interview' ? 'interview' : 'conversation', messages, materials };
 }
@@ -50,10 +58,10 @@ export function conversationOf(session: ArticleSession, draft: Draft): XiaoWenCo
 export function startInterview(session: ArticleSession, draft: Draft, eventId: string): ArticleSession {
   const conversation = conversationOf(session, draft);
   if (conversation.mode === 'interview') return { ...session, conversation };
-  const text = conversation.messages.length ? '已开启访谈。您想接着聊哪一部分？' : draft.topicSnapshot ? INTERVIEW_FIRST_QUESTION : '您想聊什么？';
+  const text = interviewOpening(conversation, draft);
   return { ...session, conversation: { ...conversation, mode: 'interview', pendingEdit: undefined,
     messages: [...conversation.messages, { id: eventId, role: 'system', text: '已开启访谈' },
-      ...(!conversation.messages.length ? [{ id: `intro-${eventId}`, role: 'assistant' as const, text: INTERVIEW_INTRO }] : []),
+      ...(!conversation.messages.length ? [{ id: `intro-${eventId}`, role: 'assistant' as const, text: draft.topicSnapshot ? INTERVIEW_INTRO : GENERAL_INTRO }] : []),
       { id: `a-${eventId}`, role: 'assistant', text }] } };
 }
 

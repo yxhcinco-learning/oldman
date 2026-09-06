@@ -13,7 +13,7 @@ export function ConversationTopic({ title, interview, disabled, onToggle }: { ti
     observer.observe(viewport.current);
     return () => observer.disconnect();
   }, [title, interview]);
-  return <section className={`conversation-topic${!interview ? ' topic-compact' : ''}`}>
+  return <section className={`conversation-topic${!interview ? ' topic-compact' : ''}${!title?.trim() ? ' topic-absent' : ''}`}>
     {title && <div className="topic-heading"><Icon name="book" /><div ref={viewport} className="topic-window" title={title}>
       <span ref={text} className={`topic-text ${distance > 1 ? 'topic-moving' : ''}`} style={{ '--topic-distance': `-${distance}px`, '--topic-duration': `${Math.max(7, distance / 16 + 3)}s` } as CSSProperties}>{title}</span>
     </div></div>}

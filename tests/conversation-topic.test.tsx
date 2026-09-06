@@ -11,4 +11,6 @@ it('主题与文字操作同组，忙碌时禁止切换', () => {
   fireEvent.click(button); expect(toggle).toHaveBeenCalledOnce();
   view.rerender(<ConversationTopic interview={false} disabled onToggle={toggle} />);
   expect(screen.getByRole('button', { name: '开启访谈' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: '开启访谈' }).closest('section')).toHaveClass('topic-absent');
+  expect(document.querySelector('.topic-heading')).toBeNull();
 });

@@ -126,15 +126,15 @@ describe('微信小程序公共工程配置', () => {
     expect(editor).toContain('class="xiaowen-mask" style="bottom: {{keyboardHeight}}px"');
     expect(editor).toMatch(/class="title-input"[^>]*adjust-position="\{\{false\}\}"[^>]*bindkeyboardheightchange="onKeyboardHeight"/s);
     expect(editor).toMatch(/placeholder="问小文，或提要求"[^>]*adjust-position="\{\{false\}\}"[^>]*bindkeyboardheightchange="onKeyboardHeight"/s);
-    expect(interview).toMatch(/placeholder="回复小文"[^>]*adjust-position="\{\{false\}\}"[^>]*bindkeyboardheightchange="onKeyboardHeight"/s);
+    expect(interview).toMatch(/placeholder="\{\{mode === 'interview' \? '回复小文' : '问小文，或提要求'\}\}"[^>]*adjust-position="\{\{false\}\}"[^>]*bindkeyboardheightchange="onKeyboardHeight"/s);
     expect(editor).toMatch(/class="pending-input"[^>]*show-confirm-bar="\{\{false\}\}"/s);
     expect(editor).toMatch(/placeholder="问小文，或提要求"[^>]*show-confirm-bar="\{\{false\}\}"/s);
-    expect(interview).toMatch(/placeholder="回复小文"[^>]*show-confirm-bar="\{\{false\}\}"/s);
+    expect(interview).toMatch(/placeholder="\{\{mode === 'interview' \? '回复小文' : '问小文，或提要求'\}\}"[^>]*show-confirm-bar="\{\{false\}\}"/s);
     expect(editor + interview).not.toMatch(/(?:adjust-position|show-confirm-bar)="false"/);
     expect(editorController).toContain('resolveKeyboardInset(reportedHeight, baselineWindowHeight, info.windowHeight, info.pixelRatio)');
     expect(keyboardAvoidance).toContain('reported - viewportReduction');
     expect(interview).toContain('class="topic-window"');
-    expect(interview).toContain('class="conversation-topic"');
+    expect(interview).toContain('class="conversation-topic ');
     expect(interview).toContain('aria-label="停止回复"');
     expect(interview).not.toContain('取消请求');
     expect(interview).not.toContain('<small>{{draft && draft.topicSnapshot');
@@ -145,7 +145,7 @@ describe('微信小程序公共工程配置', () => {
     expect(interview).toContain('结束访谈并整理');
     expect(interview).toMatch(/<button wx:if="{{item.role === 'assistant'[^}]*hasAnswers[^}]*}}" class="change-question"/);
     expect(interview).not.toContain('compose-link-row');
-    expect(interview).toMatch(/placeholder="回复小文"[^>]*disable-default-padding="{{true}}"[^>]*bindfocus="onComposerFocus"[^>]*bindblur="onComposerBlur"/s);
+    expect(interview).toMatch(/placeholder="{{mode === 'interview' \? '回复小文' : '问小文，或提要求'}}"[^>]*disable-default-padding="{{true}}"[^>]*bindfocus="onComposerFocus"[^>]*bindblur="onComposerBlur"/s);
     expect(interviewController).toMatch(/onComposerBlur\(\)\s*\{[\s\S]*this\.setData\(\{ keyboardHeight: 0 \}\)/);
     expect(interviewController).toContain('hasAnswers: conversation.materials.length > 0');
     expect(interviewController).toContain('conversationView');

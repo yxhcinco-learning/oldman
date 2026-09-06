@@ -76,11 +76,13 @@ try {
   await mini.reLaunch('/pages/editor/index?xiaowen=compose');
   await current('editor');
   check('空编辑器加载，无 conversationView 异常', await page.data('error') === '');
+  check('无话题空会话提供非持久化问候，无空绿色主题区', (await page.$$('.topic-heading')).length === 0 && Boolean(await page.$('.topic-absent')) && (await page.data('conversationMessages'))[0].text === '您好，我是小文。您想聊点什么？' && ((await conversation())?.messages.length ?? 0) === 0);
   await send('你好', { result: result('reply', '您好！您想聊什么？') });
   check('问候消息与回复连续、无素材、正文仍空', (await conversation()).messages.length === 2 && (await conversation()).materials.length === 0 && await page.data('body') === '');
   await (await page.$('.ai-mode-bar button')).tap();
   await current('interview');
   check('按钮开启访谈，静态开场不请求模型', (await conversation()).mode === 'interview' && await requestCount() === 1);
+  check('只问候后无话题访谈先澄清，操作行不留主题占位', (await conversation()).messages.at(-1).text.includes('您想聊哪段经历') && (await (await page.$('.topic-absent')).size()).height <= 52);
   const originalDraft = await page.data('draft');
   await page.setData({ draft: { ...originalDraft, topicSnapshot: { ...originalDraft.topicSnapshot, title: '人工智能进入课堂，教师的角色也在变化，聊聊您记忆中的第一次电脑备课' } } });
   await page.callMethod('onResize');
@@ -238,9 +240,11 @@ try {
   await page.callMethod('startInterview');
   await current('interview');
   await enqueue({ defer: true, result: result('finish', '后台整理完成，请核对。', { body: '后台候选正文。' }) });
+  await (await page.$('.composer-row textarea')).input('还没发送的补充经历');
   await (await page.$('.ai-mode-bar button')).tap();
   await new Promise(resolve => setTimeout(resolve, 200));
   check('结束整理使用三点占位、顶部操作和输入区停止', (await page.data('messages')).at(-1).text === '正在整理…' && !!await page.$('.interview-context .ai-mode-bar button') && !!await page.$('.composer-row .ai-stop') && !await page.$('.reply-pending button'));
+  check('结束等待按已保存模式收拢，保留未发送输入', await page.data('composer') === '还没发送的补充经历' && await (await page.$('.ai-mode-bar button')).text() === '开启访谈' && !await page.$('.topic-state'));
   await mini.screenshot({ path: resolve(output, 'composing.png') });
   check('按钮结束在等待结果前已保存普通模式', await mini.evaluate(async () => {
     const snapshot = await getApp().__dialogueQa.services.repository.load();

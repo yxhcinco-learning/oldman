@@ -101,7 +101,7 @@
         </view>
       </view>
 
-      <view wx:if="{{xiaowenView === 'chat'}}" class="conversation-topic topic-compact"><view wx:if="{{draft && draft.topicSnapshot}}" class="topic-heading"><image src="/assets/book.svg" /><view class="topic-window"><text class="topic-text {{topicDistance > 1 ? 'topic-moving' : ''}}" style="--topic-distance: -{{topicDistance || 0}}px; --topic-duration: {{topicDuration || 7}}s">{{draft.topicSnapshot.title}}</text></view></view><view class="ai-mode-bar"><button bindtap="startInterview" disabled="{{operationBusy || voiceBusy}}">开启访谈</button></view></view>
+      <view wx:if="{{xiaowenView === 'chat'}}" class="conversation-topic topic-compact {{draft.topicSnapshot ? '' : 'topic-absent'}}"><view wx:if="{{draft && draft.topicSnapshot}}" class="topic-heading"><image src="/assets/book.svg" /><view class="topic-window"><text class="topic-text {{topicDistance > 1 ? 'topic-moving' : ''}}" style="--topic-distance: -{{topicDistance || 0}}px; --topic-duration: {{topicDuration || 7}}s">{{draft.topicSnapshot.title}}</text></view></view><view class="ai-mode-bar"><button bindtap="startInterview" disabled="{{operationBusy || voiceBusy}}">开启访谈</button></view></view>
       <scroll-view wx:if="{{xiaowenView === 'chat'}}" class="xiaowen-messages" scroll-y scroll-into-view="xiaowen-end-{{conversationMessages.length}}-{{xiaowenRunning ? 1 : 0}}-{{xiaowenError ? 1 : 0}}">
         <view wx:for="{{conversationMessages}}" wx:key="id" class="xiaowen-turn">
           <view class="{{item.role === 'system' ? 'conversation-event' : item.role === 'user' ? 'xiaowen-user-message' : 'xiaowen-answer'}}">

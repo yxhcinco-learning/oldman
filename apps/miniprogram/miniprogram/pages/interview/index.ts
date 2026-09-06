@@ -132,13 +132,15 @@ Page({
     try {
       if (!await miniServices().aiConsent.ensure()) { this.setData({ error: '没有发送给小文，输入仍然保留。' }); return; }
       const result = await miniServices().articleAi.run(draft, this.data.session, 'dialogue', prompt, undefined, context => {
-        miniServices().conversations.clearComposer(draft.id);
+        const clearComposer = command === 'send' && !retryId && this.data.composer === prompt;
+        if (clearComposer) miniServices().conversations.clearComposer(draft.id);
         this.setData({ draft: context.draft, session: context.session, revision: context.work?.revision ?? this.data.revision,
-          composer: '', mode: context.session.conversation!.mode, messages: conversationView(context.session, context.draft) });
+          ...(clearComposer ? { composer: '' } : {}), mode: context.session.conversation!.mode, messages: conversationView(context.session, context.draft) });
+        measureTopic(this);
       }, command, retryId);
       const conversation = conversationOf(result.session, result.draft);
       this.setData({ draft: result.draft, session: result.session, revision: result.work?.revision ?? this.data.revision,
-        messages: conversationView(result.session, result.draft), pendingEdit: conversation.pendingEdit ?? '',
+        mode: conversation.mode, messages: conversationView(result.session, result.draft), pendingEdit: conversation.pendingEdit ?? '',
         hasAnswers: conversation.materials.length > 0, error: result.error });
       if (conversation.mode === 'conversation' && pageVisible) {
         pageVisible = false;
@@ -204,6 +206,16 @@ Page({
   },
 
   async composeArticle() { await this.runDialogue('结束访谈并整理', 'finish'); },
+  async toggleInterview() {
+    if (this.data.saving || this.data.voiceBusy || !this.data.draft) return;
+    if (this.data.mode === 'interview') { await this.composeArticle(); return; }
+    this.setData({ saving: true, error: '' });
+    try {
+      await miniServices().articleAi.startInterview(this.data.draft, this.data.session);
+      await this.open(this.data.draft.id);
+    } catch (error) { this.setData({ error: error instanceof Error ? error.message : '访谈尚未开启，请重试。' }); }
+    finally { this.setData({ saving: false }); }
+  },
 
   onHide() {
     pageVisible = false;

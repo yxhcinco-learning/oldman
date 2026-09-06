@@ -12,6 +12,25 @@ function setup(mode: 'normal' | 'interview' = 'interview', prompt = '你好', co
 const reply = (answer: string): AiResult => ({ answer, citedVersionIds: [], dialogue: { intent: 'reply' } });
 
 describe('统一小文会话', () => {
+  it('无话题空会话问候只作展示，首次访谈先问想聊什么', () => {
+    const draft = emptyDraft(); const session = newSession(draft);
+    expect(conversationView(session, draft)[0].text).toBe('您好，我是小文。您想聊点什么？');
+    expect(conversationOf(session, draft).messages).toHaveLength(0);
+    const started = startInterview(session, draft, 'start');
+    expect(started.conversation?.messages.map(m => m.text).join('')).not.toContain('这个话题');
+    expect(started.conversation?.messages.at(-1)?.text).toBe('您想聊哪段经历，或最近有什么想说的？');
+    expect(started.conversation?.materials).toHaveLength(0);
+    expect(conversationOf(newSession({ ...draft, topicWritingMode: 'interview' }), { ...draft, topicWritingMode: 'interview' }).messages.map(m => m.text).join('')).not.toContain('这个话题');
+  });
+  it('只问候不冒充深入交流，有正文或材料才承接，无话题旧历史不改写', () => {
+    const { draft, session } = setup('normal');
+    const greeted = settleDialogue(session, 'turn-1', reply('您好'));
+    expect(startInterview(greeted, draft, 'start').conversation?.messages.at(-1)?.text).toContain('您想聊哪段经历');
+    expect(startInterview(greeted, { ...draft, inputMode: 'text', textDraft: '我在学校教过书。' }, 'body').conversation?.messages.at(-1)?.text).toContain('您写下的内容');
+    const withMaterial = { ...greeted, conversation: { ...greeted.conversation!, materials: [{ id: 'm1', text: '你好', sourceMessageId: 'u-turn-1' }] } };
+    expect(startInterview(withMaterial, draft, 'material').conversation?.messages.at(-1)?.text).toContain('还想补充');
+    expect(startInterview(greeted, draft, 'start').conversation?.messages.slice(0, greeted.conversation!.messages.length)).toEqual(greeted.conversation?.messages);
+  });
   it('旧结果阅读指引使用文章而非候选，不改原始回复和正文', () => {
     const { draft, session } = setup('interview', '结束访谈并整理', 'finish');
     const settled = settleDialogue(session, 'turn-1', { answer: '已根据您的经历整理，请查看候选。', body: '我从前在学校工作。', citedVersionIds: [], dialogue: { intent: 'finish' } });
