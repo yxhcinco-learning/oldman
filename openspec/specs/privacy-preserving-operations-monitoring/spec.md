@@ -1,3 +1,5 @@
+> 适用范围（2026-09-06）：小程序为唯一用户端，网页仅运营后台。H5 专属 UI/浏览器实现条款仅作历史兼容记录，不是后续需求或验收门槛；共享业务、后端与后台要求继续有效。详见仓库 docs/CLIENT-SCOPE.md 与 active-client-scope 规范。
+
 # privacy-preserving-operations-monitoring Specification
 
 ## Purpose
@@ -50,4 +52,3 @@ H5 SHALL 只上报白名单事件 `app.opened`、`topic.opened`、`writing.start
 #### Scenario: Build and use the product
 - **WHEN** 构建和使用 H5 或后台
 - **THEN** 监控不依赖新包或第三方网络目的地，文章、采访、音频和本地数据库内容全部保持在监控 payload 之外
-

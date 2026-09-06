@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { formatTime } from '../lib/domain/writing';
+import { formatTime } from '../packages/core/src/writing';
 
 const now = new Date(2026, 7, 27, 16, 10, 30);
 it.each([

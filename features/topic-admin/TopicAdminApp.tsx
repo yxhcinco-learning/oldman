@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { TopicEditableContent, TopicKind, TopicPlacement, WritingTopic } from '../../lib/domain/topics';
+import type { TopicEditableContent, TopicKind, TopicPlacement, WritingTopic } from '../../packages/core/src/topics';
 import { AdminIcon, type AdminIconName } from './AdminIcon';
 import styles from './topic-admin.module.css';
 

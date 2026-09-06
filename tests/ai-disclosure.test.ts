@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { AI_ASSISTANCE_DISCLOSURE, aiDisclosureFor, externalArticleText, isAppliedAiVersion, isWorkAiAssisted,
-  newSession, newVersion, type ArticleSession } from '../lib/domain/article-ai';
-import { makeBackup, parseBackupBundle } from '../lib/storage/backup';
-import { emptyDraft, splitDraft, workFromDraft } from '../lib/domain/writing';
+  newSession, newVersion, type ArticleSession } from '../packages/core/src/article-ai';
+import { makeBackup, parseBackupBundle } from '../packages/core/src/backup';
+import { emptyDraft, splitDraft, workFromDraft } from '../packages/core/src/writing';
 
 function fixture(status: 'ready' | 'dismissed' | 'applied'): { session: ArticleSession; candidateVersionId?: string } {
   const draft = { ...emptyDraft(), title: '一段往事', inputMode: 'text' as const, textDraft: '这是我的原文。' };

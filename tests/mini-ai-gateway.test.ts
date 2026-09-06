@@ -4,9 +4,9 @@ import { createGateway } from '../server/gateway';
 import { MiniIdentityStore } from '../server/mini-identity-store';
 import type { OperationEntry } from '../server/operations';
 import { WechatAuthService } from '../server/wechat-auth';
-import { emptyDraft } from '../lib/domain/writing';
-import { newSession } from '../lib/domain/article-ai';
-import { buildAiRequest } from '../features/ai/protocol';
+import { emptyDraft } from '../packages/core/src/writing';
+import { newSession } from '../packages/core/src/article-ai';
+import { buildAiRequest } from '../packages/core/src/ai-protocol';
 
 const origin = 'http://localhost:3001';
 const configuration = { apiKey: 'test-only-key', baseUrl: 'https://api.deepseek.com', model: 'deepseek-v4-flash' as const };

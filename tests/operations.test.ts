@@ -1,9 +1,9 @@
 // @vitest-environment node
 import { afterEach, expect, it, vi } from 'vitest';
 import { createGateway } from '../server/gateway';
-import { emptyDraft } from '../lib/domain/writing';
-import { newSession } from '../lib/domain/article-ai';
-import { buildAiRequest } from '../features/ai/protocol';
+import { emptyDraft } from '../packages/core/src/writing';
+import { newSession } from '../packages/core/src/article-ai';
+import { buildAiRequest } from '../packages/core/src/ai-protocol';
 import { OperationMonitor, type OperationEntry } from '../server/operations';
 
 const origin = 'https://suiyue.maicong.chat';

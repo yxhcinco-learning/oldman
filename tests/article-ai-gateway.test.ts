@@ -2,11 +2,11 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { createGateway } from '../server/gateway';
 import { loadAiConfiguration, systemPrompt, type AiGatewayOptions } from '../server/article-ai';
-import { emptyDraft } from '../lib/domain/writing';
-import { newSession } from '../lib/domain/article-ai';
+import { emptyDraft } from '../packages/core/src/writing';
+import { newSession } from '../packages/core/src/article-ai';
 import { prepareDialogue } from '../packages/core/src/conversation';
-import { buildAiRequest } from '../features/ai/protocol';
-import { snapshotTopic } from '../lib/domain/topics';
+import { buildAiRequest } from '../packages/core/src/ai-protocol';
+import { snapshotTopic } from '../packages/core/src/topics';
 import { REVIEWED_TOPIC_CATALOG } from '../server/topic-catalog';
 
 const configuration = { apiKey: 'test-only-key', baseUrl: 'https://api.deepseek.com', model: 'deepseek-v4-flash' as const };

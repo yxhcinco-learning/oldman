@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { topicEditableContentSchema, topicGenerationRequestSchema, type TopicEditableContent, type TopicGenerationRequest } from '../lib/domain/topics';
+import { topicEditableContentSchema, topicGenerationRequestSchema, type TopicEditableContent, type TopicGenerationRequest } from '../packages/core/src/topics';
 import type { AiConfiguration } from './article-ai';
 
 export type TopicAiErrorCategory = 'not_configured' | 'busy' | 'cancelled' | 'timeout' | 'upstream_auth' |

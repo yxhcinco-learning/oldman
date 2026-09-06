@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, relative } from 'node:path';
 
 let errors = 0;
 const report = text => { console.error(text); errors++; };
@@ -11,10 +11,12 @@ async function scan(dir) {
     if (item.isDirectory()) { await scan(path); continue; }
     if (!/\.[cm]?[jt]sx?$/.test(path)) continue;
     const source = await readFile(path, 'utf8');
-    if (dir.startsWith('features/demo')) for (const match of source.matchAll(/(?:from\s*|import\s*\(\s*)['"]([^'"]+)['"]/g)) {
-      if (!match[1].startsWith('.')) continue;
-      const imported = resolve(dirname(path), match[1]).replaceAll('\\', '/');
-      if (['lib/storage', 'server', 'features/speech', 'features/writing'].some(area => imported.startsWith(resolve(area).replaceAll('\\', '/') + '/'))) report(`演示不能调用真实业务: ${path}`);
+    for (const match of source.matchAll(/(?:from\s*|import\s*\(\s*)['"]([^'"]+)['"]/g)) {
+      const specifier = match[1];
+      if (!specifier.startsWith('.') && !specifier.startsWith('@/')) continue;
+      const imported = (specifier.startsWith('@/') ? resolve(specifier.slice(2)) : resolve(dirname(path), specifier)).replaceAll('\\', '/');
+      const target = relative(process.cwd(), imported).replaceAll('\\', '/');
+      if (/^(?:archive|lib|components|previews)\//.test(target) || /^features\/(?!topic-admin\/)/.test(target)) report(`活跃代码依赖退役 H5: ${path}`);
     }
     if ((dir.startsWith('app') || dir.startsWith('features') || dir.startsWith('lib')) && /process\.env\.(?:TENCENT|DEEPSEEK)|TENCENT_ASR_SECRET_KEY|DEEPSEEK_API_KEY/.test(source)) report(`客户端出现服务端凭据引用: ${path}`);
     if ((dir.startsWith('app') || dir.startsWith('features') || dir.startsWith('lib')) && /from\s+['"][^'"]*server\//.test(source)) report(`客户端导入服务端模块: ${path}`);
@@ -27,7 +29,7 @@ async function scan(dir) {
     }
   }
 }
-for (const dir of ['app', 'features', 'lib', 'server', 'packages/core/src', 'apps/miniprogram/miniprogram']) await scan(dir);
+for (const dir of ['app', 'features', 'server', 'tests', 'scripts', 'packages/core/src', 'apps/miniprogram/miniprogram']) await scan(dir);
 const files = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' }).split('\0').filter(Boolean);
 for (const file of files) {
   if (/(^|\/)(node_modules|dist|\.wrangler|backups|miniprogram_npm|preview|upload|\.wechat-devtools)\//.test(file) ||

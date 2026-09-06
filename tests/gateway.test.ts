@@ -5,7 +5,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import type WebSocket from 'ws';
 import { createGateway, type GatewayOptions } from '../server/gateway';
 import { loadAsrEngineModel, signedAsrUrl, parseTencentResult } from '../server/tencent';
-import { TranscriptAccumulator } from '../features/speech/protocol';
+import { TranscriptAccumulator } from '../packages/core/src/speech-protocol';
 
 const credentials = { appId: '123456', secretId: 'test-id', secretKey: 'test-key' };
 const origin = 'http://localhost:3001';

@@ -1,6 +1,8 @@
+> 2026-09-06 用户修订：小程序唯一用户端，网页仅运营后台；H5 源码与专属验收归档并切断依赖。下文已完成阶段保留历史事实，剩余任务按此范围执行。退役 H5 不代表共享/小程序缺陷或新 AppID 验收完成。
+
 ## Why
 
-目标用户在微信内无法顺畅完成浏览器 Basic Auth，且现有 H5 依赖 IndexedDB、DOM、Web Audio 与浏览器手势，不能直接作为可靠的小程序体验。现在需要增加一个原生微信小程序客户端，用微信无感身份替代可见登录门槛，同时保持作品本地优先、现有写作闭环和网页端继续可用。
+目标用户在微信内无法顺畅完成浏览器 Basic Auth，且现有 H5 依赖 IndexedDB、DOM、Web Audio 与浏览器手势，不能直接作为可靠的小程序体验。现在需要增加一个原生微信小程序客户端，用微信无感身份替代可见登录门槛，同时保持作品本地优先、现有写作闭环；H5 退出产品范围，网页只保留运营后台。
 
 ## What Changes
 
@@ -18,21 +20,21 @@
 
 ### New Capabilities
 
-- `wechat-miniprogram-client`: 原生小程序的信息架构、核心写作闭环、平台适配、网页并存和交互等价要求。
+- `wechat-miniprogram-client`: 原生小程序的信息架构、核心写作闭环、平台适配、运营端隔离和交互等价要求。
 - `wechat-identity-session`: 无感微信身份、最小用户记录、业务会话、API 与 WebSocket 鉴权及临时 AppID 边界。
 - `miniprogram-local-persistence`: 小程序本地文件仓储、恢复、冲突、回收站、备份导入导出和容量/清理失败处理。
 - `ai-content-labeling`: 小文生成候选在交互、复制、导出和审核材料中的显式标识与可追溯要求。
 
 ### Modified Capabilities
 
-- `project-foundation`: 正式工程从单一 H5 客户端扩展为网页、小程序、共享核心与现有网关共同维护的项目。
+- `project-foundation`: 正式工程维护小程序用户端、网页运营后台、共享核心与网关，H5 归档。
 - `local-writing`: “本机保存”扩展到小程序本地用户文件，同时继续排除第一版云端文章与跨设备同步。
 - `speech-input`: 除浏览器 AudioWorklet 外增加小程序原生录音与分片传输，并保持原有状态、取消和隐私边界。
 - `controlled-public-deployment`: 在不削弱网页 Basic Auth 的前提下增加面向小程序的 HTTPS/WSS、业务会话、持久数据目录和发布前平台配置。
 
 ## Impact
 
-- 代码与工具链：新增小程序工程、共享领域/协议边界、微信开发者工具检查和小程序专属测试；现有 React/Vinext 网页继续保留。
+- 代码与工具链：新增小程序工程、共享领域/协议边界、微信开发者工具检查和小程序专属测试；React/Vinext 仅保留运营后台，H5 用户端归档。
 - 服务端：Fastify 增加微信换码、用户/身份/会话、短时语音凭证和鉴权钩子；需要独立于 release 的小规模持久化与备份。
 - 部署：Nginx 路由、限流、运行时环境变量、systemd 可写目录、合法 request/socket 域名和隐私配置发生变化；AppSecret 只由用户写入服务器受限环境文件。
 - 数据：网页 IndexedDB 与小程序本地文件互不自动同步；临时与正式 AppID 的本地数据和 OpenID 也互相隔离，只能通过明确的备份导入迁移作品副本。

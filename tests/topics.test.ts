@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it } from 'vitest';
 import { resolve } from 'node:path';
-import { snapshotTopic, writingTopicSchema } from '../lib/domain/topics';
+import { snapshotTopic, writingTopicSchema } from '../packages/core/src/topics';
 import { createGateway } from '../server/gateway';
 import { REVIEWED_TOPIC_CATALOG } from '../server/topic-catalog';
 import { loadTopicRuntime } from '../server/topic-runtime';

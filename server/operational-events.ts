@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { productEvents, type ProductEvent } from '../lib/domain/operations';
+import { productEvents, type ProductEvent } from '../packages/core/src/operations';
 import { defaultOperationLogger, operationDuration, type OperationLogger } from './operations';
 
 export const productEventSchema = z.enum(productEvents);

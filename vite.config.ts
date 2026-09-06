@@ -1,4 +1,3 @@
-import tailwindcss from '@tailwindcss/postcss';
 import vinext from 'vinext';
 import { defineConfig } from 'vite';
 
@@ -7,7 +6,6 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === 'seatbelt';
 const gatewayTarget = process.env.GATEWAY_PROXY_TARGET || 'http://127.0.0.1:3002';
 
 export default defineConfig({
-  css: { postcss: { plugins: [tailwindcss()] } },
   server: {
     host: 'localhost', port: 3001, strictPort: true,
     proxy: {

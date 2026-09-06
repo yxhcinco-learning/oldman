@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { aiResultSchema, resultSummary } from '../lib/domain/article-ai';
+import { aiResultSchema, resultSummary } from '../packages/core/src/article-ai';
 import { validateDialogueResult } from '../packages/core/src/conversation';
-import { aiRequestSchema, type AiRequest, type AiResponse } from '../features/ai/protocol';
+import { aiRequestSchema, type AiRequest, type AiResponse } from '../packages/core/src/ai-protocol';
 import { defaultOperationLogger, operationDuration, type OperationLogger } from './operations';
 import type { WechatAuthService } from './wechat-auth';
 import { MiniIdentityError } from './mini-identity-store';

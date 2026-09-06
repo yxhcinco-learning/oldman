@@ -8,7 +8,7 @@ import {
   type TopicKind,
   type TopicPlacement,
   type WritingTopic,
-} from '../lib/domain/topics';
+} from '../packages/core/src/topics';
 
 const SCHEMA_VERSION = 1;
 const SEED_MIGRATION = 'reviewed-topic-catalog-v1';

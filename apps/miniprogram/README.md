@@ -1,6 +1,6 @@
 # 微信小程序开发工程
 
-这是“岁月有声”的原生微信小程序客户端。Web 端继续由仓库根目录的 Vinext 工程提供，小程序与 Web 复用 `packages/core` 中的平台无关领域逻辑。
+这是“岁月有声”的唯一用户端。根目录 Vinext 工程只提供运营后台；H5 试验端已归档。小程序、后端与后台直接使用 `packages/core`，边界见 [CLIENT-SCOPE](../../docs/CLIENT-SCOPE.md)。
 
 ## 本地身份配置
 

@@ -1,3 +1,5 @@
+> 2026-09-06 用户修订：小程序唯一用户端，网页仅运营后台；H5 源码与专属验收归档并切断依赖。下文已完成阶段保留历史事实，剩余任务按此范围执行。退役 H5 不代表共享/小程序缺陷或新 AppID 验收完成。
+
 ## Context
 
 当前正式版是 React/Vinext H5：作品、采访素材和文章会话保存在浏览器 IndexedDB，正文语音由 Web Audio/AudioWorklet 生成 16 kHz PCM16，通过同源 WebSocket 交给回环 Fastify 网关；话题和 DeepSeek 也通过同源 HTTP 访问。公网体验入口由 Nginx Basic Auth 保护，网关把精确浏览器 Origin 当作请求边界。现有领域模型、备份校验、AI 协议和服务端上游适配大多是平台无关 TypeScript，但 React 组件、DOM 光标、Visual Viewport、文件下载和采音实现不能运行在微信小程序。

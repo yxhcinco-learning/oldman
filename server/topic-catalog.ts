@@ -1,4 +1,4 @@
-import { writingTopicSchema, type WritingTopic } from '../lib/domain/topics';
+import { writingTopicSchema, type WritingTopic } from '../packages/core/src/topics';
 
 const reviewedAt = '2026-08-31T08:00:00.000Z';
 const editor = '岁月有声内容编辑';

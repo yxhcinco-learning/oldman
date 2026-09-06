@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { topicEditableContentSchema, topicGenerationRequestSchema, topicPlacementSchema, writingTopicSchema } from '../lib/domain/topics';
+import { topicEditableContentSchema, topicGenerationRequestSchema, topicPlacementSchema, writingTopicSchema } from '../packages/core/src/topics';
 import { defaultOperationLogger, OperationMonitor, operationDuration, type OperationLogger } from './operations';
 import { TopicAdminAuthError, TopicAdminAuthService, type AuthenticatedTopicAdmin } from './topic-admin-auth';
 import { callDeepSeekTopicCandidate, prepareTopicAiRequest, TopicAiError } from './topic-ai';

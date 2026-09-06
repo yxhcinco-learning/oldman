@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { TopicGenerationRequest } from '../lib/domain/topics';
+import type { TopicGenerationRequest } from '../packages/core/src/topics';
 import { createGateway } from '../server/gateway';
 import { createTopicAdminPasswordHash, TopicAdminAuthService } from '../server/topic-admin-auth';
 import { callDeepSeekTopicCandidate, TopicAiError } from '../server/topic-ai';

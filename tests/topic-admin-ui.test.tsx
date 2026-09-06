@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { TopicAdminApp } from '../features/topic-admin/TopicAdminApp';
-import type { WritingTopic } from '../lib/domain/topics';
+import type { WritingTopic } from '../packages/core/src/topics';
 
 const baseTopic = (status: WritingTopic['status'] = 'candidate'): WritingTopic => ({
   id: 'community-meals', revision: 1, status, kind: 'current', title: '社区食堂多了，晚年生活也有了新的饭桌',

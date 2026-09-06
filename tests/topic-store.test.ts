@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { afterEach, describe, expect, it } from 'vitest';
-import { topicGenerationRequestSchema, writingTopicSchema, type WritingTopic } from '../lib/domain/topics';
+import { topicGenerationRequestSchema, writingTopicSchema, type WritingTopic } from '../packages/core/src/topics';
 import { REVIEWED_TOPIC_CATALOG } from '../server/topic-catalog';
 import { TopicStore, TopicStoreError } from '../server/topic-store';
 

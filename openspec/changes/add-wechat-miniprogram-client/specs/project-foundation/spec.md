@@ -1,21 +1,23 @@
+> 适用范围（2026-09-06）：小程序为唯一用户端，网页仅运营后台。H5 专属 UI/浏览器实现条款仅作历史兼容记录，不是后续需求或验收门槛；共享业务、后端与后台要求继续有效。详见仓库 docs/CLIENT-SCOPE.md 与 active-client-scope 规范。
+
 ## ADDED Requirements
 
-### Requirement: One canonical repository with two official clients
-正式工程 SHALL 继续以当前仓库根目录为唯一项目根，并 SHALL 在其中维护现有网页端、`apps/miniprogram` 原生小程序、共享核心和现有服务端；小程序目录是同一产品的正式客户端，不得复制成另一个仓库、嵌套 Git 工程或依赖 `ask_job` 的源码和运行配置。
+### Requirement: One canonical repository with one user client and operations console
+正式工程 SHALL 继续以当前仓库根目录为唯一项目根，并 SHALL 在其中维护运营后台、`apps/miniprogram` 唯一原生用户端、共享核心和现有服务端；小程序目录是同一产品的正式客户端，不得复制成另一个仓库、嵌套 Git 工程或依赖 `ask_job` 的源码和运行配置。
 
 #### Scenario: Locate the official clients
 - **WHEN** 开发者从仓库根目录检查工程结构
-- **THEN** 网页、原生小程序、共享核心和网关均由同一 OpenSpec、锁文件策略与验证入口管理，`ask_job` 只提供临时 AppID 参考且不被修改
+- **THEN** 运营后台、原生小程序、共享核心和网关均由同一 OpenSpec、锁文件策略与验证入口管理，`ask_job` 只提供临时 AppID 参考且不被修改
 
-#### Scenario: Start web development
+#### Scenario: Start operations development
 - **WHEN** 开发者继续运行现有 `npm run dev`
-- **THEN** 网页仍固定使用 localhost:3001 和现有本机网关，新增小程序目录不改变或清空浏览器 IndexedDB
+- **THEN** 运营后台固定使用 localhost:3001/admin/topics 和本机网关；不启动退役 H5，不清空旧浏览器 IndexedDB
 
 ### Requirement: Cross-platform core and explicit adapters
-工程 SHALL 将领域 schema、状态转换、备份格式、话题与 AI 协议保留在不依赖 React、DOM、Node-only API 或微信全局的共享边界；网页和小程序 MUST 分别实现存储、网络、Socket、录音、键盘和文件选择适配器。
+工程 SHALL 将领域 schema、状态转换、备份格式、话题与 AI 协议保留在不依赖 React、DOM、Node-only API 或微信全局的共享边界；运营后台与小程序 MUST 按各自需要实现存储、网络、Socket、录音、键盘和文件选择适配器。
 
 #### Scenario: Import shared code in both runtimes
-- **WHEN** 网页、Fastify 或小程序构建共享领域模块
+- **WHEN** 运营后台、Fastify 或小程序构建共享领域模块
 - **THEN** 共享模块不读取 `window`、`document`、IndexedDB、文件系统、`process.env` 或 `wx`，平台能力只从适配器注入
 
 #### Scenario: Detect accidental platform coupling
@@ -33,7 +35,7 @@
 - **WHEN** 本机微信开发者工具已登录且小程序构建完成
 - **THEN** 自动化可以打开、编译或生成本地预览证据，但除非用户另行明确授权，不执行 upload、submit 或 release 类操作
 
-### Requirement: Complete verification covers both runtimes
+### Requirement: Complete verification covers active runtimes
 代码阶段交付和 CI SHALL 在现有 `npm run check` 与 `npm run build` 基础上覆盖共享核心和小程序类型、单元、schema、包体/页面配置及构建检查；微信专属交互 MUST 另有开发者工具和真机证据，且 CI 不配置 AppSecret 或调用计费上游。
 
 #### Scenario: Complete a code implementation stage

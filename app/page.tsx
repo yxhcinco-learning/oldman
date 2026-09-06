@@ -1,5 +1,3 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { ProductApp } from '../features/writing/ProductApp';
-
-export default function Home() { return <ProductApp />; }
+export default function HomePage() { redirect('/admin/topics'); }

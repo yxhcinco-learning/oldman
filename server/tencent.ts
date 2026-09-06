@@ -1,5 +1,5 @@
 import { createHmac, randomInt, randomUUID } from 'node:crypto';
-import { TranscriptAccumulator } from '../features/speech/protocol';
+import { TranscriptAccumulator } from '../packages/core/src/speech-protocol';
 
 export interface Credentials { appId: string; secretId: string; secretKey: string; token?: string }
 export const ASR_ENGINE_MODELS = ['16k_zh', '16k_zh_en', '16k_zh_en_2.0'] as const;

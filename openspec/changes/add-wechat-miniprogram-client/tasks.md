@@ -1,3 +1,5 @@
+> 2026-09-06 用户修订：小程序唯一用户端，网页仅运营后台；H5 源码与专属验收归档并切断依赖。下文已完成阶段保留历史事实，剩余任务按此范围执行。退役 H5 不代表共享/小程序缺陷或新 AppID 验收完成。
+
 ## 1. Shared foundation and safe mini-program scaffold
 
 - [x] 1.1 Configure the root npm workspace/scripts for the existing web app, a platform-neutral shared core package and `apps/miniprogram`, updating the single lock file without changing the web development port or Sites boundary
@@ -94,6 +96,10 @@
 ## 11. Final verification, archival and delivery
 
 - [ ] 11.1 Run `npm run check`, `npm run build`, mini-program package/developer-tool checks, `openspec validate --all --strict`, task-only diff review and sensitive/generated-artifact scan on the final implementation commit
-- [ ] 11.2 Re-run web regression to prove Basic Auth, IndexedDB writing, topic/AI/ASR routes, backups and current interaction were not regressed by shared-core or deployment changes
+- [ ] 11.2 验证运营后台登录与发布、后端鉴权/API、共享备份和小程序未被改造回归；不再要求 H5 IndexedDB 或用户 UI
 - [ ] 11.3 Consolidate automated, developer-tool, real WeChat/AI/ASR and accepted Android evidence in the acceptance record, explicitly recording the iOS waiver and any unverified final-AppID or release item
 - [ ] 11.4 When every in-scope task and required external/device evidence is complete, synchronize delta specs into `openspec/specs`, archive the change, update product/architecture/acceptance status and commit only scoped files without pushing, uploading, submitting or publishing
+
+## 退役范围（不是验收通过）
+
+H5 用户 UI、浏览器存储/采音、双端视觉对齐和 H5 专属人工验收由用户决定取消维护，归档资料仅追溯。服务端兼容协议测试、运营后台浏览器回归、小程序与核心安全验收仍执行。云端账号/作品/同步另立变更，仅面向小程序。

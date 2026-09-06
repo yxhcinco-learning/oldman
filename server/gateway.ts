@@ -2,7 +2,7 @@ import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import websocket from '@fastify/websocket';
 import WebSocket from 'ws';
 import { signedAsrUrl, parseTencentResult, type AsrEngineModel, type Credentials } from './tencent';
-import { TranscriptAccumulator, type SpeechEvent } from '../features/speech/protocol';
+import { TranscriptAccumulator, type SpeechEvent } from '../packages/core/src/speech-protocol';
 import { registerArticleAi, type AiGatewayOptions } from './article-ai';
 import { defaultOperationLogger, OperationMonitor, operationDuration, type OperationLogger } from './operations';
 import { registerTopics } from './topics';

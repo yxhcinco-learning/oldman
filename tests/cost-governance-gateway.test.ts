@@ -2,9 +2,9 @@
 import { EventEmitter } from 'node:events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type WebSocket from 'ws';
-import { buildAiRequest } from '../features/ai/protocol';
-import { newSession } from '../lib/domain/article-ai';
-import { emptyDraft } from '../lib/domain/writing';
+import { buildAiRequest } from '../packages/core/src/ai-protocol';
+import { newSession } from '../packages/core/src/article-ai';
+import { emptyDraft } from '../packages/core/src/writing';
 import { prepareArticleAiRequest } from '../server/article-ai';
 import { CostGovernanceStore } from '../server/cost-governance';
 import { createGateway } from '../server/gateway';
