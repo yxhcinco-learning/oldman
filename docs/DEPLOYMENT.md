@@ -1,13 +1,22 @@
 # 后端与运营后台部署
 
-## 当前运行版本（2026-09-06 技术收尾后）
+## 当前测试运行版本（2026-09-07 第二阶段）
+
+- 用户手机预览提示无法连接云端，实测账号与作品接口返回 404。用户追加授权后，网关已更新为 **`phase2-7cffd9d-gateway`**（源码提交 `7cffd9d`），目录 `/opt/suiyue-yousheng/releases/phase2-7cffd9d-gateway`，网关 unit 固定指向此目录。
+- Nginx 已启用本版本的账号/作品精确白名单，`nginx -t` 和公网拒绝路径通过；资料 2KiB、头像 2MiB、作品请求 9MiB 超限均实测 413。账号/作品未登录返回 JSON 401，空登录请求 400，热门 200，未列出接口 404。
+- auth.sqlite 已由 schema 1 事务升级到 **2**，topics/usage 仍为 1；三库完整性与原 inode 保持。切换前 SQLite backup API 备份、原网关 unit、Nginx 和运行配置位于 `/var/lib/suiyue-yousheng/backups/phase2-7cffd9d-gateway`（目录 root-only 0700，文件 0600）。
+- 运营网页仍为 `483d8f4`，`current`、网页 unit/PID 保持；未更改其他项目。开发者工具和手机继续预览现有小程序包，本次没有上传、提审或正式发布小程序，也没有 Git 推送。
+- **不能直接退回上一网关 `7cb0521-gateway`**：其 schema 1 上限已被实际兼容检查拒绝。若新网关失败，保留当前三库并前向修复，或使用确认兼容 schema 2 的后续网关；不得回灌旧备份覆盖新作品。此次采用固定网关目录，不运行会切换运营网页的整体 rollback 脚本。
+- 新进程配置健康、数据库副本迁移/云作品/幂等/头像/删除冒烟、公网检查和日志敏感标记检查通过，付费调用为 0。实际微信登录及双手机接管仍需真机结果，见[第二阶段验收](PHASE-TWO-ACCEPTANCE.md)。
+
+## 上一网关运行记录（2026-09-06，仅供追溯）
 
 - **后端网关：`7cb0521-gateway`**，独立目录 `/opt/suiyue-yousheng/releases/7cb0521-gateway`；安装的网关unit固定指向该目录。包含最新共享依赖、改文撤回和短材料成文提示。
 - **运营网页：仍为 `483d8f4`**，`current` 未切换，网页unit/PID未变。不能仅查看current就判断网关版本；用 `systemctl show suiyue-gateway -p WorkingDirectory` 核对。
 - 本轮只授权网关，未调用整体 `activate-release.sh`、未更新Nginx/网页/小程序包。原unit/运行配置/三库受限备份：`/var/lib/suiyue-yousheng/backups/gateway-7cb0521`。数据schema/inode不变，详见[技术收尾](archive/phase-one/TECHNICAL-CLOSURE-20260906.md)。
-- 仅回滚本次网关时，核对备份后将该目录的 `gateway.service` 以0644安装回 `/etc/systemd/system/suiyue-gateway.service`，执行daemon-reload并只重启网关，检查健康及业务拒绝路径；不回退数据库或用量、不改current和网页。旧整体rollback脚本只切current，不适用于当前固定路径网关。未来明确整体部署时，activate-release会重新安装统一路径unit，需先记录两服务各自回滚目标。
+- 当时的回滚为恢复原网关 unit；此方法仅适用于当时 schema 1，第二阶段迁移后已不可直接使用。未来明确整体部署时，activate-release 会重新安装统一路径 unit，需先记录两服务各自回滚目标及数据库兼容性。
 
-以下为历史整体部署流程和原运行记录，不覆盖上面的最新分服务版本。
+以下历史整体部署流程和运行记录不覆盖上面的第二阶段分服务版本。
 
 > 2026-09-06 范围更新：小程序是唯一用户端，H5 已在本地源码归档。本文件下述 Basic Auth/H5 验证记录描述既有线上版本，不能作为继续发布 H5 的要求。新构建网页仅为运营后台，根路径转入 /admin/topics；服务端兼容 API 与原鉴权暂保留。本次未部署或停站。后端检查不自动授权网页部署，维护矩阵见 [产品边界](PRODUCT.md)。
 
@@ -70,7 +79,7 @@ DeepSeek 的常规优化、润色和文字追问各最多一次非敏感短样�
 
 回滚前记录当前与 previous 的解析路径。正常回滚运行 `bash deploy/server/rollback.sh /opt/suiyue-yousheng/releases/<verified-version>`：先按目标版本清单检查三库完整性与 schema 兼容，再切换 `current`、重启并复查；脚本不恢复、不删除也不覆盖数据。若旧代码无法启动则切回原 release，三库保持原样。部署失败也不得自动回灌备份。灾难恢复必须另行授权，先保留完整当前库并核对新作品与恢复范围。首次部署没有上一版本时保留停止状态、数据库、release、备份、秘密、证书与 DNS，等待修复。
 
-## 第二阶段待部署配套（本次未执行）
+## 第二阶段部署配套与后续维护
 
 auth.sqlite 升级至 schema 2，包含私有作品与资料；迁移前用 SQLite backup API 备份，三库保持 release 外受限权限。作品大小/账号容量/数量/频率配置见 runtime.env.example。Nginx 精确放行账号端点与有界作品 ID，作品 mutations 上限 9MiB，头像上限 2MiB，其他账号请求 2KiB；业务鉴权仍在服务端，管理员 Cookie 不能读取用户作品，访问日志关闭。
 
@@ -78,4 +87,4 @@ auth.sqlite 升级至 schema 2，包含私有作品与资料；迁移前用 SQLi
 
 release 的 deploy/schema-ceilings.json 声明 auth=2、topics=1、usage=1；无清单旧版本按上限 1 检查。rollback.sh 在切换前验证目标可读全部当前数据库，兼容才回滚代码，永不恢复旧备份。activate-release.sh 一旦尝试启动新网关就视为可能已接流量：失败保留当前三库；旧版本不兼容时保持网关停止，采用前向修复。不得自动还原迁移前备份覆盖新作品。sqlite-db.mjs restore 只保留为需另行授权、先保留完整当前库的灾难恢复入口。
 
-本地代码检查与模板回归不代表服务器执行 nginx -t、迁移、备份或上线验收。本次未推送、部署、上传、提审或发布。
+2026-09-07 经追加授权，已在既有测试服务器完成网关部署、实际 nginx -t、三库备份与迁移及公网验证。未执行破坏性的在线故障回滚演练，未调用付费模型/语音；未推送 Git 或上传、提审、发布微信小程序包。实际证据见本页顶部及第二阶段验收。

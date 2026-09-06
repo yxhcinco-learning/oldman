@@ -53,9 +53,32 @@ Nginx 精确白名单、9MiB 作品请求与 2MiB 头像上限、可配置账号
 
 切换机型/刷新期间曾出现自动化页面元数据为空或连接超时，刷新编译并重连后成功。早期发现生成 npm 导出与模拟器旧依赖图不一致，已补 runtime-check 的云协议导出断言、刷新依赖并普通编译。原失败不计通过，表格采用成功重跑结果。
 
+## 追加授权的测试网关部署（2026-09-07）
+
+用户手机预览提示无法连接云端，并明确要求必要时发布到测试。排查确认小程序指向 `https://suiyue.maicong.chat`，公网 `/api/mini/account/me` 和 `/api/mini/works` 返回 HTML 404，热门接口 200；服务器网关仍运行 `7cb0521-gateway`，auth.sqlite 为 schema 1。此为旧网关及白名单缺少第二阶段接口，并非必须提审小程序才能预览。
+
+已将源码提交 `7cffd9d` 的后端部署到 `/opt/suiyue-yousheng/releases/phase2-7cffd9d-gateway`，仅更新该网关 unit 和岁月有声 Nginx 配置。运营网页 `483d8f4`、current 链接、网页 unit/PID 保持；未改其他项目、DNS、防火墙或凭据。原有服务器配置继续使用，未新增云服务或付费调用。
+
+| 部署验证 | 实际结果 |
+| --- | --- |
+| 本地检查 | 再次运行完整 check（310 项测试）和 build 通过；日志 `.tmp/phase2-deploy-check.log`、`.tmp/phase2-deploy-build.log` |
+| 发布包 | `git archive` 75 个成员、190055 字节，排除凭据、用户数据、缓存、依赖和历史 H5；SFTP 上传后由 TAT 复核 SHA-256 `17313aa17e42a6c98088b1190ed6bd271dc7418d66e2b060e5a72e7c8e982469` |
+| Linux 准备 | 专用 suiyue 用户安装锁定依赖、构建核心；初次直接读取受限 SFTP 目录被拒绝，确认新 release 为空后由 root 校验并通过标准输入交给 suiyue 解包，上传目录权限保持 |
+| 副本冒烟 | 真实 auth.sqlite 一致性副本上升级 schema 2，使用微信换码替身检查登录、私有作品、固定操作幂等、Linux sharp 头像转换和永久删除，均通过，未访问计费服务 |
+| 切换前备份 | `/var/lib/suiyue-yousheng/backups/phase2-7cffd9d-gateway`，目录 root 0700、三库及原网关/Nginx/运行配置 0600；实际停止网关后再用 SQLite backup API 备份三库 |
+| 实际迁移 | auth=2、topics=1、usage=1，三库 quick_check 通过，原 inode 保持，网关八项配置健康为 true |
+| Nginx | 候选配置和实际安装后 nginx -t 均通过，仅 reload；资料 2049 字节、头像 2097153 字节、作品请求 9437185 字节均经实际 TLS Nginx 返回 413 |
+| 公网接口 | 账号 me/session/renew/avatar、作品列表/单篇/mutations 未认证均 JSON 401、no-store、无 Basic Auth 挑战；空登录请求 400（未调用微信）；热门 200、未列出接口 404、旧网页入口保留 401 |
+| 回滚保护 | 当前 release 通过三库兼容检查；旧 `7cb0521-gateway` 被 auth schema 2 检查拒绝。未回灌数据库，也未执行在线故障回滚演练 |
+| 日志与证书 | 新网关近期日志未命中凭据/身份/正文/转写敏感标记（只记录布尔结论），certbot.timer active，公网 TLS 请求验证成功 |
+
+部署执行脚本在本机 `.tmp/phase2-deploy.py` 和新 release 的 `phase2-deploy.py`（root 0600），SHA-256 `74880095d8847be85c07bda8e7f0325031adc4da6c1bce824712b2d61b3cbfd9`；备份目录内保留 `preflight.json`、`before.json`、`activation-result.json`。该脚本存在重复执行保护，任何已尝试激活都必须先检查现状，不自动重跑；迁移后失败保留当前库，旧代码不兼容则停止网关等待前向修复。
+
+已通知用户重新打开手机预览并主动微信登录。此处只记部署与接口可达性，尚无手机成功登录/同步反馈，不把副本换码替身或未认证 HTTP 检查记为真机通过。
+
 ## 未完成验收与上线边界
 
 - Android/iOS **均未做第二阶段真机验证**。实际微信换码、头像/昵称及取消、断网暂停、软键盘、安全区与跨设备接管须分别记录设备、系统、基础库及观察。第一阶段 Android 语音确认不覆盖此范围。
-- 未在服务器执行新 Nginx 配置测试、schema 2 迁移、部署失败回滚演练或线上容量验证；部署模板测试不等于服务器验收。
-- 本轮未调用付费模型/语音服务，未推送、部署、上传、提审或发布。平台隐私声明与审核材料仍按独立发布清单处理。
+- 新 Nginx、schema 2 迁移、备份与测试网关已按追加授权上线；未执行实际故障回滚演练、真实账号容量耗尽或双手机接管验证。
+- 本轮未调用付费模型/语音服务、未推送 Git；网关源码包已上传部署，微信小程序包未上传、提审或正式发布。平台隐私声明与审核材料仍按独立发布清单处理。
 - 真机证据未齐，change 保持活跃；增量规格保留在 change，正式规格同步与归档暂不勾选。
