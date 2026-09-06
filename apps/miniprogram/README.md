@@ -10,4 +10,4 @@
 
 用微信开发者工具导入本目录即可。AppSecret 尚未配置时，本地写作仍可使用；微信身份、AI 和语音接口会明确显示暂不可用，不会伪造成功状态。
 
-当前借用 AppID 的后台已由用户确认配置精确的 `request` 合法域名 `https://suiyue.maicong.chat` 和 `socket` 合法域名 `wss://suiyue.maicong.chat`。这只属于本机开发/体验配置；正式 AppID 到位后仍需重新核对合法域名、隐私指引、备案与类目。
+2026-09-06 已切正式 AppID，本机私有配置显式启用域名校验，真实换码与HTTP成功、WSS鉴权拒绝路径通过；域名为 `https://suiyue.maicong.chat` / `wss://suiyue.maicong.chat`。隐私指引、备案/类目和正式AppID真机证据仍需完成，不等于已上传或发布。详见[正式AppID验收](../../docs/FORMAL-APPID-ACCEPTANCE.md)。

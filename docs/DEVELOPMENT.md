@@ -8,7 +8,7 @@
 
 ## 命令与端口
 
-使用 .nvmrc 的 Node 24.14.1，在仓库根目录 npm ci。导入 apps/miniprogram 到微信开发者工具；正式 AppID 待提供，私有配置与秘密不进 Git。
+使用 .nvmrc 的 Node 24.14.1，在仓库根目录 npm ci。导入 apps/miniprogram 到微信开发者工具；正式 AppID 已在本机私有配置和服务端配套接入，私有配置与秘密不进 Git。实际证据及平台待办见[正式AppID验收](FORMAL-APPID-ACCEPTANCE.md)。
 
 | 命令 | 当前职责 |
 | --- | --- |

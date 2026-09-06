@@ -107,7 +107,11 @@ Linux 网关 MUST 使用 `ASR_CREDENTIAL_SOURCE=project` 从 root-only 服务端
 - **THEN** 新 release 不接流量且保持上一服务与数据库可恢复，不删除现有会话库或用空库替换
 
 ### Requirement: Manual WeChat secret handoff
-仓库 SHALL 只在 `deploy/runtime.env.example` 提交空的 `WECHAT_MINIPROGRAM_APP_ID`、`WECHAT_MINIPROGRAM_APP_SECRET` 和安全的 `SUIYUE_AUTH_DB_PATH` 示例；真实 AppSecret MUST 由用户手工写入服务器 `/etc/suiyue-yousheng/runtime.env` 并保持 `0600 root:root`，任何检查只能报告是否配置，不得读取后回显。
+仓库 SHALL 只在 `deploy/runtime.env.example` 提交空的 `WECHAT_MINIPROGRAM_APP_ID`、`WECHAT_MINIPROGRAM_APP_SECRET` 和安全的 `SUIYUE_AUTH_DB_PATH` 示例；真实 AppSecret 默认由用户手工写入服务器 `/etc/suiyue-yousheng/runtime.env`。用户明确授权代配置时，MAY 经受限临时文件和专用 SFTP 写入同一位置，保持 `0600 root:root`，备份旧配置并清理传输临时文件；不得将秘密放进客户端、Git、TAT 命令或日志，任何检查只能报告是否配置，不得读取后回显。
+
+#### Scenario: Explicitly delegated credential setup
+- **WHEN** 用户明确提供正式凭据并授权代理代配置及联调
+- **THEN** 只切换本产品客户端 AppID 与服务端对应配置，保留旧配置及作品恢复路径；不回显秘密、不迁移身份、不隐含授权上传、提审或发布；聊天中已暴露的凭据应提示用户后续轮换
 
 #### Scenario: Hand off implementation for manual secret entry
 - **WHEN** 代码、模板和部署检查已经就绪

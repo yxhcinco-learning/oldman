@@ -8,6 +8,8 @@
 
 ## 固定拓扑与文件
 
+2026-09-06 后续正式身份配置：用户明确授权代理代填微信凭据，已按受限临时文件、SFTP 校验、原配置/身份库备份及清理流程完成，仅重启网关，活动代码版本仍为 `483d8f4`。这是下述默认用户手填流程的本次授权例外，不扩大为其他凭据或发布授权。具体证据和剩余事项见[正式 AppID 接入验收](FORMAL-APPID-ACCEPTANCE.md)。
+
 - Lighthouse：`lhins-pg6lbxtx`（`ap-guangzhou`），只保留公网 80/443；SSH/TAT 管理边界不由本项目扩大。
 - Nginx：TLS、安全头、按 IP 限流；用户网页 `/`、原 `/api/ai/*`、`/api/health`、`/api/speech/status`、原 `/api/speech` 和精确 `/api/operations/events` 保持 Basic Auth。匿名事件位置关闭 access log、保留 Origin 并使用独立 IP 限流；精确 `/api/topics`、安全 ID 形状的 `/api/topics/<id>`、已列出的小程序接口关闭 Basic Auth。`/admin/topics`、`/_next/static/*` 和 `/api/admin/*` 也关闭 Basic Auth，但后台页面由应用登录保护，管理 API 继续校验会话、精确 Origin、CSRF 和 JSON。未列出的 `/api/mini/*` 和其他 API 拒绝。
 - systemd：`suiyue-web.service` 与 `suiyue-gateway.service`，专用无登录用户 `suiyue`，异常重启并响应 SIGTERM；网关在 `ProtectSystem=strict` 下只额外写入 `/var/lib/suiyue-yousheng`。

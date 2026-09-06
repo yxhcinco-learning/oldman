@@ -90,7 +90,7 @@
 - [ ] 10.4 After bounded paid-call authorization, run at most the necessary short DeepSeek and Tencent ASR samples through the mini routes, recording actual counts, results and approximate cost separately without storing user content or audio
 - [x] 10.5 Record the product owner's 2026-09-04 decision not to require unavailable iOS WeChat evidence for the current acceptance scope; do not claim that iOS testing occurred
 - [x] 10.6 Record the product owner's confirmation that the current Android WeChat client functions pass their testing; no duplicate agent-run physical-device test is required
-- [ ] 10.7 Before switching away from the temporary AppID, export a non-sensitive test backup; when the final AppID is available, verify empty isolated startup and explicit import-as-copy without identity/token migration
+- [x] 10.7 已保护旧AppID业务备份，正式AppID空仓储/独立身份通过；非敏感JSON v5在新AppID下独立测试仓储两次导入形成不同ID副本，不迁移身份/token或自动导入旧用户作品，见 docs/FORMAL-APPID-ACCEPTANCE.md
 - [ ] 10.8 When the final AppID is available, confirm its subject, name, category, filing, request/socket domains, privacy guide and AI labeling materials, then run a focused Android smoke test for the new identity/storage boundary; keep upload/review/release pending until the user separately authorizes each external step
 
 ## 11. Final verification, archival and delivery

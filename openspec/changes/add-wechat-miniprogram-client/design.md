@@ -90,6 +90,8 @@ Nginx 对网页与原 `/api/ai/*`、原 `/api/speech` 继续要求 Basic Auth；
 
 ### 密钥只由用户写入服务器固定位置
 
+2026-09-06 补充授权：用户明确要求代理代配置正式 AppID/AppSecret 并联调，替代本次手工填写步骤。仅经受限本地临时文件和专用 SFTP 传递秘密，不进入客户端、Git、TAT 命令/输出；保留旧服务器配置及本地业务备份，配套验证后清理传输文件。该授权不包含小程序上传、提审、发布或其他应用凭据改动。
+
 仓库只提交 `deploy/runtime.env.example` 中的空字段：`WECHAT_MINIPROGRAM_APP_ID=`、`WECHAT_MINIPROGRAM_APP_SECRET=`、`SUIYUE_AUTH_DB_PATH=/var/lib/suiyue-yousheng/auth.sqlite`。真实 AppSecret 由用户手工写入服务器 `/etc/suiyue-yousheng/runtime.env`，保持 `0600 root:root`；实现和验收输出只报告字段是否存在，不回显值。小程序 AppID 不是秘密，但临时 AppID 仍只写入未跟踪的本机 private config，避免误把借用身份变成仓库默认发布目标。
 
 ## Risks / Trade-offs
