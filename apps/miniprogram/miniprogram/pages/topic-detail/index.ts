@@ -2,6 +2,7 @@ import { emptyDraft, formatTime, isTopicCurrent, snapshotTopic, type WritingTopi
 import { miniTopics } from '../../network/topics';
 import { miniServices } from '../../services';
 import { navigationMetrics } from '../../ui/navigation';
+import { openLogin } from '../../auth/navigation';
 
 let currentTopic: WritingTopic | null = null;
 
@@ -18,12 +19,15 @@ Page({
   },
 
   goBack() {
+    if (getCurrentPages().length < 2) { void wx.switchTab({ url: '/pages/home/index' }); return; }
     wx.navigateBack({ fail: () => void wx.reLaunch({ url: '/pages/home/index' }) });
   },
 
   onLoad(options: Record<string, string | undefined>) {
     const id = options.id ? decodeURIComponent(options.id) : '';
-    void this.loadTopic(id);
+    void this.loadTopic(id).then(() => {
+      if (options.resume === 'interview' && miniServices().account.snapshot().status === 'authenticated' && currentTopic) void this.start('interview');
+    });
   },
 
   async loadTopic(id: string) {
@@ -43,6 +47,13 @@ Page({
   async start(mode: 'normal' | 'interview') {
     if (!currentTopic || !isTopicCurrent(currentTopic)) {
       this.setData({ error: '这个话题已不可继续使用，你仍可返回并开始普通写作。' });
+      return;
+    }
+    if (mode === 'interview' && miniServices().account.snapshot().status !== 'authenticated') {
+      const state = miniServices().account.snapshot();
+      if (state.status === 'offline') { this.setData({ error: '网络不可用，请联网后再开始采访。' }); return; }
+      try { await openLogin({ url: '/pages/topic-detail/index?id=' + encodeURIComponent(currentTopic.id) + '&resume=interview' }); }
+      catch { this.setData({ error: '登录页暂时无法打开，请重试。' }); }
       return;
     }
     const draft = emptyDraft({ topicSnapshot: snapshotTopic(currentTopic), topicWritingMode: mode });

@@ -1,3 +1,4 @@
+import { openLogin } from '../../auth/navigation';
 import { writingAccess } from '../../sync/writing-access';
 import { newSession, recoverSession, conversationOf, conversationView, type DialogueCommand, type ArticleSession, type Draft } from '../../domain/core';
 import { miniServices } from '../../services';
@@ -20,13 +21,14 @@ Page({
   accountUnsubscribe: undefined as (() => void) | undefined,
   prepareUnsubscribe: undefined as (() => void) | undefined,
   checkingCloud: false,
+  loginOpening: false,
   composerDirty: false,
   composerVersion: 0,
   composerTimer: undefined as ReturnType<typeof setTimeout> | undefined,
   alive: true,
   data: {
     ...navigationMetrics(),
-    readOnly: true, cloudVersion: 0, syncLabel: '正在读取', cloudMessage: '', requiresLogin: false,
+    readOnly: true, cloudVersion: 0, syncLabel: '正在读取', cloudMessage: '', requiresLogin: false, canReconnect: false,
     draft: null as Draft | null,
     session: null as ArticleSession | null,
     revision: 0,
@@ -64,12 +66,25 @@ Page({
   },
   allowOnline() {
     if (this.data.resultSavePending || this.data.voiceBusy || this.data.voicePressing) return false;
-    if (this.services !== miniServices() || this.services.account.snapshot().status !== 'authenticated') {
-      this.setData({ cloudMessage: '请在「我的」点击微信登录后使用小文和语音。' }); return false;
+    if (this.services !== miniServices()) return false;
+    const status = this.services.account.snapshot().status;
+    if (['guest', 'expired', 'replaced'].includes(status)) { void this.goToAccount(); return false; }
+    if (status !== 'authenticated') {
+      this.setData({ cloudMessage: '网络不可用，请联网后重试。' }); return false;
     }
     return true;
   },
-  goToAccount() { void wx.switchTab({ url: '/pages/profile/index' }); },
+  async goToAccount() {
+    if (this.loginOpening || this.services !== miniServices()) return;
+    this.loginOpening = true;
+    const services = this.services;
+    const id = this.data.draft?.id;
+    try {
+      if (!await this.saveComposer() || services !== miniServices()) return;
+      await openLogin({ url: '/pages/interview/index?id=' + encodeURIComponent(id ?? ''), workId: id, source: services });
+    } catch (error) { this.setData({ error: error instanceof Error ? error.message : '登录页暂时无法打开，请重试。' }); }
+    finally { this.loginOpening = false; }
+  },
   async refreshCloudState() {
     if (!this.alive || this.services !== miniServices()) return;
     if (this.data.cloudVersion && !this.services.sync.canEdit(this.data.draft?.id ?? '', this.data.cloudVersion)) {

@@ -21,4 +21,12 @@ describe('云作品编辑与真实确认状态', () => {
     expect(writingAccess(aggregate, { ...account, status: 'replaced' }, paused)).toMatchObject({ readOnly: true, syncLabel: '需重新登录' });
     expect(writingAccess({ ...aggregate, cloud: emptyCloudMetadata() }, { ...account, status: 'offline' }, paused).readOnly).toBe(false);
   });
+  it('游客不展示无关账号错误与重连，接管与网络错误提供不同操作', () => {
+    expect(writingAccess(null, { status: 'guest', account: null, error: '上次登录失败', generation: 0 }, sync))
+      .toMatchObject({ cloudMessage: '', canReconnect: false, requiresLogin: false });
+    expect(writingAccess(aggregate, { ...account, status: 'replaced', error: '已在其他设备登录' }, sync))
+      .toMatchObject({ canReconnect: false, requiresLogin: true });
+    expect(writingAccess(aggregate, { ...account, status: 'offline', error: '网络不可用' }, sync))
+      .toMatchObject({ canReconnect: true, requiresLogin: false });
+  });
 });

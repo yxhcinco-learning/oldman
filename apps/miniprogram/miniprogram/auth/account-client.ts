@@ -28,6 +28,7 @@ export class MiniAccountClient implements MiniSessionAuthorizer {
   private loginFlight?: Promise<void>;
   private refreshFlight?: Promise<void>;
   private restored = false;
+  private restoreFlight?: Promise<void>;
   private storageTail: Promise<void> = Promise.resolve();
   constructor(readonly platform: AccountPlatform, private readonly storage: AccountSessionStorage, private readonly now = Date.now) {}
   snapshot(): AccountState { return { ...this.state, account: this.state.account ? { ...this.state.account } : null }; }
@@ -42,7 +43,13 @@ export class MiniAccountClient implements MiniSessionAuthorizer {
     return task;
   }
 
-  async restore() {
+  restore(): Promise<void> {
+    if (this.restoreFlight) return this.restoreFlight;
+    this.restoreFlight = this.restoreStored().finally(() => { this.restoreFlight = undefined; });
+    return this.restoreFlight;
+  }
+
+  private async restoreStored() {
     if (this.restored) return;
     this.restored = true;
     const generation = this.state.generation;

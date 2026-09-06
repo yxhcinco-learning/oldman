@@ -1,4 +1,6 @@
-import { miniServices, loginMiniAccount, refreshMiniAccount } from '../../services';
+import { miniServices, refreshMiniAccount } from '../../services';
+import { openLogin, clearLoginReturn } from '../../auth/navigation';
+import { navigationMetrics } from '../../ui/navigation';
 import { selectTab, setTabBarHidden } from '../../ui/tab-bar';
 import type { AccountProfile } from '../../domain/core';
 import type { AccountStatus } from '../../auth/account-client';
@@ -7,7 +9,8 @@ Page({
   accountUnsubscribe: undefined as (() => void) | undefined,
   syncUnsubscribe: undefined as (() => void) | undefined,
   observed: undefined as ReturnType<typeof miniServices> | undefined,
-  data: { menuOpen: false, editingProfile: false, nicknameInput: '', nicknameValid: true, busy: '', notice: '', error: '',
+  data: { ...navigationMetrics(), menuOpen: false, editingProfile: false, logoutOpen: false, cloudError: '', canReconnect: false, needsLogin: true,
+    nicknameInput: '', nicknameValid: true, busy: '', notice: '', error: '',
     account: null as AccountProfile | null, status: 'guest' as AccountStatus, avatarPath: '', syncText: '本机草稿', accountText: '尚未登录',
     exportLabel: '导出本机备份' },
 
@@ -18,7 +21,8 @@ Page({
   async refreshState() {
     const services = miniServices();
     if (this.observed !== services) {
-      this.setData({ avatarPath: '', editingProfile: false, nicknameInput: '' });
+      this.setData({ avatarPath: '', editingProfile: false, nicknameInput: '', error: '', notice: '', menuOpen: false, logoutOpen: false });
+      setTabBarHidden(this, false);
       this.syncUnsubscribe?.();
       this.observed = services;
       this.syncUnsubscribe = services.sync.subscribe(() => { void this.refreshState(); });
@@ -30,11 +34,13 @@ Page({
     });
     if (services !== miniServices()) return;
     const unsent = works.filter(item => !item.cloud?.recoveryOf && (!item.cloud?.version || item.cloud.operation || item.work.revision !== item.cloud.syncedRevision)).length;
-    const accountText = { guest: '尚未登录', connecting: '正在登录', authenticated: '微信已登录', offline: '当前离线', expired: '登录已过期', replaced: '已在其他设备登录' }[state.status];
+    const accountText = { guest: '登录后保存您的作品', connecting: '正在登录', authenticated: '编辑头像与昵称', offline: '当前离线', expired: '登录已过期', replaced: '已在其他设备登录' }[state.status];
+    const needsLogin = ['guest', 'expired', 'replaced', 'connecting'].includes(state.status);
     this.setData({ account: state.account, status: state.status, accountText,
-      syncText: readError ? '本机作品读取失败' : sync.status === 'syncing' ? '正在同步' : sync.status === 'ready' ? unsent ? `${unsent} 篇作品未上传` : '云作品已同步' : state.account ? '云保存待连接' : '本机草稿',
+      needsLogin, canReconnect: Boolean(state.account && !needsLogin && (sync.status === 'error' || sync.status === 'paused' || state.status === 'offline' || unsent)),
+      syncText: readError ? '本机作品读取失败' : needsLogin && state.account ? '需重新登录' : sync.status === 'syncing' ? '正在同步' : sync.status === 'ready' ? unsent ? `${unsent} 篇作品未上传` : '作品已同步' : state.account ? '未上传' : '作品保存在本机',
       exportLabel: state.status === 'authenticated' ? '导出全部备份' : '导出本机备份',
-      ...(readError || state.error || sync.error ? { error: readError || state.error || sync.error } : {}) });
+      cloudError: readError || (state.account ? state.error || sync.error : '') });
     if (!state.account?.hasAvatar) { this.setData({ avatarPath: '' }); return; }
     const path = services.repository.paths.root + '/avatar-' + state.account.avatarVersion + '.jpg';
     try {
@@ -49,22 +55,31 @@ Page({
   },
   async login() {
     if (this.data.busy) return;
-    this.setData({ busy: '正在登录并同步…', error: '', notice: '' });
-    try { await loginMiniAccount(); this.setData({ notice: '作品会自动保存到当前微信账号。' }); }
-    catch (error) { this.setData({ error: error instanceof Error ? error.message : '登录或同步未成功，请重试。' }); }
-    finally { this.setData({ busy: '' }); await this.refreshState(); }
+    try { await openLogin({ url: '/pages/profile/index' }); }
+    catch { this.setData({ error: '登录页暂时无法打开，请重试。' }); }
   },
+  openAccount() { if (this.data.needsLogin) void this.login(); else this.openProfile(); },
   async reconnect() {
     this.setData({ busy: '正在核对云作品…', error: '', notice: '' });
     try { await refreshMiniAccount(); }
     catch (error) { this.setData({ error: error instanceof Error ? error.message : '连接未成功。' }); }
     finally { this.setData({ busy: '' }); await this.refreshState(); }
   },
-  async logout() {
-    await miniServices().writer.flush().catch(() => undefined);
-    await miniServices().account.logout();
-    this.setData({ editingProfile: false, notice: '已退出登录。', error: '', avatarPath: '' });
-    await this.refreshState();
+  logout() { this.setData({ logoutOpen: true, error: '' }); setTabBarHidden(this, true); },
+  closeLogout() { if (this.data.busy) return; this.setData({ logoutOpen: false }); setTabBarHidden(this, false); },
+  async confirmLogout() {
+    if (this.data.busy) return;
+    const services = miniServices();
+    this.setData({ busy: '正在退出', error: '' });
+    try {
+      await services.writer.flush();
+      if (services !== miniServices()) return;
+      await services.account.logout();
+      clearLoginReturn();
+      if (services.account.snapshot().error) throw new Error(services.account.snapshot().error);
+      await wx.reLaunch({ url: '/pages/login/index' });
+    } catch (error) { this.setData({ error: error instanceof Error ? error.message : '暂时未能退出，请重试。' }); }
+    finally { this.setData({ busy: '' }); }
   },
   openProfile() { this.setData({ editingProfile: true, nicknameInput: this.data.account?.nickname ?? '', nicknameValid: true, error: '' }); setTabBarHidden(this, true); },
   closeProfile() { this.setData({ editingProfile: false }); setTabBarHidden(this, false); },
@@ -96,6 +111,7 @@ Page({
   },
   openMenu() { setTabBarHidden(this, true); this.setData({ menuOpen: true, notice: '', error: '' }); },
   closeMenu() { this.setData({ menuOpen: false }); setTabBarHidden(this, false); },
+  openPrivacy() { void wx.navigateTo({ url: '/pages/privacy/index' }); },
   manageWorks() { setTabBarHidden(this, false); void wx.reLaunch({ url: '/pages/works/index?manage=1' }); },
   openRecycle() { setTabBarHidden(this, false); void wx.reLaunch({ url: '/pages/works/index?recycle=1' }); },
   async exportBackup() {
@@ -114,7 +130,7 @@ Page({
     this.setData({ busy: '正在校验备份…', error: '', notice: '' });
     try {
       const count = await services.backups.chooseAndImport();
-      this.setData({ notice: count ? '已恢复 ' + count + ' 篇新副本。登录后会自动同步。' : '已取消选择。' });
+      if (services === miniServices()) this.setData({ notice: count ? '已恢复 ' + count + ' 篇作品副本。' : '' });
     } catch (error) { this.setData({ error: error instanceof Error ? error.message : '备份导入失败，原作品未改变。' }); }
     finally { this.setData({ busy: '' }); }
   },

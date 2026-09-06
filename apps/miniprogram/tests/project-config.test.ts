@@ -19,6 +19,7 @@ describe('微信小程序公共工程配置', () => {
     const app = readJson('../miniprogram/app.json');
     const tabBar = app.tabBar as { custom: boolean; list: Array<{ pagePath: string; text: string }> };
     expect(app.pages).toEqual(expect.arrayContaining(['pages/home/index', 'pages/works/index', 'pages/profile/index', 'pages/editor/index']));
+    expect((app.pages as string[])[0]).toBe('pages/launch/index');
     expect(tabBar.custom).toBe(true);
     expect(tabBar.list).toEqual([
       { pagePath: 'pages/home/index', text: '热门' },
@@ -213,12 +214,15 @@ describe('微信小程序公共工程配置', () => {
 
   it('明确说明自动云保存、私有账号与可选资料', () => {
     const profile = readText('../miniprogram/pages/profile/index.wxml');
+    const login = readText('../miniprogram/pages/login/index.wxml');
+    const privacy = readText('../miniprogram/pages/privacy/index.wxml');
     expect(profile).toContain('微信登录');
-    expect(profile).toContain('自动云保存');
-    expect(profile).toContain('同一时间在一台设备使用');
+    expect(login).toContain('微信授权登录');
+    expect(login).toContain('登录后自动保存作品');
+    expect(privacy).toContain('同一时间在一台设备使用');
     expect(profile).toContain('open-type="chooseAvatar"');
     expect(profile).toContain('type="nickname"');
-    expect(profile).toContain('发送给 DeepSeek');
+    expect(privacy).toContain('发送给 DeepSeek');
   });
   it('访谈是紧凑开关，主题固定且换题属于当前回复', () => {
     const editor = readText('../miniprogram/pages/editor/index.wxml');

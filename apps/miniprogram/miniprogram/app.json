@@ -1,18 +1,21 @@
 {
   "pages": [
+    "pages/launch/index",
+    "pages/login/index",
     "pages/home/index",
     "pages/works/index",
     "pages/profile/index",
     "pages/editor/index",
     "pages/topic-detail/index",
     "pages/interview/index",
-    "pages/source/index"
+    "pages/source/index",
+    "pages/privacy/index"
   ],
   "window": {
-    "navigationBarBackgroundColor": "#f7f3ea",
+    "navigationBarBackgroundColor": "#fbf9f8",
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "岁月有声",
-    "backgroundColor": "#f7f3ea",
+    "backgroundColor": "#fbf9f8",
     "backgroundTextStyle": "dark"
   },
   "tabBar": {

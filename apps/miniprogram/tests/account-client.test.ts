@@ -4,6 +4,17 @@ import { MiniAccountClient, type AccountPlatform, type StoredAccountSession } fr
 const account = { id: 'account-a', nickname: '', avatarVersion: 0, hasAvatar: false, expiresAt: '2099-01-01T00:00:00.000Z' };
 const token = 'a'.repeat(43);
 describe('主动账号登录状态', () => {
+  it('启动与登录页同时恢复时等待同一次读取，不把未读完的会话当游客', async () => {
+    let release!: (value: StoredAccountSession) => void;
+    const stored = new Promise<StoredAccountSession>(resolve => { release = resolve; });
+    const client = new MiniAccountClient({ login: async () => { throw new Error('不应重新登录'); }, request: async () => ({ statusCode: 200, data: account }) },
+      { read: () => stored, write: async () => {}, clear: async () => {} });
+    const first = client.restore(), second = client.restore();
+    expect(first).toBe(second);
+    release({ version: 2, token, account });
+    await second;
+    expect(client.snapshot().status).toBe('authenticated');
+  });
   it('游客不自动登录，单飞登录后遇到被替换不重试业务或换码', async () => {
     let logins = 0, calls = 0;
     const platform: AccountPlatform = { login: async () => { logins++; return 'code'; }, request: async () => ({ statusCode: 200, data: { token, account } }) };

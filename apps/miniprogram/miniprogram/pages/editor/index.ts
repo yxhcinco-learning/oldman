@@ -1,3 +1,4 @@
+import { openLogin } from '../../auth/navigation';
 import { writingAccess } from '../../sync/writing-access';
 import { conversationOf, conversationView, newSession, type DialogueCommand } from '../../domain/core';
 import { ACTION_LABELS, AI_ASSISTANCE_LABEL, VERSION_LABELS, articleText, completeVoice, documentOf, emptyDraft, hasContent, isAppliedAiVersion,
@@ -34,10 +35,11 @@ Page({
   accountUnsubscribe: undefined as (() => void) | undefined,
   prepareUnsubscribe: undefined as (() => void) | undefined,
   checkingCloud: false,
+  loginOpening: false,
   alive: true,
   data: {
     ...navigationMetrics(),
-    readOnly: true, cloudVersion: 0, syncLabel: '正在读取', cloudMessage: '', requiresLogin: false,
+    readOnly: true, cloudVersion: 0, syncLabel: '正在读取', cloudMessage: '', requiresLogin: false, canReconnect: false,
     draft: null as Draft | null,
     session: null as ArticleSession | null,
     body: '',
@@ -149,12 +151,25 @@ Page({
   },
   allowOnline() {
     if (this.data.resultSavePending || this.data.voiceBusy || this.data.voicePressing) return false;
-    if (this.services !== miniServices() || this.services.account.snapshot().status !== 'authenticated') {
-      this.setData({ cloudMessage: '请在「我的」点击微信登录后使用小文和语音。' }); return false;
+    if (this.services !== miniServices()) return false;
+    const status = this.services.account.snapshot().status;
+    if (['guest', 'expired', 'replaced'].includes(status)) { void this.goToAccount(); return false; }
+    if (status !== 'authenticated') {
+      this.setData({ cloudMessage: '网络不可用，请联网后重试。' }); return false;
     }
     return true;
   },
-  goToAccount() { void wx.switchTab({ url: '/pages/profile/index' }); },
+  async goToAccount() {
+    if (this.loginOpening || this.services !== miniServices()) return;
+    this.loginOpening = true;
+    const services = this.services;
+    const id = this.data.draft?.id;
+    try {
+      if (!await this.flushAutoSave() || services !== miniServices()) return;
+      await openLogin({ url: '/pages/editor/index?id=' + encodeURIComponent(id ?? '') + (this.data.xiaowenOpen ? '&xiaowen=compose' : ''), workId: id, source: services });
+    } catch (error) { this.setData({ error: error instanceof Error ? error.message : '登录页暂时无法打开，请重试。' }); }
+    finally { this.loginOpening = false; }
+  },
   async refreshCloudState() {
     if (!this.alive || this.services !== miniServices()) return;
     if (this.data.cloudVersion && !this.services.sync.canEdit(this.data.draft?.id ?? '', this.data.cloudVersion)) {
@@ -405,7 +420,7 @@ Page({
   async saveNow() {
     if (this.data.resultSavePending) { await this.retryResultSave(); return !this.data.resultSavePending && this.data.saved; }
     const draft = this.currentDraft();
-    if (!draft || !hasContent(draft) && !this.data.xiaowenComposer.trim()) return true;
+    if (!draft || !hasContent(draft) && !this.data.xiaowenComposer.trim() && !this.data.revision) return true;
     const savingVersion = draftVersion;
     this.setData({ saving: true, error: '' });
     try {
@@ -494,6 +509,12 @@ Page({
 
   async openXiaoWen() {
     if (this.data.navigationSaving) return;
+    if (['guest', 'expired', 'replaced'].includes(this.services.account.snapshot().status)) {
+      this.setData({ xiaowenOpen: true });
+      await this.goToAccount();
+      this.setData({ xiaowenOpen: false });
+      return;
+    }
     const draft = this.currentDraft();
     if (draft && this.services.writer.pendingSession(draft.id)) {
       this.setData({ xiaowenOpen: true, xiaowenView: 'chat', resultSavePending: true });
@@ -541,7 +562,9 @@ Page({
     if (!this.allowEditing()) return;
     const xiaowenComposer = event.detail.value;
     if (this.data.draft) this.services.conversations.updateComposer(this.data.draft.id, xiaowenComposer, 'typed');
-    this.setData({ xiaowenComposer, xiaowenStatus: 'idle', xiaowenError: '' });
+    draftVersion += 1;
+    this.setData({ xiaowenComposer, xiaowenStatus: 'idle', xiaowenError: '', saved: false });
+    this.scheduleSave();
   },
   sendXiaoWen() {
     if (this.data.voiceBusy) return;
@@ -685,7 +708,8 @@ Page({
   async goBack() {
     const saved = await this.flushAutoSave();
     if (!saved) return;
-    void wx.navigateBack();
+    if (getCurrentPages().length < 2) { void wx.switchTab({ url: '/pages/works/index' }); return; }
+    void wx.navigateBack({ fail: () => void wx.switchTab({ url: '/pages/works/index' }) });
   },
 
   noop() {},

@@ -1,0 +1,4 @@
+<view class="launch-page">
+  <view class="launch-brand"><image src="/assets/leaf.svg" mode="aspectFit" /><view>岁月有声</view><text>让每一段生活，都有回响</text></view>
+  <view class="launch-signature">慢慢说，好好写</view>
+</view>

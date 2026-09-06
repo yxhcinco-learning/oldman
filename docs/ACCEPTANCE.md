@@ -4,7 +4,7 @@
 
 | 记录 | 用途 |
 | --- | --- |
-| [第二阶段账号与私有云](PHASE-TWO-ACCEPTANCE.md) | 当前实现、真实本地 HTTP/SQLite 双客户端、模拟器与未完成真机验收；未部署 |
+| [第二阶段账号与私有云](PHASE-TWO-ACCEPTANCE.md) | 当前实现、开屏登录改版、本地双客户端与模拟器证据、既有测试网关部署及未完成真机验收 |
 | [文档结构精简](../openspec/changes/archive/2026-09-06-streamline-project-documents/tasks.md) | 入口归并、历史引用与规格去重；不改变产品行为 |
 | [第二阶段前清理](archive/phase-one/CLEANUP-BASELINE-20260906.md) | 2026-09-06 状态同步、退役规格与检查边界验证 |
 | [最终技术收尾](archive/phase-one/TECHNICAL-CLOSURE-20260906.md) | 第一阶段技术结论、9次有限真实模型经过、仅网关上线 |

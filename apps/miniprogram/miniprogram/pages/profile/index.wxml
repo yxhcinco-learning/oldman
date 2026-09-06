@@ -1,25 +1,25 @@
 <view class="page-shell profile-page">
-  <app-brand></app-brand>
-  <view class="profile-hero">
-    <view class="eyebrow">把文字，好好留住</view>
-    <view class="page-title">我的<text class="period">。</text></view>
-  </view>
+  <view class="profile-navigation" style="height: {{navigationHeight}}px"><app-brand /></view>
+  <view class="profile-heading"><view class="page-title">我的</view></view>
   <view class="account-panel">
-    <view class="account-heading">
-      <view class="account-avatar"><image wx:if="{{avatarPath}}" src="{{avatarPath}}" mode="aspectFill" /><text wx:else>我</text></view>
-      <view class="account-copy"><view class="account-name">{{account ? account.nickname || '微信用户' : '欢迎来写一写'}}</view><view class="account-status">{{accountText}}</view></view>
-    </view>
-    <button wx:if="{{status === 'guest' || status === 'expired' || status === 'replaced' || status === 'connecting'}}" class="account-primary" bindtap="login" disabled="{{busy || status === 'connecting'}}">{{status === 'replaced' ? '微信登录，在此设备继续' : '微信登录'}}</button>
-    <view wx:if="{{account}}" class="account-links"><button bindtap="openProfile" disabled="{{status !== 'authenticated' || busy}}">编辑头像与昵称</button><button bindtap="logout" disabled="{{busy}}">退出登录</button></view>
-    <view class="account-note">{{account ? '登录后的作品自动云保存，可在其他设备登录后接着写。' : '登录后自动保存到云端。也可以先在本机写作。'}}</view>
+    <button class="account-heading" bindtap="openAccount" disabled="{{busy || status === 'offline'}}" aria-label="{{needsLogin ? '微信登录' : '编辑头像与昵称'}}">
+      <view class="account-avatar"><image wx:if="{{avatarPath}}" src="{{avatarPath}}" mode="aspectFill" /><image wx:else class="default-avatar" src="/assets/leaf.svg" mode="aspectFit" /></view>
+      <view class="account-copy"><view class="account-name">{{account ? account.nickname || '微信用户' : '尚未登录'}}</view><view class="account-status">{{accountText}}</view></view><view class="row-chevron"></view>
+    </button>
+    <button wx:if="{{needsLogin}}" class="account-primary" bindtap="login" disabled="{{busy || status === 'connecting'}}">{{status === 'replaced' ? '微信登录，在此设备继续' : '微信登录'}}</button>
+    <view class="sync-row" role="status"><view class="sync-copy"><view class="sync-dot {{canReconnect || needsLogin ? 'sync-muted' : ''}}"></view><text>{{syncText}}</text></view><button wx:if="{{canReconnect}}" bindtap="reconnect" disabled="{{busy}}">重试</button></view>
+    <view wx:if="{{cloudError}}" class="account-error" role="alert">{{cloudError}}</view>
   </view>
-  <view wx:if="{{account}}" class="sync-row"><view><text>{{syncText}}</text><small>同一时间在一台设备使用</small></view><button bindtap="reconnect" disabled="{{busy || status === 'expired' || status === 'replaced'}}">重新同步</button></view>
+  <view class="profile-section-label">我的作品</view>
   <view class="tool-list">
-    <view class="tool-row"><button class="tool" bindtap="openMenu"><view class="tool-icon"><image class="book-image" src="/assets/book.svg" mode="aspectFit" /></view><view><text>作品与备份</text><small>管理文章、回收站和手工备份</small></view><b>›</b></button></view>
+    <button class="tool" bindtap="manageWorks"><image src="/assets/book.svg" /><text>管理作品</text><view class="row-chevron"></view></button>
+    <button class="tool" bindtap="openRecycle"><view class="tool-symbol">↶</view><text>回收站</text><view class="row-chevron"></view></button>
+    <button class="tool" bindtap="openMenu"><view class="tool-symbol">↓</view><text>备份与恢复</text><view class="row-chevron"></view></button>
   </view>
-  <view wx:if="{{busy}}" class="notice" role="status">{{busy}}</view>
-  <view wx:if="{{notice}}" class="notice" role="status">{{notice}}</view>
-  <view wx:if="{{error}}" class="error-panel" role="alert">{{error}}</view>
+  <view class="tool-list support-list"><button class="tool" bindtap="openPrivacy"><image src="/assets/leaf.svg" /><text>隐私说明</text><view class="row-chevron"></view></button></view>
+  <view wx:if="{{busy && !editingProfile && !menuOpen && !logoutOpen}}" class="notice" role="status">{{busy}}</view>
+  <view wx:if="{{error && !editingProfile && !menuOpen && !logoutOpen}}" class="error-panel" role="alert">{{error}}</view>
+  <button wx:if="{{account}}" class="logout-button" bindtap="logout" disabled="{{busy}}">退出登录</button>
 </view>
 <view wx:if="{{editingProfile}}" class="sheet-mask" bindtap="closeProfile" catchtouchmove="noop">
   <view class="backup-sheet" catchtap="noop" role="dialog" aria-modal="true" aria-label="编辑个人资料">
@@ -34,16 +34,23 @@
   </view>
 </view>
 <view wx:if="{{menuOpen}}" class="sheet-mask" bindtap="closeMenu" catchtouchmove="noop">
-  <view class="backup-sheet" catchtap="noop" role="dialog" aria-modal="true" aria-label="作品与备份">
-    <view class="sheet-handle"></view><view class="sheet-brand">岁月有声</view>
-    <view class="sheet-heading"><view>作品与备份</view><button bindtap="closeMenu" aria-label="关闭">×</button></view>
+  <view class="backup-sheet" catchtap="noop" role="dialog" aria-modal="true" aria-label="备份与恢复">
+    <view class="sheet-handle"></view>
+    <view class="sheet-heading"><view>备份与恢复</view><button bindtap="closeMenu" aria-label="关闭">×</button></view>
     <view class="sheet-tools">
-      <button bindtap="manageWorks"><view class="sheet-icon"><image class="sheet-book" src="/assets/book.svg" /></view><view><text>管理作品</text><small>文章与本机恢复稿</small></view><b>›</b></button>
-      <button bindtap="openRecycle"><view class="sheet-icon">↶</view><view><text>回收站</text><small>恢复误删的作品</small></view><b>›</b></button>
       <button bindtap="exportBackup" disabled="{{busy}}"><view class="sheet-icon">→</view><view><text>{{exportLabel}}</text><small>保存为可恢复的 JSON 文件</small></view><b>›</b></button>
       <button bindtap="importBackup" disabled="{{busy}}"><view class="sheet-icon">✓</view><view><text>从备份恢复副本</text><small>不会覆盖现有作品</small></view><b>›</b></button>
     </view>
     <view wx:if="{{busy}}" class="notice">{{busy}}</view><view wx:if="{{notice}}" class="notice">{{notice}}</view><view wx:if="{{error}}" class="error-panel">{{error}}</view>
-    <view class="sheet-note"><view>“本机已保存”表示已写入这台设备；“已同步”表示对应内容已获云端确认。尚未上传的内容请保留设备或导出备份。</view><view>语音不保存原音；明确发送给小文并同意后，必要内容才发送给 DeepSeek。</view></view>
+    <view class="sheet-note">备份包含完整作品和小文记录，请妥善保管。每份文件不超过 10MiB，较多作品会分成多份。</view>
+  </view>
+</view>
+<view wx:if="{{logoutOpen}}" class="sheet-mask" bindtap="closeLogout" catchtouchmove="noop">
+  <view class="backup-sheet" catchtap="noop" role="dialog" aria-modal="true" aria-label="退出登录">
+    <view class="sheet-handle"></view>
+    <view class="sheet-heading"><view>退出登录？</view><button bindtap="closeLogout" aria-label="关闭">×</button></view>
+    <view class="logout-copy">退出后，这台设备会隐藏您的账号作品。未上传的内容会保留，重新登录后可继续。</view>
+    <view wx:if="{{error}}" class="error-panel">{{error}}</view>
+    <view class="logout-actions"><button class="secondary-action" bindtap="closeLogout" disabled="{{busy}}">暂不退出</button><button class="primary-action" bindtap="confirmLogout" disabled="{{busy}}">{{busy ? '正在退出' : '退出登录'}}</button></view>
   </view>
 </view>

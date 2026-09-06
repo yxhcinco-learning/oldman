@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { emptyDraft, newSession, startInterview, type Draft, type ArticleSession } from '../miniprogram/domain/core';
 
 const services = vi.hoisted(() => ({
+  account: { snapshot: () => ({ status: 'authenticated' }) },
   sync: { open: vi.fn() }, articleAi: { isRunning: () => false }, repository: { load: vi.fn() }, writer: { seed: vi.fn(), preserve: vi.fn().mockResolvedValue(undefined), write: vi.fn(), recoverPending: vi.fn(), pendingSession: vi.fn() },
   conversations: { read: () => ({ composer: '', requestStatus: 'idle', error: '' }) },
 }));

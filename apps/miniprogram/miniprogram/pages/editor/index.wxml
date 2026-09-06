@@ -10,7 +10,7 @@
     </view>
   </view>
 
-  <view class="cloud-save-row" role="status"><text>{{syncLabel}}</text><button wx:if="{{requiresLogin}}" bindtap="goToAccount">去登录</button><button wx:elif="{{readOnly || cloudMessage}}" bindtap="reconnectCloud">重新连接</button></view>
+  <view class="cloud-save-row" role="status"><text>{{syncLabel}}</text><button wx:if="{{requiresLogin}}" bindtap="goToAccount">微信登录</button><button wx:elif="{{canReconnect}}" bindtap="reconnectCloud">重试</button></view>
   <view wx:if="{{cloudMessage}}" class="cloud-message">{{cloudMessage}}</view>
   <view wx:if="{{error}}" class="editor-error" role="alert">
     <scroll-view scroll-y class="error-copy">{{error}}</scroll-view>

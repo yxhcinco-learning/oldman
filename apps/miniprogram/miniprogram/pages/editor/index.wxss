@@ -166,5 +166,5 @@ button.mic { position: relative; display: grid; width: 76px; min-width: 76px; ma
 .result-save-actions button { flex: 1; min-height: 48px; margin: 0; padding: 8px; background: transparent; color: #416657; font-size: 16px; line-height: 30px; text-decoration: underline; }
 
 .cloud-save-row { flex-shrink:0; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:4px 24px; min-height:28px; font-size:14px; color:#627363; }
-.cloud-save-row button { margin:0; padding:0 12px; min-height:48px; line-height:48px; font-size:16px; background:#ecefe7; color:#355e43; border-radius:12px; }
+.cloud-save-row button { width:auto; max-width:none; min-width:48px; margin:0; padding:8px 0 8px 12px; min-height:48px; line-height:26px; font-size:16px; background:transparent; color:#416657; border-radius:0; }
 .cloud-message { flex-shrink:0; padding:4px 24px 8px; color:#8a5638; font-size:14px; line-height:1.5; }

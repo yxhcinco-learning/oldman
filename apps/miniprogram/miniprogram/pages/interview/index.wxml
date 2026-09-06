@@ -6,7 +6,7 @@
       <view class="interview-title">小文</view>
     </view>
   </view>
-  <view class="cloud-save-row" role="status"><text>{{syncLabel}}</text><button wx:if="{{requiresLogin}}" bindtap="goToAccount">去登录</button><button wx:elif="{{readOnly || cloudMessage}}" bindtap="reconnectCloud">重新连接</button></view>
+  <view class="cloud-save-row" role="status"><text>{{syncLabel}}</text><button wx:if="{{requiresLogin}}" bindtap="goToAccount">微信登录</button><button wx:elif="{{canReconnect}}" bindtap="reconnectCloud">重试</button></view>
   <view wx:if="{{cloudMessage}}" class="cloud-message">{{cloudMessage}}</view>
   <view class="interview-context"><view class="conversation-topic {{mode !== 'interview' ? 'topic-compact' : ''}} {{draft.topicSnapshot ? '' : 'topic-absent'}}">
     <view wx:if="{{draft && draft.topicSnapshot}}" class="topic-heading"><image src="/assets/book.svg" /><view class="topic-window"><text class="topic-text {{topicDistance > 1 ? 'topic-moving' : ''}}" style="--topic-distance: -{{topicDistance || 0}}px; --topic-duration: {{topicDuration || 7}}s">{{draft.topicSnapshot.title}}</text></view></view>

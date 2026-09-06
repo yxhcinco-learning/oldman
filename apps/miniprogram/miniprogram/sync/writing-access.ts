@@ -8,10 +8,11 @@ export function writingAccess(aggregate: WorkAggregate | null, account: AccountS
   const version = cloud?.version ?? 0;
   const readOnly = Boolean(version && !sync.canEdit(aggregate!.work.id, version));
   const state = sync.snapshot();
-  const requiresLogin = Boolean(account.account && ['expired', 'replaced'].includes(account.status));
+  const requiresLogin = ['expired', 'replaced'].includes(account.status);
   const syncLabel = requiresLogin ? '需重新登录' : !account.account || cloud?.recoveryOf ? '本机已保存'
     : state.status === 'syncing' ? '正在同步'
       : saved && version && !cloud?.operation && cloud?.syncedRevision === aggregate?.work.revision ? '已同步' : '未上传';
+  const cloudMessage = account.account ? account.error || state.error : '';
   return { cloudVersion: version, readOnly, syncLabel: saved ? syncLabel : '正在保存到本机',
-    cloudMessage: account.error || state.error, requiresLogin };
+    cloudMessage, requiresLogin, canReconnect: Boolean(account.account && !requiresLogin && (readOnly || cloudMessage) && state.status !== 'syncing') };
 }
