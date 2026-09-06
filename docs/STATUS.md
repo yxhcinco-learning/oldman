@@ -8,7 +8,7 @@
 
 - [小程序接入](../openspec/changes/archive/2026-09-06-add-wechat-miniprogram-client/tasks.md)与[统一会话](../openspec/changes/archive/2026-09-06-unify-xiaowen-conversation-modes/tasks.md)已归档，不从旧证据重新生成已完成任务。
 - 正式 AppID 已在本机私有配置与服务端配套，用户已配置合法域名并确认 Android 基础语音/小文；不需重复索要密钥。见[正式身份验收](archive/phase-one/FORMAL-APPID-ACCEPTANCE.md)与[最终技术收尾](archive/phase-one/TECHNICAL-CLOSURE-20260906.md)。
-- [事实基线同步](../openspec/changes/archive/2026-09-06-synchronize-phase-two-baseline/tasks.md)已完成；本轮进一步归并文档入口和历史证据，未连接或修改线上。实际活跃任务始终用 `npx openspec list` 查询。
+- [事实基线同步](../openspec/changes/archive/2026-09-06-synchronize-phase-two-baseline/tasks.md)和[文档结构精简](../openspec/changes/archive/2026-09-06-streamline-project-documents/tasks.md)均已完成并归档；清理未连接或修改线上。本次收尾无活跃变更，之后始终用 `npx openspec list` 查询。
 
 ## 待办与保留边界
 

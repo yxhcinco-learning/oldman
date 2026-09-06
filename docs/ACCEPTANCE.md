@@ -4,6 +4,7 @@
 
 | 记录 | 用途 |
 | --- | --- |
+| [文档结构精简](../openspec/changes/archive/2026-09-06-streamline-project-documents/tasks.md) | 入口归并、历史引用与规格去重；不改变产品行为 |
 | [第二阶段前清理](archive/phase-one/CLEANUP-BASELINE-20260906.md) | 2026-09-06 状态同步、退役规格与检查边界验证 |
 | [最终技术收尾](archive/phase-one/TECHNICAL-CLOSURE-20260906.md) | 第一阶段技术结论、9次有限真实模型经过、仅网关上线 |
 | [小文可靠性](archive/phase-one/XIAOWEN-RELIABILITY-ACCEPTANCE.md) | 保存补救、待确认修改、撤销/版本恢复、长按语音及模拟器证据 |

@@ -128,44 +128,6 @@ Key SHALL 仅由服务端读取；首次发送前说明数据去向；请求 MUS
 - **WHEN** 候选全文与输入正文完全相同
 - **THEN** 系统继续明确显示本次保留原文、未产生正文修改，并忽略模型声称的修改
 
-### Requirement: User-invoked XiaoWen interview mode
-文章会话 SHALL 将访谈实现为同一小文会话的持久开关，不显示第二个助手或两种模式分类。访谈允许承接问候、解释、反问、回顾和纠正，每轮最多一个追问；普通回答 MUST 不生成候选正文。
-
-#### Scenario: Ask one grounded question
-- **WHEN** 用户在访谈中提供实质回答
-- **THEN** 小文自然承接并最多追问一个具体问题，不编造职业、经历、态度或事件事实，不同时提出问题清单
-
-#### Scenario: Introduce XiaoWen before the first answer
-- **WHEN** 用户首次打开话题访谈
-- **THEN** 使用精简静态介绍与称呼、大致年龄、从事行业三个可选引导；无话题先澄清想聊什么，已有交流不重复介绍，打开不请求模型
-
-#### Scenario: Skip or minimize interview
-- **WHEN** 用户选择换个问题或收起小文
-- **THEN** 换题只换角度；收起返回同篇文章且保留访谈、消息与输入，不取消进行中请求、不结束或自动成文，重开不自动提问
-
-#### Scenario: Keep one primary interview action
-- **WHEN** 用户查看访谈输入区
-- **THEN** 输入区只提供文字、长按语音和单一发送；顶部提供“结束访谈并整理”，没有暂停、只结束不整理或中途独立成文操作
-
-#### Scenario: Reject an unexpected interview candidate
-- **WHEN** 上游在没有明确整理或改文授权的访谈回复中返回正文
-- **THEN** 按统一结构化协议拒绝未授权候选，不创建待应用状态，不自动重试
-
-### Requirement: Explicit composition from interview material
-小文 SHALL 只在用户明确请求后使用被允许的采访素材、当前正文和议题快照生成完整文章候选；候选 MUST 继续遵守当前预览、事实核对、基准检查、应用、放弃和版本追溯规则。
-
-#### Scenario: Compose from selected material
-- **WHEN** 用户点击“结束访谈并整理”或自然语言明确要求整理
-- **THEN** 按钮先保存结束模式再请求独立候选，自然语言结束在有效结果保存后生效；区分来源事实、用户观点和连接性表达，确认前正文保持不变
-
-#### Scenario: Material is insufficient or contradictory
-- **WHEN** 采访素材缺少关键事实或不同回答明显冲突
-- **THEN** 小文提出一个澄清问题或提示用户核对，不自行补写确定事实、不把冲突候选自动应用
-
-#### Scenario: Cancel or fail composition
-- **WHEN** 用户取消请求，或请求断网、超时、配置/额度失败、输出无效
-- **THEN** 系统不自动重试计费请求，已保存素材和原文保持，会话显示真实失败及显式重试入口；显式结束后不重新开启访谈
-
 ### Requirement: Compatible XiaoWen request actions
 文章会话 SHALL 在正式界面只提供自由输入、会话语音和单一“发送”，不得展示固定快捷指令。自由输入 MUST 通过 protocolVersion=2 的 `dialogue` 单次请求处理语义切换、回答、追问或待确认改文候选；旧 `chat` 仅保留兼容。系统 MUST 继续兼容 `regular`、`polish` 及内部精确提示“接着问我”“讲清楚了吗”的 `question` action，以读取旧会话并保留已验证的只读边界，但不得为兼容能力增加可见按钮、自动请求、客户端关键词分类或第二次模型调用。
 
