@@ -81,6 +81,18 @@ try {
   await (await page.$('.ai-mode-bar button')).tap();
   await current('interview');
   check('按钮开启访谈，静态开场不请求模型', (await conversation()).mode === 'interview' && await requestCount() === 1);
+  // Native keyboard properties are not exposed by automator.property; WXML's
+  // boolean bindings are checked in project-config.test.ts, not guessed here.
+  const footer = await page.$('.interview-footer');
+  const restingTop = (await footer.offset()).top;
+  await page.callMethod('onKeyboardHeight', { detail: { height: 300 } });
+  await new Promise(resolve => setTimeout(resolve, 200));
+  const keyboardTop = (await footer.offset()).top;
+  check('模拟键盘仅补偿一次高度，输入未跳到顶部', Math.abs(restingTop - keyboardTop - 300) <= 3 && keyboardTop > 100);
+  await mini.screenshot({ path: resolve(output, 'keyboard-inset.png') });
+  await page.callMethod('onKeyboardHeight', { detail: { height: 0 } });
+  await new Promise(resolve => setTimeout(resolve, 200));
+  check('键盘收起恢复输入位置', Math.abs((await footer.offset()).top - restingTop) <= 3);
   await send('你好', { result: result('reply', '您好，我们慢慢聊。您想先聊哪段经历？') });
   check('访谈问候不作为素材', (await conversation()).materials.length === 0);
   await send('没听懂，你为什么这样问？', { result: result('reply', '我是想了解您的经历。您愿意从工作聊起吗？') });

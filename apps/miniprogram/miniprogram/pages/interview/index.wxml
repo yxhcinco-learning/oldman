@@ -22,7 +22,7 @@
     <view wx:if="{{voicePressing || voicePhase !== 'idle'}}" class="interview-error">{{voiceText || voiceMessage || (voicePressing ? '已按住，松开结束' : '正在准备语音…')}}</view>
     <view class="composer-row">
       <textarea value="{{composer}}" maxlength="12000" auto-height placeholder="回复小文" placeholder-style="color:#858e88;line-height:30px" disabled="{{saving || voiceBusy}}" disable-default-padding="{{true}}"
-        adjust-position="false" show-confirm-bar="false" cursor-spacing="20" bindinput="onComposer" bindfocus="onComposerFocus" bindblur="onComposerBlur" bindkeyboardheightchange="onKeyboardHeight"></textarea>
+        adjust-position="{{false}}" show-confirm-bar="{{false}}" cursor-spacing="20" bindinput="onComposer" bindfocus="onComposerFocus" bindblur="onComposerBlur" bindkeyboardheightchange="onKeyboardHeight"></textarea>
       <view class="composer-button-cell"><button class="voice {{voicePressing ? 'pressing' : ''}} {{saving ? 'is-disabled' : ''}}" bindtouchstart="pressDictation" bindtouchend="releaseDictation" bindtouchcancel="cancelDictation" aria-disabled="{{saving}}" aria-label="长按语音回答" hover-class="none"><image src="/assets/mic.svg" mode="aspectFit"></image></button></view>
       <view class="composer-button-cell"><button class="send {{saving || voiceBusy || !composer ? 'is-disabled' : ''}}" bindtap="sendAnswer" aria-disabled="{{saving || voiceBusy || !composer}}" hover-class="none">{{saving ? '处理中' : '发送'}}</button></view>
     </view>

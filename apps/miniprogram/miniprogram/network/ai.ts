@@ -55,10 +55,14 @@ export class WxMiniAiHttpPlatform implements MiniAiHttpPlatform {
   }
 }
 
-function responseError(response: AuthenticatedMiniResponse<unknown>) {
+function responseError(response: AuthenticatedMiniResponse<unknown>, request: AiRequest) {
   const payload = response.data && typeof response.data === 'object' && !Array.isArray(response.data)
-    ? response.data as { error?: unknown }
+    ? response.data as { error?: unknown; code?: unknown }
     : undefined;
+  if (payload?.code === 'unsupported_protocol' || request.action === 'dialogue' && response.statusCode === 400
+    && payload?.error === '文章或上下文格式无效、内容过长，请检查后再试。' && !payload.code) {
+    return '小文在线服务需要更新才能继续这段对话。您的回答已保存在本机，更新后可重新发送。';
+  }
   if (typeof payload?.error === 'string' && payload.error.length <= 300) return payload.error;
   if (response.statusCode === 401) return '在线身份已失效，请重试。';
   if (response.statusCode === 429) return '小文请求较多，请稍后再试。';
@@ -85,7 +89,7 @@ export class AuthenticatedMiniAiTransport implements MiniAiTransport {
       finally { cancelActive = () => {}; }
     }).then(result => {
       if (cancelled) throw new Error('已取消小文请求，原文未改变。');
-      if (result.statusCode < 200 || result.statusCode >= 300) throw new Error(responseError(result));
+      if (result.statusCode < 200 || result.statusCode >= 300) throw new Error(responseError(result, request));
       return result.data as AiResponse;
     });
     return {

@@ -32,6 +32,25 @@ it('uses one structured dialogue call for greetings and rejects unsolicited inte
   expect(invalid.statusCode).toBeGreaterThanOrEqual(400);
   expect(systemPrompt('dialogue')).toContain('先接住问候');
 });
+it('accepts a short introduction and distinguishes protocol, format and size rejection without upstream calls', async () => {
+  const draft = emptyDraft({ topicWritingMode: 'interview' });
+  const prompt = '我以前在机械厂工作。';
+  const request = buildAiRequest(prepareDialogue(newSession(draft), draft, 'intro', prompt, 'send'), 'dialogue', prompt, 'intro');
+  const fetch = vi.fn(async () => response({ answer: '在厂里哪段经历最难忘？', dialogue: { intent: 'reply', material: { text: prompt } }, citedVersionIds: [] }));
+  const app = await gateway({ fetch });
+  expect((await app.inject({ method: 'POST', url: '/api/ai/turn', headers: { origin }, payload: request })).statusCode).toBe(200);
+  fetch.mockClear();
+  for (const [body, code] of [
+    [{ ...request, protocolVersion: 99 }, 'unsupported_protocol'],
+    [{ ...request, unexpected: true }, 'invalid_request'],
+    [{ ...request, prompt: '字'.repeat(12001) }, 'context_too_large'],
+  ] as const) {
+    const invalid = await app.inject({ method: 'POST', url: '/api/ai/turn', headers: { origin }, payload: body });
+    expect(invalid.statusCode).toBeGreaterThanOrEqual(400);
+    expect(invalid.json().code).toBe(code);
+  }
+  expect(fetch).not.toHaveBeenCalled();
+});
 it('turns unnecessary spoken phrasing into natural written expression without weakening content boundaries', () => {
   const regular = systemPrompt('regular');
   expect(regular).toContain('处理强度不能只停留在标点和分段');

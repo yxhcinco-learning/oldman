@@ -15,7 +15,7 @@ const topic: TopicSnapshot = {
 describe('小程序采访与小文页面状态', () => {
   it('首次采访使用与 H5 一致的两条精简开场消息', () => {
     expect(FIRST_INTERVIEW_INTRO).toBe('您好，我是小文，您的写作助手。接下来我们围绕这个话题聊一聊。');
-    expect(FIRST_INTERVIEW_QUESTION).toBe('先请您简单介绍一下自己吧。');
+    expect(FIRST_INTERVIEW_QUESTION).toBe('先简单认识一下吧：怎么称呼您，大概什么年纪，之前主要做哪一行？挑方便的说就好。');
     expect(interviewMessages([])).toEqual([{ id: 'intro', role: 'assistant', text: FIRST_INTERVIEW_INTRO }]);
   });
 

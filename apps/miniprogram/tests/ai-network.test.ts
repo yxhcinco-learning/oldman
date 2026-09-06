@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MiniAuthClient, type MiniAuthPlatform, type MiniAuthTokenStore, type StoredMiniSession } from '../miniprogram/auth/client';
 import { AuthenticatedMiniAiTransport, WxMiniAiHttpPlatform, type MiniAiHttpOperation, type MiniAiHttpPlatform } from '../miniprogram/network/ai';
-import { buildAiRequest, emptyDraft, newSession, type AiRequest } from '../miniprogram/domain/core';
+import { buildAiRequest, emptyDraft, newSession, prepareDialogue, type AiRequest } from '../miniprogram/domain/core';
 
 const now = Date.parse('2026-09-01T00:00:00.000Z');
 const token = (number: number) => `mini_ai_token_${number}`.padEnd(43, 'x');
@@ -38,6 +38,18 @@ class HttpPlatform implements MiniAiHttpPlatform {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('小程序鉴权 AI 网络层', () => {
+  it('旧服务拒绝新版对话时提示更新服务，不把短消息说成过长或自动降级', async () => {
+    const auth = new MiniAuthClient(new AuthPlatform(), new MemoryTokens(), () => now);
+    const http = new HttpPlatform();
+    const draft = emptyDraft();
+    const value = buildAiRequest(prepareDialogue(newSession(draft), draft, 'intro', '以前在机械厂工作。', 'send'), 'dialogue', '以前在机械厂工作。', 'intro');
+    http.responses.push({ statusCode: 400, data: { error: '文章或上下文格式无效、内容过长，请检查后再试。' } });
+    await expect(new AuthenticatedMiniAiTransport(auth, http).request(value).response).rejects.toThrow('在线服务需要更新');
+    expect(http.calls).toHaveLength(1);
+    expect(http.calls[0].request.action).toBe('dialogue');
+    http.responses.push({ statusCode: 400, data: { code: 'invalid_request', error: '数据未通过校验' } });
+    await expect(new AuthenticatedMiniAiTransport(auth, http).request(value).response).rejects.toThrow('数据未通过校验');
+  });
   it('携带业务 token，并在首个401后只单飞重登和重试一次', async () => {
     const authPlatform = new AuthPlatform();
     const auth = new MiniAuthClient(authPlatform, new MemoryTokens(), () => now);

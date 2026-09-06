@@ -2,7 +2,7 @@ import { type AiResult, type ArticleSession, type DialogueCommand, type XiaoWenC
 import type { Draft } from './writing.js';
 
 export const INTERVIEW_INTRO = '您好，我是小文，您的写作助手。接下来我们围绕这个话题聊一聊。';
-export const INTERVIEW_FIRST_QUESTION = '先请您简单介绍一下自己吧。';
+export const INTERVIEW_FIRST_QUESTION = '先简单认识一下吧：怎么称呼您，大概什么年纪，之前主要做哪一行？挑方便的说就好。';
 
 export function conversationView(session: ArticleSession, draft: Draft) {
   return conversationOf(session, draft).messages.map(message => {

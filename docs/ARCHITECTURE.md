@@ -49,6 +49,8 @@ AudioWorklet 重采样至 16kHz PCM16；同源 WebSocket 代理至 127.0.0.1:300
 
 ## ADR-006 文章级 AI 会话
 
+统一会话协议需要服务端先部署再更新客户端。网关区分 unsupported_protocol、invalid_request、context_too_large，不回传原始字段或用户内容。小程序识别旧网关对 dialogue 的特定通用拒绝提示为服务待更新，不自动降级旧采访协议、不自动重试或删减素材；原始消息仍保存在本机供更新后显式重试。
+
 共享核心 packages/core/src/conversation.ts 负责编排模式、连续原始消息、材料来源和更正关系；H5 与小程序只适配存储、网络和显示。自由输入使用 protocolVersion=2 的 dialogue action，同一次模型调用完成语义意图与回复，不增加分类器或客户端关键词路由。旧 action 保留兼容，不再作为新访谈的正式路径。
 
 手动输入停顿 1200ms、完成语音/段落、保存退出及 AI 操作前建立变化检查点。每个 turn 记录基准版本、动作、提示、结果与采纳状态；候选不冒充当前正文。所有动作先进入会话，`result.answer` 作为小文修改说明，turn `status` 作为独立候选状态；生成完成停留会话，用户主动打开全文预览后检查标题/正文基准及 revision，再事务应用。撤销/恢复追加版本，不删除历史；后续有手改时必须再次确认。

@@ -52,3 +52,11 @@
 #### Scenario: Long conversation in mini-program
 - **WHEN** 连续消息增加或重新打开长会话
 - **THEN** 消息区定位最新消息及确认操作，模式操作保持显著可达；结束访谈产生的候选明确标为整理而不是优化
+
+#### Scenario: Keyboard and brief introduction
+- **WHEN** 用户开始访谈并唤起系统键盘
+- **THEN** 输入区只进行一次键盘避让，原生布尔属性使用布尔绑定；首次开场用称呼、大致年龄和从事行业三个可选角度引导，不要求逐项作答或重复询问已提供的信息
+
+#### Scenario: Request protocol rejected
+- **WHEN** 服务端拒绝统一会话请求
+- **THEN** 保留原始消息，区分协议不兼容、格式无效与内容超限；不得将版本问题解释为用户短消息过长，不自动降级旧协议或重复请求模型
