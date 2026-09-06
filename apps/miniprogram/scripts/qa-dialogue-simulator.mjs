@@ -199,6 +199,9 @@ try {
   await page.callMethod('sendXiaoWen');
   await new Promise(resolve => setTimeout(resolve, 200));
   const during = await requestCount();
+  const pendingReply = (await page.data('conversationMessages')).at(-1);
+  check('等待在助手气泡内且不写入原始消息', pendingReply.role === 'assistant' && pendingReply.pending && pendingReply.text === '小文正在想…' && !(await conversation()).messages.some(m => m.text === '小文正在想…'));
+  await mini.screenshot({ path: resolve(output, 'pending.png') });
   await page.callMethod('sendXiaoWen');
   await page.callMethod('startInterview');
   check('请求期间重复发送和切换被阻止', await requestCount() === during && (await conversation()).mode === 'conversation');
@@ -207,11 +210,14 @@ try {
   await mini.evaluate(() => getApp().__dialogueQa.pending.shift()());
   await current('editor');
   check('取消后迟到结果不覆盖状态或正文', (await page.data('session.turns')).at(-1).status === 'cancelled' && await page.data('body') === '用户后来修改的正文。');
+  check('取消与重试仍在同一助手位置', (await page.data('conversationMessages')).at(-1).id === pendingReply.id && (await page.data('conversationMessages')).at(-1).canRetry);
   await page.callMethod('startInterview');
   await current('interview');
   await enqueue({ defer: true, result: result('finish', '后台整理完成，请核对。', { body: '后台候选正文。' }) });
   await (await page.$('.ai-mode-bar button')).tap();
   await new Promise(resolve => setTimeout(resolve, 200));
+  check('结束整理使用助手整理占位及底部文字操作', (await page.data('messages')).at(-1).text === '正在整理…' && !!await page.$('.interview-footer .ai-mode-bar button'));
+  await mini.screenshot({ path: resolve(output, 'composing.png') });
   check('按钮结束在等待结果前已保存普通模式', await mini.evaluate(async () => {
     const snapshot = await getApp().__dialogueQa.services.repository.load();
     return snapshot.sessions[0].conversation.mode === 'conversation';

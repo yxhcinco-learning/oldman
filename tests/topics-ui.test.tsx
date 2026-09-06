@@ -176,7 +176,7 @@ it('retains the mode and history when an untouched interview is minimized', asyn
   expect(await screen.findByRole('group', { name: '文章正文' })).toBeInTheDocument();
   expect((await store.load()).sessions[0].conversation?.mode).toBe('interview');
   fireEvent.click(screen.getByRole('button', { name: '打开小文' }));
-  expect(await screen.findByRole('button', { name: '访谈已开启，结束访谈并整理' })).toHaveAttribute('aria-pressed', 'true');
+  expect(await screen.findByRole('button', { name: '访谈已开启，结束访谈并整理' })).toBeVisible();
 });
 
 it('enters the article with a visible loading state after an answer while the next question is processing', async () => {

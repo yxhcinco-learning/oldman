@@ -135,7 +135,7 @@ describe('微信小程序公共工程配置', () => {
     expect(keyboardAvoidance).toContain('reported - viewportReduction');
     expect(interview).toContain('class="interview-topic"');
     expect(interview).not.toContain('<small>{{draft && draft.topicSnapshot');
-    expect(interview).toContain('<view class="interview-title">小文访谈</view>');
+    expect(interview).toContain('<view class="interview-title">小文</view>');
     expect(interview).not.toContain('class="interview-close"');
     expect(interview).toContain('<image src="/assets/leaf.svg"');
     expect(interview).toContain('wx:for="{{messages}}"');

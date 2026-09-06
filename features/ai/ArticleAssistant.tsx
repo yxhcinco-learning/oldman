@@ -6,7 +6,7 @@ import { ACTION_LABELS, AI_ASSISTANCE_LABEL, VERSION_LABELS, documentOf, externa
 import { Workspace } from '../writing/workspace';
 import { VoiceDictationButton } from '../speech/VoiceDictationButton';
 import { ArticleAiController } from './session';
-import { conversationOf } from '../../packages/core/src/conversation';
+import { conversationOf, conversationView } from '../../packages/core/src/conversation';
 import { newSession, type DialogueCommand } from '../../lib/domain/article-ai';
 
 type Page = 'chat' | 'preview' | 'history' | 'version' | 'consent';
@@ -53,6 +53,7 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
   const lastTurn = session?.turns.at(-1);
   const conversation = draft ? conversationOf(session ?? newSession(draft), draft) : null;
   const interviewMode = conversation?.mode === 'interview';
+  const messages = draft ? conversationView(session ?? newSession(draft), draft) : [];
   useEffect(() => { chatScroll.current?.scrollTo({ top: chatScroll.current.scrollHeight }); }, [page, lastTurn?.id, lastTurn?.status, draft?.materials.length]);
   useEffect(() => {
     if (feedback?.kind !== 'notice') return;
@@ -133,9 +134,9 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
       {state.error && <div className="ai-error" role="alert"><p>{state.error}</p><div className="ai-inline-actions">
         <button type="button" disabled={busy} onClick={() => void workspace.checkpoint()}>重试保存</button><button type="button" onClick={onBackup}>导出当前备份</button>
       </div></div>}
-      {ai.error && <p className="ai-error" role="alert">{ai.error}</p>}
+      {ai.error && !(page === 'chat' && messages.some(message => message.error === ai.error)) && <p className="ai-error" role="alert">{ai.error}</p>}
       {feedback && (feedback.kind === 'notice' ? <p className="toast ai-assistant-toast" role="status">{feedback.message}</p> : <p className="ai-feedback" role="alert">{feedback.message}</p>)}
-      {ai.busy && <div className="ai-progress" role="status"><span><Icon name="spark" />正在处理…</span><button type="button" onClick={() => void controller.cancel()}>取消请求</button></div>}
+      {ai.busy && page !== 'chat' && <div className="ai-progress" role="status"><span><Icon name="spark" />正在处理…</span><button type="button" onClick={() => void controller.cancel()}>取消请求</button></div>}
       {saving && <p role="status">正在保存…</p>}
 
       {page === 'consent' && <div className="ai-consent">
@@ -166,14 +167,9 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
       </>}
 
       {page === 'chat' && conversation && <>
-        <div className="ai-mode-bar">
-          {interviewMode
-            ? <button type="button" aria-pressed="true" aria-label="访谈已开启，结束访谈并整理" disabled={busy || voiceActive} onClick={() => request('dialogue', '结束访谈并整理', undefined, false, 'finish')}>结束访谈并整理</button>
-            : <button type="button" aria-pressed="false" disabled={busy || voiceActive} onClick={() => void controller.startInterview()}>开启访谈</button>}
-        </div>
-        {draft.topicSnapshot && <p className="interview-topic">聊聊：{draft.topicSnapshot.title}</p>}
+        {draft.topicSnapshot && <p className="interview-topic">{draft.topicSnapshot.title}</p>}
         <div className="ai-conversation" ref={chatScroll} role="log" aria-label={interviewMode ? '小文采访对话' : '文章对话记录'}>
-          {conversation.messages.map(message => {
+          {messages.map(message => {
             const item = session?.turns.find(t => t.id === message.turnId);
             return <div key={message.id} className={message.role === 'system' ? 'ai-note' : `message-row ${message.role}`}>
               {message.role === 'assistant' && <span className="assistant-avatar" aria-hidden="true"><Icon name="leaf" /></span>}
@@ -181,11 +177,12 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
               <div className={message.role === 'system' ? '' : 'message-bubble'}>
                 {message.role === 'assistant' && item?.result?.body && <strong className="ai-origin-label inline">{AI_ASSISTANCE_LABEL}</strong>}
                 {message.role === 'assistant' && item?.result?.body && <strong>小文的修改说明</strong>}
-                <p>{message.role === 'assistant' && item?.result ? resultSummary(item.result, session?.versions.find(v => v.id === item.inputVersionId)?.body ?? '') : message.text}</p>
-                {interviewMode && message.role === 'assistant' && message === conversation.messages.at(-1) && conversation.materials.length > 0 && !conversation.pendingEdit && <button className="change-question" type="button" disabled={busy || voiceActive} onClick={() => request('dialogue', '换个问题', undefined, false, 'change')}>换个问题</button>}
+                <p role={message.pending ? 'status' : undefined}>{message.role === 'assistant' && item?.result ? resultSummary(item.result, session?.versions.find(v => v.id === item.inputVersionId)?.body ?? '') : message.text}</p>
+                {message.pending && <div className="reply-pending" role="status"><span className="thinking-dots" aria-hidden="true">•••</span><button type="button" onClick={() => void controller.cancel()}>取消请求</button></div>}
+                {interviewMode && message.role === 'assistant' && message === messages.at(-1) && !message.pending && !message.canRetry && conversation.materials.length > 0 && !conversation.pendingEdit && <button className="change-question" type="button" disabled={busy || voiceActive} onClick={() => request('dialogue', '换个问题', undefined, false, 'change')}>换个问题</button>}
                 {message.role === 'assistant' && item?.result?.citedVersionIds.map((id, index) => <button type="button" key={id} onClick={() => showVersion(id)}>查看引用记录 {index + 1}</button>)}
-                {message.role === 'user' && item && ['failed', 'cancelled'].includes(item.status) && <>
-                  <p>{item.error}</p><button type="button" disabled={busy} onClick={() => request(item.action, item.prompt, undefined, false, item.command, item.id)}>重新发送</button>
+                {message.canRetry && item && <>
+                  <p role="alert">{message.error}</p><button type="button" disabled={busy} onClick={() => request(item.action, item.prompt, undefined, false, item.command, item.id)}>重新发送</button>
                 </>}
               </div>
                 {message.role === 'assistant' && item?.result?.body && <div className="ai-turn-meta">
@@ -196,13 +193,17 @@ export function ArticleAssistant({ workspace, controller, onClose, onBackup, pro
               </div>
             </div>;
           })}
-          {busy && <p role="status">小文正在处理…</p>}
         </div>
         {interviewMode && conversation.pendingEdit && <button type="button" disabled={busy}
           onClick={() => request('dialogue', conversation.pendingEdit!, undefined, false, 'confirm-edit')}>结束访谈并继续修改</button>}
         {interviewMode && conversation.pendingEdit && <button type="button" disabled={busy} onClick={() => {
           setSaving(true); void workspace.updateSession(draft.id, current => ({ ...current, conversation: { ...current.conversation!, pendingEdit: undefined } })).finally(() => setSaving(false));
         }}>继续访谈</button>}
+        <div className="ai-mode-bar">
+          {interviewMode
+            ? <button type="button" aria-label="访谈已开启，结束访谈并整理" disabled={busy || voiceActive} onClick={() => request('dialogue', '结束访谈并整理', undefined, false, 'finish')}>结束访谈并整理</button>
+            : <button type="button" disabled={busy || voiceActive} onClick={() => void controller.startInterview()}>开启访谈</button>}
+        </div>
         {chatComposer()}
       </>}
 

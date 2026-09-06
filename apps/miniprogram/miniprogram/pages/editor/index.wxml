@@ -101,13 +101,13 @@
         </view>
       </view>
 
-      <view wx:if="{{xiaowenView === 'chat'}}" class="ai-mode-bar"><button aria-pressed="false" bindtap="startInterview" disabled="{{operationBusy || voiceBusy}}">开启访谈</button></view>
-      <view wx:if="{{xiaowenView === 'chat' && draft.topicSnapshot}}" class="xiaowen-topic">聊聊：{{draft.topicSnapshot.title}}</view>
+      <view wx:if="{{xiaowenView === 'chat' && draft.topicSnapshot}}" class="xiaowen-topic">{{draft.topicSnapshot.title}}</view>
       <scroll-view wx:if="{{xiaowenView === 'chat'}}" class="xiaowen-messages" scroll-y scroll-into-view="xiaowen-end-{{conversationMessages.length}}-{{xiaowenRunning ? 1 : 0}}-{{xiaowenError ? 1 : 0}}">
         <view wx:for="{{conversationMessages}}" wx:key="id" class="xiaowen-turn">
           <view class="{{item.role === 'user' ? 'xiaowen-user-message' : 'xiaowen-answer'}}">
             <view wx:if="{{item.hasCandidate}}" class="ai-origin-label">{{aiAssistanceLabel}}</view>
             <view>{{item.text}}</view>
+            <view wx:if="{{item.pending}}" class="reply-pending"><text class="thinking-dots">•••</text><button bindtap="cancelXiaoWen">取消请求</button></view>
             <button wx:if="{{item.hasCandidate}}" data-id="{{item.turnId}}" bindtap="showCandidate">查看调整结果</button>
             <view wx:if="{{item.error}}" class="xiaowen-error">{{item.error}}</view>
             <button wx:if="{{item.canRetry}}" data-id="{{item.turnId}}" bindtap="retryTurn" disabled="{{operationBusy}}">重新发送</button>
@@ -115,8 +115,7 @@
           </view>
         </view>
         <view wx:if="{{xiaowenStatus === 'blocked'}}" class="xiaowen-request-state">未发送</view>
-        <view wx:if="{{xiaowenError}}" class="xiaowen-error">{{xiaowenError}}</view>
-        <view wx:if="{{xiaowenRunning}}" class="xiaowen-progress"><text>小文正在处理…</text><button bindtap="cancelXiaoWen">取消请求</button></view>
+        <view wx:if="{{xiaowenError && !conversationMessages[conversationMessages.length - 1].error}}" class="xiaowen-error">{{xiaowenError}}</view>
         <view id="xiaowen-end-{{conversationMessages.length}}-{{xiaowenRunning ? 1 : 0}}-{{xiaowenError ? 1 : 0}}"></view>
       </scroll-view>
 
@@ -140,6 +139,7 @@
         </view>
       </scroll-view>
 
+      <view wx:if="{{xiaowenView === 'chat'}}" class="ai-mode-bar"><button bindtap="startInterview" disabled="{{operationBusy || voiceBusy}}">开启访谈</button></view>
       <view wx:if="{{xiaowenView === 'chat'}}" class="xiaowen-composer">
         <textarea value="{{xiaowenComposer}}" maxlength="12000" auto-height placeholder="问小文，或提要求" placeholder-style="color:#858e88;line-height:30px" disabled="{{operationBusy || voiceBusy}}"
           adjust-position="{{false}}" show-confirm-bar="{{false}}" cursor-spacing="20" bindinput="onXiaoWenInput" bindkeyboardheightchange="onKeyboardHeight"></textarea>

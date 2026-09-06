@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aiRequestSchema, articleSessionSchema, buildAiRequest, conversationOf, copySession, emptyDraft, makeBackup, newSession,
+import { aiRequestSchema, articleSessionSchema, buildAiRequest, conversationOf, conversationView, copySession, emptyDraft, makeBackup, newSession,
   parseBackupBundle, prepareDialogue, settleDialogue, startInterview, workFromDraft, type AiResult, type ArticleSession } from '../src/index.js';
 
 function setup(mode: 'normal' | 'interview' = 'interview', prompt = '你好', command: 'send' | 'finish' = 'send') {
@@ -12,6 +12,19 @@ function setup(mode: 'normal' | 'interview' = 'interview', prompt = '你好', co
 const reply = (answer: string): AiResult => ({ answer, citedVersionIds: [], dialogue: { intent: 'reply' } });
 
 describe('统一小文会话', () => {
+  it('等待、失败、重试和结果共用助手位置且不持久化占位', () => {
+    const { draft, session } = setup();
+    const raw = JSON.stringify(session);
+    const pending = conversationView(session, draft).at(-1)!;
+    expect(pending).toMatchObject({ id: 'a-turn-1', role: 'assistant', pending: true, text: '小文正在想…' });
+    expect(JSON.stringify(session)).toBe(raw);
+    const failed = { ...session, turns: session.turns.map(t => ({ ...t, status: 'failed' as const, error: '网络错误' })) };
+    expect(conversationView(failed, draft).at(-1)).toMatchObject({ id: pending.id, canRetry: true, error: '网络错误' });
+    expect(conversationView(session, draft).filter(m => m.id === pending.id)).toHaveLength(1);
+    expect(conversationView(settleDialogue(session, 'turn-1', reply('您好')), draft).at(-1)).toMatchObject({ id: pending.id, pending: false, text: '您好' });
+    const ending = setup('interview', '结束访谈并整理', 'finish');
+    expect(conversationView(ending.session, ending.draft).at(-1)?.text).toBe('正在整理…');
+  });
   it('问候作为消息保存而不推进题库、不产生素材，空正文可发送', () => {
     const { draft, session } = setup();
     const request = buildAiRequest(session, 'dialogue', '你好', 'turn-1');

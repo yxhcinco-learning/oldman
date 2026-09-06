@@ -5,11 +5,21 @@ export const INTERVIEW_INTRO = '您好，我是小文，您的写作助手。接
 export const INTERVIEW_FIRST_QUESTION = '先简单认识一下吧：怎么称呼您，大概什么年纪，之前主要做哪一行？挑方便的说就好。';
 
 export function conversationView(session: ArticleSession, draft: Draft) {
-  return conversationOf(session, draft).messages.map(message => {
+  const source = conversationOf(session, draft).messages;
+  const messages = source.flatMap(message => {
+    const turn = session.turns.find(item => item.id === message.turnId);
+    const pending = message.role === 'user' && turn && ['running', 'failed', 'cancelled'].includes(turn.status)
+      && !source.some(item => item.role === 'assistant' && item.turnId === turn.id);
+    return pending ? [message, { id: `a-${turn.id}`, role: 'assistant' as const, turnId: turn.id,
+      text: turn.status === 'running' ? (['finish', 'confirm-edit'].includes(turn.command ?? '') || turn.action === 'compose' ? '正在整理…' : '小文正在想…') : '' }] : [message];
+  });
+  return messages.map(message => {
     const turn = session.turns.find(item => item.id === message.turnId);
     return { ...message, turnId: turn?.id ?? '', hasCandidate: message.role === 'assistant' && Boolean(turn?.result?.body),
-      canRetry: message.role === 'user' && Boolean(turn && ['failed', 'cancelled'].includes(turn.status)),
-      error: message.role === 'user' ? turn?.error ?? '' : '', ai: message.role === 'assistant' && Boolean(turn?.result),
+      text: message.role === 'system' && message.text === '已结束访谈，正在整理' ? '已结束访谈' : message.text,
+      pending: message.role === 'assistant' && turn?.status === 'running',
+      canRetry: message.role === 'assistant' && Boolean(turn && ['failed', 'cancelled'].includes(turn.status)),
+      error: message.role === 'assistant' && turn && ['failed', 'cancelled'].includes(turn.status) ? turn.error || (turn.status === 'cancelled' ? '已取消，原文未改变。' : '小文暂时没有接上，请重试。') : '', ai: message.role === 'assistant' && Boolean(turn?.result),
       status: turn?.status ?? '' };
   });
 }
