@@ -49,7 +49,13 @@ try {
       assert.equal(session.conversation!.mode, index === 2 ? 'conversation' : 'interview');
       if (index === 0) assert.equal(session.conversation!.materials.length, 0);
       if (index === 1) assert.ok(session.conversation!.materials.length > 0);
-      if (index === 2) assert.ok(response.result.body?.trim());
+      if (index === 2) {
+        const body = response.result.body;
+        assert.ok(body && body.trim());
+        // Only guards this synthetic fixture's observed failures; human source review remains required.
+        assert.doesNotMatch(body, /膝盖|蹭破|擦破|打退堂鼓|没有催|鼓励|风.*耳|自由的感觉/, '短材料出现已观测的无来源细节；停止且不重试。');
+        console.info(JSON.stringify({ semanticReviewRequired: true, reason: '非空正文与固定样例断言不能代替逐句来源核对' }));
+      }
     }
   }
 } finally { cost.close(); }

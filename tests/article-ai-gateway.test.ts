@@ -111,6 +111,17 @@ it('defines one-question interview and selected-material composition contracts',
   expect(compose).toContain('不补造细节、对话、因果或评价');
   expect(compose).toContain('只在 answer 中提出 1 个具体澄清问题');
 });
+it('requires short source-bound dialogue composition rather than invented memoir detail', () => {
+  const prompt = systemPrompt('dialogue');
+  expect(prompt).toContain('忠实来源高于生动和篇幅');
+  expect(prompt).toContain('短材料短成文');
+  expect(prompt).toContain('助手的问题和建议不是事实');
+  expect(prompt).toContain('输出前逐句核对 current 和有效用户材料中的依据');
+  expect(prompt).toContain('不能加膝盖擦破');
+  expect(prompt).toContain('不得把示例事实带入其他文章');
+  expect(prompt).toContain('answer 不使用“候选”等内部术语');
+  expect(prompt).toContain('dialogue.material={text:原文连续片段');
+});
 it('accepts an empty article for topic interview, strips accidental body and sends only selected material for composition', async () => {
   const topic = snapshotTopic(REVIEWED_TOPIC_CATALOG[0]);
   const draft = emptyDraft({ topicSnapshot: topic, topicWritingMode: 'interview' });
