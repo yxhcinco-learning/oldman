@@ -28,7 +28,15 @@ H5 面板与小程序全屏共用核心编排，移除正式访谈的题库轮�
 
 模拟器当前约 390×844 逻辑视口；已实看长历史最新回复、输入与结束按钮，以及完整整理候选和采用按钮。截图在本机临时目录 `suiyue-mini-dialogue-qa` 的 `interview.png`、`candidate.png`、`final.png`，可用脚本重新生成。语义回答由替身预设，证明前端编排与渲染，不证明真实模型理解；页面 reLaunch 不等于进程冷启动或真机键盘。Android/iOS 新模式、其他模拟器尺寸、真实语音和系统终止恢复仍待验证。
 
-## 真实模型（与自动化分列）
+## 14:14 报错后的追加修复
+
+用户普通运行再次出现 `conversationOf is not a function`。这否定了“上轮自动化通过即可认为普通编译稳定”的结论；2.5 的证据仅限当次自动化状态，新增 2.6 保留普通路径待验。开启自动化后边界模块和 npm 模块都显示该函数正常，但无法读取报错当刻的导入引用，具体缓存失效层仍未完全证明。
+
+追加将六个会话函数在 `domain/core.ts` 显式再导出，避免只依赖星号再导出的增量导出集合；`devtool:build-npm` 在运行包类型校验后调用当前项目 `cache --clean compile`。新增契约测试禁止该脚本清理 storage/file/auth/session/network/all。实际执行 npm 刷新与 compile 缓存清理成功，CLI warnings=[]，未清理作品文件或身份。随后 CLI close/open 普通重开项目，首页可见；Windows 控制的点击后快照未可靠变化，未将普通模式进入访谈记为通过。此次完整 check（404 项）和 build 通过，普通运行重复进入访谈仍需补证，不宣称问题已彻底消除。
+
+## 真实模型（与自动化分列，前阶段记录）
+
+追加修复后的 33 项自动化模拟器回归再次全部通过，真实 AI/ASR 调用为 0；截图输出为临时目录 `suiyue-mini-dialogue-qa-followup`。该结果依然不替代上述普通编译待验项。
 
 使用显式脚本 `node --env-file-if-exists=.env.local --import tsx scripts/dialogue-live-check.ts`，只发送自编非敏感骑车经历，不加载用户作品；每轮至多 3 次，每次输入上界 30000 token、输出上限 2048，无自动重试。两轮共 6 次尝试。使用既有匿名用量账本预留/结算，未知失败按上界保守结算。
 

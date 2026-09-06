@@ -47,6 +47,7 @@
 #### Scenario: Mini-program loads a stale shared runtime
 - **WHEN** 小程序共享核心新增接口或实际运行包缺失会话函数
 - **THEN** 构建校验必须检查新增接口及其函数类型，生成包必须随内容变化更新版本；页面展示失败不得替换已经读出的作品草稿，重新编译恢复无需删除用户作品
+- **AND** 显式刷新运行包后清理当前项目的代码编译缓存（仅 compile），不得清理 storage/file/auth/session；验收必须区分自动化运行和普通编译
 
 #### Scenario: Long conversation in mini-program
 - **WHEN** 连续消息增加或重新打开长会话

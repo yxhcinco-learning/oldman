@@ -43,6 +43,10 @@ describe('微信小程序公共工程配置', () => {
     expect(packageJson.scripts).toMatchObject({ 'devtool:build-npm': 'node scripts/build-devtool-npm.mjs' });
     expect(prepareScript).not.toContain('generatedCoreTarget');
     expect(buildScript).toContain('await rm(generatedCoreTarget');
+    expect(buildScript).toContain('cache --clean compile --project');
+    expect(buildScript).not.toMatch(/--clean (?:all|storage|file|auth|session|network)\b/);
+    const coreBoundary = readText('../miniprogram/domain/core.ts');
+    expect(coreBoundary).toContain('export { conversationOf, conversationView, prepareDialogue, settleDialogue,');
     const completeRuntime = { ...Object.fromEntries(requiredCoreFunctions.map(name => [name, () => {}])), AI_ASSISTANCE_LABEL: 'AI' };
     expect(() => assertDevtoolCoreRuntime(completeRuntime)).not.toThrow();
     expect(() => assertDevtoolCoreRuntime({ workFromDraft() {} })).toThrow(/isWorkAiAssisted/);

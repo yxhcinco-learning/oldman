@@ -99,7 +99,7 @@ CI 对 push 和可选 PR 运行 npm ci、check、build 和依赖审计；CI 不�
 
 本机微信开发者工具在共享核心变更后执行 `npm run devtool:build-npm --workspace @suiyue/miniprogram`。该命令先重建 `@suiyue/core`、移除会被工具按版本复用的旧 `miniprogram_npm` 包，再调用本机 CLI 构建 npm，并校验开发者工具实际加载的运行包包含当前关键导出。它只做本地 npm 二次构建，不预览上传、不提审、不发布；找不到 CLI 时可用 `WECHAT_DEVTOOLS_CLI_PATH` 指向其绝对路径。
 
-共享 npm 源包版本附加内容指纹；导出校验覆盖 `conversationView` 等新会话函数及类型，不能只检查旧接口。页面报共享函数错误时不要删用户作品，先刷新 npm 并重新编译。
+共享 npm 源包版本附加内容指纹；导出校验覆盖 `conversationView` 等新会话函数及类型，不能只检查旧接口。显式 `devtool:build-npm` 校验后还清理当前项目的 `compile` 代码编译缓存，随后执行普通编译；绝不清理 storage/file/auth/session/network/all。页面报共享函数错误时不要删用户作品，先刷新 npm 并重新编译。自动化模式的成功不能替代普通重编译后进入页面的验证。
 
 显式模拟器回归入口为 `node apps/miniprogram/scripts/qa-dialogue-simulator.mjs`，不加入 CI。先让开发者工具停在首页且无进行中操作，用 CLI `auto --project <小程序路径> --auto-port 9420 --port <IDE服务端口>` 开启自动化，等待编译完成；独立安装 `miniprogram-automator@0.12.1`（本轮装在系统临时目录），将 `MINI_AUTOMATOR_PATH` 指向该包绝对目录，`MINI_QA_OUTPUT` 指向截图输出目录后执行。脚本使用独立 `qa-dialogue-*` 微信文件目录和非敏感素材、假 AI transport，不发真实模型/语音请求，结束恢复运行服务并断开连接，不关闭 IDE。异常强制终止脚本后重新编译恢复运行对象，再使用正式作品；不要在验收期间手动操作其他作品。测试文件保留于独立目录，不自动清理用户数据。实际覆盖与未验证项见统一会话验收。
 

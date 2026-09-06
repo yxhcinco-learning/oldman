@@ -63,3 +63,18 @@ runInNewContext(await readFile(generatedEntry, 'utf8'), { module: runtimeModule,
 assertDevtoolCoreRuntime(runtimeModule.exports);
 
 console.info('微信开发者工具 npm 运行产物已刷新并通过共享导出校验');
+
+// npm rebuilding does not invalidate the IDE's compiled TypeScript import graph.
+// Clear code compilation only: never touch the user's works, files or identity.
+const cacheArgs = process.platform === 'win32'
+  ? ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', '& $env:SUIYUE_DEVTOOL_CLI cache --clean compile --project $env:SUIYUE_DEVTOOL_PROJECT']
+  : ['cache', '--clean', 'compile', '--project', appRoot];
+const cacheResult = spawnSync(cli, cacheArgs, {
+  stdio: 'inherit',
+  env: process.platform === 'win32'
+    ? { ...process.env, SUIYUE_DEVTOOL_CLI: cliPath, SUIYUE_DEVTOOL_PROJECT: appRoot }
+    : process.env,
+});
+if (cacheResult.error) throw cacheResult.error;
+if (cacheResult.status !== 0) throw new Error(`代码编译缓存未刷新（退出码 ${String(cacheResult.status)}）；不要清理作品存储`);
+console.info('仅代码编译缓存已刷新；作品文件、存储与登录缓存未清理，请执行普通编译');
