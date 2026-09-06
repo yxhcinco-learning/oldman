@@ -15,7 +15,15 @@
 
 #### Scenario: Explicit account login
 - **WHEN** 用户使用第二阶段客户端
-- **THEN** 只有主动登录建立账号会话，头像昵称可选，失败不阻塞本机新草稿
+- **THEN** 独立微信授权登录页仅在点击后建立账号会话并自动创建首次账号，头像昵称可选，失败不阻塞本机新草稿；本页取代旧版不显示登录页的限制
+
+#### Scenario: Return after sign in
+- **WHEN** 从作品登录后游客作品已认领或账号恢复
+- **THEN** 按固定账号和认领后的标识重新读取原作品，保留已保存输入，不重复提交模型任务；换账号返回作品列表，不读取前一账号缓存
+
+#### Scenario: Cloud sync fails after sign in
+- **WHEN** 微信登录成功但作品同步未完成
+- **THEN** 保留有效账号及本机内容，重试只执行同步，不自动再次换码；离开登录页后迟到结果不得强制导航
 
 ### Requirement: Revocable opaque business session
 以下 token 散列、期限和存储安全规则 SHALL 继续适用。第二阶段账号 MUST 仅保留一个有效账号会话；旧客户端自动恢复仅适用尚未启用账号的用户，账号客户端被替换或过期时必须主动登录，续期只延长当前会话。
@@ -54,4 +62,3 @@
 #### Scenario: Account database migration
 - **WHEN** 升级到账号与云作品版本
 - **THEN** 保留旧用户与身份，事务迁移；接流量后不得恢复旧备份覆盖新作品
-
