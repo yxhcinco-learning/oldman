@@ -1,1 +1,9 @@
-{ "navigationStyle": "custom", "navigationBarTitleText": "文章", "usingComponents": { "app-brand": "/components/app-brand/index" } }
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "文章",
+  "usingComponents": {
+    "app-brand": "/components/app-brand/index"
+  },
+  "enablePullDownRefresh": true,
+  "backgroundColor": "#fbf9f8"
+}

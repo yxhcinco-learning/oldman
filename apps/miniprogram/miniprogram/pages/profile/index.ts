@@ -11,13 +11,13 @@ accountPage({
   accountUnsubscribe: undefined as (() => void) | undefined,
   syncUnsubscribe: undefined as (() => void) | undefined,
   observed: undefined as ReturnType<typeof miniServices> | undefined,
-  data: { ...navigationMetrics(), menuOpen: false, editingProfile: false, logoutOpen: false, cloudError: '', canReconnect: false, needsLogin: true,
+  data: { ...navigationMetrics(), settingsOpen: false, libraryManaging: false, menuOpen: false, editingProfile: false, logoutOpen: false, cloudError: '', canReconnect: false, needsLogin: true,
     nicknameInput: '', nicknameValid: true, busy: '', notice: '', error: '', nameKeyboardHeight: 0, compactProfile: false,
     account: null as AccountProfile | null, status: 'guest' as AccountStatus, avatarPath: '', syncText: '本机草稿', accountText: '尚未登录',
     exportLabel: '导出本机备份' },
 
   onLoad() { this.accountUnsubscribe = miniServices().account.subscribe(() => { void this.refreshState(); }); },
-  onShow() { selectTab(this, 2); if (this.data.menuOpen || this.data.editingProfile) setTabBarHidden(this, true); void this.refreshState(); },
+  onShow() { selectTab(this, 2); if (this.data.menuOpen || this.data.editingProfile || this.data.settingsOpen || this.data.logoutOpen) setTabBarHidden(this, true); void this.refreshState(); },
   onHide() { setTabBarHidden(this, false); },
   onUnload() { this.accountUnsubscribe?.(); this.syncUnsubscribe?.(); },
   nameKeyboard(event: WechatMiniprogram.CustomEvent<{ height: number }>) {
@@ -27,7 +27,7 @@ accountPage({
   async refreshState() {
     const services = miniServices();
     if (this.observed !== services) {
-      this.setData({ avatarPath: '', editingProfile: false, nicknameInput: '', nameKeyboardHeight: 0, compactProfile: false, error: '', notice: '', menuOpen: false, logoutOpen: false });
+      this.setData({ settingsOpen: false, libraryManaging: false, avatarPath: '', editingProfile: false, nicknameInput: '', nameKeyboardHeight: 0, compactProfile: false, error: '', notice: '', menuOpen: false, logoutOpen: false });
       setTabBarHidden(this, false);
       this.syncUnsubscribe?.();
       this.observed = services;
@@ -73,7 +73,7 @@ accountPage({
     catch (error) { this.setData({ error: errorMessage(error, '连接未成功。') }); }
     finally { this.setData({ busy: '' }); await this.refreshState(); }
   },
-  logout() { this.setData({ logoutOpen: true, error: '' }); setTabBarHidden(this, true); },
+  logout() { this.setData({ settingsOpen: false, logoutOpen: true, error: '' }); setTabBarHidden(this, true); },
   closeLogout() { if (this.data.busy) return; this.setData({ logoutOpen: false }); setTabBarHidden(this, false); },
   async confirmLogout() {
     if (this.data.busy) return;
@@ -89,7 +89,7 @@ accountPage({
     } catch (error) { this.setData({ error: errorMessage(error, '暂时未能退出，请重试。') }); }
     finally { this.setData({ busy: '' }); }
   },
-  openProfile() { this.setData({ editingProfile: true, nicknameInput: this.data.account?.nickname ?? '', nicknameValid: true, error: '' }); setTabBarHidden(this, true); },
+  openProfile() { this.setData({ settingsOpen: false, editingProfile: true, nicknameInput: this.data.account?.nickname ?? '', nicknameValid: true, error: '' }); setTabBarHidden(this, true); },
   closeProfile() { this.setData({ editingProfile: false, nameKeyboardHeight: 0, compactProfile: false }); setTabBarHidden(this, false); },
   async chooseAvatar(event: WechatMiniprogram.CustomEvent<{ avatarUrl: string }>) {
     if (!event.detail.avatarUrl || this.data.busy) return;
@@ -105,12 +105,18 @@ accountPage({
     } catch (error) { this.setData({ error: errorMessage(error, '头像未保存，请重试。') }); }
     finally { this.setData({ busy: '' }); await this.refreshState(); }
   },
-  openMenu() { setTabBarHidden(this, true); this.setData({ menuOpen: true, notice: '', error: '' }); },
-  closeMenu() { this.setData({ menuOpen: false }); setTabBarHidden(this, false); },
-  openPrivacy() { void wx.navigateTo({ url: '/pages/privacy/index' }); },
+  openMenu() { setTabBarHidden(this, true); this.setData({ settingsOpen: false, menuOpen: true, notice: '', error: '' }); },
+  closeMenu() { this.setData({ menuOpen: false }); setTabBarHidden(this, false); void this.selectComponent('.author-articles')?.refresh(false); },
+  openPrivacy() { this.closeSettings(); void wx.navigateTo({ url: '/pages/privacy/index' }); },
   async nameSaved() { this.closeProfile(); await this.refreshState(); },
-  manageWorks() { setTabBarHidden(this, false); void wx.navigateTo({ url: '/pages/works/index' }); },
-  openRecycle() { setTabBarHidden(this, false); void wx.navigateTo({ url: '/pages/works/index?recycle=1' }); },
+  manageWorks() { this.closeSettings(); void wx.pageScrollTo({ selector: '.author-articles', duration: 200 }); },
+  openSettings() { this.setData({ settingsOpen: true }); setTabBarHidden(this, true); },
+  closeSettings() { this.setData({ settingsOpen: false }); setTabBarHidden(this, false); },
+  libraryManage(event: WechatMiniprogram.CustomEvent<{ value: boolean }>) { this.setData({ libraryManaging: event.detail.value }); },
+  writeArticle() { void wx.navigateTo({ url: '/pages/editor/index' }); },
+  onReachBottom() { this.selectComponent('.author-articles')?.more(); },
+  async onPullDownRefresh() { try { await this.selectComponent('.author-articles')?.refresh(); await this.refreshState(); } finally { void wx.stopPullDownRefresh(); } },
+  openRecycle() { this.closeSettings(); setTabBarHidden(this, false); void wx.navigateTo({ url: '/pages/works/index?recycle=1' }); },
   async exportBackup() {
     const services = miniServices();
     this.setData({ busy: '正在准备备份…', error: '', notice: '' });

@@ -27,7 +27,7 @@ try {
     fs.mkdirSync(root, true); fs.writeFileSync(root + '/cover.jpg', source, 'base64');
     const original = { repository: services.repository, writer: services.writer, publicationStorage: services.publicationStorage,
       publications: services.publications, snapshot: services.account.snapshot, updateNickname: services.account.updateNickname,
-      restore: services.account.restore, sync: services.sync.sync, platformRequest: services.account.platform.request, platformLogin: services.account.platform.login };
+      restore: services.account.restore, lifecycle: services.sync.lifecycle, sync: services.sync.sync, platformRequest: services.account.platform.request, platformLogin: services.account.platform.login };
     const core = require('domain/core.js'), repo = require('storage/repository.js');
     services.repository = new repo.MiniWorkRepository(services.files, root + '/account', undefined, 'qa-publication');
     services.writer = new repo.MiniDraftWriter(services.repository);
@@ -37,6 +37,7 @@ try {
     services.account.restore = async () => {};
     services.account.updateNickname = async name => { qa.nickname = name; };
     services.sync.sync = async () => {};
+    services.sync.lifecycle = async (id, kind, revision) => { if (!id.startsWith('qa-delete-')) throw new Error('删除验收仅允许隔离空稿'); if (kind === 'purge') throw new Error('本轮不永久删除'); return services.repository.setDeleted(id, kind === 'trash', revision); };
     services.account.platform.request = async () => { throw new Error('UI 夹具禁止真实账号网络请求'); };
     services.account.platform.login = async () => { throw new Error('UI 夹具禁止真实微信登录'); };
     const draft = { ...core.emptyDraft(), title: '老街的清晨', inputMode: 'text', textDraft: '小时候，我们沿着老街走过四季。\n\n清晨的风轻轻掠过门前的树叶，街坊的招呼声从巷口传来。那些平常的温暖，一直留在我的记忆里。', pendingVoice: '未确认的私有语音' };
@@ -49,12 +50,13 @@ try {
     const bytes = () => fs.readFileSync(root + '/cover.jpg');
     const article = () => ({ id: 'qa-article', title: draft.title, body: draft.textDraft, authorName: qa.nickname, aiAssisted: true, version: 3, publishedAt: '2026-09-07T00:00:00Z' });
     services.publications = {
+      submission: async () => { if (!qa.submitted) throw new Error('没有已提交稿'); return qa.submitted; },
       status: async () => qa.status, statuses: async () => ({ publications: [qa.status] }),
       upload: async () => ({ assetId: 'qa-upload', width: 1000, height: 800, crops: core.centeredCrops(1000, 800) }),
       settings: async (_id, input) => { qa.status.settings = { version: 1, assetId: 'qa-cropped', crops: input.crops }; return { assetId: 'qa-cropped', settingsVersion: 1 }; },
       preview: async () => ({ ...article(), articleId: 'qa-article', assetId: 'qa-cropped', workVersion: 1, settingsVersion: 1, version: qa.status.version }),
       ownImage: async () => bytes(), image: async () => { if (qa.unavailable) throw new Error('这篇文章暂时无法查看。'); return bytes(); },
-      submit: async (_id, input) => { qa.submissionInput = input; qa.status.pending = { id: 'qa-submission', state: 'pending', reason: '', createdAt: '2026-09-07T00:00:00Z' }; qa.status.version++; return { articleId: 'qa-article', submissionId: 'qa-submission', version: qa.status.version }; },
+      submit: async (_id, input) => { qa.submissionInput = input; qa.status.pending = { id: 'qa-submission', state: 'pending', reason: '', createdAt: '2026-09-07T00:00:00Z' }; qa.status.lastSubmission = qa.status.pending; qa.submitted = { ...article(), ...qa.status.pending, assetId: 'qa-cropped' }; qa.status.version++; return { articleId: 'qa-article', submissionId: 'qa-submission', version: qa.status.version }; },
       action: async () => { qa.status.pending = null; qa.status.published = false; qa.status.version++; return { version: qa.status.version }; },
       list: async () => ({ articles: [article()], cursor: null }), article: async () => { if (qa.unavailable) throw new Error('这篇文章暂时无法查看。'); return article(); },
     };
@@ -76,17 +78,17 @@ try {
     await waitFor(async () => await current.data('accountReady') && !await current.data('loading'));
     check('成功空列表显示正常空态且没有错误或示例', !!await current.$('.articles-empty') && !await current.data('error') && (await current.data('cards')).length === 0);
     const dimensions = async () => {
-      const write = await current.$('.writing-action'), refresh = await current.$('.refresh-action');
-      const box = { ...await write.offset(), ...await write.size() }, secondary = { ...await refresh.offset(), ...await refresh.size() };
+      const write = await current.$('.writing-action');
+      const box = { ...await write.offset(), ...await write.size() };
       const inset = info.windowWidth <= 370 ? 20 : 24;
       check('写文章铺满内容宽度、左右边距对齐且至少 56px', Math.abs(box.left - inset) < 1 && Math.abs(box.width - (info.windowWidth - inset * 2)) < 1 && box.height >= 56);
-      check('刷新右侧对齐、48px 触控且不受默认宽度挤压', Math.abs(secondary.left + secondary.width - (info.windowWidth - inset)) < 1 && secondary.height >= 48 && secondary.width <= 120);
+      check('正常列表不常驻刷新按钮', !await current.$('.refresh-action'));
     };
     await dimensions(); await mini.screenshot({ path: resolve(output, 'list-empty.png') });
     await mini.evaluate(() => { getApp().__publicationQa.listResponse = { statusCode: 404, data: '<html>404 Not Found</html>' }; });
     await current.callMethod('load');
     check('未部署接口提示列表读取失败，不冒充空库或单篇失效', !await current.$('.articles-empty') && (await current.data('error')).includes('文章列表暂时无法读取') && !(await current.data('error')).includes('这篇文章'));
-    check('失败保留页头重试和写文章入口', await (await current.$('.refresh-action')).text() === '重试' && !!await current.$('.writing-action'));
+    check('失败提供重试和写文章入口', await (await current.$('.error-panel button')).text() === '重试' && !!await current.$('.writing-action'));
     await mini.screenshot({ path: resolve(output, 'list-error.png') });
     await mini.evaluate(() => { const qa = getApp().__publicationQa; qa.listResponse = { statusCode: 200, data: { articles: [{ id: 'qa-article', title: '一碗热汤的记忆', authorName: '老街写作者', publishedAt: '2026-09-07T00:00:00Z', version: 1 }], cursor: null } }; });
     await current.callMethod('load');
@@ -103,25 +105,25 @@ try {
   const id = await mini.evaluate(() => getApp().__publicationQa.draft.id);
   let current = await mini.reLaunch('/pages/publish/index?id=' + id);
   await waitFor(async () => !!await current.data('title'));
-  const chooseWidth = (await (await current.$('.choose-empty')).size()).width;
+  const chooseWidth = (await (await current.$('.cover-entry')).size()).width;
   check('选择封面入口铺满内容区', Math.abs(chooseWidth - info.windowWidth + (info.windowWidth <= 370 ? 40 : 48)) < 1);
   const headerBack = await (await current.$('.journey-header')).$('.header-back');
   check('子页返回按钮贴近左侧且有 48px 触控区', (await headerBack.offset()).left <= 12 && (await headerBack.size()).width === 48);
   await mini.screenshot({ path: resolve(output, 'cover-empty.png') });
-  await mini.evaluate(async () => { const qa = getApp().__publicationQa, page = getCurrentPages().at(-1); await page.controller.choose(qa.root + '/cover.jpg', 1000, 800); await page.local(); });
+  await mini.evaluate(async () => { const qa = getApp().__publicationQa, page = getCurrentPages().at(-1); await page.controller.choose(qa.root + '/cover.jpg', 1000, 800); await page.local(); page.setData({ mode: 'crop' }); page.selectCrop('reading'); });
   await waitFor(async () => !!await current.$('.publication-cropper'));
   let cropper = await current.$('.publication-cropper');
   await cropper.callMethod('enlarge'); await waitFor(async () => !await current.data('busy'));
   check('封面可放大移动，裁切有实际画面', await cropper.data('zoom') > 1);
-  await current.callMethod('confirmCrop');
-  await current.callMethod('changeCropKind', { currentTarget: { dataset: { kind: 'reading' } } });
-  cropper = await current.$('.publication-cropper');
   const cropWindow = await (await cropper.$('.crop-window')).size();
   check('阅读与好友裁切窗口为 5:4 且不超过屏宽', Math.abs(cropWindow.width / cropWindow.height - 1.25) < .01 && cropWindow.width <= info.windowWidth - 40);
-  await current.callMethod('confirmCrop');
+  await mini.screenshot({ path: resolve(output, 'crop-reading.png') });
+  await current.callMethod('confirmCrop'); await waitFor(async () => !await current.data('busy'));
+  check('阅读确认后引导至列表裁切', await current.data('cropKind') === 'thumbnail');
+  await mini.screenshot({ path: resolve(output, 'crop-list.png') });
+  await current.callMethod('confirmCrop'); await waitFor(async () => !!await current.data('preview') && !await current.data('busy'));
   check('两种裁切分别确认并保存', (await current.data('draft')).confirmed.length === 2);
   await mini.screenshot({ path: resolve(output, 'cover-settings.png') });
-  await current.callMethod('preparePreview');
   await waitFor(async () => await current.data('mode') === 'preview');
   const cover = await (await current.$('.reading-cover')).size();
   check('预览封面为 5:4', Math.abs(cover.width / cover.height - 1.25) < .01);
@@ -139,10 +141,11 @@ try {
   check('提交使用最后预览的署名', await mini.evaluate(() => getApp().__publicationQa.submissionInput.authorName) === '老街写作者');
   await mini.screenshot({ path: resolve(output, 'submitted.png') });
   await current.callMethod('myArticles');
-  await waitFor(async () => (await mini.currentPage()).path === 'pages/works/index'); current = await mini.currentPage();
-  await waitFor(async () => (await current.data('visible'))?.length === 1);
-  check('我的文章每篇作品只有一条记录并显示审核状态', (await current.data('visible'))[0].publication === '审核中');
+  await waitFor(async () => (await mini.currentPage()).path === 'pages/profile/index'); current = await mini.currentPage();
+  const library = await current.$('.author-articles'); await waitFor(async () => (await library.data('visible'))?.length === 1);
+  check('我的主页直接展示唯一文章和审核入口', (await library.data('visible'))[0].publication === '审核中' && (await library.data('visible'))[0].action === '查看审核');
   await mini.screenshot({ path: resolve(output, 'my-articles.png') });
+  await mini.evaluate(() => { const q = getApp().__publicationQa; q.status.published = true; q.status.pending = null; q.status.lastSubmission = { ...q.submitted, state: 'approved' }; });
   current = await mini.switchTab('/pages/articles/index');
   await waitFor(async () => (await current.data('cards'))?.length === 1);
   await mini.screenshot({ path: resolve(output, 'public-list.png') });
@@ -172,7 +175,7 @@ try {
       const { services: s, original: o } = qa;
       s.repository = o.repository; s.writer = o.writer; s.publicationStorage = o.publicationStorage; s.publications = o.publications;
       s.account.snapshot = o.snapshot; s.account.updateNickname = o.updateNickname; s.account.restore = o.restore;
-      s.account.platform.request = o.platformRequest; s.account.platform.login = o.platformLogin; s.sync.sync = o.sync;
+      s.account.platform.request = o.platformRequest; s.account.platform.login = o.platformLogin; s.sync.sync = o.sync; s.sync.lifecycle = o.lifecycle;
       if (qa.topicOriginals) Object.assign(require('network/topics.js').miniTopics, qa.topicOriginals);
       delete getApp().__publicationQa; require('auth/navigation.js').clearLoginReturn();
     });

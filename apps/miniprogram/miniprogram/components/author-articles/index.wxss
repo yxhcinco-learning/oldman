@@ -1,0 +1,30 @@
+.works-heading { display: flex; min-height: 48px; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.works-count { min-width: 0; color: var(--muted); font-size: 16px; line-height: 26px; }
+.works-heading .manage-entry { padding-right: 0; }
+.work-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 4px; margin-bottom: 20px; background: var(--surface); border-radius: 16px; }
+.work-filters .filter-button { width: 100%; min-width: 0; padding: 8px 2px; border-radius: 12px; background: transparent; color: var(--muted); font-size: 16px; line-height: 24px; }
+.work-filters .selected { background: var(--white); color: var(--forest); box-shadow: 0 2px 8px rgba(21,59,46,.04); }
+.work-card { padding: 20px 0; border-bottom: 1px solid var(--line); }
+.work-card:first-child { padding-top: 8px; }
+.work-copy { min-width: 0; min-height: 48px; }
+.work-title { color: var(--forest); font: 600 22px/32px "Songti SC", serif; overflow-wrap: anywhere; }
+.work-meta { margin-top: 8px; color: var(--muted); font-size: 14px; line-height: 22px; }
+.work-bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; margin-top: 12px; }
+.publication-label { display: inline-block; padding: 4px 10px; border-radius: 8px; background: var(--surface); color: var(--muted); font-size: 14px; line-height: 22px; }
+.state-pending { background: #f5eee8; color: var(--sienna); }
+.state-published { background: var(--tint); color: var(--forest-soft); }
+.work-actions { display: flex; flex-wrap: wrap; gap: 0 8px; margin-left: auto; }
+.work-actions .text-action { padding: 8px 4px; min-height: 48px; }
+.work-actions .publication-entry { color: var(--forest); }
+.remove, .work-actions .danger { color: var(--sienna); }
+.recovery-actions { width: 100%; justify-content: flex-start; gap: 12px; }
+.empty-state { padding: 48px 8px; color: var(--muted); font-size: 16px; line-height: 26px; text-align: center; }
+.empty-state .empty-icon { width: 48px; height: 48px; margin-bottom: 20px; opacity: .65; }
+.empty-title { margin-bottom: 8px; color: var(--forest); font: 22px/32px "Songti SC", serif; }
+.create-pressed { background: #2d5244; }
+
+:host { display: block; }
+.author-library { padding-top: 8px; }
+.library-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.library-title { color: #153b2e; font: 600 26px/36px "Songti SC", serif; }
+.library-more { display: block; width: 100%; margin-top: 16px; }

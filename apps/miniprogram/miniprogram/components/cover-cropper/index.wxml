@@ -2,4 +2,4 @@
   <image class="crop-image" src="{{src}}" style="width: {{drawWidth}}px; height: {{drawHeight}}px; left: {{left}}px; top: {{top}}px" mode="scaleToFill" />
   <view class="crop-grid"><view class="crop-line" /><view class="crop-line second" /></view>
 </view>
-<view class="crop-controls"><button class="crop-control {{zoom <= 1 ? 'disabled' : ''}}" bindtap="shrink" aria-label="缩小封面" disabled="{{zoom <= 1}}">−</button><text class="crop-help">拖动或双指缩放</text><button class="crop-control {{zoom >= 4 ? 'disabled' : ''}}" bindtap="enlarge" aria-label="放大封面" disabled="{{zoom >= 4}}">＋</button></view>
+<view class="crop-controls {{dark ? 'dark' : ''}}"><button class="crop-control {{zoom <= 1 ? 'disabled' : ''}}" bindtap="shrink" aria-label="缩小封面" disabled="{{zoom <= 1}}">−</button><text class="crop-help">拖动或双指缩放</text><button class="crop-control {{zoom >= 4 ? 'disabled' : ''}}" bindtap="enlarge" aria-label="放大封面" disabled="{{zoom >= 4}}">＋</button></view>

@@ -15,16 +15,20 @@ export class WxPublicationFiles extends WxLocalFileSystem implements Publication
   async writeBinary(path: string, bytes: ArrayBuffer) { wx.getFileSystemManager().writeFileSync(path, bytes); }
   async copy(from: string, to: string) { wx.getFileSystemManager().copyFileSync(from, to); }
 }
+const coverStateSchema = z.object({ path: z.string().max(1024), width: z.number().nonnegative(), height: z.number().nonnegative(),
+  crops: coverCropsSchema.nullable(), settingsVersion: z.number().int().nonnegative(), assetId: cloudIdSchema.nullable(),
+  confirmed: z.array(z.enum(['thumbnail', 'reading'])).max(2), uploadId: cloudIdSchema.nullable(), dirty: z.boolean() });
 export const publicationDraftSchema = z.object({
   version: z.literal(1), workId: cloudIdSchema, path: z.string().max(1024), width: z.number().nonnegative(), height: z.number().nonnegative(),
   crops: coverCropsSchema.nullable(), settingsVersion: z.number().int().nonnegative(), assetId: cloudIdSchema.nullable(),
   confirmed: z.array(z.enum(['thumbnail', 'reading'])).max(2).default([]),
   uploadId: cloudIdSchema.nullable(), dirty: z.boolean(),
   settingOperation: publicationSettingsInputSchema.nullable(), submissionOperation: submissionInputSchema.nullable(), actionOperation: publicationActionSchema.nullable(),
+  cropBackup: coverStateSchema.nullable().default(null),
 }).strict();
 export type PublicationDraft = z.infer<typeof publicationDraftSchema>;
 export const emptyPublicationDraft = (workId: string): PublicationDraft => ({ version: 1, workId, path: '', width: 0, height: 0, crops: null,
-  confirmed: [], settingsVersion: 0, assetId: null, uploadId: null, dirty: false, settingOperation: null, submissionOperation: null, actionOperation: null });
+  confirmed: [], settingsVersion: 0, assetId: null, uploadId: null, dirty: false, settingOperation: null, submissionOperation: null, actionOperation: null, cropBackup: null });
 
 /** Independent of .work.json, scoped to the repository's verified account root. */
 export class MiniPublicationStorage {
@@ -37,6 +41,8 @@ export class MiniPublicationStorage {
   private parse(raw: string, id: string) {
     const value = publicationDraftSchema.parse(JSON.parse(raw), { jitless: true });
     if (value.workId !== id || value.path && (!value.path.startsWith(this.root + '/') || value.path.slice(this.root.length + 1).includes('/') || value.path.includes('..'))) throw new Error('发表设置无法读取，请保留现场后重试。');
+    const previous = value.cropBackup?.path;
+    if (previous && (!previous.startsWith(this.root + '/') || previous.slice(this.root.length + 1).includes('/') || previous.includes('..'))) throw new Error('原封面无法读取，请保留现场后重试。');
     return value;
   }
   async load(id: string): Promise<PublicationDraft> {

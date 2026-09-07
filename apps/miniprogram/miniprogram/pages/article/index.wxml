@@ -11,6 +11,7 @@
     <text class="reading-body" user-select>{{article.body}}</text>
     <view class="reading-end"><view /><image src="/assets/leaf.svg" /><view /></view>
     <button wx:if="{{shareReady}}" open-type="share" class="primary-action share-button">分享给好友</button>
+    <view wx:if="{{ownerWorkId}}" class="author-actions"><button class="text-action" bindtap="editArticle">编辑文章</button><button class="text-action" data-manage="{{true}}" bindtap="editArticle">发表管理</button></view>
   </block>
 </view>
 </block>

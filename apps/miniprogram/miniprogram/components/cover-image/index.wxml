@@ -1,0 +1,3 @@
+<view class="cover-window" style="width: {{width}}px; height: {{width / ratio}}px">
+  <image wx:if="{{src && crop}}" class="cover-picture" src="{{src}}" mode="scaleToFill" style="width: {{100 / crop.width}}%; height: {{100 / crop.height}}%; left: {{-100 * crop.x / crop.width}}%; top: {{-100 * crop.y / crop.height}}%" />
+</view>

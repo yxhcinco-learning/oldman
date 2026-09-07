@@ -1,25 +1,17 @@
 <block wx:if="{{accountReady}}">
 <view class="page-shell profile-page">
   <view class="profile-navigation" style="height: {{navigationHeight}}px"><app-brand /></view>
-  <view class="profile-heading"><view class="page-title">我的</view></view>
-  <view class="account-panel">
+  <view class="account-panel"><view class="profile-identity">
     <button class="account-heading" bindtap="openAccount" disabled="{{busy || status === 'offline'}}" aria-label="{{needsLogin ? '微信登录' : '编辑头像与用户名'}}">
       <view class="account-avatar"><image wx:if="{{avatarPath}}" src="{{avatarPath}}" mode="aspectFill" /><image wx:else class="default-avatar" src="/assets/leaf.svg" mode="aspectFit" /></view>
       <view class="account-copy"><view class="account-name">{{account ? account.nickname || '岁月作者' : '尚未登录'}}</view><view class="account-status">{{accountText}}</view></view><view class="row-chevron"></view>
     </button>
+    <button class="settings-entry text-action" bindtap="openSettings">设置</button></view>
     <button wx:if="{{needsLogin}}" class="account-primary" bindtap="login" disabled="{{busy || status === 'connecting'}}">{{status === 'replaced' ? '微信登录，在此设备继续' : '微信登录'}}</button>
     <view wx:if="{{cloudError || canReconnect}}" class="sync-row" role="status"><view class="account-error">{{cloudError || '保存暂未完成，请重试。'}}</view><button wx:if="{{canReconnect}}" bindtap="reconnect" disabled="{{busy}}">重试</button></view>
   </view>
-  <view class="profile-section-label">作品管理</view>
-  <view class="tool-list">
-    <button class="tool" bindtap="manageWorks"><image src="/assets/book.svg" /><text>我的文章</text><view class="row-chevron"></view></button>
-    <button class="tool" bindtap="openRecycle"><image src="/assets/recycle.svg" /><text>回收站</text><view class="row-chevron"></view></button>
-    <button class="tool" bindtap="openMenu"><image src="/assets/backup.svg" /><text>备份与恢复</text><view class="row-chevron"></view></button>
-  </view>
-  <view class="tool-list support-list"><button class="tool" bindtap="openPrivacy"><image src="/assets/leaf.svg" /><text>隐私说明</text><view class="row-chevron"></view></button></view>
-  <view wx:if="{{busy && !editingProfile && !menuOpen && !logoutOpen}}" class="notice" role="status">{{busy}}</view>
-  <view wx:if="{{error && !editingProfile && !menuOpen && !logoutOpen}}" class="error-panel" role="alert">{{error}}</view>
-  <button wx:if="{{account}}" class="logout-button" bindtap="logout" disabled="{{busy}}">退出登录</button>
+  <author-articles class="author-articles" embedded="{{true}}" bindmanage="libraryManage" />
+
 </view>
 <view wx:if="{{editingProfile}}" class="sheet-mask {{compactProfile ? 'compact-profile' : ''}}" style="top: {{navigationHeight}}px; bottom: {{nameKeyboardHeight}}px" bindtap="closeProfile" catchtouchmove="noop">
   <view class="backup-sheet" catchtap="noop" role="dialog" aria-modal="true" aria-label="编辑个人资料">
@@ -51,6 +43,19 @@
     <view class="logout-copy">退出后，这台设备会隐藏您的作品。重新登录后可继续写。</view>
     <view wx:if="{{error}}" class="error-panel">{{error}}</view>
     <view class="logout-actions"><button class="secondary-action" bindtap="closeLogout" disabled="{{busy}}">暂不退出</button><button class="primary-action" bindtap="confirmLogout" disabled="{{busy}}">{{busy ? '正在退出' : '退出登录'}}</button></view>
+  </view>
+</view>
+<view wx:if="{{!libraryManaging && !settingsOpen && !editingProfile && !menuOpen && !logoutOpen}}" class="profile-create"><button class="primary-action" bindtap="writeArticle">写文章</button></view>
+<view wx:if="{{settingsOpen}}" class="sheet-mask" bindtap="closeSettings" catchtouchmove="noop">
+  <view class="backup-sheet settings-sheet" catchtap="noop" role="dialog" aria-modal="true" aria-label="设置">
+    <view class="sheet-heading"><view>设置</view><button bindtap="closeSettings" aria-label="关闭设置"><image src="/assets/close.svg" /></button></view>
+    <view class="tool-list">
+      <button class="tool" bindtap="openProfile"><image src="/assets/leaf.svg" /><text>头像与用户名</text><view class="row-chevron" /></button>
+      <button class="tool" bindtap="openRecycle"><image src="/assets/recycle.svg" /><text>回收站</text><view class="row-chevron" /></button>
+      <button class="tool" bindtap="openMenu"><image src="/assets/backup.svg" /><text>备份与恢复</text><view class="row-chevron" /></button>
+      <button class="tool" bindtap="openPrivacy"><image src="/assets/book.svg" /><text>隐私说明</text><view class="row-chevron" /></button>
+    </view>
+    <button class="logout-button secondary-action" bindtap="logout">退出登录</button>
   </view>
 </view>
 </block>

@@ -1,0 +1,3 @@
+:host { display: block; }
+.cover-window { position: relative; overflow: hidden; border-radius: inherit; background: #e8eee9; }
+.cover-picture { position: absolute; }

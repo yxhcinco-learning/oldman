@@ -1,10 +1,11 @@
 import type { PublicationStatus, PublicationPreview, PublicationSettingsInput, SubmissionInput, PublicationAction,
-  PublicArticlePage, PublicArticle, CoverCrops } from '../domain/core';
+  PublicArticlePage, PublicArticle, CoverCrops, PublicationContent, SubmissionSummary } from '../domain/core';
 import { AccountRequestError, type AccountPlatform, type MiniSessionAuthorizer } from '../auth/account-client';
 import { errorMessage } from '../ui/error-message';
 import { publicationBytes } from './binary';
 
 const base = (id: string) => '/api/mini/publications/' + encodeURIComponent(id);
+export type OwnSubmission = PublicationContent & SubmissionSummary & { assetId: string };
 export class MiniPublicationClient {
   constructor(private readonly auth: MiniSessionAuthorizer, private readonly platform: AccountPlatform) {}
   async request<T>(path: string, method: 'GET' | 'POST' | 'PUT' = 'GET', data?: unknown, binary = false): Promise<T> {
@@ -22,6 +23,7 @@ export class MiniPublicationClient {
   }
   statuses() { return this.request<{ publications: PublicationStatus[] }>('/api/mini/publications'); }
   status(id: string) { return this.request<PublicationStatus>(base(id)); }
+  submission(id: string, submissionId: string) { return this.request<OwnSubmission>(base(id) + '/submissions/' + encodeURIComponent(submissionId)); }
   upload(id: string, assetId: string, bytes: ArrayBuffer) { return this.request<{ assetId: string; width: number; height: number; crops: CoverCrops }>(base(id) + '/images/' + encodeURIComponent(assetId), 'POST', bytes); }
   settings(id: string, input: PublicationSettingsInput) { return this.request<{ settingsVersion: number; assetId: string }>(base(id) + '/settings', 'PUT', input); }
   preview(id: string) { return this.request<PublicationPreview>(base(id) + '/preview'); }

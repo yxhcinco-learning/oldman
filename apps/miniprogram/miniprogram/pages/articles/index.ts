@@ -34,6 +34,8 @@ accountPage({
     finally { if (sequence === this.sequence) this.setData({ loading: false }); }
   },
   refresh() { void this.load(false); },
+  async onPullDownRefresh() { try { await this.load(false); } finally { void wx.stopPullDownRefresh(); } },
+  onReachBottom() { this.more(); },
   more() { if (this.data.cursor) void this.load(true); },
   open(event: WechatMiniprogram.TouchEvent) { void wx.navigateTo({ url: '/pages/article/index?id=' + encodeURIComponent(String(event.currentTarget.dataset.id)) }); },
   write() { void wx.navigateTo({ url: '/pages/editor/index' }); },

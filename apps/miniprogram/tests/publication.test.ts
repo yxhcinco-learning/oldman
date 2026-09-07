@@ -26,7 +26,7 @@ function setup() {
     action: vi.fn(async () => ({ version: 2 })), ownImage: vi.fn(async () => Uint8Array.from([1, 2, 3]).buffer) };
   const sync = vi.fn(async () => {}), assertActive = vi.fn();
   const controller = new MiniPublicationController('work-1', storage, client as unknown as MiniPublicationClient, sync, assertActive);
-  const ready = async () => { await controller.choose('/temp-photo', 640, 480); await controller.confirmCrop('thumbnail'); await controller.confirmCrop('reading'); };
+  const ready = async () => { await controller.choose('/temp-photo', 640, 480); await controller.confirmCrop('thumbnail'); await controller.confirmCrop('reading'); await controller.finishCrop(); };
   return { files, storage, client, sync, assertActive, controller, ready };
 }
 describe('独立发表设置与固定操作重试', () => {
@@ -120,6 +120,26 @@ describe('独立发表设置与固定操作重试', () => {
     const s = setup(); await s.ready(); await s.controller.prepare(); s.sync.mockRejectedValueOnce(new Error('正文未同步'));
     await expect(s.controller.submit(preview)).rejects.toThrow('正文未同步');
     expect(s.client.submit).not.toHaveBeenCalled(); expect((await s.controller.local()).submissionOperation).toBeNull();
+  });
+  it('裁切取消恢复原封面，未完成进度在重启后可继续且不会提前上传', async () => {
+    const s = setup(); await s.ready(); await s.controller.prepare(); const before = await s.controller.local();
+    await s.controller.choose('/temp-photo', 320, 480); await s.controller.confirmCrop('reading');
+    const resumed = new MiniPublicationController('work-1', new MiniPublicationStorage(s.files, '/account-a'), s.client as unknown as MiniPublicationClient, s.sync, s.assertActive);
+    expect(await resumed.local()).toMatchObject({ width: 320, confirmed: ['reading'], cropBackup: { path: before.path } });
+    await expect(resumed.prepare()).rejects.toThrow('完成封面裁切');
+    await resumed.cancelCrop(); expect(await resumed.local()).toEqual(before);
+    await resumed.beginCrop(); const crop = (await resumed.local()).crops!;
+    await resumed.crop({ ...crop, reading: fitCrop(640, 480, 1.25, 2) });
+    expect((await resumed.local()).confirmed).toEqual(['thumbnail']);
+    await resumed.confirmCrop('reading'); await resumed.finishCrop();
+    expect((await resumed.local()).cropBackup).toBeNull(); expect((await resumed.local()).confirmed).toHaveLength(2);
+  });
+  it('首次选图取消回到没有封面的同篇草稿；旧侧文件自动补裁切备份字段', async () => {
+    const s = setup(); await s.controller.choose('/temp-photo', 100, 100); await s.controller.cancelCrop();
+    expect(await s.controller.local()).toMatchObject({ workId: 'work-1', path: '', cropBackup: null });
+    const path = s.storage.root + '/work-1.json'; const old = JSON.parse(await s.files.readText(path)); delete old.cropBackup;
+    await s.files.writeText(path, JSON.stringify(old));
+    expect((await new MiniPublicationStorage(s.files, '/account-a').load('work-1')).cropBackup).toBeNull();
   });
   it('平移缩放不会越界且两种比例保持精确', () => {
     for (const ratio of [1, 1.25]) for (const [width, height] of [[640, 480], [300, 900], [2048, 500]]) {

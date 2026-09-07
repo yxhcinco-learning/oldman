@@ -1,6 +1,6 @@
 <block wx:if="{{accountReady}}">
-<view class="page-shell articles-page"><app-brand /><view class="articles-heading"><view class="page-title">文章</view><button class="refresh-action" hover-class="refresh-pressed" bindtap="refresh" disabled="{{loading}}">{{loading ? '读取中…' : error ? '重试' : '刷新'}}</button></view>
-  <view wx:if="{{error}}" class="error-panel" role="alert">{{error}}</view>
+<view class="page-shell articles-page"><app-brand /><view class="articles-heading"><view class="page-title">文章</view></view>
+  <view wx:if="{{error}}" class="error-panel" role="alert"><text>{{error}}</text><button class="text-action" bindtap="refresh" disabled="{{loading}}">重试</button></view>
   <view wx:if="{{empty && !loading && !error}}" class="articles-empty"><image class="empty-drawing" src="/assets/letter.svg" mode="aspectFit" aria-hidden="true" /><view class="empty-title">还没有发表的文章</view><text>这里会慢慢留下大家的文字。</text></view>
   <view class="public-card" wx:for="{{cards}}" wx:key="id" data-id="{{item.id}}" bindtap="open" role="button" aria-label="{{'阅读：' + item.title}}">
     <image wx:if="{{item.image}}" src="{{item.image}}" mode="aspectFill" /><view wx:else class="image-placeholder"><image src="/assets/book.svg" /></view>

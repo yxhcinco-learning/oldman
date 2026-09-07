@@ -10,3 +10,7 @@
 .crop-controls .crop-control::after { border:0; }
 .crop-controls .crop-control.disabled { background:#efeded; color:#717974; }
 .crop-help { flex:1; min-width:0; text-align:center; line-height:22px; }
+
+.crop-controls.dark { color: #c6d0c9; }
+.dark .crop-control { background: #34483c; color: #fff; }
+.dark .crop-control.disabled { background: #25342b; color: #9bab9f; }

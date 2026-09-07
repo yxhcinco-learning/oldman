@@ -89,7 +89,7 @@ describe('微信小程序公共工程配置', () => {
     const interviewStyles = readText('../miniprogram/pages/interview/index.wxss');
     const works = readText('../miniprogram/pages/works/index.wxml');
     const worksStyles = readText('../miniprogram/pages/works/index.wxss');
-    const worksController = readText('../miniprogram/pages/works/index.ts');
+
     const profileStyles = readText('../miniprogram/pages/profile/index.wxss');
     const profileController = readText('../miniprogram/pages/profile/index.ts');
 
@@ -97,7 +97,8 @@ describe('微信小程序公共工程配置', () => {
     expect(navigation).toContain('wx:for="{{list}}"');
     expect(navigation).toContain('wx:if="{{!hidden}}"');
     expect(navigation).toContain('bindtap="switchTab"');
-    expect(works).toContain('bindtap="startWriting"');
+    expect(works).toContain('<author-articles');
+    expect(readText('../miniprogram/pages/profile/index.wxml')).toContain('bindtap="writeArticle"');
     expect(navigationStyles).toContain('repeat(3, minmax(0, 1fr))');
     expect(navigationStyles).toMatch(/\.tab-bar\s*\{[^}]*position:\s*fixed/);
     expect(navigationStyles).toMatch(/\.tab-bar\s*\{[^}]*right:\s*0[^}]*left:\s*0[^}]*box-sizing:\s*border-box/);
@@ -131,7 +132,7 @@ describe('微信小程序公共工程配置', () => {
     expect(topicDetailStyles).toMatch(/\.start-actions\s*\{[^}]*position:\s*fixed[^}]*right:\s*24px[^}]*bottom:\s*0[^}]*left:\s*24px[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
     expect(topicDetailStyles).toMatch(/\.start-actions button\s*\{[^}]*display:\s*flex[^}]*width:\s*100%[^}]*min-width:\s*0[^}]*align-items:\s*center[^}]*justify-content:\s*center/);
     expect(readText('../miniprogram/pages/articles/index.ts')).toContain('selectTab(this, 1)');
-    expect(worksController).not.toContain('selectTab(');
+    expect(readText('../miniprogram/pages/works/index.ts')).not.toContain('selectTab(');
     expect(editor).toContain('bindkeyboardheightchange="onKeyboardHeight"');
     expect(editor).toContain('class="dialog-mask" style="bottom: {{keyboardHeight}}px"');
     expect(editor).toContain('class="xiaowen-mask" style="bottom: {{keyboardHeight}}px"');
@@ -212,8 +213,8 @@ describe('微信小程序公共工程配置', () => {
     expect(editor).toContain('<view class="topic-heading"');
     expect(editor).not.toContain('<button class="topic-heading"');
     expect(editorController).toContain('dismissKeyboard()');
-    expect(worksController).toContain('await services.writer.flush()');
-    expect(readText('../miniprogram/pages/works/index.wxml')).toContain('class="page-actions create-dock"');
+    expect(readText('../miniprogram/components/author-articles/index.ts')).toContain('await services.writer.flush()');
+    expect(readText('../miniprogram/pages/profile/index.wxml')).toContain('class="profile-create"');
     expect(readText('../miniprogram/app.wxss')).toMatch(/\.page-actions\s*\{[^}]*right:\s*0[^}]*left:\s*0/);
     expect(readText('../miniprogram/app.wxss')).toMatch(/button\.primary-action, button\.secondary-action\s*\{[^}]*width:\s*100%[^}]*max-width:\s*100%[^}]*min-width:\s*0/);
     const allStyles = [readText('../miniprogram/app.wxss'), navigationStyles, brandStyles,

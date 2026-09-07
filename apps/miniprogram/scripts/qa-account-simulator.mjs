@@ -86,10 +86,10 @@ try {
     await page.callMethod('refreshState');
     check('空账号不显示未上传或无缘由重试', await page.data('syncText') === '还没有作品' && !await page.data('canReconnect'));
     // Render documented account states without authenticating with WeChat or writing profile data.
-    check('资料行完整占用可用宽度', (await (await page.$('.account-heading')).size()).width >= info.windowWidth - 52);
-    check('作品工具共有三行且每行至少64px', (await page.$$('.tool-list .tool')).length === 4 && (await page.$$('.support-list .tool')).length === 1 && (await (await page.$('.tool')).size()).height >= 64);
+    check('资料行完整占用可用宽度', (await (await page.$('.profile-identity')).size()).width >= info.windowWidth - 52);
+    check('我的主页直接展示文章及设置入口', !!await page.$('.author-articles') && !!await page.$('.settings-entry'));
     await page.setData({ account: { id: 'qa-account', nickname: '', hasAvatar: false, avatarVersion: 0 }, status: 'authenticated', needsLogin: false, canReconnect: false, accountText: '编辑头像与用户名', syncText: '还没有作品' });
-    check('正常个人中心无常驻同步状态与重复登录按钮', !await page.$('.sync-row') && !await page.$('.account-primary') && !!await page.$('.logout-button'));
+    check('正常个人中心无常驻同步状态与重复登录按钮', !await page.$('.sync-row') && !await page.$('.account-primary') && !await page.$('.logout-button'));
     await mini.screenshot({ path: resolve(output, 'profile-signed-in.png') });
     await page.callMethod('logout');
     check('退出提供明确确认和取消入口', await page.data('logoutOpen') && !!await page.$('.logout-actions'));
@@ -114,8 +114,9 @@ try {
   await mini.reLaunch('/pages/works/index');
   await new Promise(resolve => setTimeout(resolve, 500));
   page = await mini.currentPage();
-  await waitFor(async () => !await page.data('loading'), '空作品列表');
-  check('作品空态无过期游客与自动上传说明', !(await (await page.$('.empty-state')).text()).includes('未登录'));
+  const library = await page.$('.author-articles');
+  await waitFor(async () => !!library && !await library.data('loading'), '空作品列表');
+  check('作品空态无过期游客与自动上传说明', !(await (await library.$('.empty-state')).text()).includes('未登录'));
   await mini.screenshot({ path: resolve(output, 'works-empty.png') });
   await mini.reLaunch('/pages/editor/index?xiaowen=compose');
   await new Promise(resolve => setTimeout(resolve, 500));

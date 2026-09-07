@@ -1,1 +1,9 @@
-{ "navigationStyle": "custom", "usingComponents": { "page-header": "/components/page-header/index", "cover-cropper": "/components/cover-cropper/index", "username-editor": "/components/username-editor/index" } }
+{
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "page-header": "/components/page-header/index",
+    "cover-cropper": "/components/cover-cropper/index",
+    "username-editor": "/components/username-editor/index",
+    "cover-image": "/components/cover-image/index"
+  }
+}

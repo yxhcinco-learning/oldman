@@ -62,3 +62,17 @@
 }
 
 .backup-status { margin-bottom: 16px; color: #717974; font-size: 14px; line-height: 22px; }
+
+.profile-page { padding-bottom: calc(196px + env(safe-area-inset-bottom)); }
+.profile-identity { display: flex; align-items: center; gap: 12px; }
+.profile-identity .account-heading { flex: 1; min-width: 0; gap: 12px; }
+.profile-identity .account-avatar, .profile-identity .account-avatar image { width: 48px; height: 48px; flex-basis: 48px; }
+.profile-identity .account-avatar .default-avatar { width: 24px; height: 24px; }
+.profile-identity .account-name { font-size: 20px; line-height: 28px; }
+.profile-identity .account-status { font-size: 14px; }
+.profile-identity .row-chevron { display: none; }
+.profile-identity .settings-entry { flex: 0 0 auto; padding: 8px 0 8px 8px; }
+.account-panel { padding: 20px 0 24px; margin-bottom: 8px; border-bottom: 1px solid var(--line); }
+.profile-create { position: fixed; z-index: 20; left: 0; right: 0; bottom: calc(60px + env(safe-area-inset-bottom)); padding: 12px var(--page-gutter) 16px; background: var(--paper); }
+.settings-sheet .sheet-heading { margin-bottom: 16px; }
+.settings-sheet .logout-button { margin-top: 24px; color: var(--sienna); }
