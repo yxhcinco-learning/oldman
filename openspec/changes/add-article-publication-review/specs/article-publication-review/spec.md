@@ -22,6 +22,10 @@
 - **WHEN** 图片损坏、超限、取消选图、上传中断、应用重启或会话被接管
 - **THEN** 已保存的正文与旧封面仍保留，迟到结果不能写入其他账号；无有效权限不能读取或上传图片
 
+#### Scenario: Cancel a replacement or resume cropping
+- **WHEN** 作者更换原图或调整已有裁切后取消，或在确认前重启
+- **THEN** 取消恢复操作前封面；未取消的裁切进度持久保留并可继续，两种比例分别确认后才更新发表预览；只调整一种时保留另一种结果
+
 ### Requirement: Immutable manually reviewed publication
 系统 MUST 将私有工作稿、固定投稿快照和当前公开版分开；每篇最多一份待审稿、一个稳定公开 ID。所有账号 SHALL 人工审核，不提供自动通过。重复操作 MUST 幂等并拒绝同操作 ID 不同内容。
 
