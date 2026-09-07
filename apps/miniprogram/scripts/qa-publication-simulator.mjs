@@ -62,6 +62,44 @@ try {
     require('auth/navigation.js').clearLoginReturn();
   }, source);
   installed = true;
+  if (process.env.MINI_QA_LIST_ONLY) {
+    await mini.evaluate(() => {
+      const qa = getApp().__publicationQa;
+      qa.listResponse = { statusCode: 200, data: { articles: [], cursor: null } };
+      const Client = require('publication/client.js').MiniPublicationClient;
+      const client = new Client({ authorizedRequest: action => action('qa-list-session') }, { request: async () => {
+        if (qa.listFailure) throw new Error('网络不可用，请稍后重试。'); return qa.listResponse;
+      } });
+      qa.services.publications.list = cursor => client.list(cursor);
+    });
+    const current = await mini.switchTab('/pages/articles/index');
+    await waitFor(async () => await current.data('accountReady') && !await current.data('loading'));
+    check('成功空列表显示正常空态且没有错误或示例', !!await current.$('.articles-empty') && !await current.data('error') && (await current.data('cards')).length === 0);
+    const dimensions = async () => {
+      const write = await current.$('.writing-action'), refresh = await current.$('.refresh-action');
+      const box = { ...await write.offset(), ...await write.size() }, secondary = { ...await refresh.offset(), ...await refresh.size() };
+      const inset = info.windowWidth <= 370 ? 20 : 24;
+      check('写文章铺满内容宽度、左右边距对齐且至少 56px', Math.abs(box.left - inset) < 1 && Math.abs(box.width - (info.windowWidth - inset * 2)) < 1 && box.height >= 56);
+      check('刷新右侧对齐、48px 触控且不受默认宽度挤压', Math.abs(secondary.left + secondary.width - (info.windowWidth - inset)) < 1 && secondary.height >= 48 && secondary.width <= 120);
+    };
+    await dimensions(); await mini.screenshot({ path: resolve(output, 'list-empty.png') });
+    await mini.evaluate(() => { getApp().__publicationQa.listResponse = { statusCode: 404, data: '<html>404 Not Found</html>' }; });
+    await current.callMethod('load');
+    check('未部署接口提示列表读取失败，不冒充空库或单篇失效', !await current.$('.articles-empty') && (await current.data('error')).includes('文章列表暂时无法读取') && !(await current.data('error')).includes('这篇文章'));
+    check('失败保留页头重试和写文章入口', await (await current.$('.refresh-action')).text() === '重试' && !!await current.$('.writing-action'));
+    await mini.screenshot({ path: resolve(output, 'list-error.png') });
+    await mini.evaluate(() => { const qa = getApp().__publicationQa; qa.listResponse = { statusCode: 200, data: { articles: [{ id: 'qa-article', title: '一碗热汤的记忆', authorName: '老街写作者', publishedAt: '2026-09-07T00:00:00Z', version: 1 }], cursor: null } }; });
+    await current.callMethod('load');
+    await waitFor(async () => !await current.data('loading') && !await current.$('.articles-empty'));
+    check('重试成功清除错误并展示真实列表响应', !await current.data('error') && (await current.data('cards')).length === 1 && !await current.$('.articles-empty'));
+    await mini.screenshot({ path: resolve(output, 'list-populated.png') });
+    await mini.evaluate(() => { getApp().__publicationQa.listFailure = true; });
+    await current.callMethod('load');
+    check('断网保留网络提示且不伪装无文章', (await current.data('error')).includes('网络不可用') && !await current.$('.articles-empty'));
+    await current.callMethod('write');
+    await waitFor(async () => (await mini.currentPage()).path === 'pages/editor/index');
+    check('写文章打开编辑器', (await mini.currentPage()).path === 'pages/editor/index');
+  } else {
   const id = await mini.evaluate(() => getApp().__publicationQa.draft.id);
   let current = await mini.reLaunch('/pages/publish/index?id=' + id);
   await waitFor(async () => !!await current.data('title'));
@@ -114,6 +152,7 @@ try {
   await current.callMethod('refresh');
   check('下架后统一不可用，清空正文与分享入口', !await current.data('article') && !await current.data('shareReady') && !!await current.data('error'));
   await mini.screenshot({ path: resolve(output, 'unavailable.png') });
+  }
   check('页面无运行时异常', exceptions.length === 0);
   console.info(JSON.stringify({ width: info.windowWidth, height: info.screenHeight, passed }));
 } catch (error) {

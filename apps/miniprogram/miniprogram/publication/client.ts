@@ -10,10 +10,13 @@ export class MiniPublicationClient {
   async request<T>(path: string, method: 'GET' | 'POST' | 'PUT' = 'GET', data?: unknown, binary = false): Promise<T> {
     const response = await this.auth.authorizedRequest(token => this.platform.request(path, method, token, data, binary));
     if (response.statusCode < 200 || response.statusCode >= 300) {
+      const articleList = path.split('?')[0] === '/api/mini/articles';
+      const fallback = articleList ? '文章列表暂时无法读取，请稍后重试。'
+        : response.statusCode === 404 ? '这篇文章暂时无法查看。' : '文章服务暂不可用，请重试。';
       let payload = response.data as { code?: unknown; error?: unknown } | null;
       if (response.data instanceof ArrayBuffer) payload = null;
       throw new AccountRequestError(typeof payload?.code === 'string' ? payload.code : 'publication_unavailable',
-        errorMessage(payload?.error, response.statusCode === 404 ? '这篇文章暂时无法查看。' : '文章服务暂不可用，请重试。'), response.statusCode);
+        articleList && response.statusCode === 404 ? fallback : errorMessage(payload?.error, fallback), response.statusCode);
     }
     return (binary ? publicationBytes(response.data) : response.data) as T;
   }

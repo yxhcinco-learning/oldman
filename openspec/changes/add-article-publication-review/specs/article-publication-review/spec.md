@@ -43,6 +43,12 @@
 ### Requirement: Authenticated public reading and friend sharing
 文章 Tab SHALL 展示真实已审核内容，按首次发表时间倒序每页 20 篇；公开详情及图片 MUST 验证有效登录和当前发表状态。好友分享只使用已发表标题、处理后的封面和稳定文章 ID，登录后返回原文章。
 
+#### Scenario: Empty list and unavailable service differ
+- **WHEN** 列表请求成功且没有已审核文章
+- **THEN** 显示“还没有发表的文章”的正常空状态，保留写作入口，不显示文章失效提示或示例文章
+- **WHEN** 列表接口尚未部署、网络失败或服务异常
+- **THEN** 显示列表读取失败及可操作的重试，不把错误伪装成空库，不复用单篇文章的“这篇文章暂时无法查看”提示
+
 #### Scenario: Shared article becomes unavailable
 - **WHEN** 分享接收者打开已撤回、下架或删除文章
 - **THEN** 不返回正文或公开图片，显示统一不可用提示；不保证回收微信已发送卡片缓存

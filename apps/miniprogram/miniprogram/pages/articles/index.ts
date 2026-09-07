@@ -6,19 +6,20 @@ import type { PublicArticleCard } from '../../domain/core';
 type Card = PublicArticleCard & { image: string; date: string };
 accountPage({
   sequence: 0, active: true,
-  data: { cards: [] as Card[], loading: false, error: '', cursor: null as string | null },
+  data: { cards: [] as Card[], loading: false, empty: false, error: '', cursor: null as string | null },
   onShow() { this.active = true; selectTab(this, 1); void this.load(false); },
-  onHide() { this.active = false; this.sequence++; this.setData({ cards: [], loading: false }); },
+  onHide() { this.active = false; this.sequence++; this.setData({ cards: [], loading: false, empty: false }); },
   onUnload() { this.active = false; this.sequence++; },
   async load(more = false) {
     if (this.data.loading) return;
     const services = miniServices(), sequence = ++this.sequence, cursor = more ? this.data.cursor : null;
-    this.setData({ loading: true, error: '', ...(more ? {} : { cards: [], cursor: null }) });
+    this.setData({ loading: true, empty: false, error: '', ...(more ? {} : { cards: [], cursor: null }) });
     try {
       const page = await services.publications.list(cursor ?? undefined);
       if (!this.active || sequence !== this.sequence || services !== miniServices()) return;
       const cards: Card[] = page.articles.map(a => ({ ...a, image: '', date: a.publishedAt.slice(0, 10) }));
-      this.setData({ cards: more ? [...this.data.cards, ...cards.filter(c => !this.data.cards.some(old => old.id === c.id))] : cards, cursor: page.cursor });
+      const visible = more ? [...this.data.cards, ...cards.filter(c => !this.data.cards.some(old => old.id === c.id))] : cards;
+      this.setData({ cards: visible, cursor: page.cursor, empty: visible.length === 0 });
       for (let i = 0; i < cards.length; i += 4) {
         await Promise.all(cards.slice(i, i + 4).map(async card => {
           try {

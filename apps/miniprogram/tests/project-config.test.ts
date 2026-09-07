@@ -26,6 +26,7 @@ describe('微信小程序公共工程配置', () => {
       { pagePath: 'pages/articles/index', text: '文章' },
       { pagePath: 'pages/profile/index', text: '我的' },
     ]);
+    for (const tab of tabBar.list) expect(readJson('../miniprogram/' + tab.pagePath + '.json').navigationStyle).toBe('custom');
     expect(app.requiredPrivateInfos).toBeUndefined();
     expect(app.permission).toBeUndefined();
   });
