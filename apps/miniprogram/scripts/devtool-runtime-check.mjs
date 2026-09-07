@@ -1,7 +1,7 @@
 export const requiredCoreFunctions = ['workFromDraft', 'isWorkAiAssisted', 'conversationOf', 'conversationView',
-  'prepareDialogue', 'settleDialogue', 'startInterview', 'validateDialogueResult', 'buildAiRequest', 'emptyWritingState', 'makeBackupVolumes', 'stableJson'];
+  'prepareDialogue', 'settleDialogue', 'startInterview', 'validateDialogueResult', 'buildAiRequest', 'emptyWritingState', 'makeBackupVolumes', 'stableJson', 'centeredCrops', 'publicationLabel'];
 export const requiredCoreExports = [...requiredCoreFunctions, 'AI_ASSISTANCE_LABEL', 'cloudMutationSchema', 'cloudWorkSchema', 'cloudChangesSchema',
-  'accountLoginSchema', 'accountProfileSchema', 'writingStateSchema', 'workSnapshotSchema'];
+  'accountLoginSchema', 'accountProfileSchema', 'writingStateSchema', 'workSnapshotSchema', 'coverCropsSchema', 'submissionInputSchema', 'publicationSettingsInputSchema', 'publicationActionSchema'];
 
 export const assertDevtoolCoreRuntime = (runtime) => {
   const missing = requiredCoreExports.filter((name) => !(name in runtime));

@@ -256,7 +256,7 @@ accountPage({
     if (this.data.loadError) await this.open(this.loadTarget, this.loadCompose);
   },
 
-  returnToWorks() { void wx.switchTab({ url: '/pages/works/index' }); },
+  returnToWorks() { void wx.reLaunch({ url: '/pages/works/index' }); },
 
   currentDraft(): Draft | null {
     const draft = this.data.draft;
@@ -370,6 +370,19 @@ accountPage({
     this.services.conversations.updateComposer(draft.id, xiaowenComposer, 'dictated');
     draftVersion += 1; this.setData({ saved: false }); this.scheduleSave();
     this.setData({ xiaowenComposer, xiaowenStatus: 'idle', xiaowenError: result.truncated ? '输入已到12000字上限，只放入了可容纳的语音文字；尚未发送。' : '' });
+  },
+
+  async nextPublication() {
+    if (this.data.readOnly || this.data.voiceBusy || this.data.operationBusy || this.data.resultSavePending || this.data.navigationSaving || !this.data.draft) return;
+    if (!await this.flushAutoSave()) return;
+    if (!this.data.draft.title.trim()) { this.openTitle(); return; }
+    if (!documentOf(this.data.draft).body.trim()) { this.setData({ notice: '请先写下正文，再进入发表设置。' }); return; }
+    this.setData({ navigationSaving: true });
+    try {
+      if (this.services !== miniServices()) return;
+      await wx.navigateTo({ url: '/pages/publish/index?id=' + encodeURIComponent(this.data.draft.id) });
+    } catch (error) { this.setData({ error: errorMessage(error, '发表设置暂时无法打开。') }); }
+    finally { this.setData({ navigationSaving: false }); }
   },
 
   openTitle() {
@@ -729,8 +742,8 @@ accountPage({
   async goBack() {
     const saved = await this.flushAutoSave();
     if (!saved) return;
-    if (getCurrentPages().length < 2) { void wx.switchTab({ url: '/pages/works/index' }); return; }
-    void wx.navigateBack({ fail: () => void wx.switchTab({ url: '/pages/works/index' }) });
+    if (getCurrentPages().length < 2) { void wx.reLaunch({ url: '/pages/works/index' }); return; }
+    void wx.navigateBack({ fail: () => void wx.reLaunch({ url: '/pages/works/index' }) });
   },
 
   noop() {},

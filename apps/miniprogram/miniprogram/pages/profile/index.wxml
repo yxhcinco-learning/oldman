@@ -3,16 +3,16 @@
   <view class="profile-navigation" style="height: {{navigationHeight}}px"><app-brand /></view>
   <view class="profile-heading"><view class="page-title">我的</view></view>
   <view class="account-panel">
-    <button class="account-heading" bindtap="openAccount" disabled="{{busy || status === 'offline'}}" aria-label="{{needsLogin ? '微信登录' : '编辑头像与昵称'}}">
+    <button class="account-heading" bindtap="openAccount" disabled="{{busy || status === 'offline'}}" aria-label="{{needsLogin ? '微信登录' : '编辑头像与用户名'}}">
       <view class="account-avatar"><image wx:if="{{avatarPath}}" src="{{avatarPath}}" mode="aspectFill" /><image wx:else class="default-avatar" src="/assets/leaf.svg" mode="aspectFit" /></view>
       <view class="account-copy"><view class="account-name">{{account ? account.nickname || '微信用户' : '尚未登录'}}</view><view class="account-status">{{accountText}}</view></view><view class="row-chevron"></view>
     </button>
     <button wx:if="{{needsLogin}}" class="account-primary" bindtap="login" disabled="{{busy || status === 'connecting'}}">{{status === 'replaced' ? '微信登录，在此设备继续' : '微信登录'}}</button>
     <view wx:if="{{cloudError || canReconnect}}" class="sync-row" role="status"><view class="account-error">{{cloudError || '保存暂未完成，请重试。'}}</view><button wx:if="{{canReconnect}}" bindtap="reconnect" disabled="{{busy}}">重试</button></view>
   </view>
-  <view class="profile-section-label">我的作品</view>
+  <view class="profile-section-label">我的文章</view>
   <view class="tool-list">
-    <button class="tool" bindtap="manageWorks"><image src="/assets/book.svg" /><text>管理作品</text><view class="row-chevron"></view></button>
+    <button class="tool" bindtap="manageWorks"><image src="/assets/book.svg" /><text>我的文章</text><view class="row-chevron"></view></button>
     <button class="tool" bindtap="openRecycle"><view class="tool-symbol">↶</view><text>回收站</text><view class="row-chevron"></view></button>
     <button class="tool" bindtap="openMenu"><view class="tool-symbol">↓</view><text>备份与恢复</text><view class="row-chevron"></view></button>
   </view>
@@ -24,11 +24,9 @@
 <view wx:if="{{editingProfile}}" class="sheet-mask" bindtap="closeProfile" catchtouchmove="noop">
   <view class="backup-sheet" catchtap="noop" role="dialog" aria-modal="true" aria-label="编辑个人资料">
     <view class="sheet-handle"></view>
-    <view class="sheet-heading"><view>头像与昵称</view><button bindtap="closeProfile" aria-label="关闭">×</button></view>
+    <view class="sheet-heading"><view>头像与用户名</view><button bindtap="closeProfile" aria-label="关闭">×</button></view>
     <button class="avatar-choose" open-type="chooseAvatar" bindchooseavatar="chooseAvatar" disabled="{{busy}}"><image wx:if="{{avatarPath}}" src="{{avatarPath}}" mode="aspectFill" /><text>{{avatarPath ? '更换头像' : '选择头像（可选）'}}</text></button>
-    <label class="nickname-label">昵称（可选）</label>
-    <input class="nickname-input" type="nickname" value="{{nicknameInput}}" maxlength="32" placeholder="输入昵称" bindinput="onNickname" bindnicknamereview="onNicknameReview" />
-    <button class="account-primary" bindtap="saveNickname" disabled="{{busy || !nicknameValid}}">保存昵称</button>
+    <username-editor class="publication-username" value="{{account.nickname}}" bind:saved="nameSaved" />
     <view wx:if="{{error}}" class="error-panel">{{error}}</view>
     <view wx:if="{{busy}}" class="notice">{{busy}}</view>
   </view>
@@ -43,7 +41,7 @@
       <button bindtap="importBackup" disabled="{{busy}}"><view class="sheet-icon">✓</view><view><text>从备份恢复副本</text><small>不会覆盖现有作品</small></view><b>›</b></button>
     </view>
     <view wx:if="{{busy}}" class="notice">{{busy}}</view><view wx:if="{{notice}}" class="notice">{{notice}}</view><view wx:if="{{error}}" class="error-panel">{{error}}</view>
-    <view class="sheet-note">备份包含完整作品和小文记录，请妥善保管。每份文件不超过 10MiB，较多作品会分成多份。</view>
+    <view class="sheet-note">备份包含文字和小文记录，不含封面；恢复的副本需要重新选封面和投稿。请妥善保管。每份文件不超过 10MiB，较多作品会分成多份。</view>
   </view>
 </view>
 <view wx:if="{{logoutOpen}}" class="sheet-mask" bindtap="closeLogout" catchtouchmove="noop">

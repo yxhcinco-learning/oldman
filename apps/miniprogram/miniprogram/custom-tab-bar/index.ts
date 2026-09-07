@@ -10,7 +10,7 @@ Component({
     hidden: false,
     list: [
       { pagePath: '/pages/home/index', text: '热门', iconPath: '/assets/spark.svg' },
-      { pagePath: '/pages/works/index', text: '文章', iconPath: '/assets/pen.svg' },
+      { pagePath: '/pages/articles/index', text: '文章', iconPath: '/assets/pen.svg' },
       { pagePath: '/pages/profile/index', text: '我的', iconPath: '/assets/book.svg' },
     ] as TabItem[],
   },

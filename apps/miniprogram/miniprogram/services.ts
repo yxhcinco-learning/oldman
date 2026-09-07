@@ -8,6 +8,8 @@ import { MINI_API_ORIGIN } from './network/config';
 import { AuthenticatedMiniAiTransport } from './network/ai';
 import { MiniCloudTransport } from './network/cloud';
 import { MiniCloudSync } from './sync/controller';
+import { MiniPublicationClient } from './publication/client';
+import { MiniPublicationStorage, WxPublicationFiles } from './publication/storage';
 import { MiniSpeechSession, MiniSpeechTicketClient, WxMiniRecorder, WxMiniSpeechPermissions, WxMiniSpeechSocketFactory, WxMiniSpeechTicketPlatform } from './speech/session';
 import { MiniAiConsent, WxMiniAiConsentPlatform } from './privacy/ai-consent';
 
@@ -28,7 +30,9 @@ function createServices(state: AccountState) {
   const speech = new MiniSpeechSession({ permissions: new WxMiniSpeechPermissions(),
     tickets: new MiniSpeechTicketClient(authorizer, new WxMiniSpeechTicketPlatform()), sockets: new WxMiniSpeechSocketFactory(), recorder: new WxMiniRecorder() });
   const sync = new MiniCloudSync(repository, writer, account, new MiniCloudTransport(authorizer, adapter), state.generation, owner ? guestRepository : undefined);
-  return { files, repository, writer, backups, conversations, articleAi, auth: account, account, speech, aiConsent, sync, generation: state.generation };
+  const publications = new MiniPublicationClient(authorizer, adapter);
+  const publicationStorage = new MiniPublicationStorage(new WxPublicationFiles(), repository.paths.root);
+  return { files, repository, writer, backups, conversations, articleAi, auth: account, account, speech, aiConsent, sync, publications, publicationStorage, generation: state.generation };
 }
 let current = createServices(account.snapshot());
 let foregroundTimer: ReturnType<typeof setInterval> | undefined;

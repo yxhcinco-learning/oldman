@@ -1,0 +1,5 @@
+<view class="crop-window" style="width: {{viewportWidth}}px; height: {{viewportWidth / ratio}}px" catchtouchstart="begin" catchtouchmove="move" catchtouchend="end" catchtouchcancel="end" aria-label="拖动图片调整封面">
+  <image class="crop-image" src="{{src}}" style="width: {{drawWidth}}px; height: {{drawHeight}}px; left: {{left}}px; top: {{top}}px" mode="scaleToFill" />
+  <view class="crop-grid"><view class="crop-line" /><view class="crop-line second" /></view>
+</view>
+<view class="crop-controls"><button class="crop-control" bindtap="shrink" aria-label="缩小封面" disabled="{{zoom <= 1}}">−</button><text>拖动或双指缩放</text><button class="crop-control" bindtap="enlarge" aria-label="放大封面" disabled="{{zoom >= 4}}">＋</button></view>

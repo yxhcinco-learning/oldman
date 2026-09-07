@@ -1,0 +1,4 @@
+.username-label { color:#153b2e; font-size:16px; line-height:26px; margin:16px 0 8px; }
+.username-input { min-height:52px; padding:4px 14px; background:#f5f3f3; border:1px solid #e4e6e1; border-radius:12px; font-size:18px; color:#1b1c1c; }
+.username-save { margin-top:16px; min-height:56px; line-height:28px; padding:14px 20px; border-radius:30px; background:#153b2e; color:#fff; font-size:18px; }
+.username-save.disabled { background:#e8eee9; color:#416657; }.username-error { font-size:16px; line-height:26px; color:#944924; padding-top:12px; }

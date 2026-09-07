@@ -12,6 +12,28 @@ const asServices = (repository: MiniWorkRepository) => ({ repository }) as Retur
 afterEach(() => { clearLoginReturn(); vi.unstubAllGlobals(); });
 
 describe('登录后回到固定归属的原作品', () => {
+  it('好友文章登录后保留稳定公开 ID，不读取任何私有作品', async () => {
+    const repository = new MiniWorkRepository(new MemoryFileSystem(), '/reader', undefined, 'reader');
+    const read = vi.spyOn(repository, 'getAggregate');
+    current.services = asServices(repository);
+    const reLaunch = vi.fn().mockResolvedValue({}); vi.stubGlobal('wx', { reLaunch });
+    const url = '/pages/article/index?id=stable-public-id';
+    await openLogin({ url });
+    await finishLogin(() => true);
+    expect(reLaunch).toHaveBeenLastCalledWith({ url });
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it('发表页登录恢复保留原账号作品，切换账号后回到我的文章', async () => {
+    const files = new MemoryFileSystem();
+    const a = new MiniWorkRepository(files, '/data', undefined, 'account-a');
+    const b = new MiniWorkRepository(files, '/data', undefined, 'account-b');
+    const draft = { ...emptyDraft(), title: '待发表' }; await new MiniDraftWriter(a).write(draft);
+    const target = { url: '/pages/publish/index?id=' + draft.id, workId: draft.id, source: asServices(a) };
+    expect(await resolveLoginReturn(target, asServices(a))).toBe(target.url);
+    expect(await resolveLoginReturn(target, asServices(b))).toBe('/pages/works/index');
+  });
+
   it('游客作品 ID 碰撞后使用持久认领标识，完整输入仍在', async () => {
     const files = new MemoryFileSystem();
     const guest = new MiniWorkRepository(files, '/data');

@@ -4,14 +4,14 @@
   <view class="works-hero">
     <view class="works-intro">
       <view class="eyebrow">{{recycle ? '恢复误删的作品' : manage ? '管理作品' : '日子慢慢过，文字慢慢写'}}</view>
-      <view class="page-title">{{recycle ? '回收站' : '我的作品'}}<text class="period">。</text></view>
+      <view class="page-title">{{recycle ? '回收站' : '我的文章'}}<text class="period">。</text></view>
       <view wx:if="{{!recycle && !manage}}" class="lead">把生活，留在字里行间。</view>
     </view>
     <image wx:if="{{!recycle && !manage}}" class="letter-drawing" src="/assets/letter.svg" mode="aspectFit"></image>
     <view wx:else class="manage-close" bindtap="finishManage" role="button">完成</view>
   </view>
   <view wx:if="{{issue}}" class="error-panel" role="alert">{{issue}}</view>
-  <view wx:if="{{!recycle && !manage}}" class="section-heading"><view>最近写下</view><text>{{visible.length}} 篇作品</text></view>
+  <view wx:if="{{!recycle && !manage}}" class="section-heading"><view>最近写下</view><button class="manage-entry" bindtap="manageArticles">管理 · {{visible.length}} 篇</button></view>
   <view wx:if="{{loading}}" class="empty-state">正在读取作品…</view>
   <view wx:elif="{{visible.length === 0}}" class="empty-state">
     <view class="empty-branch"></view>
@@ -24,13 +24,14 @@
       <view class="work-copy">
         <view class="work-title">{{item.title}}</view>
         <view class="work-meta">{{item.meta}}</view>
+        <view class="work-meta">{{item.saveLabel}} · {{item.publication}}</view>
         <view class="work-actions" wx:if="{{recycle}}">
           <button data-id="{{item.id}}" data-revision="{{item.revision}}" catchtap="restore">恢复</button>
           <button class="danger" data-id="{{item.id}}" data-revision="{{item.revision}}" catchtap="permanentlyDelete">永久删除</button>
         </view>
         <view wx:elif="{{item.recovery}}" class="work-actions recovery-actions"><text>本机恢复稿</text><button data-id="{{item.id}}" catchtap="viewRecovery">查看</button><button data-id="{{item.id}}" catchtap="promoteRecovery">另存新篇</button><button data-id="{{item.id}}" catchtap="exportRecovery">导出</button></view>
         <view wx:elif="{{manage}}" class="work-bottom"><button class="remove" data-id="{{item.id}}" data-revision="{{item.revision}}" catchtap="moveToRecycle">移入回收站</button></view>
-        <view wx:else class="work-bottom"><view class="continue">继续写 <view class="arrow"></view></view></view>
+        <view wx:else class="work-bottom"><view class="continue">继续写 <view class="arrow"></view></view><button class="publication-entry" data-id="{{item.id}}" catchtap="publishArticle">发表设置</button></view>
       </view>
     </view>
   </view>

@@ -4,6 +4,24 @@ import { expect, it } from 'vitest';
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
+it('发表白名单精确限定路由、方法和图片大小，未知图片变体不会放行', () => {
+  const nginx = read('deploy/nginx/suiyue-yousheng.conf');
+  const routes = [...nginx.matchAll(/location ~ "([^"]+)" \{([\s\S]*?)\n    \}/g)].map(match => ({ pattern: new RegExp(match[1]!), body: match[2]! }));
+  const match = (path: string) => routes.find(route => route.pattern.test(path))?.body;
+  expect(match('/api/mini/publications/work-1/images/asset-1')).toContain('client_max_body_size 8m;');
+  expect(match('/api/mini/publications/work-1/images/asset-1')).toContain('limit_except POST');
+  expect(match('/api/mini/publications/work-1/settings')).toContain('limit_except PUT');
+  expect(match('/api/mini/publications/work-1/submissions')).toContain('limit_except POST');
+  expect(match('/api/mini/articles/article-1/images/reading')).toContain('limit_except GET');
+  expect(match('/api/mini/articles/article-1/images/master')).toBeUndefined();
+  expect(match('/api/admin/articles/article-1/submissions/submission-1/images/reading')).toContain('limit_except GET');
+  expect(match('/api/admin/articles/article-1/images/asset-1')).toBeUndefined();
+  expect(match('/api/admin/articles/article-1/actions')).toContain('limit_except POST');
+  expect(match('/api/admin/articles/article-1/actions/extra')).toBeUndefined();
+  expect(nginx).toContain('location /api/admin/articles { auth_basic off; return 404; }');
+  expect(JSON.parse(read('deploy/schema-ceilings.json'))).toEqual({ auth: 3, topics: 1, usage: 1 });
+});
+
 it('keeps application services isolated, restartable and loopback-only', () => {
   const web = read('deploy/systemd/suiyue-web.service');
   const gateway = read('deploy/systemd/suiyue-gateway.service');

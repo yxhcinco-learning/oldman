@@ -16,6 +16,22 @@ afterEach(async () => {
 });
 
 describe('SQLite 数据库部署维护', () => {
+  it('发表数据库禁止由旧库、同 schema 历史备份或空状态覆盖新增内容', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'suiyue-publication-restore-'));
+    directories.push(directory);
+    const script = fileURLToPath(new URL('../deploy/server/sqlite-db.mjs', import.meta.url));
+    const current = join(directory, 'auth.sqlite');
+    const db = new DatabaseSync(current);
+    db.exec("CREATE TABLE fixture (body TEXT); INSERT INTO fixture VALUES ('新增内容'); PRAGMA user_version=3;"); db.close();
+    for (const version of [2, 3]) {
+      const old = join(directory, `backup-${version}.sqlite`), backup = new DatabaseSync(old);
+      backup.exec(`PRAGMA user_version=${version}`); backup.close();
+      await expect(execute(process.execPath, [script, 'restore', old, current, join(directory, 'quarantine-' + version)])).rejects.toMatchObject({ code: 2 });
+    }
+    await expect(execute(process.execPath, [script, 'restore', '-', current, join(directory, 'quarantine-empty')])).rejects.toMatchObject({ code: 2 });
+    const retained = new DatabaseSync(current, { readOnly: true });
+    expect(retained.prepare('SELECT body FROM fixture').get()?.body).toBe('新增内容'); retained.close();
+  });
   it('三库完整性检查、在线备份和失败迁移恢复都保留可核对副本', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'suiyue-identity-maintenance-'));
     directories.push(directory);

@@ -170,6 +170,7 @@ export class PublicationStore {
     if (receipt) return receipt;
     this.work(db, article.user_id, article.work_id);
     if (article.version !== input.expectedVersion) throw publicationConflict();
+    if ((input.action === 'approve' || input.action === 'reject') && input.submissionId !== article.pending_id) throw publicationConflict();
     const now = new Date(this.now()).toISOString();
     if (input.action === 'approve' || input.action === 'reject' || input.action === 'withdraw-review') {
       if (!article.pending_id || this.submission(db, article.pending_id)?.state !== 'pending') throw publicationConflict();

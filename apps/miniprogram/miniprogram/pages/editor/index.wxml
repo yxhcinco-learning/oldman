@@ -45,6 +45,7 @@
       </view>
       <view class="toolbar-line"></view>
       <button class="xiaowen" bindtap="openXiaoWen"><image src="/assets/leaf.svg" mode="aspectFit"></image><text>小文</text></button>
+      <button class="publication-next" bindtap="nextPublication" disabled="{{readOnly || voiceBusy || operationBusy || resultSavePending || navigationSaving}}">下一步</button>
     </view>
     <view wx:if="{{draft && draft.inputMode === 'voice'}}" class="voice-stage">
       <view class="voice-copy">

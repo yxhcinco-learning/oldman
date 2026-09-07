@@ -4,7 +4,7 @@
 
 ## 阶段结论
 
-第二阶段的微信账号、私有云作品、自动同步、单设备续写、个人中心和 JSON v6 已完成。用户于 2026-09-07 明确确认任务 4.4 手动验收通过；正式规格已同步，[add-account-cloud-work-sync](../openspec/changes/archive/2026-09-07-add-account-cloud-work-sync/tasks.md) 已归档，25 项任务完成。当前活跃变更为 add-article-publication-review，实施和分级证据见[第二阶段验收](PHASE-TWO-ACCEPTANCE.md)，现行行为见[账号与私有云规格](../openspec/specs/account-cloud-work-sync/spec.md)。代码在当前 main 分阶段本地提交，未推送。
+第二阶段的微信账号、私有云作品、自动同步、单设备续写、个人中心和 JSON v6 已完成。用户于 2026-09-07 明确确认任务 4.4 手动验收通过；正式规格已同步，[add-account-cloud-work-sync](../openspec/changes/archive/2026-09-07-add-account-cloud-work-sync/tasks.md) 已归档，25 项任务完成。当前活跃变更为 add-article-publication-review；第二阶段分级证据见[第二阶段验收](PHASE-TWO-ACCEPTANCE.md)，现行行为见[账号与私有云规格](../openspec/specs/account-cloud-work-sync/spec.md)。代码在当前 main 分阶段本地提交，未推送。
 
 当前体验环境固定为 **a713cff**：小程序 **0.2.0** 已上传，用户确认手动设为体验版；追加授权后运营网页已补齐为 **web-a713cff**，网关继续运行业务源码等同该提交的 **phase2-7cffd9d-gateway**。未纳入后续文章发表开发，未提审或正式发布小程序。网页公网、静态资源、登录失败与三尺寸登录页检查通过，网关进程及数据库标识保持，详见[部署说明](DEPLOYMENT.md)。
 
@@ -12,7 +12,9 @@
 
 用户已确认完整实施方案，活跃变更见 [发表变更](../openspec/changes/add-article-publication-review/proposal.md)及[任务](../openspec/changes/add-article-publication-review/tasks.md)。新增唯一用户名及历史名字归属、必选封面（列表 1:1，阅读/好友 5:4）、署名预览、人工审核、公共文章和好友分享。所有投稿人工审核，已取消测试账号自动通过。工作稿、固定投稿、公开版分离；修改重审保留旧版，撤回/下架/删除事务一致。
 
-当前实施尚未验收；真机和好友实际收发单列证据。只在 main 本地分阶段提交，不部署、上传或更改当前 0.2.0 体验版。JSON v6 不含封面或投稿身份，导入保持私有副本。完整边界以本次已确认变更为准。
+本地实现与技术验收已完成：auth.sqlite schema 3、唯一用户名、发表服务与审核后台、小程序裁切/预览/投稿/阅读/好友分享均已接通。完整 check 394 项测试通过（服务/后台 200、共享核心 19、小程序 175），build 及开发者工具 npm 刷新通过；小程序 360×640、390×844、430×932 各 14 项，后台 1280×900、1440×900、390×844 回归通过。真实本地 HTTP、SQLite、sharp 和两个隔离账号客户端验证投稿审核闭环，详见[发表验收](ARTICLE-PUBLICATION-ACCEPTANCE.md)。
+
+下一步仅补本次新增功能的真机证据：手机选图、裁切、好友实际收发、接收者登录返回及审核后阅读。尚无这些证据，任务 4.3 保持未完成，变更保持活跃，未同步正式规格或归档。只在 main 本地分阶段提交，不部署、上传或更改当前 0.2.0 体验版。JSON v6 不含封面或投稿身份，导入保持私有副本。
 
 ## 第二阶段已交付记录
 
@@ -46,5 +48,5 @@
 ## 新会话开工
 
 1. 检查 Git 分支和状态，读取 [AGENTS](../AGENTS.md)、本页、[产品](PRODUCT.md)、[架构](ARCHITECTURE.md)及[开发说明](DEVELOPMENT.md)。
-2. 用 `npx openspec list` 查询实际活跃变更；优先处理本页“下一步：文章发表与后台审核”的需求接手，按本次已确认发表 change 的任务和验收证据继续实施。第二阶段已归档，不从历史待验文字重建任务，历史依据见[第二阶段证据](PHASE-TWO-ACCEPTANCE.md)。
+2. 用 `npx openspec list` 查询实际活跃变更；优先补本次发表 change 的真机验收；先查任务及[发表验收](ARTICLE-PUBLICATION-ACCEPTANCE.md)，不重新实施已完成代码。第二阶段已归档，不从历史待验文字重建任务，历史依据见[第二阶段证据](PHASE-TWO-ACCEPTANCE.md)。
 3. 真机结果单列实际观察与证据来源；用户确认与代理实测分开记录。不混入运营账号体系，不重启 H5 或自动部署，不重复索取已配置凭据。

@@ -1,6 +1,7 @@
 {
   "navigationStyle": "custom",
   "usingComponents": {
-    "app-brand": "/components/app-brand/index"
+    "app-brand": "/components/app-brand/index",
+    "username-editor": "/components/username-editor/index"
   }
 }

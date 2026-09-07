@@ -53,7 +53,13 @@ async function main() {
     return;
   }
   if (mode === 'restore' && (source === '-' || absolute(source)) && absolute(destination) && absolute(quarantinePrefix)) {
-    if (source !== '-') verify(source);
+    const sourceVersion = source === '-' ? 0 : verify(source);
+    if (existsSync(destination)) {
+      const currentVersion = verify(destination);
+      if (currentVersion >= 3 || sourceVersion < currentVersion) {
+        throw new Error('Refusing to overwrite current account/publication data with a historical database; retain the current database and use a separately reviewed recovery procedure');
+      }
+    }
     if (existsSync(`${quarantinePrefix}.sqlite`) || existsSync(`${quarantinePrefix}.sqlite-wal`) || existsSync(`${quarantinePrefix}.sqlite-shm`)) {
       throw new Error('SQLite quarantine destination already exists');
     }

@@ -25,6 +25,7 @@ interface EditorPage {
   flushAutoSave(): Promise<boolean>;
   retryError(): Promise<void>;
   returnToWorks(): void;
+  nextPublication(): Promise<void>;
   setData(value: Record<string, unknown>): void;
 }
 
@@ -60,6 +61,42 @@ async function hideAndShow(page: EditorPage) {
 }
 
 describe('编辑器前台恢复与读取重试', () => {
+  it('下一步先落盘当前输入，再进入同一作品的发表设置', async () => {
+    const { page, repository } = await fixture();
+    await page.open();
+    page.setData({ draft: { ...page.data.draft!, title: '新文章', inputMode: 'text' }, body: '尚未自动保存的正文' });
+    const navigateTo = vi.fn(async () => {
+      expect((await repository.getAggregate(page.data.draft!.id))?.work.draft.textDraft).toBe('尚未自动保存的正文');
+    });
+    vi.stubGlobal('wx', { navigateTo });
+    await page.nextPublication();
+    expect(navigateTo).toHaveBeenCalledExactlyOnceWith({ url: '/pages/publish/index?id=' + page.data.draft!.id });
+  });
+
+  it('缺少标题复用标题编辑入口，只有待确认语音时不能进入发表', async () => {
+    const { page } = await fixture();
+    const navigateTo = vi.fn(); vi.stubGlobal('wx', { navigateTo });
+    await page.open();
+    page.setData({ draft: { ...page.data.draft!, inputMode: 'text' }, body: '先写正文' });
+    await page.nextPublication();
+    expect(page.data).toMatchObject({ titleDialog: true });
+    page.setData({ titleDialog: false, draft: { ...page.data.draft!, title: '只有语音', textDraft: '', pendingVoice: '仍然私有' }, body: '' });
+    await page.nextPublication();
+    expect(page.data).toMatchObject({ notice: '请先写下正文，再进入发表设置。' });
+    expect(navigateTo).not.toHaveBeenCalled();
+  });
+
+  it('下一步保存失败保留输入，不打开发表页', async () => {
+    const { page, writer } = await fixture();
+    const navigateTo = vi.fn(); vi.stubGlobal('wx', { navigateTo });
+    await page.open();
+    page.setData({ draft: { ...page.data.draft!, title: '新文章', inputMode: 'text' }, body: '当前输入' });
+    vi.spyOn(writer, 'write').mockRejectedValueOnce(new Error('本机空间不足'));
+    await page.nextPublication();
+    expect(page.data).toMatchObject({ body: '当前输入', error: '本机空间不足' });
+    expect(navigateTo).not.toHaveBeenCalled();
+  });
+
   it.each(['voice', 'text'] as const)('未落盘的 %s 空白稿返回前台保留标识与输入方式，不生成空作品或误报缺失', async inputMode => {
     const { page, repository, writer, verify } = await fixture();
     const writing = vi.spyOn(writer, 'write');
@@ -126,8 +163,8 @@ describe('编辑器前台恢复与读取重试', () => {
 
   it('不存在的 ID 不创建新稿，保留重新打开与返回文章的路径', async () => {
     const { page, repository, verify } = await fixture();
-    const switchTab = vi.fn();
-    vi.stubGlobal('wx', { switchTab });
+    const reLaunch = vi.fn();
+    vi.stubGlobal('wx', { reLaunch });
     await page.open('missing-article');
     await page.retryError();
     await page.refreshCloudState();
@@ -136,7 +173,7 @@ describe('编辑器前台恢复与读取重试', () => {
     expect(verify.mock.calls).toEqual([['missing-article'], ['missing-article']]);
     expect((await repository.load()).works).toEqual([]);
     page.returnToWorks();
-    expect(switchTab).toHaveBeenCalledWith({ url: '/pages/works/index' });
+    expect(reLaunch).toHaveBeenCalledWith({ url: '/pages/works/index' });
   });
 
   it('已有文章被移入回收站，返回前台保留原文只读，不能作为新稿复活', async () => {

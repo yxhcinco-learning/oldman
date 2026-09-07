@@ -1,0 +1,9 @@
+<block wx:if="{{accountReady}}"><view class="reader-page">
+<view wx:if="{{loading}}" class="reader-status">正在打开文章…</view>
+<view wx:if="{{error}}" class="reader-error" role="alert"><view>{{error}}</view><button class="primary-action" bindtap="refresh">重新读取</button><button bindtap="list">返回文章</button></view>
+<block wx:if="{{article}}"><image class="reading-cover" style="height: {{coverHeight}}px" src="{{image}}" mode="aspectFit" /><view class="reading-title">{{article.title}}</view>
+<view class="reading-author"><image src="/assets/leaf.svg" /><text>{{article.authorName}}</text><text class="reading-date">{{date}}</text></view>
+<view wx:if="{{article.aiAssisted}}" class="ai-label">本文包含 AI 辅助创作内容</view>
+<text class="reading-body" user-select>{{article.body}}</text>
+<button wx:if="{{shareReady}}" open-type="share" class="primary-action share-button">分享给好友</button>
+</block></view></block>

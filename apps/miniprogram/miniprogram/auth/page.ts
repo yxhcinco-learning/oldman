@@ -33,7 +33,7 @@ export function accountPage<TData extends WechatMiniprogram.Page.DataOption, TCu
         if (!state.active || state.disposed) return;
         const query = Object.entries(state.query).filter(([, value]) => value !== undefined)
           .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value!)}`).join('&');
-        const workId = ['pages/editor/index', 'pages/interview/index'].includes(page.route) ? state.query.id : undefined;
+        const workId = ['pages/editor/index', 'pages/interview/index', 'pages/publish/index'].includes(page.route) ? state.query.id : undefined;
         await openLogin({ url: '/' + page.route + (query ? '?' + query : ''), workId, source: state.source ?? miniServices() });
         return;
       }

@@ -17,6 +17,7 @@ export const submissionInputSchema = z.object({ operationId: cloudIdSchema, work
   settingsVersion: z.number().int().positive(), authorName: z.string().min(1).max(64), expectedVersion: z.number().int().nonnegative() }).strict();
 export type SubmissionInput = z.infer<typeof submissionInputSchema>;
 export const publicationActionSchema = z.object({ operationId: cloudIdSchema, expectedVersion: z.number().int().nonnegative(),
+  submissionId: cloudIdSchema.optional(),
   action: z.enum(['withdraw-review', 'withdraw', 'approve', 'reject', 'takedown']), reason: z.string().trim().max(200).default('') }).strict();
 export type PublicationAction = z.infer<typeof publicationActionSchema>;
 export interface PublicationSettings { version: number; assetId: string | null; crops: CoverCrops | null }

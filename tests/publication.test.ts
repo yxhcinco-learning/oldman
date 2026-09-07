@@ -13,8 +13,11 @@ import { TopicStore } from '../server/topic-store';
 import { TopicAdminAuthService, createTopicAdminPasswordHash } from '../server/topic-admin-auth';
 import { PublicationStore } from '../server/publication-store';
 import { AccountStore } from '../server/account-store';
+import { CloudWorkStore } from '../server/cloud-work-store';
 import { emptyDraft, workFromDraft, emptyWritingState, newSession, type WorkSnapshot } from '../packages/core/src/index';
 import { type PublicationPreview, type PublicationStatus, type PublicArticlePage } from '../packages/core/src/publication-protocol';
+import { MiniPublicationClient } from '../apps/miniprogram/miniprogram/publication/client';
+import { MiniAccountClient, type AccountPlatform } from '../apps/miniprogram/miniprogram/auth/account-client';
 
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); });
@@ -60,11 +63,92 @@ async function setup() {
   };
   const review = async (articleId: string, action: 'approve' | 'reject' | 'takedown', reason = '', expectedVersion?: number, operationId = randomUUID()) =>
     app.inject({ method: 'POST', url: '/api/admin/articles/' + articleId + '/actions', headers: admin,
-      payload: { action, reason, expectedVersion: expectedVersion ?? (await status()).version, operationId } });
+      payload: { action, reason, submissionId: (await status()).pending?.id, expectedVersion: expectedVersion ?? (await status()).version, operationId } });
   return { app, identity, path, topics, a, b, headers, other, admin, base, status, preview, submit, review, mutate, snapshot, workId, picture, setting, login, logs };
 }
 
 describe('文章发表与人工审核', () => {
+  it('旧客户端删除在私有写入失败时整体回滚，公开版、待审稿和回执保持一致', async () => {
+    const s = await setup(), first = await s.submit(); await s.review(first.articleId, 'approve'); await s.submit();
+    const before = await s.status(), works = new CloudWorkStore(s.identity);
+    const operationId = randomUUID(), mutation = { operationId, workId: s.workId, kind: 'trash' as const, baseVersion: 1 };
+    const db = new DatabaseSync(s.path);
+    try {
+      db.exec("CREATE TRIGGER qa_fail_private_delete BEFORE UPDATE ON cloud_works BEGIN SELECT RAISE(ABORT, 'injected disk failure'); END");
+      expect(() => works.mutate(s.a.token, mutation)).toThrow('injected disk failure');
+      expect(await s.status()).toEqual(before);
+      expect(works.get(s.a.token, s.workId)).toMatchObject({ version: 1, deletedAt: null });
+      expect(db.prepare('SELECT count(*) AS n FROM cloud_operations WHERE id=?').get(operationId)?.n).toBe(0);
+      expect((await s.app.inject({ url: '/api/mini/articles/' + first.articleId, headers: s.other })).statusCode).toBe(200);
+      db.exec('DROP TRIGGER qa_fail_private_delete');
+      works.mutate(s.a.token, mutation);
+      expect(db.prepare('SELECT published_id,pending_id FROM publication_articles WHERE id=?').get(first.articleId)).toMatchObject({ published_id: null, pending_id: null });
+      expect((await s.app.inject({ url: '/api/mini/articles/' + first.articleId, headers: s.other })).statusCode).toBe(404);
+    } finally { db.close(); }
+  });
+
+  it('两个真实 HTTP 客户端完成改名、丢失响应重试、审核、改稿驳回与下架闭环', async () => {
+    const s = await setup(), address = await s.app.listen({ port: 0, host: '127.0.0.1' });
+    let loseSubmissionResponse = true;
+    const client = async (name: string) => {
+      const platform: AccountPlatform = { login: async () => name + ':' + randomUUID(), request: async (path, method, token, data, binary) => {
+        const response = await fetch(address + path, { method, headers: { ...(token ? { authorization: 'Bearer ' + token } : {}),
+          'content-type': data instanceof ArrayBuffer ? 'application/octet-stream' : 'application/json' },
+          ...(data !== undefined ? { body: data instanceof ArrayBuffer ? Buffer.from(data) : JSON.stringify(data) } : {}) });
+        const value = binary ? await response.arrayBuffer() : await response.json();
+        if (name === 'author' && path.endsWith('/submissions') && response.ok && loseSubmissionResponse) { loseSubmissionResponse = false; throw new Error('响应丢失'); }
+        return { statusCode: response.status, data: value };
+      } };
+      const auth = new MiniAccountClient(platform, { read: async () => undefined, write: async () => {}, clear: async () => {} });
+      await auth.login();
+      return { auth, platform, publications: new MiniPublicationClient(auth, platform) };
+    };
+    const author = await client('author'), reader = await client('reader');
+    const claims = await Promise.allSettled([author.auth.updateNickname('HTTP Concurrent'), reader.auth.updateNickname('ＨＴＴＰ Concurrent')]);
+    expect(claims.filter(result => result.status === 'fulfilled')).toHaveLength(1);
+    expect(claims.find(result => result.status === 'rejected')).toMatchObject({ reason: { status: 409 } });
+    const oldPreview = await author.publications.preview(s.workId);
+    await author.auth.updateNickname('HTTP 写作者');
+    const input = (p: PublicationPreview) => ({ operationId: randomUUID(), expectedVersion: p.version, workVersion: p.workVersion, settingsVersion: p.settingsVersion, authorName: p.authorName });
+    await expect(author.publications.submit(s.workId, input(oldPreview))).rejects.toMatchObject({ status: 409 });
+    const submission = input(await author.publications.preview(s.workId));
+    await expect(author.publications.submit(s.workId, submission)).rejects.toThrow('响应丢失');
+    const submitted = await author.publications.submit(s.workId, submission);
+    expect((await reader.publications.list()).articles).toEqual([]);
+    const review = async (action: 'approve' | 'reject' | 'takedown', reason = '') => {
+      const status = await author.publications.status(s.workId);
+      return fetch(address + '/api/admin/articles/' + submitted.articleId + '/actions', { method: 'POST', headers: { ...s.admin, 'content-type': 'application/json' },
+        body: JSON.stringify({ action, reason, submissionId: status.pending?.id, expectedVersion: status.version, operationId: randomUUID() }) });
+    };
+    expect((await review('approve')).status).toBe(200);
+    const first = await reader.publications.article(submitted.articleId);
+    expect(first).toMatchObject({ body: '确认后的文章正文', authorName: 'HTTP 写作者' });
+    expect(Object.keys(first).sort()).toEqual(['id', 'title', 'body', 'authorName', 'aiAssisted', 'publishedAt', 'version'].sort());
+    const image = await reader.publications.image(submitted.articleId, 'reading');
+    expect(await sharp(Buffer.from(image)).metadata()).toMatchObject({ width: 1000, height: 800 });
+    const draft = { ...s.snapshot.work.draft, textDraft: '改写后的正文仍需人工审核' };
+    const changed = await author.auth.authorizedRequest(token => author.platform.request('/api/mini/works/mutations', 'POST', token,
+      { operationId: randomUUID(), workId: s.workId, kind: 'save', baseVersion: 1, snapshot: { ...s.snapshot, work: workFromDraft(draft) } }));
+    expect(changed.statusCode).toBe(200);
+    await author.publications.submit(s.workId, input(await author.publications.preview(s.workId)));
+    expect((await reader.publications.article(submitted.articleId)).body).toBe(first.body);
+    expect((await review('reject', '请核对内容')).status).toBe(200);
+    expect((await reader.publications.article(submitted.articleId)).body).toBe(first.body);
+    expect((await review('takedown', '本地回归下架')).status).toBe(200);
+    expect((await reader.publications.list()).articles).toEqual([]);
+    await expect(reader.publications.article(submitted.articleId)).rejects.toMatchObject({ status: 404 });
+    await expect(reader.publications.image(submitted.articleId, 'reading')).rejects.toMatchObject({ status: 404 });
+  });
+  it('即使附带最新文章版本，旧投稿 ID 也不能审核后来新稿', async () => {
+    const s = await setup();
+    const old = await s.submit(), oldId = old.response.json().submissionId;
+    await s.app.inject({ method: 'POST', url: s.base + '/actions', headers: s.headers,
+      payload: { operationId: randomUUID(), expectedVersion: (await s.status()).version, action: 'withdraw-review' } });
+    await s.submit();
+    const result = await s.app.inject({ method: 'POST', url: '/api/admin/articles/' + old.articleId + '/actions', headers: s.admin,
+      payload: { operationId: randomUUID(), expectedVersion: (await s.status()).version, action: 'approve', submissionId: oldId } });
+    expect(result.statusCode).toBe(409); expect((await s.status()).published).toBe(false); expect((await s.status()).pending).not.toBeNull();
+  });
   it('只冻结确认正文，必须人工通过，双账号读取且响应没有私有字段', async () => {
     const s = await setup(), p = await s.preview();
     expect(p).toMatchObject({ title: '投稿测试', body: '确认后的文章正文', authorName: s.a.account.nickname });
@@ -139,7 +223,7 @@ describe('文章发表与人工审核', () => {
     expect((await s.app.inject({ url: '/api/admin/articles', headers: s.headers })).statusCode).toBe(401);
     await s.submit();
     const url = '/api/admin/articles/' + p.articleId + '/actions';
-    const payload = { operationId: randomUUID(), expectedVersion: (await s.status()).version, action: 'approve' };
+    const payload = { operationId: randomUUID(), expectedVersion: (await s.status()).version, action: 'approve', submissionId: (await s.status()).pending?.id };
     expect((await s.app.inject({ method: 'POST', url, headers: { ...s.admin, origin: 'https://evil.test' }, payload })).statusCode).toBe(403);
     expect((await s.app.inject({ method: 'POST', url, headers: { ...s.admin, 'x-csrf-token': 'wrong' }, payload })).statusCode).toBe(403);
     expect((await s.app.inject({ method: 'POST', url: s.base + '/actions', headers: s.headers, payload })).statusCode).toBe(403);
@@ -166,7 +250,7 @@ describe('文章发表与人工审核', () => {
     expect((await fetch(address + '/api/mini/articles', { headers: s.other }).then(r => r.json())).articles).toEqual([]);
     const approved = await fetch(address + '/api/admin/articles/' + submitted.articleId + '/actions',
       { method: 'POST', headers: { ...s.admin, 'content-type': 'application/json' },
-        body: JSON.stringify({ operationId: randomUUID(), expectedVersion: (await s.status()).version, action: 'approve' }) });
+        body: JSON.stringify({ operationId: randomUUID(), expectedVersion: (await s.status()).version, action: 'approve', submissionId: (await s.status()).pending?.id }) });
     expect(approved.status).toBe(200);
     const visible = await fetch(address + '/api/mini/articles/' + submitted.articleId, { headers: s.other });
     expect(visible.status).toBe(200); expect((await visible.json()).body).toBe('确认后的文章正文');

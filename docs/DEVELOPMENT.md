@@ -33,7 +33,7 @@
 
 ## 数据与配置
 
-小程序本地先落盘，再以持久操作自动同步；聚合 v3、备份 v6，旧 v1–v5 可导入副本。auth.sqlite schema 2 包含账号与私有作品，topics/usage 仍为 schema 1。操作系统中断可能丢失未提交输入，不承诺零丢失。不将用户 JSON、正文、头像或音频放入 Git。
+小程序本地先落盘，再以持久操作自动同步；聚合 v3、备份 v6，旧 v1–v5 可导入副本。auth.sqlite schema 3 包含账号、私有作品、唯一用户名归属与独立发表数据，topics/usage 仍为 schema 1。操作系统中断可能丢失未提交输入，不承诺零丢失。不将用户 JSON、正文、头像、封面或音频放入 Git。发表侧车文件与正文聚合分开保存，JSON v6 不含封面。新数据库不得回填旧备份；旧 release 的 auth 上限低于 3 时回滚检查必须拒绝，备份、恢复入口继续执行 schema 兼容检查。
 
 `tests/cloud-sync-integration.test.ts` 使用两个隔离磁盘目录、真实回环 HTTP 网关与 SQLite，微信换码使用替身，覆盖接管、完整快照、确认丢失/重启和删除，不调用付费服务。`CLOUD_WORK_MAX_BYTES`（默认 8MiB、硬上限 8MiB）、`CLOUD_ACCOUNT_MAX_BYTES`（100MiB）、`CLOUD_ACCOUNT_MAX_WORKS`（1000，含回收站）、`CLOUD_ACCOUNT_REQUESTS_PER_MINUTE`（120）由服务端配置，非法配置拒绝启动。
 
@@ -50,5 +50,9 @@
 账号与登录界面运行 `node apps/miniprogram/scripts/qa-account-simulator.mjs`，使用相同的自动化环境变量；另设 `MINI_QA_EXPECTED_WIDTH=360`（或 390、430）断言实际机型，避免同名开发者工具窗口导致尺寸误记。允许从无真实账号的首页或登录页开始，使用独立磁盘目录及账号/同步替身，禁止真实换码和账号网络请求。覆盖登录失败与重试、个人中心、退出确认、资料组件、未登录直接路径拦截、隐私入口及登录后草稿恢复。页面栈更新早于原生转场完成，连续跳转前等待动画稳定。切换机型后连接失效时退出当前项目，再通过同一个 `auto` 入口启动；不并用两个自动化入口重复打开项目。
 
 设置 `MINI_QA_EDITOR_ONLY=1` 可聚焦编辑恢复，跳过既有登录/资料布局检查：使用相同隔离账号夹具，验证语音/文字空白稿跨页返回、保存失败重试、未发送输入恢复、暂停编辑及读取错误的重新打开。不与另一套自动化入口同时连接；启动编译完成并停在登录页后再运行，连接超时不计通过。
+
+文章发表界面入口 `node apps/miniprogram/scripts/qa-publication-simulator.mjs` 使用相同自动化变量，额外指定 `MINI_QA_COVER` 为非敏感合成图片。验证双裁切、改名预览、投稿状态、我的文章、公开阅读、分享参数和失效提示；账号/网络/原生选图为替身，文件和组件真实执行，结果不能代替手机选图与好友实际收发。
+
+后台发表联调先设 `SUIYUE_PUBLICATION_QA_OUTPUT` 为独立忽略目录，运行 `npx tsx scripts/publication-qa-server.ts`（回环 3812、临时库）。另以 `GATEWAY_PROXY_TARGET=http://127.0.0.1:3812` 运行 `npx vinext dev --port 3811`；设本机 `PLAYWRIGHT_PATH` 后运行 `node scripts/qa-publication-admin.mjs`。测试会审核并下架合成稿，每次重跑先重启夹具生成新临时库，不连接真实账号库。自动化退出后停止本次本地测试进程，截图/数据库保留于忽略目录。详细结果见[发表验收](ARTICLE-PUBLICATION-ACCEPTANCE.md)。
 
 `scripts/dialogue-live-check.ts` 是显式真实模型入口：默认3次问候/素材/整理，`--pending-edit` 最多3次改文/反问/撤回，`--cancel-edit` 为单次撤回定点复验。先估算费用，每次最多30000输入估算tokens/2048输出tokens，失败即停、不自动重试；不纳入 CI。本地费用单价未配置不代表免费。

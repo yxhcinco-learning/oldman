@@ -1,0 +1,40 @@
+<block wx:if="{{accountReady}}">
+<view class="publish-page">
+  <view class="heading"><view class="page-title">{{mode === 'result' ? '已提交审核' : mode === 'preview' ? '文章预览' : '发表文章'}}</view><button bindtap="backToEditor">返回编辑</button></view>
+  <view wx:if="{{status && statusLabel && mode !== 'result'}}" class="publication-state">{{statusLabel}}</view>
+  <view wx:if="{{status.reason}}" class="reason">{{status.reason}}</view>
+  <view wx:if="{{status.lastSubmission.state === 'rejected'}}" class="reason">未通过原因：{{status.lastSubmission.reason}}</view>
+  <view wx:if="{{error}}" class="error-panel" role="alert">{{error}}<button wx:if="{{mode === 'settings'}}" bindtap="refresh" disabled="{{busy}}">重试读取</button></view>
+  <view wx:if="{{busy}}" class="progress" role="status">{{busy}}</view>
+  <view wx:if="{{pendingRetry}}" class="retry-panel"><text>上次投稿结果尚未确认</text><button bindtap="submit" disabled="{{busy}}">重试提交</button></view>
+  <view wx:if="{{actionRetry}}" class="retry-panel"><text>上次撤回结果尚未确认</text><button bindtap="retryAction" disabled="{{busy}}">重试撤回</button></view>
+  <block wx:if="{{mode === 'settings'}}">
+    <view class="article-title">{{title}}</view>
+    <view class="author-row"><image src="/assets/leaf.svg" /><text>{{authorName}}</text><button bindtap="editName" disabled="{{busy || readOnly}}">修改用户名</button></view>
+    <view class="section-title">文章封面</view>
+    <button wx:if="{{!draft.path}}" class="choose-empty" bindtap="chooseCover" disabled="{{busy || readOnly}}"><text class="plus">＋</text><text>选择封面</text></button>
+    <block wx:else>
+      <view class="crop-tabs"><button class="{{cropKind === 'thumbnail' ? 'selected' : ''}}" data-kind="thumbnail" bindtap="changeCropKind">列表封面</button><button class="{{cropKind === 'reading' ? 'selected' : ''}}" data-kind="reading" bindtap="changeCropKind">阅读与好友分享</button></view>
+      <cover-cropper class="publication-cropper" wx:if="{{draft.width && draft.height && !draft.settingOperation && !pendingRetry && !actionRetry}}" src="{{draft.path}}" source-width="{{draft.width}}" source-height="{{draft.height}}" crop="{{crop}}" ratio="{{ratio}}" viewport-width="{{viewportWidth}}" bindchange="cropChanged" />
+      <button wx:if="{{!draft.settingOperation && !pendingRetry && !actionRetry}}" class="secondary-action" bindtap="confirmCrop" disabled="{{busy || readOnly || cropConfirmed}}">{{cropConfirmed ? "已确认裁切" : cropKind === "thumbnail" ? "确认列表封面" : "确认阅读与分享封面"}}</button>
+      <view class="cover-actions"><button bindtap="chooseCover" disabled="{{busy || readOnly || pendingRetry || actionRetry || draft.settingOperation}}">更换图片</button><button wx:if="{{error && status.settings.assetId}}" bindtap="useLatestCover" disabled="{{busy}}">使用最新封面</button></view>
+    </block>
+    <view class="footer-space"></view>
+  </block>
+  <block wx:elif="{{mode === 'preview' && preview}}">
+    <view class="reader"><image class="reading-cover" style="height: {{viewportWidth * 0.8}}px" src="{{image}}" mode="aspectFit" /><view class="article-title">{{preview.title}}</view>
+      <view class="author-row"><image src="/assets/leaf.svg" /><text>{{preview.authorName}}</text><button bindtap="editName" disabled="{{busy}}">修改用户名</button></view>
+      <view wx:if="{{preview.aiAssisted}}" class="ai-label">本文包含 AI 辅助创作内容</view><text class="article-body" user-select>{{preview.body}}</text></view>
+    <view class="section-title">列表效果</view><view class="sample-card"><image src="{{thumbnail}}" /><view><view>{{preview.title}}</view><text>{{preview.authorName}}</text></view></view>
+    <view class="section-title">好友分享效果</view><view class="sample-share"><view>{{preview.title}}</view><image src="{{image}}" mode="widthFix" /><text>岁月有声</text></view>
+    <view class="footer-space"></view>
+  </block>
+  <view wx:elif="{{mode === 'result'}}" class="result"><image src="/assets/check.svg" /><view>通过审核后，大家就能读到这篇文章。</view><button class="primary-action" bindtap="myArticles">回到我的文章</button><button wx:if="{{status.published}}" bindtap="readArticle">查看已发表文章</button></view>
+  <view wx:if="{{status.pending || status.published}}" class="status-actions"><button wx:if="{{status.pending}}" data-action="withdraw-review" bindtap="withdraw" disabled="{{busy || readOnly}}">撤回审核</button><button wx:if="{{status.published}}" bindtap="readArticle">查看已发表文章</button><button wx:if="{{status.published}}" data-action="withdraw" bindtap="withdraw" disabled="{{busy || readOnly}}">撤回发表</button></view>
+</view>
+<view wx:if="{{mode !== 'result' && !status.pending && !pendingRetry && !actionRetry}}" class="publish-dock">
+  <button wx:if="{{mode === 'settings'}}" class="primary-action" bindtap="preparePreview" disabled="{{busy || readOnly || !draft.path}}">预览文章</button>
+  <block wx:else><button class="secondary-action" bindtap="settings" disabled="{{busy}}">调整封面</button><button class="primary-action" bindtap="submit" disabled="{{busy || readOnly || !preview}}">发表</button></block>
+</view>
+<view wx:if="{{editingName}}" class="name-mask" catchtap="closeName" catchtouchmove="noop"><view class="name-sheet" catchtap="noop"><view class="heading"><text>修改用户名</text><button bindtap="closeName" aria-label="关闭">×</button></view><username-editor class="publication-username" value="{{authorName}}" bindsaved="nameSaved" /></view></view>
+</block>

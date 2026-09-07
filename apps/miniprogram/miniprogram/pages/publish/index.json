@@ -1,0 +1,1 @@
+{ "navigationBarTitleText": "发表文章", "usingComponents": { "cover-cropper": "/components/cover-cropper/index", "username-editor": "/components/username-editor/index" } }

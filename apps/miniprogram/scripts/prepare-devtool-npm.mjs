@@ -39,7 +39,12 @@ runInNewContext(bundled, { module: runtime, exports: runtime.exports }, { timeou
 assertDevtoolCoreRuntime(runtime.exports);
 // DevTools caches packages by version: a source-only update must change that key.
 const fingerprint = createHash('sha256').update(bundled).digest('hex').slice(0, 16);
-const packageJson = { name: sourcePackage.name, version: `${sourcePackage.version}-mini.h${fingerprint}`, private: true, main: './index' };
+// The IDE also caches compiled npm module IDs by entry path, independently of
+// package version. A content-addressed entry invalidates that cache without
+// clearing the user's account, work files or simulator storage.
+const entryName = `index-${fingerprint}.js`;
+await writeFile(resolve(coreTarget, entryName), bundled);
+const packageJson = { name: sourcePackage.name, version: `${sourcePackage.version}-mini.h${fingerprint}`, private: true, main: './' + entryName };
 await writeFile(resolve(coreTarget, 'package.json'), JSON.stringify(packageJson, null, 2));
 
 console.info('微信开发者工具 npm 源依赖已准备（单文件 @suiyue/core）');

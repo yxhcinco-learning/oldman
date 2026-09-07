@@ -9,7 +9,10 @@
     "pages/topic-detail/index",
     "pages/interview/index",
     "pages/source/index",
-    "pages/privacy/index"
+    "pages/privacy/index",
+    "pages/articles/index",
+    "pages/publish/index",
+    "pages/article/index"
   ],
   "window": {
     "navigationBarBackgroundColor": "#fbf9f8",
@@ -30,7 +33,7 @@
         "text": "热门"
       },
       {
-        "pagePath": "pages/works/index",
+        "pagePath": "pages/articles/index",
         "text": "文章"
       },
       {

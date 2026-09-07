@@ -1,9 +1,8 @@
 import { errorMessage } from '../../ui/error-message';
 import { accountPage } from '../../auth/page';
 import { writingAccess } from '../../sync/writing-access';
-import { countWords, formatTime, type Work } from '../../domain/core';
+import { countWords, formatTime, publicationLabel, type Work } from '../../domain/core';
 import { miniServices } from '../../services';
-import { selectTab } from '../../ui/tab-bar';
 
 interface WorkCard {
   id: string;
@@ -15,12 +14,13 @@ interface WorkCard {
   cover: string;
   recovery: boolean;
   saveLabel: string;
+  publication: string;
 }
 
 function card(work: Work): WorkCard {
   const cover = ['bike', 'home', 'train'][[...work.id].reduce((sum, char) => sum + (char.codePointAt(0) || 0), 0) % 3];
   return { id: work.id, title: work.title, initial: [...work.title][0] ?? '文', revision: work.revision, deleted: Boolean(work.deletedAt),
-    recovery: false, saveLabel: '本机已保存',
+    recovery: false, publication: '草稿', saveLabel: '本机已保存',
     cover: `/assets/story-${cover}.svg`, meta: `${formatTime(work.updatedAt)} · ${countWords(work.segments)} 字` };
 }
 
@@ -43,7 +43,6 @@ accountPage({
   },
 
   onShow() {
-    selectTab(this, 1);
     void this.refresh();
   },
 
@@ -58,8 +57,11 @@ accountPage({
       if (connect) try { await services.sync.sync(); } catch (error) { cloudIssue = errorMessage(error, '云端尚未连接。'); }
       const snapshot = await services.repository.load();
       if (services !== miniServices()) return;
+      let statuses: Awaited<ReturnType<typeof services.publications.statuses>> = { publications: [] };
+      try { statuses = await services.publications.statuses(); } catch { /* Private writing remains available when public status is offline. */ }
+      if (services !== miniServices()) return;
       const cards = snapshot.works.map(work => { const aggregate = snapshot.aggregates?.find(item => item.work.id === work.id) ?? null;
-        return { ...card(work), recovery: Boolean(aggregate?.cloud?.recoveryOf), saveLabel: writingAccess(aggregate, services.account.snapshot(), services.sync).syncLabel }; });
+        return { ...card(work), publication: publicationLabel(statuses.publications.find(item => item.workId === work.id)), recovery: Boolean(aggregate?.cloud?.recoveryOf), saveLabel: writingAccess(aggregate, services.account.snapshot(), services.sync).syncLabel }; });
       this.setData({ loading: false, cards, visible: cards.filter(item => item.deleted === this.data.recycle),
         issue: cloudIssue || services.sync.snapshot().error || snapshot.issues.map(item => item.message).join(' ') });
     } catch (error) {
@@ -73,9 +75,13 @@ accountPage({
   },
 
   finishManage() {
-    void wx.reLaunch({ url: '/pages/works/index' });
+    this.setData({ manage: false, recycle: false, visible: this.data.cards.filter(item => !item.deleted) });
   },
 
+  manageArticles() { this.setData({ manage: true }); },
+  publishArticle(event: WechatMiniprogram.TouchEvent) {
+    void wx.navigateTo({ url: '/pages/publish/index?id=' + encodeURIComponent(String(event.currentTarget.dataset.id)) });
+  },
   startWriting() {
     wx.navigateTo({ url: '/pages/editor/index', fail: error => {
       const issue = errorMessage(error, '写作页暂时无法打开，请重试。');
@@ -93,6 +99,8 @@ accountPage({
   async moveToRecycle(event: WechatMiniprogram.TouchEvent) {
     const id = String(event.currentTarget.dataset.id);
     const revision = Number(event.currentTarget.dataset.revision);
+    const result = await wx.showModal({ title: '移入回收站？', content: '待审核稿和已发表文章也会撤下，恢复作品后需要重新投稿。', confirmText: '移入回收站' });
+    if (!result.confirm) return;
     try { await this.observed!.sync.lifecycle(id, 'trash', revision); await this.refresh(); }
     catch (error) { this.setData({ issue: errorMessage(error, '移入回收站失败。') }); }
   },

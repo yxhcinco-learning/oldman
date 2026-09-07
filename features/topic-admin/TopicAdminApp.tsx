@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { TopicEditableContent, TopicKind, TopicPlacement, WritingTopic } from '../../packages/core/src/topics';
+import { ArticleReviewPanel } from './ArticleReviewPanel';
 import { AdminIcon, type AdminIconName } from './AdminIcon';
 import styles from './topic-admin.module.css';
 
-type AdminView = 'dashboard' | 'topics' | 'new' | 'schedule' | 'history' | 'monitoring';
+type AdminView = 'articles' | 'dashboard' | 'topics' | 'new' | 'schedule' | 'history' | 'monitoring';
 type StoredRevision = { topic: WritingTopic; editVersion: number; editorBrief: string };
 type Placement = TopicPlacement & { id: string };
 type Generation = { id: string; topicId: string | null; revision: number | null; brief: string; urls: string[]; webSearchEnabled: boolean;
@@ -47,6 +48,7 @@ const capabilityLabel: Record<keyof MonitoringData['capabilities'], string> = {
 };
 
 const viewMeta: Record<AdminView, { label: string; description: string }> = {
+  articles: { label: '文章审核', description: '人工审核作者投稿与维护已发表文章。' },
   dashboard: { label: '工作台', description: '查看当前内容状态、首页席位与近期运营动作。' },
   topics: { label: '话题内容', description: '筛选、审核和维护全部话题修订。' },
   new: { label: '生成与新建', description: '由引子生成候选，或完全手工创建草稿。' },
@@ -57,7 +59,7 @@ const viewMeta: Record<AdminView, { label: string; description: string }> = {
 
 const navGroups: Array<{ label: string; items: Array<{ id: AdminView; icon: AdminIconName }> }> = [
   { label: '工作台', items: [{ id: 'dashboard', icon: 'dashboard' }] },
-  { label: '内容管理', items: [{ id: 'topics', icon: 'topics' }, { id: 'new', icon: 'sparkles' }, { id: 'schedule', icon: 'calendar' }, { id: 'history', icon: 'history' }] },
+  { label: '内容管理', items: [{ id: 'articles', icon: 'topics' }, { id: 'topics', icon: 'topics' }, { id: 'new', icon: 'sparkles' }, { id: 'schedule', icon: 'calendar' }, { id: 'history', icon: 'history' }] },
   { label: '系统', items: [{ id: 'monitoring', icon: 'monitoring' }] },
 ];
 
@@ -182,6 +184,7 @@ export function TopicAdminApp() {
       {view === 'schedule' && <SchedulePanel topics={topics} placements={placements} busy={busy} request={request}
         onBusy={setBusy} onError={setError} onDone={() => handleResult('排期已更新。')} />}
       {view === 'history' && <HistoryPanel generations={generations} audits={audits} />}
+      {view === 'articles' && <ArticleReviewPanel request={request} />}
       {view === 'monitoring' && <MonitoringPanel request={request} />}
     </section>
   </main>;

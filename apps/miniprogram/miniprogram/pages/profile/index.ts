@@ -36,7 +36,7 @@ accountPage({
     });
     if (services !== miniServices()) return;
     const unsent = works.filter(item => !item.cloud?.recoveryOf && (!item.cloud?.version || item.cloud.operation || item.work.revision !== item.cloud.syncedRevision)).length;
-    const accountText = { guest: '登录后保存您的作品', connecting: '正在登录', authenticated: '编辑头像与昵称', offline: '当前离线', expired: '登录已过期', replaced: '已在其他设备登录' }[state.status];
+    const accountText = { guest: '登录后保存您的作品', connecting: '正在登录', authenticated: '编辑头像与用户名', offline: '当前离线', expired: '登录已过期', replaced: '已在其他设备登录' }[state.status];
     const needsLogin = ['guest', 'expired', 'replaced', 'connecting'].includes(state.status);
     const cloudIssue = state.error || (sync.status === 'error' ? sync.error : '');
     this.setData({ account: state.account, status: state.status, accountText,
@@ -87,18 +87,6 @@ accountPage({
   },
   openProfile() { this.setData({ editingProfile: true, nicknameInput: this.data.account?.nickname ?? '', nicknameValid: true, error: '' }); setTabBarHidden(this, true); },
   closeProfile() { this.setData({ editingProfile: false }); setTabBarHidden(this, false); },
-  onNickname(event: WechatMiniprogram.Input) { this.setData({ nicknameInput: event.detail.value, nicknameValid: true }); },
-  onNicknameReview(event: WechatMiniprogram.CustomEvent<{ pass: boolean }>) {
-    this.setData({ nicknameValid: event.detail.pass, ...(event.detail.pass ? {} : { error: '请换一个昵称后再保存。' }) });
-  },
-  async saveNickname() {
-    if (!this.data.nicknameValid || this.data.busy) return;
-    const services = miniServices();
-    this.setData({ busy: '正在保存昵称…', error: '' });
-    try { await services.account.updateNickname(this.data.nicknameInput); if (services === miniServices()) this.closeProfile(); }
-    catch (error) { this.setData({ error: errorMessage(error, '昵称未保存。') }); }
-    finally { this.setData({ busy: '' }); await this.refreshState(); }
-  },
   async chooseAvatar(event: WechatMiniprogram.CustomEvent<{ avatarUrl: string }>) {
     if (!event.detail.avatarUrl || this.data.busy) return;
     const services = miniServices();
@@ -116,8 +104,9 @@ accountPage({
   openMenu() { setTabBarHidden(this, true); this.setData({ menuOpen: true, notice: '', error: '' }); },
   closeMenu() { this.setData({ menuOpen: false }); setTabBarHidden(this, false); },
   openPrivacy() { void wx.navigateTo({ url: '/pages/privacy/index' }); },
-  manageWorks() { setTabBarHidden(this, false); void wx.reLaunch({ url: '/pages/works/index?manage=1' }); },
-  openRecycle() { setTabBarHidden(this, false); void wx.reLaunch({ url: '/pages/works/index?recycle=1' }); },
+  async nameSaved() { this.closeProfile(); await this.refreshState(); },
+  manageWorks() { setTabBarHidden(this, false); void wx.navigateTo({ url: '/pages/works/index' }); },
+  openRecycle() { setTabBarHidden(this, false); void wx.navigateTo({ url: '/pages/works/index?recycle=1' }); },
   async exportBackup() {
     const services = miniServices();
     this.setData({ busy: '正在准备备份…', error: '', notice: '' });

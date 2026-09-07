@@ -23,7 +23,7 @@ describe('微信小程序公共工程配置', () => {
     expect(tabBar.custom).toBe(true);
     expect(tabBar.list).toEqual([
       { pagePath: 'pages/home/index', text: '热门' },
-      { pagePath: 'pages/works/index', text: '文章' },
+      { pagePath: 'pages/articles/index', text: '文章' },
       { pagePath: 'pages/profile/index', text: '我的' },
     ]);
     expect(app.requiredPrivateInfos).toBeUndefined();
@@ -129,7 +129,8 @@ describe('微信小程序公共工程配置', () => {
     expect(topicDetailStyles).toMatch(/\.detail-brand\s*\{[^}]*align-items:\s*center[^}]*justify-content:\s*center/);
     expect(topicDetailStyles).toMatch(/\.start-actions\s*\{[^}]*position:\s*fixed[^}]*right:\s*24px[^}]*bottom:\s*0[^}]*left:\s*24px[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
     expect(topicDetailStyles).toMatch(/\.start-actions button\s*\{[^}]*display:\s*flex[^}]*width:\s*100%[^}]*min-width:\s*0[^}]*align-items:\s*center[^}]*justify-content:\s*center/);
-    expect(worksController).toContain('selectTab(this, 1)');
+    expect(readText('../miniprogram/pages/articles/index.ts')).toContain('selectTab(this, 1)');
+    expect(worksController).not.toContain('selectTab(');
     expect(editor).toContain('bindkeyboardheightchange="onKeyboardHeight"');
     expect(editor).toContain('class="dialog-mask" style="bottom: {{keyboardHeight}}px"');
     expect(editor).toContain('class="xiaowen-mask" style="bottom: {{keyboardHeight}}px"');
@@ -230,7 +231,8 @@ describe('微信小程序公共工程配置', () => {
     expect(login).toContain('隐私说明');
     expect(privacy).toContain('同一时间在一台设备使用');
     expect(profile).toContain('open-type="chooseAvatar"');
-    expect(profile).toContain('type="nickname"');
+    expect(profile).toContain('<username-editor');
+    expect(readText('../miniprogram/components/username-editor/index.wxml')).toContain('type="nickname"');
     expect(privacy).toContain('发送给 DeepSeek');
   });
   it('访谈是紧凑开关，主题固定且换题属于当前回复', () => {

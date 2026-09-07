@@ -88,7 +88,7 @@ try {
     // Render documented account states without authenticating with WeChat or writing profile data.
     check('资料行完整占用可用宽度', (await (await page.$('.account-heading')).size()).width >= info.windowWidth - 52);
     check('作品工具共有三行且每行至少64px', (await page.$$('.tool-list .tool')).length === 4 && (await page.$$('.support-list .tool')).length === 1 && (await (await page.$('.tool')).size()).height >= 64);
-    await page.setData({ account: { id: 'qa-account', nickname: '', hasAvatar: false, avatarVersion: 0 }, status: 'authenticated', needsLogin: false, canReconnect: false, accountText: '编辑头像与昵称', syncText: '还没有作品' });
+    await page.setData({ account: { id: 'qa-account', nickname: '', hasAvatar: false, avatarVersion: 0 }, status: 'authenticated', needsLogin: false, canReconnect: false, accountText: '编辑头像与用户名', syncText: '还没有作品' });
     check('正常个人中心无常驻同步状态与重复登录按钮', !await page.$('.sync-row') && !await page.$('.account-primary') && !!await page.$('.logout-button'));
     await mini.screenshot({ path: resolve(output, 'profile-signed-in.png') });
     await page.callMethod('logout');
@@ -103,8 +103,8 @@ try {
     check('资料抽屉提供原生头像与昵称输入', !!await page.$('.avatar-choose') && !!await page.$('.nickname-input'));
     const avatarSize = await (await page.$('.avatar-choose')).size();
     check('头像选择按钮铺满抽屉可用宽度：' + avatarSize.width + 'px', avatarSize.width >= info.windowWidth - 52);
-    await page.callMethod('onNicknameReview', { detail: { pass: false } });
-    check('昵称未通过保留抽屉并禁止保存', !await page.data('nicknameValid') && await page.data('editingProfile'));
+    await (await page.$('username-editor')).callMethod('reviewName', { detail: { pass: false } });
+    check('昵称未通过保留抽屉并禁止保存', !await (await page.$('username-editor')).data('valid') && await page.data('editingProfile'));
     await mini.screenshot({ path: resolve(output, 'profile-edit.png') });
     await page.callMethod('closeProfile');
     await page.setData({ status: 'replaced', needsLogin: true, accountText: '已在其他设备登录', error: '已在其他设备登录，请主动微信登录。' });
