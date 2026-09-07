@@ -12,7 +12,7 @@ accountPage({
   syncUnsubscribe: undefined as (() => void) | undefined,
   observed: undefined as ReturnType<typeof miniServices> | undefined,
   data: { ...navigationMetrics(), menuOpen: false, editingProfile: false, logoutOpen: false, cloudError: '', canReconnect: false, needsLogin: true,
-    nicknameInput: '', nicknameValid: true, busy: '', notice: '', error: '',
+    nicknameInput: '', nicknameValid: true, busy: '', notice: '', error: '', nameKeyboardHeight: 0, compactProfile: false,
     account: null as AccountProfile | null, status: 'guest' as AccountStatus, avatarPath: '', syncText: '本机草稿', accountText: '尚未登录',
     exportLabel: '导出本机备份' },
 
@@ -20,10 +20,14 @@ accountPage({
   onShow() { selectTab(this, 2); if (this.data.menuOpen || this.data.editingProfile) setTabBarHidden(this, true); void this.refreshState(); },
   onHide() { setTabBarHidden(this, false); },
   onUnload() { this.accountUnsubscribe?.(); this.syncUnsubscribe?.(); },
+  nameKeyboard(event: WechatMiniprogram.CustomEvent<{ height: number }>) {
+    const height = event.detail.height;
+    this.setData({ nameKeyboardHeight: height, compactProfile: height > 0 && wx.getWindowInfo().windowHeight - height - this.data.navigationHeight < 460 });
+  },
   async refreshState() {
     const services = miniServices();
     if (this.observed !== services) {
-      this.setData({ avatarPath: '', editingProfile: false, nicknameInput: '', error: '', notice: '', menuOpen: false, logoutOpen: false });
+      this.setData({ avatarPath: '', editingProfile: false, nicknameInput: '', nameKeyboardHeight: 0, compactProfile: false, error: '', notice: '', menuOpen: false, logoutOpen: false });
       setTabBarHidden(this, false);
       this.syncUnsubscribe?.();
       this.observed = services;
@@ -86,7 +90,7 @@ accountPage({
     finally { this.setData({ busy: '' }); }
   },
   openProfile() { this.setData({ editingProfile: true, nicknameInput: this.data.account?.nickname ?? '', nicknameValid: true, error: '' }); setTabBarHidden(this, true); },
-  closeProfile() { this.setData({ editingProfile: false }); setTabBarHidden(this, false); },
+  closeProfile() { this.setData({ editingProfile: false, nameKeyboardHeight: 0, compactProfile: false }); setTabBarHidden(this, false); },
   async chooseAvatar(event: WechatMiniprogram.CustomEvent<{ avatarUrl: string }>) {
     if (!event.detail.avatarUrl || this.data.busy) return;
     const services = miniServices();

@@ -8,7 +8,7 @@ accountPage({
   data: { coverHeight: 250, article: null as PublicArticle | null, image: '', loading: false, error: '', date: '', shareReady: false },
   onLoad(options: Record<string, string | undefined>) {
     const parsed = cloudIdSchema.safeParse(options.id); this.id = parsed.success ? parsed.data : '';
-    this.setData({ coverHeight: (wx.getWindowInfo().windowWidth - 48) * 0.8 });
+    this.resizeContent();
     const source = miniServices();
     this.unsubscribe = source.account.subscribe(state => {
       if (source !== miniServices() || !['authenticated', 'offline'].includes(state.status)) {
@@ -19,6 +19,8 @@ accountPage({
   async onShow() { this.active = true; await this.refresh(); },
   onHide() { this.active = false; this.sequence++; this.setData({ article: null, image: '', shareReady: false }); void wx.hideShareMenu(); },
   onUnload() { this.active = false; this.sequence++; this.unsubscribe?.(); },
+  onResize() { this.resizeContent(); },
+  resizeContent() { const width = wx.getWindowInfo().windowWidth; this.setData({ coverHeight: (width - (width <= 370 ? 40 : 48)) * 0.8 }); },
   async refresh(retry = false) {
     this.sharePayload = null;
     const sequence = ++this.sequence, services = miniServices();

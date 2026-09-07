@@ -213,8 +213,9 @@ describe('微信小程序公共工程配置', () => {
     expect(editor).not.toContain('<button class="topic-heading"');
     expect(editorController).toContain('dismissKeyboard()');
     expect(worksController).toContain('await services.writer.flush()');
-    expect(worksStyles).toMatch(/\.create-dock\s*\{[^}]*right:\s*0[^}]*left:\s*0[^}]*box-sizing:\s*border-box[^}]*overflow:\s*hidden/);
-    expect(worksStyles).toMatch(/\.create-button\s*\{[^}]*width:\s*100%[^}]*max-width:\s*100%[^}]*min-width:\s*0/);
+    expect(readText('../miniprogram/pages/works/index.wxml')).toContain('class="page-actions create-dock"');
+    expect(readText('../miniprogram/app.wxss')).toMatch(/\.page-actions\s*\{[^}]*right:\s*0[^}]*left:\s*0/);
+    expect(readText('../miniprogram/app.wxss')).toMatch(/button\.primary-action, button\.secondary-action\s*\{[^}]*width:\s*100%[^}]*max-width:\s*100%[^}]*min-width:\s*0/);
     const allStyles = [readText('../miniprogram/app.wxss'), navigationStyles, brandStyles,
       readText('../miniprogram/pages/home/index.wxss'), worksStyles, profileStyles,
       topicDetailStyles, editorStyles, interviewStyles, readText('../miniprogram/pages/source/index.wxss')].join('\n');

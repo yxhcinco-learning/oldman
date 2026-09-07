@@ -4,13 +4,13 @@
 .articles-heading .refresh-action { display: flex; width: auto; min-width: 80px; max-width: 120px; min-height: 48px; flex: 0 0 auto; margin: 0; padding: 8px 16px; align-items: center; justify-content: center; border-radius: 24px; background: var(--tint); color: var(--forest-soft); font-size: 16px; line-height: 24px; }
 .articles-heading .refresh-pressed { background: #dfe8e1; }
 .articles-heading .refresh-action[disabled] { background: var(--surface); color: var(--muted); }
-.public-card { display: flex; gap: 16px; padding: 20px; margin-bottom: 16px; background: var(--white); border-radius: 16px; box-shadow: 0 6px 20px rgba(21,59,46,.04); }
+.public-card { display: flex; align-items: flex-start; gap: 20px; padding: 24px 0; border-bottom: 1px solid var(--line); }
 .public-card > image, .image-placeholder { width: 96px; height: 96px; flex-shrink: 0; border-radius: 12px; }
 .image-placeholder { background: var(--tint); display: flex; justify-content: center; align-items: center; }
 .image-placeholder image { width: 36px; height: 36px; }
 .card-copy { min-width: 0; flex: 1; }
-.card-title { font-family: "Songti SC",serif; font-size: 20px; line-height: 30px; overflow-wrap: anywhere; }
-.card-author { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 14px; color: var(--muted); }
+.card-title { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; color: var(--forest); font-family: "Songti SC",serif; font-size: 22px; line-height: 32px; overflow-wrap: anywhere; }
+.card-author { display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 16px; line-height: 26px; color: var(--muted); }
 .card-author image { width: 22px; height: 22px; padding: 3px; background: var(--tint); border-radius: 50%; flex-shrink: 0; }
 .card-author text { overflow-wrap: anywhere; }
 .card-date { margin-top: 6px; font-size: 14px; color: var(--muted); }
@@ -19,12 +19,12 @@
 .empty-title { color: var(--forest); font-family: "Songti SC",serif; font-size: 20px; line-height: 32px; }
 .articles-empty text { display: block; margin-top: 8px; color: var(--muted); font-size: 16px; line-height: 26px; }
 .articles-loading { padding: 20px; color: var(--muted); text-align: center; }
-.load-more { display: flex; width: 100%; max-width: 100%; min-width: 0; min-height: 56px; margin: 0; padding: 12px; align-items: center; justify-content: center; color: var(--forest-soft); background: var(--tint); font-size: 16px; border-radius: 28px; }
+button.load-more { display: flex; width: 100%; max-width: 100%; min-width: 0; min-height: 56px; margin: 0; padding: 12px; align-items: center; justify-content: center; color: var(--forest-soft); background: var(--tint); font-size: 16px; border-radius: 28px; }
 .writing-dock { position: fixed; z-index: 10; right: 0; bottom: calc(72px + env(safe-area-inset-bottom)); left: 0; display: flex; min-width: 0; padding: 8px 24px 16px; background: linear-gradient(180deg, rgba(251,249,248,0), #fbf9f8 18%); }
 .writing-dock .writing-action { display: flex; width: 100%; max-width: 100%; min-width: 0; min-height: 56px; flex: 1; margin: 0; padding: 12px 16px; align-items: center; justify-content: center; border-radius: 28px; background: var(--forest); color: var(--white); font-size: 18px; font-weight: 500; line-height: 32px; letter-spacing: .06em; }
 .writing-dock .writing-pressed { background: #2d5244; }
 @media (max-width: 370px) {
-  .public-card { padding: 16px; gap: 12px; }
-  .public-card > image, .image-placeholder { width: 80px; height: 80px; }
+  .public-card { padding: 20px 0; gap: 16px; }
+  .public-card > image, .image-placeholder { width: 88px; height: 88px; }
   .writing-dock { padding-left: 20px; padding-right: 20px; }
 }

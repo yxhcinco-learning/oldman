@@ -55,6 +55,8 @@
 
 设置 `MINI_QA_LIST_ONLY=1` 可只验证文章列表反馈：真实 MiniPublicationClient 连接隔离网络响应，检查成功空列表、未部署接口 404、断网、重试后有文章、按钮边距/触控尺寸和写文章入口。保留 `MINI_QA_EXPECTED_WIDTH` 断言，机型切换后先等实际编译与登录页恢复；不使用模拟系统宽度充当三尺寸证据。
 
+设置 `MINI_QA_JOURNEY=1` 在完整发表回归后追加 `qa-client-journey.mjs`：检查待审重入、作品筛选/管理/回收站、返回路径、裁切按钮、预览效果展开、资料与就地改名抽屉、长标题/长正文、编辑工具栏，以及热门话题到写作入口。逐个验证实际按钮宽高、边界与底栏遮挡，并保存各页截图。键盘高度事件、长内容与话题来自隔离夹具，不计为手机软键盘或真实网络验收；不与 `MINI_QA_LIST_ONLY` 同时使用。
+
 后台发表联调先设 `SUIYUE_PUBLICATION_QA_OUTPUT` 为独立忽略目录，运行 `npx tsx scripts/publication-qa-server.ts`（回环 3812、临时库）。另以 `GATEWAY_PROXY_TARGET=http://127.0.0.1:3812` 运行 `npx vinext dev --port 3811`；设本机 `PLAYWRIGHT_PATH` 后运行 `node scripts/qa-publication-admin.mjs`。测试会审核并下架合成稿，每次重跑先重启夹具生成新临时库，不连接真实账号库。自动化退出后停止本次本地测试进程，截图/数据库保留于忽略目录。详细结果见[发表验收](ARTICLE-PUBLICATION-ACCEPTANCE.md)。
 
 `scripts/dialogue-live-check.ts` 是显式真实模型入口：默认3次问候/素材/整理，`--pending-edit` 最多3次改文/反问/撤回，`--cancel-edit` 为单次撤回定点复验。先估算费用，每次最多30000输入估算tokens/2048输出tokens，失败即停、不自动重试；不纳入 CI。本地费用单价未配置不代表免费。

@@ -1,1 +1,18 @@
-.reader-page { padding:24px 24px calc(32px + env(safe-area-inset-bottom)); }.reading-cover { display:block; width:100%; height:auto; aspect-ratio:5/4; border-radius:16px; }.reading-title { font-family:"Songti SC",serif; font-size:28px; line-height:40px; margin:24px 0 16px; overflow-wrap:anywhere; }.reading-author { display:flex; align-items:center; gap:8px; flex-wrap:wrap; color:#717974; font-size:16px; }.reading-author image { width:32px; height:32px; padding:6px; border-radius:50%; background:#e8eee9; }.reading-author text { overflow-wrap:anywhere; }.reading-date { font-size:14px; }.ai-label { margin-top:14px; font-size:14px; color:#717974; }.reading-body { display:block; white-space:pre-wrap; overflow-wrap:anywhere; font-size:18px; line-height:32px; margin-top:28px; }.share-button { margin-top:40px; min-height:56px; }.reader-status { padding:48px 0; color:#717974; text-align:center; }.reader-error { padding:48px 0; font-size:18px; line-height:30px; text-align:center; }.reader-error button { margin-top:24px; min-height:56px; }
+.reader-page { padding: 20px var(--page-gutter) calc(32px + env(safe-area-inset-bottom)); }
+.reading-cover { display: block; width: 100%; border-radius: 16px; background: var(--surface); }
+.reading-title { margin: 24px 0 20px; color: var(--forest); font: 600 28px/40px "Songti SC", serif; overflow-wrap: anywhere; }
+.reading-author { display: flex; align-items: center; gap: 12px; min-width: 0; color: var(--muted); }
+.reading-author > image { width: 40px; height: 40px; flex: 0 0 40px; padding: 8px; border-radius: 50%; background: var(--tint); }
+.reading-author > view { min-width: 0; }
+.reading-name { display: block; font-size: 16px; line-height: 26px; overflow-wrap: anywhere; }
+.reading-date { display: block; font-size: 14px; line-height: 22px; }
+.ai-label { margin-top: 16px; font-size: 14px; line-height: 22px; color: var(--muted); }
+.reading-body { display: block; margin-top: 32px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 18px; line-height: 32px; }
+.reading-end { display: flex; align-items: center; justify-content: center; gap: 16px; margin: 40px 0 28px; }
+.reading-end > view { width: 40px; height: 1px; background: var(--line); }
+.reading-end image { width: 20px; height: 20px; opacity: .55; }
+.reader-status { padding: 48px 0; color: var(--muted); font-size: 16px; line-height: 26px; text-align: center; }
+.reader-error { padding: 56px 0; color: var(--forest); font-size: 18px; line-height: 30px; text-align: center; }
+.reader-error > image { width: 48px; height: 48px; opacity: .6; margin-bottom: 24px; }
+.reader-error-actions { margin-top: 32px; }
+.reader-error-actions > .text-action { margin-top: 8px; }

@@ -5,6 +5,8 @@ Component({
   data: { input: '', busy: false, valid: true, error: '' },
   lifetimes: { attached() { this.setData({ input: this.properties.value }); } },
   methods: {
+    keyboard(event: WechatMiniprogram.CustomEvent<{ height: number }>) { this.triggerEvent('keyboard', { height: Math.max(0, event.detail.height || 0) }); },
+    blur() { this.triggerEvent('keyboard', { height: 0 }); },
     inputName(event: WechatMiniprogram.Input) { this.setData({ input: event.detail.value, valid: true, error: '' }); },
     reviewName(event: WechatMiniprogram.CustomEvent<{ pass: boolean }>) { this.setData({ valid: event.detail.pass, error: event.detail.pass ? '' : '请换一个用户名。' }); },
     async save() {

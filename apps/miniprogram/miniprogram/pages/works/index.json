@@ -1,6 +1,6 @@
 {
   "navigationStyle": "custom",
   "usingComponents": {
-    "app-brand": "/components/app-brand/index"
+    "page-header": "/components/page-header/index"
   }
 }

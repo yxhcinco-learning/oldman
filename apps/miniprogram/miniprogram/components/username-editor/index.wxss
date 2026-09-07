@@ -1,4 +1,6 @@
 .username-label { color:#153b2e; font-size:16px; line-height:26px; margin:16px 0 8px; }
 .username-input { min-height:52px; padding:4px 14px; background:#f5f3f3; border:1px solid #e4e6e1; border-radius:12px; font-size:18px; color:#1b1c1c; }
-.username-save { margin-top:16px; min-height:56px; line-height:28px; padding:14px 20px; border-radius:30px; background:#153b2e; color:#fff; font-size:18px; }
-.username-save.disabled { background:#e8eee9; color:#416657; }.username-error { font-size:16px; line-height:26px; color:#944924; padding-top:12px; }
+.username-editor .username-save { box-sizing:border-box; display:flex; width:100%; max-width:100%; min-width:0; margin:20px 0 0; min-height:56px; align-items:center; justify-content:center; line-height:28px; padding:14px 20px; border:0; border-radius:30px; background:#153b2e; color:#fff; font-size:18px; }
+.username-editor .username-save::after { border:0; }
+.username-input { box-sizing:border-box; width:100%; }
+.username-editor .username-save.disabled { background:#e8eee9; color:#416657; }.username-error { font-size:16px; line-height:26px; color:#944924; padding-top:12px; }

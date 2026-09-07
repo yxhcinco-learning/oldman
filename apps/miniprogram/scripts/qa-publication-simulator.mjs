@@ -103,6 +103,11 @@ try {
   const id = await mini.evaluate(() => getApp().__publicationQa.draft.id);
   let current = await mini.reLaunch('/pages/publish/index?id=' + id);
   await waitFor(async () => !!await current.data('title'));
+  const chooseWidth = (await (await current.$('.choose-empty')).size()).width;
+  check('选择封面入口铺满内容区', Math.abs(chooseWidth - info.windowWidth + (info.windowWidth <= 370 ? 40 : 48)) < 1);
+  const headerBack = await (await current.$('.journey-header')).$('.header-back');
+  check('子页返回按钮贴近左侧且有 48px 触控区', (await headerBack.offset()).left <= 12 && (await headerBack.size()).width === 48);
+  await mini.screenshot({ path: resolve(output, 'cover-empty.png') });
   await mini.evaluate(async () => { const qa = getApp().__publicationQa, page = getCurrentPages().at(-1); await page.controller.choose(qa.root + '/cover.jpg', 1000, 800); await page.local(); });
   await waitFor(async () => !!await current.$('.publication-cropper'));
   let cropper = await current.$('.publication-cropper');
@@ -152,6 +157,7 @@ try {
   await current.callMethod('refresh');
   check('下架后统一不可用，清空正文与分享入口', !await current.data('article') && !await current.data('shareReady') && !!await current.data('error'));
   await mini.screenshot({ path: resolve(output, 'unavailable.png') });
+  if (process.env.MINI_QA_JOURNEY === '1') await (await import('./qa-client-journey.mjs')).checkClientJourney({ mini, info, output, check });
   }
   check('页面无运行时异常', exceptions.length === 0);
   console.info(JSON.stringify({ width: info.windowWidth, height: info.screenHeight, passed }));
@@ -167,6 +173,7 @@ try {
       s.repository = o.repository; s.writer = o.writer; s.publicationStorage = o.publicationStorage; s.publications = o.publications;
       s.account.snapshot = o.snapshot; s.account.updateNickname = o.updateNickname; s.account.restore = o.restore;
       s.account.platform.request = o.platformRequest; s.account.platform.login = o.platformLogin; s.sync.sync = o.sync;
+      if (qa.topicOriginals) Object.assign(require('network/topics.js').miniTopics, qa.topicOriginals);
       delete getApp().__publicationQa; require('auth/navigation.js').clearLoginReturn();
     });
     await mini.reLaunch('/pages/login/index');

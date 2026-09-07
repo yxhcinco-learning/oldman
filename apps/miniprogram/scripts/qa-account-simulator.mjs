@@ -100,11 +100,11 @@ try {
     await mini.screenshot({ path: resolve(output, 'backup.png') });
     await page.callMethod('closeMenu');
     await page.callMethod('openProfile');
-    check('资料抽屉提供原生头像与昵称输入', !!await page.$('.avatar-choose') && !!await page.$('.nickname-input'));
+    check('资料抽屉提供原生头像与用户名组件', !!await page.$('.avatar-choose') && !!await (await page.$('.publication-username')).$('.username-input'));
     const avatarSize = await (await page.$('.avatar-choose')).size();
     check('头像选择按钮铺满抽屉可用宽度：' + avatarSize.width + 'px', avatarSize.width >= info.windowWidth - 52);
-    await (await page.$('username-editor')).callMethod('reviewName', { detail: { pass: false } });
-    check('昵称未通过保留抽屉并禁止保存', !await (await page.$('username-editor')).data('valid') && await page.data('editingProfile'));
+    await (await page.$('.publication-username')).callMethod('reviewName', { detail: { pass: false } });
+    check('昵称未通过保留抽屉并禁止保存', !await (await page.$('.publication-username')).data('valid') && await page.data('editingProfile'));
     await mini.screenshot({ path: resolve(output, 'profile-edit.png') });
     await page.callMethod('closeProfile');
     await page.setData({ status: 'replaced', needsLogin: true, accountText: '已在其他设备登录', error: '已在其他设备登录，请主动微信登录。' });

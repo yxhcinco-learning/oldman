@@ -1,6 +1,5 @@
 import { errorMessage } from '../../ui/error-message';
 import { accountPage } from '../../auth/page';
-import { writingAccess } from '../../sync/writing-access';
 import { countWords, formatTime, publicationLabel, type Work } from '../../domain/core';
 import { miniServices } from '../../services';
 
@@ -10,18 +9,15 @@ interface WorkCard {
   meta: string;
   revision: number;
   deleted: boolean;
-  initial: string;
-  cover: string;
   recovery: boolean;
-  saveLabel: string;
   publication: string;
+  category: 'draft' | 'pending' | 'published' | 'unknown';
+  published: boolean;
 }
 
 function card(work: Work): WorkCard {
-  const cover = ['bike', 'home', 'train'][[...work.id].reduce((sum, char) => sum + (char.codePointAt(0) || 0), 0) % 3];
-  return { id: work.id, title: work.title, initial: [...work.title][0] ?? '文', revision: work.revision, deleted: Boolean(work.deletedAt),
-    recovery: false, publication: '草稿', saveLabel: '本机已保存',
-    cover: `/assets/story-${cover}.svg`, meta: `${formatTime(work.updatedAt)} · ${countWords(work.segments)} 字` };
+  return { id: work.id, title: work.title, revision: work.revision, deleted: Boolean(work.deletedAt),
+    recovery: false, publication: '草稿', category: 'draft', published: false, meta: `${formatTime(work.updatedAt)} · ${countWords(work.segments)} 字` };
 }
 
 accountPage({
@@ -32,13 +28,17 @@ accountPage({
     loading: true,
     recycle: false,
     manage: false,
+    filter: 'all',
+    empty: false,
+    total: 0,
+    statusUnavailable: false,
     cards: [] as WorkCard[],
     visible: [] as WorkCard[],
     issue: '',
   },
 
   onLoad(options: Record<string, string | undefined>) {
-    this.accountUnsubscribe = miniServices().account.subscribe(() => { if (this.observed !== miniServices()) this.setData({ cards: [], visible: [] }); void this.refresh(false); });
+    this.accountUnsubscribe = miniServices().account.subscribe(() => { if (this.observed !== miniServices()) this.setData({ cards: [], visible: [], total: 0, empty: false, loading: true, statusUnavailable: false }); void this.refresh(false); });
     this.setData({ recycle: options.recycle === '1', manage: options.manage === '1' });
   },
 
@@ -58,12 +58,16 @@ accountPage({
       const snapshot = await services.repository.load();
       if (services !== miniServices()) return;
       let statuses: Awaited<ReturnType<typeof services.publications.statuses>> = { publications: [] };
-      try { statuses = await services.publications.statuses(); } catch { /* Private writing remains available when public status is offline. */ }
+      let statusKnown = true;
+      try { statuses = await services.publications.statuses(); } catch { statusKnown = false; }
       if (services !== miniServices()) return;
       const cards = snapshot.works.map(work => { const aggregate = snapshot.aggregates?.find(item => item.work.id === work.id) ?? null;
-        return { ...card(work), publication: publicationLabel(statuses.publications.find(item => item.workId === work.id)), recovery: Boolean(aggregate?.cloud?.recoveryOf), saveLabel: writingAccess(aggregate, services.account.snapshot(), services.sync).syncLabel }; });
-      this.setData({ loading: false, cards, visible: cards.filter(item => item.deleted === this.data.recycle),
+        const status = statuses.publications.find(item => item.workId === work.id);
+        const category: WorkCard['category'] = !statusKnown ? 'unknown' : status?.pending ? 'pending' : status?.published ? 'published' : 'draft';
+        return { ...card(work), category, published: Boolean(status?.published), publication: statusKnown ? publicationLabel(status) : '发表状态暂未更新', recovery: Boolean(aggregate?.cloud?.recoveryOf) }; });
+      this.setData({ loading: false, cards, statusUnavailable: !statusKnown,
         issue: cloudIssue || services.sync.snapshot().error || snapshot.issues.map(item => item.message).join(' ') });
+      this.filterCards();
     } catch (error) {
       this.setData({ loading: false, issue: errorMessage(error, '本机作品暂时无法读取。') });
     }
@@ -71,14 +75,26 @@ accountPage({
 
   toggleRecycle() {
     const recycle = !this.data.recycle;
-    this.setData({ recycle, visible: this.data.cards.filter(item => item.deleted === recycle) });
+    this.setData({ recycle, filter: 'all' }); this.filterCards();
   },
 
   finishManage() {
-    this.setData({ manage: false, recycle: false, visible: this.data.cards.filter(item => !item.deleted) });
+    this.setData({ manage: false }); this.filterCards();
+  },
+
+  filterCards() {
+    const works = this.data.cards.filter(item => item.deleted === this.data.recycle);
+    const visible = works.filter(item => this.data.recycle || this.data.filter === 'all' || (this.data.filter === 'published' ? item.published : item.category === this.data.filter));
+    this.setData({ visible, total: works.length, empty: visible.length === 0 });
+  },
+  selectFilter(event: WechatMiniprogram.TouchEvent) {
+    const filter = String(event.currentTarget.dataset.filter);
+    if (!['all', 'draft', 'pending', 'published'].includes(filter)) return;
+    this.setData({ filter }); this.filterCards();
   },
 
   manageArticles() { this.setData({ manage: true }); },
+  toggleManage() { this.setData({ manage: !this.data.manage }); },
   publishArticle(event: WechatMiniprogram.TouchEvent) {
     void wx.navigateTo({ url: '/pages/publish/index?id=' + encodeURIComponent(String(event.currentTarget.dataset.id)) });
   },

@@ -4,7 +4,7 @@
 
 | 记录 | 用途 |
 | --- | --- |
-| [文章发表与审核](ARTICLE-PUBLICATION-ACCEPTANCE.md) | 活跃发表变更的阶段验证、真实本地 HTTP、模拟器及真机证据 |
+| [文章发表与审核](ARTICLE-PUBLICATION-ACCEPTANCE.md) | 活跃发表变更、客户端完整流程重排、真实本地 HTTP、模拟器及真机证据 |
 | [第二阶段账号与私有云](PHASE-TWO-ACCEPTANCE.md) | 实现与修复、本地双客户端与模拟器证据、测试网关部署、用户手动真机验收确认及归档 |
 | [测试网关与体验环境部署](DEPLOYMENT.md) | 文章服务 schema 3 迁移与公网验证；a713cff 体验版/网页历史、分服务版本与回滚边界 |
 | [文档结构精简](../openspec/changes/archive/2026-09-06-streamline-project-documents/tasks.md) | 入口归并、历史引用与规格去重；不改变产品行为 |

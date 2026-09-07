@@ -41,6 +41,12 @@
 .sheet-heading { display: flex; margin-bottom: 28px; align-items: center; justify-content: space-between; gap: 12px; }
 .sheet-heading view { min-width: 0; color: #153b2e; font-family: "Songti SC", serif; font-size: 22px; font-weight: 600; line-height: 32px; }
 .sheet-heading button { display: grid; width: 48px; min-width: 48px; height: 48px; margin: 0; padding: 0; place-items: center; border: 0; border-radius: 50%; background: #efeee9; color: #416657; font-size: 28px; font-weight: 300; line-height: 1; }
+.sheet-heading button image { width: 20px; height: 20px; }
+.sheet-mask { max-height: 100vh; }
+.backup-sheet { max-height: 100%; }
+.compact-profile .sheet-handle { display: none; }
+.compact-profile .sheet-heading { margin-bottom: 8px; }
+.compact-profile .backup-sheet { padding-top: 12px; padding-bottom: 16px; }
 .sheet-tools { display: grid; gap: 12px; }
 .sheet-tools > button { display: grid; width: 100%; max-width: none; min-width: 0; min-height: 84px; margin: 0; grid-template-columns: 24px minmax(0, 1fr) 18px; align-items: center; gap: 10px; padding: 14px 16px; border-radius: 16px; background: #fff; color: #153b2e; text-align: left; }
 .sheet-icon { display: grid; width: 24px; height: 24px; place-items: center; color: #416657; font-size: 19px; line-height: 24px; }

@@ -17,6 +17,7 @@ await mkdir(output, { recursive: true });
 const passed = [];
 let page;
 let installed = false;
+let modalMocked = false;
 const check = (name, value) => { assert.ok(value, name); passed.push(name); console.info(`PASS ${name}`); };
 const result = (intent, answer, extra = {}) => ({ answer, dialogue: { intent }, citedVersionIds: [], ...extra });
 const enqueue = item => mini.evaluate(value => getApp().__dialogueQa.queue.push(value), item);
@@ -227,7 +228,7 @@ try {
   check('展示失败保留已加载作品和正文', await mini.evaluate(async () => {
     const p = getCurrentPages().at(-1); const previous = p.syncXiaoWen; const id = p.data.draft.id;
     p.syncXiaoWen = () => { throw new Error('模拟共享函数异常'); };
-    try { await p.open(id); return p.data.draft.id === id && p.data.body === '用户后来修改的正文。' && p.data.error === '模拟共享函数异常'; }
+    try { await p.open(id); return p.data.draft.id === id && p.data.body === '用户后来修改的正文。' && p.data.loadError === '模拟共享函数异常' && p.data.readOnly && !p.data.error; }
     finally { p.syncXiaoWen = previous; }
   }));
   await page.callMethod('open', id, true);
@@ -280,11 +281,13 @@ try {
   check('修改记录可查看具体版本，底部恢复可达', await page.data('xiaowenView') === 'version' && await page.data('versionBody') === version.body && !!await page.$('.candidate-actions .candidate-apply'));
   await mini.screenshot({ path: resolve(output, 'history-version.png') });
   await mini.mockWxMethod('showModal', { confirm: false, cancel: true });
+  modalMocked = true;
   await page.callMethod('restoreVersion');
   check('取消恢复保留当前文章', await page.data('body') === '用户后来修改的正文。');
   await mini.mockWxMethod('showModal', { confirm: true, cancel: false });
   await page.callMethod('restoreVersion');
   await mini.restoreWxMethod('showModal');
+  modalMocked = false;
   check('确认恢复保留旧版本并写回所选文章', await page.data('body') === version.body && (await page.data('session.versions')).at(-1).source === 'restore');
   await page.callMethod('backToConversation');
   const beforeRescue = await requestCount();
@@ -358,7 +361,7 @@ try {
   console.info(JSON.stringify({ passed: passed.length, modelCalls: 0, screenshots: output }));
 } finally {
   if (installed) {
-    await mini.restoreWxMethod('showModal');
+    if (modalMocked) await mini.restoreWxMethod('showModal');
     await mini.reLaunch('/pages/login/index');
     await mini.evaluate(async () => {
       const q = getApp().__dialogueQa;

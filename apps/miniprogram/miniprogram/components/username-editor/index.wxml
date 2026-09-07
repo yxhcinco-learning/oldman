@@ -1,2 +1,4 @@
-<view class="username-label">用户名</view><input class="username-input" type="nickname" value="{{input}}" maxlength="32" placeholder="输入您的用户名" bindinput="inputName" bindnicknamereview="reviewName" disabled="{{busy}}" />
+<view class="username-editor">
+<view class="username-label">用户名</view><input class="username-input" type="nickname" value="{{input}}" maxlength="32" placeholder="输入您的用户名" bindinput="inputName" bindnicknamereview="reviewName" bindkeyboardheightchange="keyboard" bindblur="blur" adjust-position="{{false}}" disabled="{{busy}}" />
 <view wx:if="{{error}}" class="username-error" role="alert">{{error}}</view><button class="username-save {{busy || !valid ? 'disabled' : ''}}" bindtap="save" disabled="{{busy || !valid}}">{{busy ? '正在保存…' : '保存用户名'}}</button>
+</view>

@@ -1,0 +1,6 @@
+<view class="page-header" style="height: {{navigationHeight}}px">
+  <view class="header-row" style="top: {{navigationRowTop}}px; padding-right: {{menuReserve}}px">
+    <button class="header-back" bindtap="back" aria-label="返回"><view class="back-chevron" /></button>
+    <view class="header-title">{{title}}</view>
+  </view>
+</view>
