@@ -63,11 +63,27 @@
 
 #### Scenario: Find the applicable source of truth
 - **WHEN** 开始处理一个请求
-- **THEN** 按范围查阅产品状态、OpenSpec 行为、设计或架构及开发说明；遇到冲突先澄清，AGENTS 不复制历史称谓、机器路径和 AI 模拟实现细节
+- **THEN** 按范围查阅产品状态、OpenSpec 行为、设计或架构及开发说明；先按指令优先级和本次明确授权处理差异，只有无法据此消解且会影响结果的冲突才澄清；AGENTS 不复制历史称谓、机器路径和 AI 模拟实现细节
 
 #### Scenario: Work within an approved scope
 - **WHEN** 在已确认范围内进行普通实现或内部类型调整
 - **THEN** 无需重复请求确认；问答和审查默认只读，超出范围或涉及破坏兼容性、数据丢失风险及未授权外部操作时先说明并确认
+
+#### Scenario: Carry implementation authorization through planning
+- **WHEN** 用户明确要求直接完成修改且范围可确定，实施前需要补齐 OpenSpec
+- **THEN** 先记录变更再持续完成实施、相应验证和本次引入问题的修复；技能不得因进入提案流程而丢弃已有实施授权，仅提案或讨论请求仍不授权产品实现
+
+#### Scenario: Handle a recoverable failure or a mid-task message
+- **WHEN** 发生范围内可修复错误，或用户补充要求、询问进度
+- **THEN** 修复错误或吸收补充后继续原目标；只有明确取消、暂停或实际阻塞才停止受影响工作，缺失权限或外部证据不伪造
+
+#### Scenario: Explain a necessary approval
+- **WHEN** 某项尚未授权操作触及实际权限边界
+- **THEN** 完成不依赖该授权的准备，并说明待批准的具体操作与影响；若停止源于持久指令，指出文件和具体条款，不把建议解释为额外审批
+
+#### Scenario: Read only relevant context and delegate independent work
+- **WHEN** 处理局部文档修改或可并行的独立任务
+- **THEN** 仅加载与结果有关的规范和技能资料；有实际收益时按明确文件范围委派独立工作，由主代理整合验收，不因技能关键词扩展任务
 
 ### Requirement: Proportionate verification
 工程 SHALL 根据改动影响选择验证，保留代码阶段交付和 CI 的完整回归，记录未验证项，不以模拟结果替代真实联调或设备验收。
@@ -79,6 +95,10 @@
 #### Scenario: Code or runtime changes
 - **WHEN** 修改代码、运行链路、依赖或界面
 - **THEN** 代码运行 check，运行或打包相关变更加 build，界面增加浏览器回归；代码阶段交付和 CI 执行完整 check 与 build
+
+#### Scenario: Stop verification after the required evidence passes
+- **WHEN** 本次改动要求的检查已通过且没有新修改、失败或未解决疑点
+- **THEN** 进入交付及相应提交，不扩大或重复检查；新增回归针对实际失败或行为边界，不为纯措辞调整编写映射实现的测试，代码阶段和 CI 的完整门禁仍保留
 
 ### Requirement: Consistent product naming
 项目文件 SHALL 统一使用“岁月有声”“正式版”或“当前工程”，不再用历史原型的版本代称区分活动项目；现行规范、归档文件名和测试描述保持一致。
