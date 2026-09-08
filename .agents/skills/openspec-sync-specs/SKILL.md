@@ -3,8 +3,8 @@ name: openspec-sync-specs
 description: Sync delta specs from a change to main specs. Use when the user wants to update main specs with changes from a delta spec, without archiving the change.
 allowed-tools: Bash(openspec:*)
 license: MIT
-compatibility: Requires openspec CLI.
 metadata:
+  compatibility: Requires the project-local openspec CLI.
   author: openspec
   version: "1.0"
   generatedBy: "1.12.0"
@@ -26,12 +26,12 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
-   - Auto-select if only one active change exists
+   - Select the only active change only when it matches the requested work; do not redirect an unrelated task to it
    - If ambiguous, run `openspec list --json` to get available changes and ask the user to select one
 
    When prompting, show changes that have delta specs (under `specs/` directory).
 
-   Always announce: "Using change: <name>" and how to override (e.g., `$openspec-sync-specs (Codex) or /openspec-sync-specs (other agents) <other>`).
+   Briefly identify the selected change once.
 
 2. **Resolve change context**
 
@@ -252,7 +252,7 @@ Main specs are now updated. The change remains active - archive when implementat
 - Read both delta and main specs before making changes
 - Preserve existing content not mentioned in delta
 - Never copy a delta file into a main spec as-is - merge its content so the main spec keeps the Main Spec Format Reference structure, with no delta operation headers
-- If something is unclear, ask for clarification
+- Resolve routine merge details from the delta and main spec; ask only when a semantic conflict cannot be resolved within the accepted scope
 - Show what you're changing as you go
 - The operation should be idempotent - running twice should give same result
 - Use only `artifactPaths.specs.existingOutputPaths`; never infer delta specs from unrelated artifacts

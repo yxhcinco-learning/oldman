@@ -2,11 +2,13 @@
 
 ## 开工顺序
 
-先读 AGENTS.md、[当前状态](STATUS.md)、[产品边界](PRODUCT.md)和本次 OpenSpec。小程序是唯一用户端；网页目录只服务运营后台。历史 H5 资料在[归档](archive/h5/README.md)，不可作为新需求、依赖或验收门槛。
+先检查 Git 状态并遵循 AGENTS.md；接手产品实施时读[当前状态](STATUS.md)，涉及产品范围时读[产品边界](PRODUCT.md)，实施变更时读对应 OpenSpec。局部文档或指令维护按需读取，不要求每次加载全部入口。小程序是唯一用户端；网页目录只服务运营后台。历史 H5 资料在[归档](archive/h5/README.md)，不可作为新需求、依赖或验收门槛。
 
 日常在当前仓库 main 工作，不另建副本或擅自操作分支。每个通过检查的小阶段仅提交本任务文件，不自动推送、部署或上传。OpenSpec CLI 使用锁定版本：npx openspec list，按实际变更 ID 读取 proposal/specs/design/tasks，完成且证据齐全后 npx openspec archive <change-id> --yes，同步后再次验证。
 
 项目 OpenSpec CLI 固定为 1.12.0，使用 `npx openspec` 或 npm 脚本调用本地依赖；全局安装独立更新，不决定项目版本。升级时执行 `npm install --save-dev --save-exact @fission-ai/openspec@<目标版本>`，再执行 `npx openspec update` 刷新项目技能。新版技能位于 `.agents/skills/`，包含归档所需的规格同步技能；保留现有工作流选择。核对生成文件差异、通过完整检查与构建后，一起提交依赖声明、锁文件和项目技能。
+
+项目技能含本地协作调整；刷新后核对已有授权是否沿用、错误是否可在范围内修复、资料是否按需读取，以及验收完成是否自动同步归档，避免重新引入强制停等。用户 prompts 中的旧 opsx 入口只路由到当前技能，不维护第二套流程。调整依据与本机备份见[指令审计](ASTRA-INSTRUCTION-AUDIT.md)。
 
 ## 命令与端口
 
@@ -28,6 +30,8 @@
 ## 验证分级
 
 纯文档：差异、链接、内容及相关 OpenSpec。代码：npm run check；运行、打包或阶段交付再执行 npm run build。小程序 UI 补开发者工具和对应真机，运营 UI 补浏览器回归；不再要求 H5 四尺寸或双端功能对齐。归档 H5 测试不计当前通过数量，核心/网关测试不能随 H5 一起丢弃。
+
+指令或技能文档调整补结构、引用和实际决策场景审查，不因此运行应用全套测试。相关检查通过后进入交付；重复或扩大验证需要新改动、失败或未解决疑点，不能以未运行的实测填补证据。
 
 新架构必须通过退役依赖边界：活跃源码不能引用 archive/h5、旧 lib、H5 features 或预览。归档与 `.tmp`、`outputs`、`work`、`test-results` 等临时输出不参与 TypeScript、Lint 或测试发现；正式验收脚本保留检查，归档不参与发布输入；现有 CI 仍执行完整 check/build 与依赖审计。
 

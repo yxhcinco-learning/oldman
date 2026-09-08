@@ -1,10 +1,10 @@
 ---
 name: openspec-apply-change
-description: Implement tasks from an OpenSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks.
+description: Implement or continue an existing OpenSpec change when implementation is requested.
 allowed-tools: Bash(openspec:*)
 license: MIT
-compatibility: Requires openspec CLI.
 metadata:
+  compatibility: Requires the project-local openspec CLI.
   author: openspec
   version: "1.0"
   generatedBy: "1.12.0"
@@ -22,10 +22,10 @@ Implement tasks from an OpenSpec change.
 
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
-   - Auto-select if only one active change exists
+   - Select the only active change only when it matches the requested work; do not redirect an unrelated task to it
    - If ambiguous, run `openspec list --json` to get available changes and ask the user to select one
 
-   Always announce: "Using change: <name>" and how to override (e.g., `$openspec-apply-change (Codex) or /openspec-apply-change (other agents) <other>`).
+   Briefly identify the selected change once; avoid repeating workflow banners.
 
 2. **Check status to understand the schema**
    ```bash
@@ -51,8 +51,8 @@ Implement tasks from an OpenSpec change.
    - Optional `operationGuidance`: current advisory guidance for apply
 
    **Handle states:**
-   - If `state: "blocked"` (missing artifacts): show message, suggest using `$openspec-continue-change (Codex) or /openspec-continue-change (other agents)` (if it is not installed, run `openspec status --change "<name>" --json` to see the next artifact and `openspec instructions <artifact-id> --change "<name>" --json` for how to create it)
-   - If `state: "all_done"`: congratulate, suggest archive
+   - If `state: "blocked"` (missing artifacts): use status and artifact instructions to create missing planning within the authorized scope, then recheck readiness; ask only if a material decision or permission is missing. Never bypass the blocked state
+   - If `state: "all_done"`: verify acceptance evidence and follow the repository completion policy; archive when already authorized and ready
    - Otherwise: proceed to implementation
 
    Treat `context` as a required prompt-level input. Read and consider it, and
@@ -66,8 +66,7 @@ Implement tasks from an OpenSpec change.
    evidence of task completion, do not replace the built-in instruction, and do
    not permit bypassing a blocked state. If context conflicts with the built-in
    instruction, an explicit user choice, or a CLI-controlled value, report the
-   conflict and preserve the controlling value. If guidance is inapplicable or
-   conflicts with those controlling inputs, do not follow it and explain why.
+   conflict and preserve the controlling value. If guidance is inapplicable, omit it; if a conflict affects the result, explain it and preserve the controlling input.
    These are prompt-level behavior contracts, not enforceable checks.
 
 4. **Read context files**
@@ -80,103 +79,47 @@ Implement tasks from an OpenSpec change.
    Do not copy `context` or `operationGuidance` verbatim into implementation
    files or planning artifacts unless the user separately asks for that content.
 
-5. **Show current progress**
+5. **Report useful progress**
 
-   Display:
-   - Schema being used
-   - Progress: "N/M tasks complete"
-   - Remaining tasks overview
-   - Dynamic instruction from CLI
+   Briefly summarize what is complete, what remains and any decision that affects implementation. Avoid repeating CLI fields or unchanged task counts.
 
 6. **Implement tasks (loop until done or blocked)**
 
    For each pending task:
-   - Show which task is being worked on
+   - Identify the work when that adds useful context
    - Make the code changes required
    - Keep changes minimal and focused
-   - Mark task complete in the tasks file: `- [ ]` → `- [x]`
+   - Mark a task `- [x]` only after its specified behavior and required verification have evidence
    - Continue to next task
 
-   **Pause if:**
-   - Task is unclear → ask for clarification
-   - Implementation reveals a design issue → suggest updating artifacts
-   - A task needs work beyond what the spec and tasks describe, or you are tempted to drop, narrow, defer, or accept exceptions to specified behavior to make it fit → surface the added scope and ask; do not absorb it silently
-   - Error or blocker encountered → report and wait for guidance
-   - User interrupts
+   **Continue or pause according to the actual decision:**
+   - Resolve routine implementation details and repair errors within scope; update affected artifacts when the accepted behavior is unchanged.
+   - Ask before materially expanding or departing from the accepted request/spec in scope, observable behavior, compatibility or acceptance criteria, or performing an unauthorized external action. Routine internal implementation choices remain within scope. Do not silently drop, defer or narrow a requirement to make implementation fit.
+   - Continue independent work while a required answer or external result is pending. Explain the concrete blocker and the instruction behind a necessary stop.
+   - Incorporate user corrections and answer status questions, then continue the goal. Stop when the user explicitly pauses, cancels or replaces it.
 
-7. **On completion or pause, show status**
+7. **Complete or report the actual blocker**
 
-   Display:
-   - Tasks completed this session
-   - Overall progress: "N/M tasks complete"
-   - If all done: suggest archive
-   - If paused: explain why and wait for guidance
+   Verify acceptance and finish already-authorized sync/archive. If evidence or a necessary decision is missing, state the concrete gap and continue any independent work.
 
-**Output During Implementation**
+**Communication**
 
-```
-## Implementing: <change-name> (schema: <schema-name>)
-
-Working on task 3/7: <task description>
-[...implementation happening...]
-✓ Task complete
-
-Working on task 4/7: <task description>
-[...implementation happening...]
-✓ Task complete
-```
-
-**Output On Completion**
-
-```
-## Implementation Complete
-
-**Change:** <change-name>
-**Schema:** <schema-name>
-**Progress:** 7/7 tasks complete ✓
-
-### Completed This Session
-- [x] Task 1
-- [x] Task 2
-...
-
-All tasks complete! You can archive this change with `$openspec-archive-change (Codex) or /openspec-archive-change (other agents)`.
-```
-
-**Output On Pause (Issue Encountered)**
-
-```
-## Implementation Paused
-
-**Change:** <change-name>
-**Schema:** <schema-name>
-**Progress:** 4/7 tasks complete
-
-### Issue Encountered
-<description of the issue>
-
-**Options:**
-1. <option 1>
-2. <option 2>
-3. Other approach
-
-What would you like to do?
-```
+Report meaningful progress and decisions concisely. At delivery, state what changed, actual checks, remaining evidence gaps, and sync/archive status. Use task counts only when helpful; the output does not require a fixed banner or per-task transcript.
 
 **Guardrails**
 - Keep going through tasks until done or blocked
 - Always read context files before starting (from the apply instructions output)
-- If task is ambiguous, pause and ask before implementing
-- If implementation reveals issues, pause and suggest artifact updates
+- Infer routine details; ask about unresolved ambiguity only when it materially affects the result
+- Repair issues within scope and update affected artifacts; surface a change of behavior or scope before proceeding with it
 - Keep code changes minimal and scoped to each task
 - Update task checkbox immediately after completing each task
-- Pause on errors, blockers, or unclear requirements - don't guess
-- When a task needs work beyond what the spec describes, surface the added scope and pause - never silently narrow, defer, or simplify away specified behavior
+- Diagnose recoverable failures; stop dependent work only for a real missing decision, permission, or external prerequisite
+- When work materially expands or changes the accepted behavior or scope, surface it and pause dependent work; routine internal implementation details do not require confirmation. Never silently narrow, defer, or simplify away specified behavior
 - Only mark a task `- [x]` when its specified behavior is fully implemented, not when it is partially done or deferred
 - Use contextFiles from CLI output, don't assume specific file names
 - Do not use context or operation guidance as proof that a task is complete
 - Apply relevant project context; report conflicts with controlling workflow inputs
-- Consider every guidance entry; explain any inapplicable or conflicting advice
+- Apply relevant advisory guidance; explain only conflicts that affect the task
 - Do not copy runtime context or operation guidance into implementation files or planning artifacts
 - Preserve CLI-controlled blocked/ready/all-done behavior and completion criteria
 
@@ -185,4 +128,4 @@ What would you like to do?
 This skill supports the "actions on a change" model:
 
 - **Can be invoked anytime**: Before all artifacts are done (if tasks exist), after partial implementation, interleaved with other actions
-- **Allows artifact updates**: If implementation reveals design issues, suggest updating artifacts - not phase-locked, work fluidly
+- **Allows artifact updates**: Keep artifacts current within accepted behavior; clarify material scope changes

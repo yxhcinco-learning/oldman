@@ -63,6 +63,6 @@
 
 ## 新会话开工
 
-1. 检查 Git 分支和状态，读取 [AGENTS](../AGENTS.md)、本页、[产品](PRODUCT.md)、[架构](ARCHITECTURE.md)及[开发说明](DEVELOPMENT.md)。
-2. 用 `npx openspec list` 查询实际活跃变更；优先补本次发表 change 的真机验收；先查任务及[发表验收](ARTICLE-PUBLICATION-ACCEPTANCE.md)，不重新实施已完成代码。第二阶段已归档，不从历史待验文字重建任务，历史依据见[第二阶段证据](PHASE-TWO-ACCEPTANCE.md)。
+1. 检查 Git 分支和状态，遵循 [AGENTS](../AGENTS.md)；接手产品工作时读本页，按范围查[产品](PRODUCT.md)、[架构](ARCHITECTURE.md)或[开发说明](DEVELOPMENT.md)，局部文档维护无需遍历这些入口。
+2. 实施或接手变更时用 `npx openspec list` 查询实际活跃项；若继续发表工作，先查任务及[发表验收](ARTICLE-PUBLICATION-ACCEPTANCE.md)，补本次尚缺的真机证据，不重新实施已完成代码；用户的其他明确任务按其范围推进。第二阶段已归档，不从历史待验文字重建任务，历史依据见[第二阶段证据](PHASE-TWO-ACCEPTANCE.md)。
 3. 真机结果单列实际观察与证据来源；用户确认与代理实测分开记录。不混入运营账号体系，不重启 H5 或自动部署，不重复索取已配置凭据。

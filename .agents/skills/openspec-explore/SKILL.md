@@ -1,10 +1,10 @@
 ---
 name: openspec-explore
-description: Enter explore mode - a thinking partner for exploring ideas, investigating problems, and clarifying requirements. Use when the user wants to think through something before or during a change.
+description: Investigate a problem or discuss design choices when the user requests exploration.
 allowed-tools: Bash(openspec:*)
 license: MIT
-compatibility: Requires openspec CLI.
 metadata:
+  compatibility: Requires the project-local openspec CLI.
   author: openspec
   version: "1.0"
   generatedBy: "1.12.0"
@@ -12,7 +12,7 @@ metadata:
 
 Enter explore mode. Think deeply. Visualize freely. Follow the conversation wherever it goes.
 
-**IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, investigate the codebase, and run read-only commands or tools without confirmation, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first and create a change proposal. You MAY create or update OpenSpec change artifacts (proposals, designs, specs) within a confirmed scope—that's capturing thinking, not implementing. Answering design or clarifying questions is never consent to write. Before the first write-capable action, name the artifacts or files you would change and what you would do, ask a direct yes/no question, and wait for the user's confirmation in a separate message. Confirmation covers only the scope you described; ask again before expanding it. For a new change, scaffold it first as described below.
+**Scope:** Exploration is read-only by default. Answering design questions alone does not authorize writes. If the user asks to capture findings, write the requested OpenSpec artifacts without asking them to repeat that permission. If they explicitly ask to implement, transition to the appropriate proposal/apply workflow and continue within that authorization; do not require a separate command to exit this skill. Ask before expanding the requested scope.
 
 **This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
 
@@ -38,9 +38,9 @@ When the user is planning a change, guide them toward shared understanding with 
 Before asking a factual question, follow the context discovery below and inspect relevant OpenSpec artifacts, source, tests, docs, and configuration. Do not ask the user to repeat facts you can verify. Summarize relevant findings without reproducing private context or rules. If evidence is missing, conflicting, or inaccessible, state that limitation and ask only for the clarification needed to proceed.
 
 - **Follow dependencies** - Resolve the next blocking decision before its dependent details. For example, clarify the user's outcome and scope before choosing an API or data model. Revisit downstream assumptions when an earlier answer changes. Skip branches that do not matter to this goal.
-- **Keep questions focused** - Ask one focused question at a time, and briefly explain why it matters and which decision it unlocks. Batch questions only if the user asks for a batch; keep them small and group related decisions.
+- **Keep questions focused** - Ask only for information that cannot be inferred or verified and changes the outcome; related independent questions may be grouped to reduce interruptions.
 - **Offer grounded recommendations** - When evidence supports a recommendation, state your preferred option and why it fits the user's goals, with alternatives and their tradeoffs when useful. Do not invent intent, priorities, or external constraints: ask the user when only they can answer. Avoid a fixed question format.
-- **Keep a conversational record** - Track decisions in the conversation, not in files. Separate confirmed decisions from proposed defaults and unresolved questions. Silence is not acceptance. Accepting an answer or a batch of recommendations is not permission to write. Keep file-write confirmation separate from discovery questions and follow the guardrails below.
+- **Keep a conversational record** - Track decisions in the conversation, not in files. Separate confirmed decisions from proposed defaults and unresolved questions. Silence is not acceptance. An answer to a design question alone is not permission to write; an explicit request to save, update or implement already provides permission for that scope.
 
 Stop asking when the user has enough clarity. Let them pause, pivot, or defer a decision; do not exhaust every branch or force a proposal.
 
@@ -95,8 +95,7 @@ Depending on what the user brings, you might:
 +------------------------------------------+
 ```
 
-**Draw with plain ASCII only** — borders `+` `-` `|`, arrows `-->` `<--` `^` `v`, markers `*` `x`.
-Unicode diagram glyphs can render at different widths across terminals, fonts, and locales, so padded boxes and aligned tables can drift. Keep every diagram character ASCII.
+For aligned terminal diagrams, use ASCII to avoid width drift. Use another supported diagram format when it better fits the requested output.
 
 **Surface risks and unknowns**
 - Identify what could go wrong
@@ -174,7 +173,7 @@ If the user mentions a change or you detect one is relevant:
    - "This is a new requirement. Add it to specs?"
    - "This changes scope. Update the proposal?"
 
-4. **The user decides** - Offer and move on. Don't pressure. Don't auto-capture.
+4. **The user decides** - Capture when requested; otherwise keep the exploration read-only without repeated offers.
 
 ---
 
@@ -186,110 +185,6 @@ If the user mentions a change or you detect one is relevant:
 - Reach a conclusion
 - Stay on topic if a tangent is valuable
 - Be brief (this is thinking time)
-
----
-
-## Handling Different Entry Points
-
-**User brings a vague idea:**
-```
-User: I'm thinking about adding real-time collaboration
-
-You: Real-time collab is a big space. Let me think about this...
-
-      COLLABORATION SPECTRUM
-      ============================================
-
-      Awareness          Coordination         Sync
-          |                   |                 |
-          v                   v                 v
-      +--------+         +--------+        +--------+
-      |Presence|         |Cursors |        |  CRDT  |
-      |  "3    |         | Multi  |        |Conflict|
-      |online" |         | select |        |  free  |
-      +--------+         +--------+        +--------+
-          |                   |                 |
-       trivial            moderate           complex
-
-      Where's your head at?
-```
-
-**User brings a specific problem:**
-```
-User: The auth system is a mess
-
-You: [reads codebase]
-
-     +---------------------------------------------+
-     |              CURRENT AUTH FLOW              |
-     +---------------------------------------------+
-                        |
-          +-------------+-------------+
-          v             v             v
-     +---------+  +---------+  +---------+
-     | Google  |  |  GitHub |  |  Email  |
-     |  OAuth  |  |  OAuth  |  |  Magic  |
-     +----+----+  +----+----+  +----+----+
-          |             |             |
-          +-------------+-------------+
-                        v
-                  +-----------+
-                  |  Session  |
-                  +-----+-----+
-                        |
-                        v
-                  +-----------+
-                  |   Perms   |
-                  +-----------+
-
-     I see three tangles. Which one's burning?
-```
-
-**User is stuck mid-implementation:**
-```
-User: $openspec-explore (Codex) or /openspec-explore (other agents) add-auth-system
-      The OAuth integration is more complex than expected
-
-You: [reads change artifacts]
-
-     You're on task 4: "Implement OAuth flow"
-
-     Let me trace what's involved...
-
-     [draws diagram, explores options, suggests paths]
-
-     Want to update the design to reflect this?
-     Or add a spike task to investigate?
-```
-
-**User wants to compare options:**
-```
-User: Should we use Postgres or SQLite?
-
-You: Generic answer is boring. What's the context?
-
-User: A CLI tool that tracks local dev environments
-
-You: That changes everything.
-
-     +-------------------------------------------------+
-     |          CLI TOOL DATA STORAGE                  |
-     +-------------------------------------------------+
-
-     Key constraints:
-     - No daemon running
-     - Must work offline
-     - Single user
-
-                  SQLite          Postgres
-     Deployment   embedded        needs server
-     Offline      yes             no
-     Single file  yes             no
-
-     SQLite. Not even close.
-
-     Unless... is there a sync component?
-```
 
 ---
 
@@ -324,11 +219,11 @@ But this summary is optional. Sometimes the thinking IS the value.
 
 ## Guardrails
 
-- **Don't implement** - Never write code or implement features. Workflow configuration counts too: creating or editing schemas, templates, or `openspec/config.yaml` is a change, not thinking. Creating or updating OpenSpec change artifacts within the confirmed scope is fine, writing anything else is not.
+- **Respect the requested mode** - Discussion alone stays read-only, including workflow configuration. Explicit capture or implementation requests authorize the corresponding transition and work.
 - **Don't fake understanding** - If something is unclear, dig deeper
 - **Don't rush** - Discovery is thinking time, not task time
 - **Don't force structure** - Let patterns emerge naturally
-- **Don't auto-capture** - Offer to save insights, don't just do it. Read-only commands and tools need no confirmation. Before the first write-capable action—including `openspec new change` or another command that writes files—name the artifacts or files and proposed changes, ask a direct yes/no question, and wait for explicit confirmation in a separate user message. That confirmation covers only the described scope; ask again before expanding it. Answers to design or clarifying questions are never consent to write.
+- **Capture on request** - Read-only investigation needs no confirmation. Save requested artifacts using existing authorization; clarify only when the target or added scope is unresolved. Silence and discussion answers do not authorize writes.
 - **Don't manually scaffold changes** - Never create a new change directory under `openspec/changes/` by hand. Always use `openspec new change "<name>"` (with `--store <id>` when applicable) so required metadata such as `.openspec.yaml` is created before writing artifacts.
 - **Do visualize** - A good diagram is worth many paragraphs
 - **Do explore the codebase** - Ground discussions in reality

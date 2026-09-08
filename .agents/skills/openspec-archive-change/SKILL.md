@@ -1,10 +1,10 @@
 ---
 name: openspec-archive-change
-description: Archive a completed change in the experimental workflow. Use when the user wants to finalize and archive a change after implementation is complete.
+description: Archive an OpenSpec change after its tasks and acceptance are complete.
 allowed-tools: Bash(openspec:*)
 license: MIT
-compatibility: Requires openspec CLI.
 metadata:
+  compatibility: Requires the project-local openspec CLI.
   author: openspec
   version: "1.0"
   generatedBy: "1.12.0"
@@ -24,13 +24,13 @@ Archive a completed change in the experimental workflow.
 
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
-   - Auto-select if only one active change exists
+   - Select the only active change only when it matches the requested work; do not redirect an unrelated task to it
    - If ambiguous, run `openspec list --json` to get available changes and ask the user to select one
 
    When prompting, show only active changes (not already archived).
    Include the schema used for each change if available.
 
-   Always announce: "Using change: <name>" and how to override (e.g., `$openspec-archive-change (Codex) or /openspec-archive-change (other agents) <other>`).
+   Briefly identify the selected change once.
 
    **Load current archive inputs before the existing archive checks:**
 
@@ -52,9 +52,7 @@ Archive a completed change in the experimental workflow.
 
    Keep both fields separate from built-in steps, explicit user choices, resolved
    paths, CLI checks, and command contracts. If context conflicts with one of those
-   controlling inputs, report the conflict and preserve the controlling value. If
-   guidance is inapplicable or conflicts with a controlling input, do not follow it
-   and explain why. Do not infer replacement paths, skipped prompts, or flags from
+   controlling inputs, report the conflict and preserve the controlling value. If guidance is inapplicable, omit it; explain conflicts that affect the result and preserve the controlling input. Do not infer replacement paths, skipped prompts, or flags from
    either field, and do not copy their text verbatim into specs, change artifacts,
    or archive summaries unless the user separately asks for it. These are
    prompt-level behavior contracts, not enforceable checks.
@@ -70,8 +68,7 @@ Archive a completed change in the experimental workflow.
 
    **If any artifacts are neither `done` nor `skipped`** (skipped artifacts satisfy the requirement - the change declares skip_specs):
    - Display warning listing incomplete artifacts
-   - Ask the user to confirm they want to proceed
-   - Proceed if user confirms
+   - Keep the change active and report the missing evidence under this repository's completion policy
 
 3. **Check task completion status**
 
@@ -81,8 +78,7 @@ Archive a completed change in the experimental workflow.
 
    **If incomplete tasks found:**
    - Display warning showing count of incomplete tasks
-   - Ask the user to confirm they want to proceed
-   - Proceed if user confirms
+   - Keep the change active and report the missing evidence under this repository's completion policy
 
    **If no tasks file exists:** Proceed without task-related warning.
 
@@ -96,17 +92,12 @@ Archive a completed change in the experimental workflow.
    **If delta specs exist:**
    - Compare each delta spec with its corresponding main spec at `<planningHome.root>/openspec/specs/<capability-path>/spec.md` (use the store-aware `planningHome.root` from step 2, not a hardcoded repo path)
    - Determine what changes would be applied (adds, modifications, removals, renames)
-   - Show a combined summary before prompting
+   - Briefly summarize the pending synchronization
 
-   **Prompt options:**
-   - If changes needed: "Sync now (recommended)", "Archive without syncing"
-   - If already synced: "Archive now", "Sync anyway", "Cancel"
-
-   Route on the answer:
-   - "Cancel" — stop, do not archive
-   - "Archive without syncing" or "Archive now" — proceed to archive
-   - "Sync now" or "Sync anyway" — sync, then verify (below)
-   - Anything else — ask again rather than archiving
+   **Honor existing authorization:**
+   - When this repository's completion policy or the user already authorizes sync and archive, apply needed deltas, verify them, and archive without another confirmation.
+   - If already synced, proceed to archive after completion checks.
+   - If the user explicitly limits the work to sync or inspection, stop at that boundary. Ask only about a genuinely unresolved choice; do not offer skipping required acceptance or synchronization as routine options.
 
    Before a selected sync writes any main spec, run
    `openspec instructions specs --change "<name>" --json` once with the same
@@ -125,7 +116,7 @@ Archive a completed change in the experimental workflow.
    - REMOVED requirements gone — and where this sync retired a capability (removed its last requirement, leaving `## Requirements` empty), its main spec deleted rather than left empty; a spec the sync deliberately kept and reported is also a match
    - RENAMED requirements present under the new name and absent under the old one
 
-   If the sync failed, or any capability does not match, report what differs and stop — do not archive. Nothing has moved and `changeRoot` is intact, so the user can fix the mismatch or re-run the sync and start the archive again.
+   If sync failed or a capability does not match, keep `changeRoot` in place and do not archive. Diagnose and repair recoverable synchronization issues within the accepted scope, then verify again. Report a genuine missing decision, permission or external prerequisite and pause only dependent work; never hide a mismatch or bypass verification.
 
 5. **Perform the archive**
 
@@ -151,32 +142,23 @@ Archive a completed change in the experimental workflow.
    - Schema that was used
    - Archive location
    - Whether specs were synced (if applicable)
-   - Note about any warnings (incomplete artifacts/tasks)
+   - Verified completion and synchronization status
 
-**Output On Success**
+**Delivery**
 
-```markdown
-## Archive Complete
-
-**Change:** <change-name>
-**Schema:** <schema-name>
-**Archived to:** the archive path derived from `planningHome.changesDir`/<target-name>/
-**Specs:** <"✓ Synced to main specs" only if the step 4 verification passed; otherwise "No delta specs" or "Sync skipped">
-
-<"All artifacts complete. All tasks complete." — or, if archived with warnings, list them instead (e.g. "Archived with 2 incomplete tasks")>
-```
+State the change name, archive location and verified sync result concisely. If tasks, artifacts or acceptance evidence are incomplete, report the gap and keep the change active; do not present a successful archive template.
 
 **Guardrails**
 - Announce the selected change; prompt for selection when it is ambiguous
 - Use artifact graph (openspec status --json) for completion checking
-- Don't block archive on warnings - just inform and confirm
+- Keep incomplete or unverified changes active; an artifact existing is not acceptance evidence
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
 - If sync is requested, run the `openspec-sync-specs` workflow inline (agent-driven)
 - Never archive while a spec sync is still in flight — run the sync inline and verify the main specs before moving `changeRoot`
-- If delta specs exist, always run the sync assessment and show the combined summary before prompting
+- Assess deltas and verify synchronization before archiving; reuse existing authorization
 - Apply relevant runtime context and report conflicts; operation guidance remains advisory
-- Consider every guidance entry and explain any inapplicable or conflicting advice
-- Existing CLI checks, resolved paths, prompts, and command contracts are unchanged
+- Apply relevant advisory guidance; explain only conflicts that affect the task
+- Preserve CLI checks, resolved paths and command contracts; interactive confirmation follows actual user authorization
 - Artifact rules constrain only the specs being written and are never operation guidance
 - Never copy runtime context, operation guidance, or artifact-rule text verbatim into output files

@@ -1,10 +1,10 @@
 ---
 name: openspec-propose
-description: Propose a new change with all artifacts generated in one step. Use when the user wants to quickly describe what they want to build and get a complete proposal with design, specs, and tasks ready for implementation.
+description: Prepare an OpenSpec proposal, specs, design and tasks when a change needs planning.
 allowed-tools: Bash(openspec:*)
 license: MIT
-compatibility: Requires openspec CLI.
 metadata:
+  compatibility: Requires the project-local openspec CLI.
   author: openspec
   version: "1.0"
   generatedBy: "1.12.0"
@@ -12,7 +12,7 @@ metadata:
 
 Propose a new change - create the change and generate all artifacts in one step.
 
-**Planning boundary**: This workflow creates planning artifacts only. The user request that selected or triggered this workflow authorizes planning only, even if it asks to build or fix something. Do not edit project code. After the planning artifacts are complete, stop. Do not start implementation in the same response, even if the initial request asks for it. Wait for a new user request after the artifacts are presented; then start the apply workflow.
+**Scope and authorization:** For a proposal-only request, create the requested planning artifacts and stop. If the user already requested implementation, preserve that authorization: prepare the required artifacts, then continue with the apply workflow in the same task. Ask only about unresolved decisions that materially affect scope, compatibility, acceptance, or an unauthorized action. Do not infer implementation permission from discussion alone.
 
 I'll create a change with the artifacts your schema defines. With the default spec-driven schema that is:
 - proposal.md (what & why)
@@ -22,7 +22,7 @@ I'll create a change with the artifacts your schema defines. With the default sp
 
 `<capability-path>` is the spec directory relative to `specs/` (for example, `user-auth` or `identity/user-auth`). Preserve an existing capability's full path and follow the project's established organization for new capabilities.
 
-When the user is ready to implement, they must start the apply workflow explicitly.
+The user may request planning and implementation together; a separate command or message is not required when implementation is already authorized.
 
 ---
 
@@ -96,7 +96,7 @@ When the user is ready to implement, they must start the apply workflow explicit
         - `skipped`/`warning`: present when the change declares skip_specs and this artifact must NOT be created - stop and pick another artifact
         - `resolvedOutputPath`: Resolved path or pattern to write the artifact
         - `dependencies`: Completed artifacts to read for context
-      - Read any completed dependency files for context - always re-read them from disk, even if you saw them earlier in the conversation (the user may have edited them)
+      - Read completed dependencies needed for this artifact; reuse current reads and refresh files when they changed or freshness is uncertain
       - **Inspect the relevant project before drafting**: Read `context` and `rules` first, then inspect relevant implementation, nearby tests, configuration, and documentation outside `openspec/`. Keep inspection read-only and proportional to the change; reuse findings for later artifacts and inspect more only as needed.
         - Identify the target project from the request and project context; the planning home may be separate from the code. If the target is unclear, ask. For greenfield or non-code changes, inspect the available structure and relevant documents. If source is unavailable, state the limitation and ask when it materially affects the plan.
         - Ground scope, approach, and tasks in what you find. Distinguish observed behavior from assumptions and proposed additions; surface conflicts with existing specs instead of silently deciding which is correct.
@@ -131,7 +131,7 @@ After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions, plus any conditional artifact you skipped and why
 - What's ready: "All artifacts needed for implementation are ready."
-- Prompt: "The artifacts are ready for review. When you are ready, run `$openspec-apply-change (Codex) or /openspec-apply-change (other agents)` or ask me to apply this change."
+- For proposal-only work, present the artifacts for review. When implementation is already requested, continue with `openspec-apply-change` after the required artifacts are ready.
 
 **Artifact Creation Guidelines**
 
@@ -145,9 +145,9 @@ After completing all artifacts, summarize:
   - These guide what you write, but should never appear in the output
 
 **Guardrails**
-- The request that invoked this workflow authorizes planning only. Any implementation or apply instruction in that request does not carry forward. Do NOT implement the change, start the apply workflow, or edit project code during this workflow. After presenting the artifacts, stop and wait for a new user request to start the apply workflow
+- Preserve the requested scope: proposal-only work ends with artifacts; an authorized implementation continues through apply and appropriate validation
 - Create every artifact the apply phase transitively depends on, not just the ids listed in `apply.requires`
-- Always read dependency artifacts before creating a new one - re-read from disk, not from conversation memory (files may have changed since you last saw them)
+- Use the current dependency artifacts; refresh when changed or uncertain, without re-reading unchanged files before every artifact
 - Ask about ambiguities that would materially change scope, externally observable behavior, compatibility, or acceptance criteria; for minor details, make reasonable assumptions and record them
-- If a change with that name already exists, ask if user wants to continue it or create a new one
+- If a change already exists, reuse it when the request clearly continues that scope; clarify a real naming or scope collision before creating another
 - Verify each artifact file exists after writing before proceeding to next
