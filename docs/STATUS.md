@@ -4,9 +4,15 @@
 
 ## 阶段结论
 
-第二阶段的微信账号、私有云作品、自动同步、单设备续写、个人中心和 JSON v6 已完成。用户于 2026-09-07 明确确认任务 4.4 手动验收通过；正式规格已同步，[add-account-cloud-work-sync](../openspec/changes/archive/2026-09-07-add-account-cloud-work-sync/tasks.md) 已归档，25 项任务完成。当前活跃变更为 add-article-publication-review；第二阶段分级证据见[第二阶段验收](PHASE-TWO-ACCEPTANCE.md)，现行行为见[账号与私有云规格](../openspec/specs/account-cloud-work-sync/spec.md)。代码在当前 main 分阶段本地提交，未推送。
+第二阶段的微信账号、私有云作品、自动同步、单设备续写、个人中心和 JSON v6 已完成。用户于 2026-09-07 明确确认任务 4.4 手动验收通过；正式规格已同步，[add-account-cloud-work-sync](../openspec/changes/archive/2026-09-07-add-account-cloud-work-sync/tasks.md) 已归档，25 项任务完成。当前活跃变更为 add-article-publication-review 与 improve-voice-start；第二阶段分级证据见[第二阶段验收](PHASE-TWO-ACCEPTANCE.md)，现行行为见[账号与私有云规格](../openspec/specs/account-cloud-work-sync/spec.md)。代码在当前 main 分阶段本地提交，未推送。
 
 2026-09-08 按用户“实现并自动更新线上测试”的授权，网关和运营网页均已更新为 **approved-demo-c8f19f1**，包含文章审核入口和已审正文摘要；auth.sqlite schema 3、已有数据和运行配置保持。小程序最新测试包 **0.3.3 / a87d6c1** 已通过官方 CLI 上传（824249 字节），落实方案 06.1 的编辑底栏、导航与个人中心层级、单次封面构图和图片回显；已生成同一固定源的手机预览二维码，待用户复测。服务端输入一致无需重部署。公众平台入口被浏览器安全策略阻止，本轮没有“设为体验版”；最后明确确认的体验版仍为 **0.2.0 / a713cff**。未提审、正式发布或推送 Git。准确范围与证据见[部署说明](DEPLOYMENT.md)。
+
+## 全局语音启动优化
+
+2026-09-08 按用户要求优化连接1–2秒期间开口漏采。正文、小文、访谈均改为授权后立即启动麦克风并行联网，真实采音后提示正在听；连接前松手仍保留内存音频等待识别。网关增加有界实时发送队列、排空后end及有效时长保护，并修复取消后迟到启动、旧会话回调和上限结束的时序。
+
+最终完整 check **500 项**、build、开发者工具 npm 刷新通过；430×932实际模拟器 **25 项**通过，麦克风/网络为替身。真实ASR调用0次，Android/iOS真机和360/390尺寸本轮未验证；[语音变更](../openspec/changes/improve-voice-start/tasks.md)保持活跃，未归档、部署或上传。上线时先更新网关再启用客户端，证据见[语音启动验收](VOICE-START-ACCEPTANCE.md)。用户明确昵称以后再讨论，本轮昵称未改。
 
 ## 当前实施：文章发表、人工审核与好友分享
 

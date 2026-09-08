@@ -77,10 +77,12 @@ try {
     replace(services.conversations, new (require('state/conversation-memory.js').ConversationMemory)((id, state) => writer.setWritingState(id, state)));
     // Exercise the real speech state machine; only recorder/network/permission are non-billing fixtures.
     qa.speechStarts = 0;
+    qa.speechFrames = [];
+    qa.speechCommands = [];
     replace(services.speech, new (require('speech/session.js').MiniSpeechSession)({
-      permissions: { ensure: async () => {} }, tickets: { issue: async () => 'qa-ticket' },
+      permissions: { ensure: async () => {} }, tickets: { issue: () => qa.deferTicket ? new Promise(resolve => { qa.releaseTicket = () => resolve('qa-ticket'); }) : Promise.resolve('qa-ticket') },
       sockets: { connect: () => ({ onOpen() {}, onMessage(fn) { qa.speechEvent = value => fn(JSON.stringify(value)); }, onError() {}, onClose() {},
-        sendBinary: async () => {}, sendText: async text => { if (JSON.parse(text).type === 'end') setTimeout(() => qa.speechEvent({ type: 'done' }), 0); }, close() {} }) },
+        sendBinary: async data => { qa.speechFrames.push(...new Uint8Array(data)); }, sendText: async text => { qa.speechCommands.push(JSON.parse(text).type); if (JSON.parse(text).type === 'end') setTimeout(() => qa.speechEvent({ type: 'done' }), 0); }, close() {} }) },
       recorder: { start(_options, handlers) { qa.speechStarts++; qa.recorder = handlers; handlers.start(); }, stop() { qa.recorder.stop(); } },
     }));
     services.aiConsent.ensure = async () => true;
@@ -357,7 +359,45 @@ try {
     await mini.screenshot({ path: resolve(output, `dictation-long-${kind}.png`) });
     await page.callMethod(kind === 'editor' ? 'cancelVoice' : 'cancelDictation');
     check(`${kind}取消手势丢弃本次转写且不发送`, !await page.data('voiceBusy') && await page.data(kind === 'editor' ? 'xiaowenComposer' : 'composer') === '' && await requestCount() === calls + 1);
+
+    await mini.evaluate(() => { const q = getApp().__dialogueQa; q.deferTicket = true; q.speechFrames = []; q.speechCommands = []; });
+    await page.callMethod(press);
+    await new Promise(resolve => setTimeout(resolve, 250));
+    check(`${kind}ticket未返回已经采音并明确文字稍后出现`, await page.data('voicePhase') === 'recording' && await page.data('voiceMessage') === '正在听，文字稍后出现');
+    await mini.evaluate(() => getApp().__dialogueQa.recorder.frame(new Uint8Array([1, 2, 3]).buffer, false));
+    const waitingPosition = await (await page.$(voiceSelector)).offset();
+    check(`${kind}连接期间反馈不遮挡输入按钮`, Math.abs(waitingPosition.top - before.top) <= 2 && (await (await page.$(voiceSelector)).size()).height >= 48);
+    await mini.screenshot({ path: resolve(output, `dictation-connecting-${kind}.png`) });
+    await page.callMethod(release);
+    check(`${kind}连接前松手进入收尾且不取消语音`, await page.data('voicePhase') === 'finishing' && await mini.evaluate(() => getApp().__dialogueQa.speechCommands.length) === 0);
+    await mini.evaluate(() => { const q = getApp().__dialogueQa; q.deferTicket = false; q.releaseTicket(); });
+    await new Promise(resolve => setTimeout(resolve, 100));
+    await mini.evaluate(() => { const q = getApp().__dialogueQa; q.speechEvent({ type: 'ready' }); q.speechEvent({ type: 'transcript', text: '开头这句话也保留了', final: true }); });
+    await new Promise(resolve => setTimeout(resolve, 150));
+    check(`${kind}补发开头只写入原会话输入且end仅一次`, await page.data(kind === 'editor' ? 'xiaowenComposer' : 'composer') === '开头这句话也保留了' && await page.data('draft.pendingVoice') === draft.pendingVoice && await requestCount() === calls + 1 && await mini.evaluate(() => { const q = getApp().__dialogueQa; return JSON.stringify(q.speechFrames) === '[1,2]' && JSON.stringify(q.speechCommands) === '["end"]'; }));
+    await (await page.$(inputSelector)).input('');
   }
+  await mini.reLaunch('/pages/editor/index?xiaowen=compose');
+  await current('editor');
+  await page.callMethod('closeXiaoWen');
+  if ((await page.data('draft')).inputMode !== 'voice') await page.callMethod('toggleInputMode');
+  const bodyBefore = await page.data('body');
+  const bodyCalls = await requestCount();
+  await mini.evaluate(() => { const q = getApp().__dialogueQa; q.deferTicket = true; q.speechFrames = []; q.speechCommands = []; });
+  await page.callMethod('pressBodyVoice');
+  await new Promise(resolve => setTimeout(resolve, 250));
+  await mini.evaluate(() => getApp().__dialogueQa.recorder.frame(new Uint8Array([1, 2, 3, 4]).buffer, false));
+  check('正文联网未完成已采音、有真实波形且正文不改变', await page.data('voicePhase') === 'recording' && (await page.data('voiceBars')).some(value => value > 3) && await page.data('body') === bodyBefore);
+  await mini.screenshot({ path: resolve(output, 'dictation-connecting-body.png') });
+  await page.callMethod('releaseVoice');
+  check('正文联网期间松手仍保留识别中的舞台', await page.data('voicePhase') === 'finishing' && Boolean(await page.$('.transcript-meta')));
+  await mini.screenshot({ path: resolve(output, 'dictation-finishing-body.png') });
+  await mini.evaluate(() => { const q = getApp().__dialogueQa; q.deferTicket = false; q.releaseTicket(); });
+  await new Promise(resolve => setTimeout(resolve, 100));
+  await mini.evaluate(() => { const q = getApp().__dialogueQa; q.speechEvent({ type: 'ready' }); q.speechEvent({ type: 'transcript', text: '正文的开头也保留了', final: true }); });
+  await new Promise(resolve => setTimeout(resolve, 250));
+  check('正文补发只成为待确认文字，不改正文或调用小文', await page.data('draft.pendingVoice') === '正文的开头也保留了' && await page.data('body') === bodyBefore && await requestCount() === bodyCalls && await mini.evaluate(() => { const q = getApp().__dialogueQa; return JSON.stringify(q.speechFrames) === '[1,2,3,4]' && JSON.stringify(q.speechCommands) === '["end"]'; }));
+  await mini.screenshot({ path: resolve(output, 'dictation-pending-body.png') });
   console.info(JSON.stringify({ passed: passed.length, modelCalls: 0, screenshots: output }));
 } finally {
   if (installed) {

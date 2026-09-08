@@ -21,7 +21,7 @@ class Upstream extends EventEmitter {
 
 const resources: Array<{ app: Awaited<ReturnType<typeof createGateway>>; identity: MiniIdentityStore; sockets: WebSocket[] }> = [];
 
-async function setup(options: { now?: () => number; ticketTtlMs?: number } = {}) {
+async function setup(options: { now?: () => number; ticketTtlMs?: number; account?: boolean } = {}) {
   const identity = new MiniIdentityStore({ path: ':memory:' });
   const service = new WechatAuthService({ appId: 'wx-test-domain' }, identity, {
     exchange: async () => ({ appId: 'wx-test-domain', openid: 'openid-private' }),
@@ -37,7 +37,7 @@ async function setup(options: { now?: () => number; ticketTtlMs?: number } = {})
   const app = await createGateway({ credentials, origin: 'https://web.example', miniAuth: { service }, speechTickets: tickets, connect, operations: entry => operations.push(entry) });
   const sockets: WebSocket[] = [];
   resources.push({ app, identity, sockets });
-  const session = identity.issueSession('wx-test-domain', 'openid-private');
+  const session = identity.issueSession('wx-test-domain', 'openid-private', options.account ? 'account' : 'legacy');
   const issue = async () => app.inject({ method: 'POST', url: '/api/mini/speech-ticket', headers: { authorization: `Bearer ${session.token}` } });
   const open = async (ticket: string) => {
     const received: Array<{ type: string; text?: string }> = [];
@@ -51,6 +51,7 @@ async function setup(options: { now?: () => number; ticketTtlMs?: number } = {})
 }
 
 afterEach(async () => {
+  if (vi.isFakeTimers()) { vi.clearAllTimers(); vi.useRealTimers(); }
   for (const resource of resources.splice(0)) {
     for (const socket of resource.sockets) socket.terminate();
     await resource.app.close();
@@ -119,5 +120,28 @@ describe('小程序一次性 ticket 语音网关', () => {
     expect(response.statusCode).toBe(503);
     expect(response.json()).toEqual({ error: '语音服务尚未配置，请继续使用文字输入。' });
     expect(connect).not.toHaveBeenCalled();
+  });
+
+  it('排空期间账号被接管会立即终止队列，已识别文字仍保留', async () => {
+    const value = await setup({ account: true });
+    const { ticket } = (await value.issue()).json<{ ticket: string }>();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    const { socket, received } = await value.open(ticket);
+    const upstream = value.upstreams[0]!;
+    upstream.response({ code: 0, result: { index: 0, slice_type: 2, voice_text_str: '保留这句。' } });
+    for (let index = 0; index < 2; index++) socket.send(Buffer.alloc(64 * 1024));
+    socket.send('{"type":"end"}');
+    await new Promise(resolve => setImmediate(resolve));
+    value.identity.issueSession('wx-test-domain', 'openid-private', 'account');
+    await vi.advanceTimersByTimeAsync(1000);
+    await new Promise(resolve => setImmediate(resolve));
+    expect(upstream.readyState).toBe(3);
+    expect(received.some(event => event.type === 'error')).toBe(true);
+    expect(received.some(event => event.text === '保留这句。')).toBe(true);
+    expect(upstream.send).not.toHaveBeenCalledWith('{"type":"end"}');
+    const sent = upstream.send.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(30001);
+    expect(upstream.send).toHaveBeenCalledTimes(sent);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

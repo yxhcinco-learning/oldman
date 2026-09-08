@@ -53,7 +53,7 @@
     <view wx:if="{{draft && draft.inputMode === 'voice'}}" class="voice-stage">
       <view class="voice-copy">
         <view wx:if="{{voiceTarget === 'body' && voiceBusy}}" class="live-transcript">
-          <view class="transcript-meta"><view class="actual-wave" aria-label="实时音量"><view wx:for="{{voiceBars}}" wx:key="index" style="height: {{item}}px"></view></view><text>{{voicePhase === 'recording' ? '正在聆听 · ' + voiceElapsed + ' 秒' : voicePhase === 'finishing' ? '确认中…' : voicePhase === 'permission' ? '等待麦克风授权…' : '正在连接…'}}</text></view>
+          <view class="transcript-meta"><view class="actual-wave" aria-label="实时音量"><view wx:for="{{voiceBars}}" wx:key="index" style="height: {{item}}px"></view></view><text>{{voicePhase === 'recording' ? '正在聆听 · ' + voiceElapsed + ' 秒' : voicePhase === 'finishing' ? '识别中…' : voicePhase === 'permission' ? '等待麦克风授权…' : '麦克风启动中…'}}</text></view>
           <scroll-view class="transcript-text" scroll-y><text>{{voiceText || voiceMessage || '正在听…'}}</text><view class="transcript-caret"></view></scroll-view>
         </view>
         <view wx:elif="{{draft.pendingVoice}}" class="pending-transcript" bindtap="openPendingVoice" role="button" aria-label="修改待确认语音文字">

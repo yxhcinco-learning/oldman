@@ -65,7 +65,35 @@ const create = (overrides: { permissions?: Permissions; tickets?: { issue(): Pro
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe('小程序实时听写会话', () => {
-  it('等待服务 ready 后用16k单声道PCM录音，合并奇数分片并先发末帧再发 end', async () => {
+  it('服务时长上限先结束时保留转写并停止原生麦克风，不误报协议错误', async () => {
+    const value = create();
+    const committed: string[] = [];
+    await value.session.start(text => committed.push(text));
+    const recorder = value.recorder.current();
+    recorder.start();
+    const socket = value.sockets.sockets[0]!;
+    socket.event({ type: 'ready' });
+    socket.event({ type: 'transcript', text: '到上限之前的话', final: true });
+    socket.event({ type: 'limit' });
+    socket.event({ type: 'done' });
+    expect(committed).toEqual(['到上限之前的话']);
+    expect(value.session.state.phase).toBe('idle');
+    expect(value.recorder.stopCalls).toBeGreaterThanOrEqual(1);
+    recorder.frame(new ArrayBuffer(4), true);
+    recorder.stop();
+    expect(socket.sent).toEqual([]);
+  });
+
+  it('无效服务消息安全失败并释放正在采音的麦克风', async () => {
+    const value = create();
+    await value.session.start(() => {});
+    value.recorder.current().start();
+    expect(() => value.sockets.sockets[0]!.event(null)).not.toThrow();
+    expect(value.session.state.phase).toBe('error');
+    expect(value.recorder.stopCalls).toBe(1);
+  });
+
+  it('授权后用16k单声道PCM录音，ready后发送，合并奇数分片并先发末帧再发 end', async () => {
     let now = 1000;
     const value = create({ now: () => now });
     const committed: string[] = [];
@@ -91,7 +119,7 @@ describe('小程序实时听写会话', () => {
     expect(value.session.state.phase).toBe('idle');
   });
 
-  it('长按后在权限或连接尚未准备好时松手会取消，不会迟到启动录音', async () => {
+  it('长按后在权限尚未准备好时松手会取消，不会迟到启动录音', async () => {
     let release: () => void = () => {};
     const permissions = new Permissions();
     permissions.gate = new Promise(resolve => { release = resolve; });
@@ -104,6 +132,134 @@ describe('小程序实时听写会话', () => {
     await pending;
     expect(value.sockets.sockets).toHaveLength(0);
     expect(value.recorder.handlers).toHaveLength(0);
+  });
+
+  it('ticket尚未返回就开始采音，松手后保留开头和末帧，ready后有序补发一次', async () => {
+    let issue!: (ticket: string) => void;
+    const value = create({ tickets: { issue: () => new Promise(resolve => { issue = resolve; }) } });
+    const committed: string[] = [];
+    const pending = value.session.start(text => committed.push(text));
+    await Promise.resolve();
+    expect(value.recorder.handlers).toHaveLength(1);
+    expect(value.session.state).toMatchObject({ phase: 'starting', level: 0 });
+    value.recorder.current().start();
+    expect(value.session.state).toMatchObject({ phase: 'recording', message: '正在听，文字稍后出现' });
+    value.recorder.current().frame(Uint8Array.from([1, 2, 3]).buffer, false);
+    expect(value.session.state.level).toBeGreaterThan(0);
+    expect(value.sockets.sockets).toHaveLength(0);
+    await value.session.stop();
+    expect(value.recorder.stopCalls).toBe(1);
+    value.recorder.current().frame(Uint8Array.from([4, 5, 6]).buffer, true);
+    value.recorder.current().stop();
+    expect(value.session.state.phase).toBe('finishing');
+    issue('valid-ticket');
+    await pending;
+    const socket = value.sockets.sockets[0]!;
+    expect(socket.sent).toEqual([]);
+    socket.event({ type: 'ready' });
+    socket.event({ type: 'ready' });
+    await vi.waitFor(() => expect(socket.sent).toHaveLength(3));
+    expect([...socket.sent[0] as Uint8Array, ...socket.sent[1] as Uint8Array]).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(socket.sent[2]).toBe('{"type":"end"}');
+    socket.event({ type: 'transcript', text: '开头也收到了', final: true });
+    socket.event({ type: 'done' });
+    expect(committed).toEqual(['开头也收到了']);
+    expect(value.recorder.handlers).toHaveLength(1);
+  });
+
+  it('连接中继续录音，补发与新帧不交错且自动停止仍收尾', async () => {
+    const value = create();
+    await value.session.start(() => {});
+    const recorder = value.recorder.current();
+    const socket = value.sockets.sockets[0]!;
+    recorder.start();
+    recorder.frame(Uint8Array.from([1, 2]).buffer, false);
+    recorder.frame(Uint8Array.from([3, 4]).buffer, false);
+    socket.event({ type: 'ready' });
+    recorder.frame(Uint8Array.from([5, 6]).buffer, true);
+    recorder.stop();
+    await vi.waitFor(() => expect(socket.sent).toHaveLength(4));
+    expect(socket.sent.slice(0, 3).flatMap(frame => [...frame as Uint8Array])).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(socket.sent[3]).toBe('{"type":"end"}');
+    socket.event({ type: 'done' });
+    expect(value.session.state.phase).toBe('idle');
+  });
+
+  it('麦克风启动前松手，迟到启动与ticket不恢复录音或连接', async () => {
+    let issue!: (ticket: string) => void;
+    const value = create({ tickets: { issue: () => new Promise(resolve => { issue = resolve; }) } });
+    const pending = value.session.start(() => {});
+    await Promise.resolve();
+    const old = value.recorder.current();
+    await value.session.stop();
+    old.start();
+    old.frame(new ArrayBuffer(4), false);
+    old.stop();
+    issue('late-ticket');
+    await pending;
+    expect(value.session.state.phase).toBe('idle');
+    expect(value.recorder.stopCalls).toBe(1);
+    expect(value.sockets.sockets).toHaveLength(0);
+  });
+
+  it('连接迟迟未ready或无帧也在8秒停止，取消后清除缓存不补发', async () => {
+    vi.useFakeTimers();
+    const value = create();
+    await value.session.start(() => {});
+    value.recorder.current().start();
+    await vi.advanceTimersByTimeAsync(8000);
+    expect(value.session.state).toMatchObject({ phase: 'error', message: expect.stringContaining('未识别') });
+    expect(value.recorder.stopCalls).toBe(1);
+    await value.session.start(() => {});
+    value.recorder.current().start();
+    value.recorder.current().frame(new ArrayBuffer(4000), false);
+    const socket = value.sockets.sockets[1]!;
+    value.session.cancel();
+    socket.event({ type: 'ready' });
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(socket.sent).toEqual(['{"type":"cancel"}']);
+    expect(value.session.state.phase).toBe('idle');
+  });
+
+  it('旧会话未完成发送和stop回调不改变新会话的资源与队列计数', async () => {
+    let finishOldSend!: () => void;
+    const value = create();
+    await value.session.start(() => {});
+    const old = value.recorder.current();
+    old.start();
+    const oldSocket = value.sockets.sockets[0]!;
+    oldSocket.sendBinary = () => new Promise(resolve => { finishOldSend = resolve; });
+    oldSocket.event({ type: 'ready' });
+    old.frame(new ArrayBuffer(4096), false);
+    value.session.cancel();
+    await value.session.start(() => {});
+    value.recorder.current().start();
+    old.stop();
+    finishOldSend();
+    await Promise.resolve();
+    for (let index = 0; index < 65; index++) value.recorder.current().frame(new ArrayBuffer(4096), false);
+    expect(value.session.state.phase).toBe('error');
+    expect(value.recorder.stopCalls).toBe(2);
+    expect(value.sockets.sockets[1]!.sent).toEqual([]);
+  });
+
+  it('服务ready但发送卡住，松手后有界等待并保留已有转写', async () => {
+    vi.useFakeTimers();
+    const value = create();
+    const committed: string[] = [];
+    await value.session.start(text => committed.push(text));
+    value.recorder.current().start();
+    const socket = value.sockets.sockets[0]!;
+    socket.sendBinary = () => new Promise(() => {});
+    socket.event({ type: 'ready' });
+    socket.event({ type: 'transcript', text: '已有文字', final: false });
+    value.recorder.current().frame(new ArrayBuffer(4096), true);
+    await value.session.stop();
+    value.recorder.current().stop();
+    await vi.advanceTimersByTimeAsync(22_000);
+    expect(value.session.state.phase).toBe('error');
+    expect(committed).toEqual(['已有文字']);
+    expect(socket.sent).toEqual([]);
   });
 
   it('显式取消丢弃文字并隔离迟到的 recorder/socket 事件', async () => {

@@ -1,6 +1,7 @@
 <template name="dictation-feedback">
   <view wx:if="{{pressing || (phase !== 'idle' && phase !== 'error') || message}}" class="dictation-feedback {{phase === 'error' && !pressing ? 'dictation-failed' : ''}}" role="status">
-    <view class="dictation-caption">{{phase === 'recording' ? '正在听，松开结束' : phase === 'finishing' ? '正在整理语音，稍等一下' : pressing && (phase === 'idle' || phase === 'error') ? '按住说话，松开结束' : message}}</view>
+    <view class="dictation-caption">{{phase === 'recording' ? '正在听，松开结束' : phase === 'finishing' ? '正在识别刚才的话，请稍候…' : pressing && (phase === 'idle' || phase === 'error') ? '按住说话，松开结束' : message}}</view>
+    <view wx:if="{{phase === 'recording' && message === '正在听，文字稍后出现'}}" class="dictation-caption">文字稍后出现，可以继续说</view>
     <scroll-view wx:if="{{text && (phase === 'recording' || phase === 'finishing')}}" class="dictation-transcript" scroll-y scroll-top="{{text.length * 30}}">{{text}}</scroll-view>
   </view>
 </template>

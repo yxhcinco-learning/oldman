@@ -75,6 +75,21 @@ describe('微信语音平台适配', () => {
     adapter.start(options, rejected);
     listeners.error?.({ errMsg: 'operateRecorder:fail bad request' } as never);
     expect(rejected.error).toHaveBeenCalledWith(expect.stringContaining('未接受录音参数'));
+
+    // Native stop can arrive before native start: suppress the late start and
+    // stop again when the device finally begins recording.
+    const cancelled: MiniRecorderHandlers = { start: vi.fn(), frame: vi.fn(), stop: vi.fn(), error: vi.fn(), interrupted: vi.fn() };
+    adapter.start(options, cancelled);
+    adapter.stop();
+    expect(() => adapter.start(options, handlers)).toThrow('麦克风还在收尾');
+    listeners.start?.();
+    expect(cancelled.start).not.toHaveBeenCalled();
+    expect(manager.stop).toHaveBeenCalledTimes(2);
+    listeners.stop?.();
+    adapter.start(options, handlers);
+    listeners.start?.();
+    expect(handlers.start).toHaveBeenCalledTimes(2);
+    listeners.stop?.();
   });
 
   it('未真正开始录音前不获取 RecorderManager', () => {

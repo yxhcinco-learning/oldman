@@ -17,6 +17,7 @@ import { MiniIdentityError } from './mini-identity-store';
 import { registerTopicAdmin, type TopicAdminGatewayOptions } from './topic-admin-api';
 import { registerOperationalEvents } from './operational-events';
 import { CostGovernanceError, type CostGovernanceStore, type CostReservation } from './cost-governance';
+import { MAX_PENDING_PCM_BYTES, PcmDelivery } from './pcm-delivery';
 
 export interface GatewayOptions {
   credentials?: Credentials; origin: string; maxConnections?: number; maxDurationMs?: number; maxBytes?: number;
@@ -164,11 +165,14 @@ export async function createGateway(options: GatewayOptions) {
     }
     const accumulator = new TranscriptAccumulator();
     let ready = false, ended = false, completed = false, released = false, bytes = 0;
+    const durationMs = Math.min(options.maxDurationMs ?? 300_000, reservation ? reservation.speechSeconds * 1_000 : Infinity);
+    const durationBytes = Math.floor(durationMs * 32 / 2) * 2;
     let finishTimer: ReturnType<typeof setTimeout> | undefined;
     const send = (event: SpeechEvent) => { if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(event)); };
     const release = () => {
       if (released) return;
       released = true; active.delete(socket); clearTimeout(maxTimer); clearTimeout(readyTimer); clearTimeout(finishTimer); clearInterval(sessionTimer);
+      delivery.cancel();
       if (upstream.readyState === WebSocket.CONNECTING) upstream.terminate();
       else if (upstream.readyState === WebSocket.OPEN) upstream.close();
       if (reservation) {
@@ -182,21 +186,35 @@ export async function createGateway(options: GatewayOptions) {
       try { validateSession?.(); return true; }
       catch { fail('登录已失效或已在其他设备登录，已收到的文字保留在本机。', 'session_replaced'); return false; }
     };
+    const delivery = new PcmDelivery({
+      send: frame => {
+        if (upstream.bufferedAmount > MAX_PENDING_PCM_BYTES) {
+          fail('音频过长或网络过慢，请分段再说', 'audio_limit'); return;
+        }
+        if (upstream.readyState !== WebSocket.OPEN) throw new Error('Upstream closed');
+        upstream.send(frame, { binary: true });
+      },
+      end: () => {
+        if (released) return;
+        if (upstream.readyState !== WebSocket.OPEN) throw new Error('Upstream closed');
+        upstream.send(JSON.stringify({ type: 'end' }));
+        finishTimer = setTimeout(() => fail('识别收尾超时，已收到的文字已保留', 'upstream_finish_timeout'), 10000);
+      },
+      error: () => fail('语音连接中断，已收到的文字已保留', 'upstream_network'),
+    });
     const end = () => {
       if (ended || released) return;
       ended = true;
-      if (!ready || upstream.readyState !== WebSocket.OPEN) { fail('语音连接尚未准备好，请重试', 'upstream_not_ready'); return; }
-      upstream.send(JSON.stringify({ type: 'end' }));
-      finishTimer = setTimeout(() => fail('识别收尾超时，已收到的文字已保留', 'upstream_finish_timeout'), 10000);
+      if (ready) delivery.finish();
     };
     const readyTimer = setTimeout(() => fail('语音连接超时，请稍后重试', 'upstream_ready_timeout'), 10000);
-    const maxTimer = setTimeout(() => { send({ type: 'limit' }); end(); }, reservation ? reservation.speechSeconds * 1_000 : options.maxDurationMs ?? 300_000);
+    const maxTimer = setTimeout(() => { if (!ended) { send({ type: 'limit' }); end(); } }, durationMs);
     if (validateSession) sessionTimer = setInterval(sessionValid, 1000);
     upstream.on('message', data => {
       if (released) return;
       try {
         const result = parseTencentResult(JSON.parse(data.toString()), accumulator);
-        if (!ready) { ready = true; clearTimeout(readyTimer); send({ type: 'ready' }); }
+        if (!ready) { ready = true; clearTimeout(readyTimer); send({ type: 'ready' }); if (ended) delivery.finish(); }
         if (result.changed) send({ type: 'transcript', text: result.text, final: result.final });
         if (result.done) { completed = true; finalStatus = 200; finalCategory = undefined; send({ type: 'done' }); socket.close(1000); release(); }
       } catch { fail('腾讯云识别未成功，请检查服务额度、密钥权限与网络', 'upstream_response'); }
@@ -217,9 +235,12 @@ export async function createGateway(options: GatewayOptions) {
       if (ended) return;
       if (!ready) { fail('请等待语音连接准备好', 'audio_before_ready'); return; }
       const length = Buffer.isBuffer(data) ? data.length : data instanceof ArrayBuffer ? data.byteLength : data.reduce((n, b) => n + b.length, 0);
-      bytes += length;
-      if (length % 2 || bytes > (options.maxBytes ?? 10 * 1024 * 1024) || upstream.bufferedAmount > 256 * 1024) { fail('音频过长或网络过慢，请分段再说', 'audio_limit'); return; }
-      if (upstream.readyState === WebSocket.OPEN) upstream.send(data, { binary: true });
+      if (length % 2 || bytes + length > (options.maxBytes ?? 10 * 1024 * 1024) || upstream.bufferedAmount > MAX_PENDING_PCM_BYTES) { fail('音频过长或网络过慢，请分段再说', 'audio_limit'); return; }
+      const audio = Buffer.isBuffer(data) ? data : data instanceof ArrayBuffer ? Buffer.from(data) : Buffer.concat(data);
+      const accepted = audio.subarray(0, Math.max(0, durationBytes - bytes));
+      if (!delivery.enqueue(accepted)) { fail('音频积压过多，请稍后分段再说，未识别的部分需要重说', 'audio_limit'); return; }
+      bytes += accepted.length;
+      if (bytes >= durationBytes) { send({ type: 'limit' }); end(); }
     });
     socket.on('close', release);
     socket.on('error', release);

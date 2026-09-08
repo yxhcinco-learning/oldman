@@ -18,7 +18,11 @@ class Upstream extends EventEmitter {
 }
 const apps: Awaited<ReturnType<typeof createGateway>>[] = [];
 const sockets: WebSocket[] = [];
-afterEach(async () => { for (const s of sockets.splice(0)) s.terminate(); for (const app of apps.splice(0)) await app.close(); });
+afterEach(async () => {
+  if (vi.isFakeTimers()) { vi.clearAllTimers(); vi.useRealTimers(); }
+  for (const s of sockets.splice(0)) s.terminate();
+  for (const app of apps.splice(0)) await app.close();
+});
 async function setup(options: Partial<GatewayOptions> = {}) {
   const upstream = new Upstream();
   const connect = vi.fn<(url: string) => WebSocket>(() => upstream as unknown as WebSocket);
@@ -69,6 +73,130 @@ it('ends at the configured duration without losing already emitted text', async 
   const s = await setup({ maxDurationMs: 60 }); await s.open(); s.upstream.response({ code: 0, result: { index: 0, slice_type: 2, voice_text_str: '保留文字。' } });
   await vi.waitFor(() => expect(s.received.some(r => r.type === 'limit')).toBe(true)); expect(s.upstream.send).toHaveBeenCalledWith('{"type":"end"}');
   expect(s.received.some(r => r.text === '保留文字。')).toBe(true);
+});
+it('paces startup audio and sends end only after the complete ordered queue', async () => {
+  const s = await setup(); const socket = await s.open(); s.upstream.response({ code: 0 });
+  const audio = Buffer.concat([Buffer.alloc(1500, 1), Buffer.alloc(4900, 2)]);
+  socket.send(audio.subarray(0, 1500));
+  socket.send(audio.subarray(1500));
+  socket.send('{"type":"end"}');
+  await vi.waitFor(() => expect(s.upstream.send).toHaveBeenCalled());
+  expect(s.upstream.send).not.toHaveBeenCalledWith('{"type":"end"}');
+  await vi.waitFor(() => expect(s.upstream.send).toHaveBeenLastCalledWith('{"type":"end"}'));
+  expect(s.upstream.send.mock.calls.filter(call => call[0] === '{"type":"end"}')).toHaveLength(1);
+  const frames = s.upstream.send.mock.calls.filter(call => Buffer.isBuffer(call[0])).map(call => call[0] as Buffer);
+  expect(frames.map(frame => frame.length)).toEqual([1280, 1280, 1280, 1280, 1280]);
+  expect(Buffer.concat(frames)).toEqual(audio);
+});
+it('waits for ready when an empty client already requested end', async () => {
+  const s = await setup(); const socket = await s.open();
+  socket.send('{"type":"end"}');
+  await new Promise(resolve => setTimeout(resolve, 20));
+  expect(s.upstream.send).not.toHaveBeenCalled();
+  expect(s.received).toEqual([]);
+  s.upstream.response({ code: 0 });
+  await vi.waitFor(() => expect(s.upstream.send).toHaveBeenCalledExactlyOnceWith('{"type":"end"}'));
+  expect(s.received.some(event => event.type === 'error')).toBe(false);
+});
+it('keeps the ready timeout active after an early end request', async () => {
+  const s = await setup();
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  const socket = await s.open();
+  socket.send('{"type":"end"}');
+  await new Promise(resolve => setImmediate(resolve));
+  await vi.advanceTimersByTimeAsync(10000);
+  await new Promise(resolve => setImmediate(resolve));
+  expect(s.received.find(event => event.type === 'error')?.message).toContain('语音连接超时');
+  expect(s.upstream.readyState).toBe(3);
+  s.upstream.response({ code: 0 });
+  expect(s.upstream.send).not.toHaveBeenCalled();
+});
+it('truncates queued audio at the allowed PCM duration and finishes normally', async () => {
+  const s = await setup({ maxDurationMs: 100 }); const socket = await s.open(); s.upstream.response({ code: 0 });
+  socket.send(Buffer.alloc(6400, 1));
+  socket.send(Buffer.alloc(1280, 2));
+  await vi.waitFor(() => expect(s.received.some(event => event.type === 'limit')).toBe(true));
+  await vi.waitFor(() => expect(s.upstream.send).toHaveBeenLastCalledWith('{"type":"end"}'));
+  const audio = Buffer.concat(s.upstream.send.mock.calls.filter(call => Buffer.isBuffer(call[0])).map(call => call[0] as Buffer));
+  expect(audio).toEqual(Buffer.alloc(3200, 1));
+  expect(s.received.filter(event => event.type === 'limit')).toHaveLength(1);
+  expect(s.received.some(event => event.type === 'error')).toBe(false);
+});
+it('cancels a draining queue immediately and ignores all remaining audio', async () => {
+  const s = await setup(); const socket = await s.open(); s.upstream.response({ code: 0 });
+  socket.send(Buffer.alloc(12800));
+  socket.send('{"type":"end"}');
+  socket.send('{"type":"cancel"}');
+  await vi.waitFor(() => expect(s.upstream.readyState).toBe(3));
+  const sent = s.upstream.send.mock.calls.length;
+  await new Promise(resolve => setTimeout(resolve, 80));
+  expect(s.upstream.send).toHaveBeenCalledTimes(sent);
+  expect(s.upstream.send).not.toHaveBeenCalledWith('{"type":"end"}');
+});
+it('fails an excessive startup queue without retaining a pending sender', async () => {
+  const s = await setup(); const socket = await s.open(); s.upstream.response({ code: 0 });
+  for (let index = 0; index < 5; index++) socket.send(Buffer.alloc(64 * 1024));
+  await vi.waitFor(() => expect(s.received.some(event => event.type === 'error')).toBe(true));
+  expect(s.upstream.readyState).toBe(3);
+  const sent = s.upstream.send.mock.calls.length;
+  await new Promise(resolve => setTimeout(resolve, 80));
+  expect(s.upstream.send).toHaveBeenCalledTimes(sent);
+});
+it('starts the ten-second finish deadline after the maximum startup queue has drained', async () => {
+  const s = await setup();
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  const socket = await s.open(); s.upstream.response({ code: 0 });
+  for (let index = 0; index < 4; index++) socket.send(Buffer.alloc(64 * 1024));
+  socket.send('{"type":"end"}');
+  await new Promise(resolve => setImmediate(resolve));
+  expect(s.upstream.send).toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(8191);
+  expect(s.upstream.send).not.toHaveBeenCalledWith('{"type":"end"}');
+  await vi.advanceTimersByTimeAsync(1);
+  expect(s.upstream.send).toHaveBeenLastCalledWith('{"type":"end"}');
+  await vi.advanceTimersByTimeAsync(9999);
+  expect(s.received.some(event => event.type === 'error')).toBe(false);
+  await vi.advanceTimersByTimeAsync(1);
+  await new Promise(resolve => setImmediate(resolve));
+  expect(s.received.find(event => event.type === 'error')?.message).toContain('识别收尾超时');
+  expect(s.upstream.readyState).toBe(3);
+  const sent = s.upstream.send.mock.calls.length;
+  await vi.advanceTimersByTimeAsync(30001);
+  expect(s.upstream.send).toHaveBeenCalledTimes(sent);
+  expect(vi.getTimerCount()).toBe(0);
+});
+it('allows the duration timer to close intake while already accepted audio drains', async () => {
+  const s = await setup({ maxDurationMs: 100 });
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  const socket = await s.open(); s.upstream.response({ code: 0 });
+  await vi.advanceTimersByTimeAsync(90);
+  socket.send(Buffer.alloc(1280, 7));
+  await new Promise(resolve => setImmediate(resolve));
+  await vi.advanceTimersByTimeAsync(10);
+  await new Promise(resolve => setImmediate(resolve));
+  expect(s.received.filter(event => event.type === 'limit')).toHaveLength(1);
+  expect(s.upstream.send).not.toHaveBeenCalledWith('{"type":"end"}');
+  socket.send(Buffer.alloc(1280, 8));
+  await new Promise(resolve => setImmediate(resolve));
+  await vi.advanceTimersByTimeAsync(30);
+  expect(s.upstream.send.mock.calls).toEqual([[Buffer.alloc(1280, 7), { binary: true }], ['{"type":"end"}']]);
+});
+it('rechecks upstream backpressure while draining and clears pending work on failure', async () => {
+  const s = await setup();
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  const socket = await s.open(); s.upstream.response({ code: 0 });
+  socket.send(Buffer.alloc(12800));
+  socket.send('{"type":"end"}');
+  await new Promise(resolve => setImmediate(resolve));
+  s.upstream.bufferedAmount = 256 * 1024 + 1;
+  await vi.advanceTimersByTimeAsync(40);
+  await new Promise(resolve => setImmediate(resolve));
+  expect(s.received.some(event => event.type === 'error')).toBe(true);
+  expect(s.upstream.send).toHaveBeenCalledOnce();
+  expect(s.upstream.readyState).toBe(3);
+  await vi.advanceTimersByTimeAsync(30001);
+  expect(s.upstream.send).toHaveBeenCalledOnce();
+  expect(vi.getTimerCount()).toBe(0);
 });
 it('loads only the supported Tencent engine models with a compatible default', () => {
   expect(loadAsrEngineModel({})).toBe('16k_zh');

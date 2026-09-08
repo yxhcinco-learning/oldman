@@ -29,6 +29,7 @@ class Upstream extends EventEmitter {
 }
 
 afterEach(async () => {
+  if (vi.isFakeTimers()) { vi.clearAllTimers(); vi.useRealTimers(); }
   for (const resource of resources.splice(0)) {
     for (const socket of resource.sockets ?? []) socket.terminate();
     await resource.app.close();
@@ -99,6 +100,27 @@ describe('paid gateway cost guards', () => {
     expect(connect).toHaveBeenCalledOnce();
     socket.send('{"type":"cancel"}');
     await vi.waitFor(() => expect(upstream.readyState).toBe(3));
+    expect(cost.snapshot().speech).toMatchObject({ usedSeconds: 1, reservedSeconds: 0, remainingSeconds: 0 });
+  });
+
+  it('does not let startup audio exceed the speech seconds actually reserved', async () => {
+    const cost = new CostGovernanceStore(':memory:', { articleAiDailyTokens: 1, topicAiDailyTokens: 1, speechDailySeconds: 1 });
+    const upstream = new Upstream();
+    const app = await createGateway({ origin, credentials, connect: () => upstream as unknown as WebSocket, costGovernance: cost });
+    const sockets: WebSocket[] = [];
+    resources.push({ app, cost, sockets });
+    await app.ready();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const socket = await app.injectWS('/api/speech', { headers: { origin } });
+    sockets.push(socket);
+    upstream.emit('message', Buffer.from('{"code":0}'));
+    socket.send(Buffer.alloc(64000));
+    await new Promise(resolve => setImmediate(resolve));
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(upstream.send).toHaveBeenLastCalledWith('{"type":"end"}');
+    const bytes = upstream.send.mock.calls.filter(call => Buffer.isBuffer(call[0])).reduce((total, call) => total + (call[0] as Buffer).length, 0);
+    expect(bytes).toBe(32000);
+    upstream.emit('message', Buffer.from('{"code":0,"final":1}'));
     expect(cost.snapshot().speech).toMatchObject({ usedSeconds: 1, reservedSeconds: 0, remainingSeconds: 0 });
   });
 });
