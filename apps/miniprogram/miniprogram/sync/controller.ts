@@ -1,4 +1,4 @@
-import { newId, type CloudMutation, type CloudWorkEntry } from '../domain/core';
+import { hasContent, hasSessionContent, newId, type CloudMutation, type CloudWorkEntry } from '../domain/core';
 import { AccountRequestError, type MiniAccountClient } from '../auth/account-client';
 import type { MiniCloudTransport } from '../network/cloud';
 import type { MiniDraftWriter, MiniWorkRepository } from '../storage/repository';
@@ -89,7 +89,10 @@ export class MiniCloudSync {
   private async migrateGuest(entries: Map<string, CloudWorkEntry>) {
     if (!this.guest) return;
     const snapshot = await this.guest.load();
-    if (snapshot.recovery || snapshot.pendingSessions.length) throw new Error('本机有待恢复的输入，请先保存或导出，再登录同步。');
+    const recovery = snapshot.recovery;
+    const pendingRecovery = recovery && (snapshot.works.some(work => work.id === recovery.draft.id)
+      || hasContent(recovery.draft) || hasSessionContent(snapshot.recoverySession) || snapshot.recoveryWritingState?.composer.trim());
+    if (pendingRecovery || snapshot.pendingSessions.length) throw new Error('本机有待恢复的输入，请先保存或导出，再登录同步。');
     for (const source of await this.guest.allAggregates(true)) {
       this.assertActive();
       const claim = source.cloud?.claim;

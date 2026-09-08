@@ -98,6 +98,14 @@ export const articleSessionSchema = z.object({
   }
 });
 export type ArticleSession = z.infer<typeof articleSessionSchema>;
+/** Mode changes and static introductions are context, not authored content. */
+export function hasSessionContent(session?: ArticleSession | null): boolean {
+  if (!session) return false;
+  const conversation = session.conversation;
+  return session.turns.length > 0 || session.versions.some(version => Boolean(version.title.trim() || version.body.trim()))
+    || Boolean(conversation?.messages.some(message => message.role === 'user' && message.text.trim())
+      || conversation?.materials.some(material => material.text.trim()) || conversation?.pendingEdit?.trim());
+}
 export const AI_ASSISTANCE_LABEL = 'AI 辅助生成 · 请核对';
 export const AI_ASSISTANCE_DISCLOSURE = '【AI辅助说明】本文曾应用“小文”AI生成的候选，作者已确认并可能继续修改；请核对事实与细节。';
 export const AI_ASSISTANCE_NONE_DISCLOSURE = '未发现已应用的小文 AI 生成候选。';

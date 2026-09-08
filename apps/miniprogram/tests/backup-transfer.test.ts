@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MiniBackupController, type BackupFilePlatform } from '../miniprogram/backup/file-transfer';
-import { AI_ASSISTANCE_DISCLOSURE, completeVoice, emptyDraft, makeBackup, newSession, newVersion, parseBackupBundle, workFromDraft } from '../miniprogram/domain/core';
+import { AI_ASSISTANCE_DISCLOSURE, completeVoice, emptyDraft, makeBackup, newSession, newVersion, parseBackupBundle, startInterview, workFromDraft } from '../miniprogram/domain/core';
 import { MiniWorkRepository } from '../miniprogram/storage/repository';
 import { MemoryFileSystem } from './memory-file-system';
 
@@ -81,5 +81,50 @@ describe('小程序手工备份与文件交接', () => {
     expect(platform.copied).toContain(AI_ASSISTANCE_DISCLOSURE);
     const txt = await controller.exportText(draft, session);
     expect(files.files.get(txt)).toContain(AI_ASSISTANCE_DISCLOSURE);
+  });
+
+  it('救援已清空的已有文章时仍导出同一作品，保留当前空值与静态会话', async () => {
+    const files = new MemoryFileSystem(), repository = new MiniWorkRepository(files, '/rescue-existing');
+    const original = { ...emptyDraft(), title: '后来重写', inputMode: 'text' as const, textDraft: '原来的正文。' };
+    const saved = (await repository.save(original, 0))!;
+    const current = { ...emptyDraft(), id: original.id };
+    const session = startInterview(newSession(current), current, 'open');
+    await repository.save(current, saved.revision, session);
+    const controller = new MiniBackupController(repository, files, new FakePlatform());
+    const path = await controller.rescue(current, session, { composer: '', inputSource: 'typed' });
+    const restored = parseBackupBundle(await files.readText(path));
+    expect(restored.works).toHaveLength(1);
+    expect(restored.works[0]).toMatchObject({ id: current.id, segments: [], draft: current });
+    expect(restored.sessions).toEqual([session]);
+  });
+
+  it('救援优先采用传入的当前会话和输入，未传时保留已存记录', async () => {
+    const files = new MemoryFileSystem(), repository = new MiniWorkRepository(files, '/rescue-current');
+    const draft = { ...emptyDraft(), title: '手记' };
+    const storedSession = newSession(draft), storedState = { composer: '先前未发送输入', inputSource: 'typed' as const };
+    await repository.save(draft, 0, storedSession, storedState);
+    const controller = new MiniBackupController(repository, files, new FakePlatform());
+    const fallback = parseBackupBundle(await files.readText(await controller.rescue(draft)));
+    expect(fallback.sessions).toEqual([storedSession]);
+    expect(fallback.writingStates).toEqual([{ workId: draft.id, state: storedState }]);
+    const currentSession = startInterview(storedSession, draft, 'open');
+    const currentState = { composer: '', inputSource: 'dictated' as const };
+    const current = parseBackupBundle(await files.readText(await controller.rescue(draft, currentSession, currentState)));
+    expect(current.sessions).toEqual([currentSession]);
+    expect(current.writingStates).toEqual([{ workId: draft.id, state: currentState }]);
+  });
+
+  it('已有文件读取失败仍可救援当前内存中的文字、会话和未发送输入', async () => {
+    const files = new MemoryFileSystem(), repository = new MiniWorkRepository(files, '/rescue-read-error');
+    const original = { ...emptyDraft(), title: '旧内容' };
+    await repository.save(original, 0);
+    const current = { ...original, inputMode: 'text' as const, textDraft: '只在内存中的最新正文。' };
+    const session = newSession(current), state = { composer: '还想补充', inputSource: 'typed' as const };
+    files.failOnce('readText', new Error('read unavailable'), path => path.endsWith('.work.json'));
+    const controller = new MiniBackupController(repository, files, new FakePlatform());
+    const restored = parseBackupBundle(await files.readText(await controller.rescue(current, session, state)));
+    expect(restored.works[0]?.draft.textDraft).toBe(current.textDraft);
+    expect(restored.sessions).toEqual([session]);
+    expect(restored.writingStates).toEqual([{ workId: current.id, state }]);
   });
 });

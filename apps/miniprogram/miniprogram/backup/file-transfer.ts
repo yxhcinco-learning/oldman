@@ -59,8 +59,10 @@ export class MiniBackupController {
   }
 
   async rescue(draft: Draft, session?: ArticleSession | null, writingState?: WritingState) {
-    const state = writingState ?? (await this.repository.getAggregate(draft.id))?.writingState;
-    const raw = this.repository.rescueExport(draft, [], session ? [session] : [], state ? [{ workId: draft.id, state }] : []);
+    const existing = await this.repository.getAggregate(draft.id).catch(() => null);
+    const currentSession = session === undefined ? existing?.session : session;
+    const state = writingState ?? existing?.writingState;
+    const raw = this.repository.rescueExport(draft, existing ? [existing.work] : [], currentSession ? [currentSession] : [], state ? [{ workId: draft.id, state }] : []);
     parseBackupBundle(raw);
     return this.writeAndShare(raw, `岁月有声-救援-${exportName('json', this.now()).replace('岁月有声-备份-', '')}`);
   }

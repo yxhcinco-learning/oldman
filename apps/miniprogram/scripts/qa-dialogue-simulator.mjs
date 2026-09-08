@@ -1,16 +1,20 @@
 // Explicit local DevTools regression. No production AI requests or user storage writes.
 // MINI_AUTOMATOR_PATH points to an independently installed miniprogram-automator package.
 // MINI_QA_DICTATION_ONLY=1 runs just the two-page speech regression; no real microphone or ASR.
+// MINI_QA_UNWRITTEN_ONLY=1 runs isolated unwritten-article persistence and list checks only.
 /* eslint-disable @typescript-eslint/no-require-imports -- DevTools evaluate executes CommonJS in the app service. */
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { runUnwrittenRegression } from './qa-unwritten-simulator.mjs';
 
 if (!process.env.MINI_AUTOMATOR_PATH || !process.env.MINI_QA_OUTPUT) {
   throw new Error('请设置 MINI_AUTOMATOR_PATH 与 MINI_QA_OUTPUT；仅连接已开启自动化的本机开发者工具');
 }
 const automator = createRequire(import.meta.url)(process.env.MINI_AUTOMATOR_PATH);
+const unwrittenOnly = process.env.MINI_QA_UNWRITTEN_ONLY === '1';
+if (unwrittenOnly && process.env.MINI_QA_DICTATION_ONLY) throw new Error('空稿与语音定点模式请分开运行');
 const mini = await automator.connect({ wsEndpoint: 'ws://127.0.0.1:9420' });
 const output = resolve(process.env.MINI_QA_OUTPUT);
 await mkdir(output, { recursive: true });
@@ -44,15 +48,21 @@ const requestCount = () => mini.evaluate(() => getApp().__dialogueQa.requests.le
 try {
   const info = await mini.systemInfo();
   console.info(JSON.stringify({ windowWidth: info.windowWidth, windowHeight: info.windowHeight, model: info.model }));
-  assert.ok(['pages/home/index', 'pages/login/index'].includes((await mini.currentPage()).path), '先回首页或登录页，避免打断正在编辑的作品');
-  await mini.evaluate(() => {
+  let entry;
+  for (let attempt = 0; attempt < 100 && !entry; attempt++) {
+    try { entry = await mini.currentPage(); } catch { /* The app service can precede the first native page metadata. */ }
+    if (!entry) await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  assert.ok(entry && ['pages/home/index', 'pages/login/index'].includes(entry.path), '先回首页或登录页，避免打断正在编辑的作品');
+  await mini.evaluate(unwrittenOnly => {
+    const core = require('domain/core.js');
+    if (typeof core.conversationView !== 'function') throw new Error('运行包缺少 conversationView');
+    if (unwrittenOnly && typeof core.hasSessionContent !== 'function') throw new Error('运行包缺少 hasSessionContent，请先刷新 npm');
     const serviceModule = require('services.js');
     serviceModule.pauseMiniServices();
     const original = serviceModule.miniServices;
     const services = original();
     const storage = require('storage/repository.js');
-    const core = require('domain/core.js');
-    if (typeof core.conversationView !== 'function') throw new Error('运行包缺少 conversationView');
     const root = wx.env.USER_DATA_PATH + '/qa-dialogue-' + Date.now();
     const originals = [];
     const replace = (target, source) => {
@@ -63,6 +73,18 @@ try {
     const repository = replace(services.repository, new storage.MiniWorkRepository(services.files, root));
     const writer = replace(services.writer, new storage.MiniDraftWriter(repository));
     const qa = { original, originals, root, queue: [], requests: [], pending: [], consent: services.aiConsent.ensure, accountSnapshot: services.account.snapshot };
+    if (unwrittenOnly) {
+      qa.syncCalls = 0; qa.publicationCalls = 0; qa.blockedAccountRequests = 0;
+      // Keep all list refreshes and page account gates inside this fixture.
+      replace(services.account, { ...services.account, restore: async () => {}, refresh: async () => {},
+        authorizedRequest: async () => { qa.blockedAccountRequests++; throw new Error('空稿回归禁止真实账号请求'); },
+        request: async () => { qa.blockedAccountRequests++; throw new Error('空稿回归禁止真实账号请求'); } });
+      replace(services.sync, { ...services.sync, sync: async () => { qa.syncCalls++; },
+        open: async id => repository.getAggregate(id), snapshot: () => ({ status: 'ready', error: '' }),
+        subscribe: () => () => {}, beforeSync: () => () => {}, canEdit: () => true, pause() {} });
+      replace(services.publications, { ...services.publications,
+        statuses: async () => { qa.publicationCalls++; return { publications: [] }; } });
+    }
     // This fixture permits non-billing AI/voice adapters only; it never acquires a real account.
     services.account.snapshot = () => ({ status: 'authenticated', account: { id: 'qa-account', nickname: '', hasAvatar: false, avatarVersion: 0 }, error: '', generation: services.generation });
     const transport = { request(request) {
@@ -88,10 +110,13 @@ try {
     services.aiConsent.ensure = async () => true;
     qa.services = services;
     getApp().__dialogueQa = qa;
-  });
+  }, unwrittenOnly);
   installed = true;
   await mini.reLaunch('/pages/editor/index?xiaowen=compose');
   await current('editor');
+  if (unwrittenOnly) {
+    await runUnwrittenRegression({ mini, output, check, current });
+  } else {
   if (!process.env.MINI_QA_DICTATION_ONLY) {
   check('空编辑器加载，无 conversationView 异常', await page.data('error') === '');
   check('无话题空会话提供非持久化问候，无空绿色主题区', (await page.$$('.topic-heading')).length === 0 && Boolean(await page.$('.topic-absent')) && (await page.data('conversationMessages'))[0].text === '您好，我是小文。您想聊点什么？' && ((await conversation())?.messages.length ?? 0) === 0);
@@ -398,6 +423,7 @@ try {
   await new Promise(resolve => setTimeout(resolve, 250));
   check('正文补发只成为待确认文字，不改正文或调用小文', await page.data('draft.pendingVoice') === '正文的开头也保留了' && await page.data('body') === bodyBefore && await requestCount() === bodyCalls && await mini.evaluate(() => { const q = getApp().__dialogueQa; return JSON.stringify(q.speechFrames) === '[1,2,3,4]' && JSON.stringify(q.speechCommands) === '["end"]'; }));
   await mini.screenshot({ path: resolve(output, 'dictation-pending-body.png') });
+  }
   console.info(JSON.stringify({ passed: passed.length, modelCalls: 0, screenshots: output }));
 } finally {
   if (installed) {

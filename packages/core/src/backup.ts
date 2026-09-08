@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { aiDisclosureFor, aiDisclosureSchema, type AiDisclosure, articleSessionSchema, type ArticleSession } from './article-ai.js';
+import { aiDisclosureFor, aiDisclosureSchema, type AiDisclosure, articleSessionSchema, hasSessionContent, type ArticleSession } from './article-ai.js';
 import { topicSnapshotSchema, writingMaterialSchema } from './topics.js';
 import { newId, normalizeWork, type Work, workFromDraft, hasContent, type Draft } from './writing.js';
 import { cloneValue, utf8ByteLength } from './platform.js';
@@ -77,8 +77,10 @@ export function parseBackupBundle(raw: string): { works: Work[]; sessions: Artic
 }
 export function makeBackup(works: Work[], current?: Draft | null, sessions: ArticleSession[] = [], writingStates: WorkWritingState[] = []): string {
   let items = cloneValue(works);
-  if (current && (hasContent(current) || writingStates.some(item => item.workId === current.id && item.state.composer.trim()) || sessions.some(session => session.workId === current.id && (session.turns.length || session.conversation)))) {
-    const snapshot = workFromDraft(current, items.find(w => w.id === current.id));
+  const existing = current ? items.find(work => work.id === current.id) : undefined;
+  if (current && (existing || hasContent(current) || writingStates.some(item => item.workId === current.id && item.state.composer.trim())
+    || sessions.some(session => session.workId === current.id && hasSessionContent(session)))) {
+    const snapshot = workFromDraft(current, existing);
     items = [...items.filter(w => w.id !== current.id), snapshot];
   }
   const ids = new Set(items.map(w => w.id));

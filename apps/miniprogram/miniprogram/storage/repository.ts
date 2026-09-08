@@ -3,7 +3,7 @@ import { aggregateSchema, LOCAL_SCHEMA_VERSION, recoveryRecordSchema, repository
 import { MiniStorageError, storageError, type StorageErrorCategory } from './errors';
 import { repositoryPaths, workFileName, workFilePath, workIdFromFileName, type RepositoryPaths } from './paths';
 import type { LocalFileSystem } from './file-system';
-import { articleSessionSchema, asImportedCopy, copySession, hasContent, makeBackup, makeBackupVolumes, parseBackupBundle, newId, emptyWritingState,
+import { articleSessionSchema, asImportedCopy, copySession, hasContent, hasSessionContent, makeBackup, makeBackupVolumes, parseBackupBundle, newId, emptyWritingState,
   workFromDraft, type ArticleSession, type Draft, type Recovery, type Work, type WritingState, type CloudMutation, type CloudMutationResult,
   type CloudWork, type WorkSnapshot, type WorkWritingState } from '../domain/core';
 
@@ -348,7 +348,14 @@ export class MiniWorkRepository {
         return current.work;
       }
       if ((current?.work.revision ?? 0) !== expectedRevision || current?.work.deletedAt) throw new MiniStorageError('conflict');
-      if (!current && !hasContent(draftSnapshot) && !sessionSnapshot?.turns.length && !sessionSnapshot?.conversation && !writingState?.composer.trim()) return null;
+      if (!current && !hasContent(draftSnapshot) && !hasSessionContent(sessionSnapshot) && !writingState?.composer.trim()) {
+        // Topic and interview openings must survive navigation without becoming
+        // authored works or producing a cloud mutation.
+        if (sessionSnapshot?.conversation || draftSnapshot.topicSnapshot) {
+          await this.writeRecoveryInternal(draftSnapshot, 0, sessionSnapshot, writingState);
+        }
+        return null;
+      }
       const work = workFromDraft(draftSnapshot, current?.work);
       const aggregate: WorkAggregate = { app: 'suiyue-yousheng', schemaVersion: LOCAL_SCHEMA_VERSION,
         savedAt: this.now().toISOString(), work, session: sessionSnapshot ?? current?.session ?? null,
@@ -365,17 +372,21 @@ export class MiniWorkRepository {
     const sessionSnapshot = session ? clone(session) : null;
     return this.enqueue(async () => {
       await this.initialize();
-      if (sessionSnapshot && (sessionSnapshot.workId !== snapshot.id || !articleSessionSchema.safeParse(sessionSnapshot, zodParseContext).success)) {
-        throw new MiniStorageError('invalid');
-      }
-      const current = await this.readAggregate(snapshot.id);
-      if ((current?.work.revision ?? 0) !== expectedRevision || current?.work.deletedAt) throw new MiniStorageError('conflict');
-      assertReplyPreserved(current?.session, sessionSnapshot ?? undefined);
-      const record: RecoveryRecord = { schemaVersion: LOCAL_SCHEMA_VERSION, workId: snapshot.id, expectedRevision,
-        recoveryRevision: expectedRevision + 1, updatedAt: this.now().toISOString(), draft: snapshot, session: sessionSnapshot,
-        ...(writingState ? { writingState } : {}) };
-      await this.writeSmallFile(this.paths.recovery, record, value => recoveryRecordSchema.parse(value, zodParseContext));
+      await this.writeRecoveryInternal(snapshot, expectedRevision, sessionSnapshot, writingState);
     });
+  }
+
+  private async writeRecoveryInternal(draft: Draft, expectedRevision: number, session?: ArticleSession | null, writingState?: WritingState) {
+    if (session && (session.workId !== draft.id || !articleSessionSchema.safeParse(session, zodParseContext).success)) {
+      throw new MiniStorageError('invalid');
+    }
+    const current = await this.readAggregate(draft.id);
+    if ((current?.work.revision ?? 0) !== expectedRevision || current?.work.deletedAt) throw new MiniStorageError('conflict');
+    assertReplyPreserved(current?.session, session ?? undefined);
+    const record: RecoveryRecord = { schemaVersion: LOCAL_SCHEMA_VERSION, workId: draft.id, expectedRevision,
+      recoveryRevision: expectedRevision + 1, updatedAt: this.now().toISOString(), draft, session: session ?? null,
+      ...(writingState ? { writingState } : {}) };
+    await this.writeSmallFile(this.paths.recovery, record, value => recoveryRecordSchema.parse(value, zodParseContext));
   }
 
   private async clearRecoveryInternal(id: string) {
