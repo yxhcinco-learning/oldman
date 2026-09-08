@@ -4,8 +4,12 @@
 
 ## ADDED Requirements
 
-### Requirement: Preview before explicit submission
-系统 SHALL 保存当前正文后进入发表设置，要求非空标题、已确认正文和作者必选封面；预览 MUST 显示实际署名、默认头像、裁切效果和适用 AI 标识。修改用户名后返回同篇预览。发表前 MUST 核对云作品、设置及署名版本，只冻结明确确认的内容。
+### Requirement: Settings and optional preview before explicit submission
+系统 SHALL 保存当前正文后进入发表设置，要求非空标题、已确认正文和作者必选封面；设置页底部直接提交审核，右上角提供可选只读预览，预览 MUST 显示实际署名、默认头像、裁切效果和适用 AI 标识。修改用户名后保留同篇设置。发表前 MUST 在内部同步和准备当前快照，核对云作品、设置及署名版本，只冻结明确提交的内容，不要求用户先打开预览。
+
+#### Scenario: Submit without opening preview
+- **WHEN** 作者配置有效封面和署名后直接提交，或预览后改稿改名且未再次预览
+- **THEN** 提交内部准备当前正文、封面及署名的快照并按版本条件投稿；响应丢失继续原固定操作重试，不用旧预览覆盖新内容
 
 #### Scenario: Save or submit fails
 - **WHEN** 保存、上传、版本核对或提交失败
@@ -73,4 +77,4 @@
 
 #### Scenario: Device evidence is unavailable
 - **WHEN** 本地检查通过而实际手机或好友收发未完成
-- **THEN** 对应任务保持未完成、变更保持活跃，不以模拟结果宣称真机通过，不自动部署
+- **THEN** 对应任务保持未完成、变更保持活跃，不以模拟结果宣称真机通过；测试部署仅在用户明确授权的范围执行
