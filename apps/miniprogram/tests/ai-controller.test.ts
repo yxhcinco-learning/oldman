@@ -158,7 +158,10 @@ describe('小程序小文文章会话', () => {
     expect(first.session.conversation?.mode).toBe('interview');
     expect(first.session.conversation?.materials).toEqual([]);
     expect(first.session.conversation?.messages[0].text).toBe('你来问我吧');
-    expect((await repository.load()).sessions[0].conversation?.mode).toBe('interview');
+    const snapshot = await repository.load(draft.id);
+    expect(snapshot.works).toEqual([]);
+    expect(snapshot.sessions).toEqual([]);
+    expect(snapshot.recoverySession).toEqual(first.session);
     expect(documentOf(first.draft).body).toBe('');
   });
 

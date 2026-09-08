@@ -35,7 +35,7 @@
 - **THEN** 拒绝操作且不覆盖原文，其他账号的作品与不存在作品使用一致响应
 
 ### Requirement: Durable complete writing sync
-系统 SHALL 同步正文、版本、会话、素材、访谈模式与已保存待确认输入；MUST 先本机提交再持久排队，冻结已发送操作并只确认对应内容。
+系统 SHALL 只同步已经建立的文章及其正文、版本、已发送会话、素材和访谈模式；新保存的文章快照不包含待确认语音、段落编辑框或未发送会话输入；MUST 先本机提交再持久排队，冻结已发送操作并只确认对应内容。
 
 #### Scenario: Crash during upload and later edits
 - **WHEN** 上传中继续输入、进程重启或确认结果写入失败
@@ -44,6 +44,10 @@
 #### Scenario: Continue on another device
 - **WHEN** 同账号另一设备打开云作品
 - **THEN** 最新完整快照成功落到本机后才允许编辑，不恢复录音或自动重新调用正在执行的模型请求
+
+#### Scenario: Intermediate input does not create or upload an article
+- **WHEN** 新上下文仅有输入框文字、素材、会话或未应用结果，标题正文为空
+- **THEN** 本机和云端文章计数不增加，不建立作品上传操作；确认输入或采用结果进入标题/正文后正常保存和同步
 
 ### Requirement: Offline pause and recoverable stale input
 系统 MUST 在云作品断网或身份失效时保住当前输入并暂停修改；已登录账号临时断网时未入云的新本机草稿 SHALL 保持可写。重新进入页面时必须核对账号；已有输入保存失败时仅保留只读救援，不丢弃内存或开放新编辑。
@@ -75,7 +79,7 @@
 - **THEN** 同步删除对应缓存，旧保存不能复活已删作品，不影响其他作品
 
 ### Requirement: Complete portable backup volumes
-系统 SHALL 导出包含写作输入状态的 JSON v6，兼容 v1–v5 导入，MUST 为每份导入创建新副本且不携带身份或同步元数据。
+系统 SHALL 导出包含实际文章及已发送会话的 JSON v6，新导出快照不包含当前输入框状态，兼容 v1–v5 导入，MUST 为每份导入创建新副本且不携带身份或同步元数据。
 
 #### Scenario: Full cloud backup or offline export
 - **WHEN** 用户选择备份

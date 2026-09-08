@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { aiDisclosureFor, aiDisclosureSchema, type AiDisclosure, articleSessionSchema, hasSessionContent, type ArticleSession } from './article-ai.js';
+import { aiDisclosureFor, aiDisclosureSchema, type AiDisclosure, articleSessionSchema, type ArticleSession } from './article-ai.js';
 import { topicSnapshotSchema, writingMaterialSchema } from './topics.js';
-import { newId, normalizeWork, type Work, workFromDraft, hasContent, type Draft } from './writing.js';
+import { newId, normalizeWork, type Work, workFromDraft, hasArticleContent, withoutTransientInput, type Draft } from './writing.js';
 import { cloneValue, utf8ByteLength } from './platform.js';
 import { workWritingStateSchema, type WorkWritingState } from './writing-state.js';
 
@@ -76,18 +76,19 @@ export function parseBackupBundle(raw: string): { works: Work[]; sessions: Artic
   return { works, sessions, disclosures, writingStates };
 }
 export function makeBackup(works: Work[], current?: Draft | null, sessions: ArticleSession[] = [], writingStates: WorkWritingState[] = []): string {
-  let items = cloneValue(works);
+  // Keep the existing call signature and v6 shape; newly exported input boxes are empty.
+  void writingStates;
+  let items = works.map(work => ({ ...work, segments: cloneValue(work.segments), draft: withoutTransientInput(work.draft) }));
   const existing = current ? items.find(work => work.id === current.id) : undefined;
-  if (current && (existing || hasContent(current) || writingStates.some(item => item.workId === current.id && item.state.composer.trim())
-    || sessions.some(session => session.workId === current.id && hasSessionContent(session)))) {
-    const snapshot = workFromDraft(current, existing);
+  if (current && (existing || hasArticleContent(current))) {
+    const snapshot = workFromDraft(withoutTransientInput(current), existing);
     items = [...items.filter(w => w.id !== current.id), snapshot];
   }
   const ids = new Set(items.map(w => w.id));
   const includedSessions = sessions.filter(s => ids.has(s.workId));
   const byWork = new Map(includedSessions.map(session => [session.workId, session]));
   return JSON.stringify({ app: 'suiyue-yousheng', schemaVersion: 6, exportedAt: new Date().toISOString(), works: items,
-    sessions: includedSessions, writingStates: writingStates.filter(item => ids.has(item.workId)),
+    sessions: includedSessions, writingStates: [],
     disclosures: items.map(work => aiDisclosureFor(work.id, byWork.get(work.id))) });
 }
 

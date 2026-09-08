@@ -37,7 +37,7 @@ describe('小程序手工备份与文件交接', () => {
     expect(imported.draft.segments[0]?.text).toBe('那年秋天。');
   });
 
-  it('提供 TXT、复制和包含未完成输入的救援导出', async () => {
+  it('提供 TXT、复制和正文救援导出，待确认语音仅留在当前内存', async () => {
     const files = new MemoryFileSystem();
     const platform = new FakePlatform();
     const repository = new MiniWorkRepository(files, '/user');
@@ -49,7 +49,10 @@ describe('小程序手工备份与文件交接', () => {
     const txt = await controller.exportText(draft);
     expect(files.files.get(txt)).toBe('手记\n\n第一段\n\n第二段');
     const rescue = await controller.rescue(draft);
-    expect(parseBackupBundle(files.files.get(rescue)!).works[0]?.draft.pendingVoice).toBe('待确认语音');
+    const restored = parseBackupBundle(files.files.get(rescue)!);
+    expect(restored.works[0]?.draft).toMatchObject({ textDraft: draft.textDraft, pendingVoice: '', segmentEdit: null });
+    expect(files.files.get(rescue)).not.toContain('待确认语音');
+    expect(draft.pendingVoice).toBe('待确认语音');
   });
 
   it('拒绝无效导入且不改变已有作品', async () => {
@@ -98,7 +101,7 @@ describe('小程序手工备份与文件交接', () => {
     expect(restored.sessions).toEqual([session]);
   });
 
-  it('救援优先采用传入的当前会话和输入，未传时保留已存记录', async () => {
+  it('救援优先采用传入的当前会话，未传时保留已存会话且均不导出输入框', async () => {
     const files = new MemoryFileSystem(), repository = new MiniWorkRepository(files, '/rescue-current');
     const draft = { ...emptyDraft(), title: '手记' };
     const storedSession = newSession(draft), storedState = { composer: '先前未发送输入', inputSource: 'typed' as const };
@@ -106,15 +109,17 @@ describe('小程序手工备份与文件交接', () => {
     const controller = new MiniBackupController(repository, files, new FakePlatform());
     const fallback = parseBackupBundle(await files.readText(await controller.rescue(draft)));
     expect(fallback.sessions).toEqual([storedSession]);
-    expect(fallback.writingStates).toEqual([{ workId: draft.id, state: storedState }]);
+    expect(fallback.writingStates).toEqual([]);
     const currentSession = startInterview(storedSession, draft, 'open');
     const currentState = { composer: '', inputSource: 'dictated' as const };
     const current = parseBackupBundle(await files.readText(await controller.rescue(draft, currentSession, currentState)));
     expect(current.sessions).toEqual([currentSession]);
-    expect(current.writingStates).toEqual([{ workId: draft.id, state: currentState }]);
+    expect(current.writingStates).toEqual([]);
+    expect(storedState.composer).toBe('先前未发送输入');
+    expect(currentState.inputSource).toBe('dictated');
   });
 
-  it('已有文件读取失败仍可救援当前内存中的文字、会话和未发送输入', async () => {
+  it('已有文件读取失败仍可救援当前正文和会话，未发送输入留在内存', async () => {
     const files = new MemoryFileSystem(), repository = new MiniWorkRepository(files, '/rescue-read-error');
     const original = { ...emptyDraft(), title: '旧内容' };
     await repository.save(original, 0);
@@ -125,6 +130,7 @@ describe('小程序手工备份与文件交接', () => {
     const restored = parseBackupBundle(await files.readText(await controller.rescue(current, session, state)));
     expect(restored.works[0]?.draft.textDraft).toBe(current.textDraft);
     expect(restored.sessions).toEqual([session]);
-    expect(restored.writingStates).toEqual([{ workId: current.id, state }]);
+    expect(restored.writingStates).toEqual([]);
+    expect(state.composer).toBe('还想补充');
   });
 });

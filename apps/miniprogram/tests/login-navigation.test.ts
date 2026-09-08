@@ -34,7 +34,7 @@ describe('登录后回到固定归属的原作品', () => {
     expect(await resolveLoginReturn(target, asServices(b))).toBe('/pages/works/index');
   });
 
-  it('游客作品 ID 碰撞后使用持久认领标识，完整输入仍在', async () => {
+  it('游客作品 ID 碰撞后使用持久认领标识，保留正文但不迁移未发送输入', async () => {
     const files = new MemoryFileSystem();
     const guest = new MiniWorkRepository(files, '/data');
     const account = new MiniWorkRepository(files, '/data', undefined, 'account-a');
@@ -47,7 +47,9 @@ describe('登录后回到固定归属的原作品', () => {
     await guest.claim(draft.id, 'account-a', 'new-cloud-id', true);
     const target = { url: '/pages/editor/index?id=' + draft.id + '&xiaowen=compose', workId: draft.id, source: asServices(guest) };
     expect(await resolveLoginReturn(target, asServices(account))).toBe('/pages/editor/index?id=new-cloud-id&xiaowen=compose');
-    expect((await account.getAggregate('new-cloud-id'))?.writingState?.composer).toBe('还没有发送');
+    const migrated = (await account.getAggregate('new-cloud-id'))!;
+    expect(migrated.writingState?.composer).toBe('');
+    expect(migrated.work.draft.textDraft).toBe('登录前的原文');
   });
   it('不同账号不得读取原账号作品；未完成认领回到作品列表', async () => {
     const files = new MemoryFileSystem();

@@ -24,9 +24,6 @@ accountPage({
   prepareUnsubscribe: undefined as (() => void) | undefined,
   checkingCloud: false,
   loginOpening: false,
-  composerDirty: false,
-  composerVersion: 0,
-  composerTimer: undefined as ReturnType<typeof setTimeout> | undefined,
   alive: true,
   data: {
     ...navigationMetrics(),
@@ -99,10 +96,10 @@ accountPage({
     }) : null;
     if (aggregate === undefined) return;
     if (this.services !== miniServices() || !this.alive || this.data.draft?.id !== id) return;
-    if (aggregate && aggregate.work.revision !== this.data.revision && !this.checkingCloud && !this.composerDirty && !this.services.articleAi.isRunning(aggregate.work.id)) {
+    if (aggregate && aggregate.work.revision !== this.data.revision && !this.checkingCloud && !this.services.articleAi.isRunning(aggregate.work.id)) {
       await this.open(aggregate.work.id, false); return;
     }
-    this.setData({ ...writingAccess(aggregate, this.services.account.snapshot(), this.services.sync, !this.composerDirty),
+    this.setData({ ...writingAccess(aggregate, this.services.account.snapshot(), this.services.sync),
       ...(this.checkingCloud ? { readOnly: true } : {}) });
   },
   async reconnectCloud() {
@@ -155,7 +152,7 @@ accountPage({
         try { await this.services.sync.open(id); }
         catch (error) { this.setData({ cloudMessage: errorMessage(error, '请联网核对云作品。') }); }
       }
-      const snapshot = await this.services.repository.load();
+      const snapshot = await this.services.repository.load(id);
       if (this.services !== miniServices() || !this.alive) return;
       this.services.writer.recoverPending(snapshot.pendingSessions ?? []);
       const pending = this.services.writer.pendingSession(id);
@@ -179,8 +176,6 @@ accountPage({
         void wx.redirectTo({ url: `/pages/editor/index?id=${encodeURIComponent(id)}&xiaowen=compose` });
         return;
       }
-      const persistedInput = (snapshot.recovery?.draft.id === draft.id ? snapshot.recoveryWritingState : undefined) ?? snapshot.writingStates?.find(item => item.workId === draft.id)?.state;
-      if (persistedInput && !this.services.articleAi.isRunning(draft.id)) this.services.conversations.hydrate(draft.id, persistedInput);
       const memory = this.services.conversations.read(draft.id);
       measureTopic(this);
       this.setData({ draft, session, revision, mode: conversation.mode, resultSavePending: Boolean(pending),
@@ -200,32 +195,12 @@ accountPage({
     if (!this.allowEditing()) return;
     const composer = event.detail.value;
     if (this.data.draft) this.services.conversations.updateComposer(this.data.draft.id, composer, 'typed');
-    this.scheduleComposerSave();
     this.setData({ composer, error: '' });
   },
 
-  scheduleComposerSave() {
-    this.composerDirty = true; this.composerVersion++;
-    this.setData({ syncLabel: '正在保存…' });
-    if (this.composerTimer) clearTimeout(this.composerTimer);
-    this.composerTimer = setTimeout(() => { this.composerTimer = undefined; void this.saveComposer(); }, 700);
-  },
   async saveComposer() {
-    if (this.composerTimer) clearTimeout(this.composerTimer);
-    this.composerTimer = undefined;
-    if (!this.data.draft || !this.composerDirty) return true;
-    const version = this.composerVersion;
-    try {
-      const work = await this.services.writer.write(this.data.draft, this.data.session ?? undefined);
-      this.composerDirty = version !== this.composerVersion;
-      if (this.services !== miniServices() || !this.alive) return !this.composerDirty;
-      this.setData({ revision: work?.revision ?? this.data.revision, inputSaveFailed: false, error: '' });
-      void this.refreshCloudState();
-      return !this.composerDirty;
-    } catch (error) {
-      await this.services.writer.preserve(this.data.draft, this.data.session ?? undefined).catch(() => undefined);
-      this.setData({ inputSaveFailed: true, error: errorMessage(error, '输入尚未保存，请重试或导出当前内容。') }); return false;
-    }
+    // Unsent text already lives in ConversationMemory; only sent dialogue is persisted.
+    return true;
   },
   onComposerFocus() {
     const info = wx.getWindowInfo();

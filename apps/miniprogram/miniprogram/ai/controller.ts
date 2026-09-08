@@ -216,7 +216,7 @@ export class MiniArticleAiController {
 
   private async latest(workId: string): Promise<MiniAiContext> {
     await this.writer.flush();
-    const snapshot = await this.repository.load();
+    const snapshot = await this.repository.load(workId);
     const recovery = snapshot.recovery?.draft.id === workId ? snapshot.recovery : null;
     const work = snapshot.works.find(item => item.id === workId && !item.deletedAt) ?? null;
     const draft = recovery?.draft ?? work?.draft;

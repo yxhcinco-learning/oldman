@@ -10,15 +10,10 @@ export interface ConversationMemoryState {
 
 const emptyState = (): ConversationMemoryState => ({ composer: '', inputSource: 'typed', requestStatus: 'idle', error: '' });
 
-/** Request errors remain transient; composer text is also persisted by the draft writer. */
+/** Unsent input and request errors only live in the current account's editing memory. */
 export class ConversationMemory {
   private readonly states = new Map<string, ConversationMemoryState>();
   constructor(private readonly changed?: (id: string, state: Pick<ConversationMemoryState, 'composer' | 'inputSource'>) => void) {}
-  hydrate(workId: string, state: Pick<ConversationMemoryState, 'composer' | 'inputSource'>) {
-    this.states.set(workId, { ...emptyState(), ...state });
-    this.changed?.(workId, state);
-  }
-
   read(workId: string): ConversationMemoryState {
     return { ...(this.states.get(workId) ?? emptyState()) };
   }

@@ -57,7 +57,7 @@ try {
   await mini.evaluate(unwrittenOnly => {
     const core = require('domain/core.js');
     if (typeof core.conversationView !== 'function') throw new Error('运行包缺少 conversationView');
-    if (unwrittenOnly && typeof core.hasSessionContent !== 'function') throw new Error('运行包缺少 hasSessionContent，请先刷新 npm');
+    if (unwrittenOnly && (typeof core.hasArticleContent !== 'function' || typeof core.withoutTransientInput !== 'function')) throw new Error('运行包缺少文章内容边界，请先刷新 npm 并冷启开发者工具');
     const serviceModule = require('services.js');
     serviceModule.pauseMiniServices();
     const original = serviceModule.miniServices;
@@ -97,6 +97,15 @@ try {
     } };
     replace(services.articleAi, new (require('ai/controller.js').MiniArticleAiController)(repository, writer, transport));
     replace(services.conversations, new (require('state/conversation-memory.js').ConversationMemory)((id, state) => writer.setWritingState(id, state)));
+    if (unwrittenOnly) qa.resetUnwritten = async name => {
+      await writer.flush();
+      // Separate scenarios get new fixture directories; no existing files are removed.
+      qa.activeBase = `${root}/${name}`;
+      const isolated = replace(services.repository, new storage.MiniWorkRepository(services.files, qa.activeBase));
+      replace(services.writer, new storage.MiniDraftWriter(isolated));
+      replace(services.articleAi, new (require('ai/controller.js').MiniArticleAiController)(isolated, writer, transport));
+      replace(services.conversations, new (require('state/conversation-memory.js').ConversationMemory)((id, state) => writer.setWritingState(id, state)));
+    };
     // Exercise the real speech state machine; only recorder/network/permission are non-billing fixtures.
     qa.speechStarts = 0;
     qa.speechFrames = [];

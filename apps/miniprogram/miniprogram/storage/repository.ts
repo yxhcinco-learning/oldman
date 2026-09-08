@@ -3,7 +3,7 @@ import { aggregateSchema, LOCAL_SCHEMA_VERSION, recoveryRecordSchema, repository
 import { MiniStorageError, storageError, type StorageErrorCategory } from './errors';
 import { repositoryPaths, workFileName, workFilePath, workIdFromFileName, type RepositoryPaths } from './paths';
 import type { LocalFileSystem } from './file-system';
-import { articleSessionSchema, asImportedCopy, copySession, hasContent, hasSessionContent, makeBackup, makeBackupVolumes, parseBackupBundle, newId, emptyWritingState,
+import { articleSessionSchema, asImportedCopy, copySession, hasArticleContent, withoutTransientInput, documentOf, makeBackup, makeBackupVolumes, parseBackupBundle, newId, emptyWritingState,
   workFromDraft, type ArticleSession, type Draft, type Recovery, type Work, type WritingState, type CloudMutation, type CloudMutationResult,
   type CloudWork, type WorkSnapshot, type WorkWritingState } from '../domain/core';
 
@@ -54,6 +54,9 @@ export class MiniWorkRepository {
   private initialization?: Promise<void>;
   private issues: RepositoryIssue[] = [];
   private quarantineCounter = 0;
+  private contexts = new Map<string, RecoveryRecord>();
+  private activeContextId?: string;
+  private inputs = new Map<string, { draft: Draft; state?: WritingState }>();
   private listeners = new Set<(id: string) => void>();
   subscribe(listener: (id: string) => void) { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; }
 
@@ -79,7 +82,7 @@ export class MiniWorkRepository {
         await this.files.ensureDirectory(this.paths.quarantine);
         // Recover only validated reply journals, never delete an unreadable result.
         const names = await this.files.list(this.paths.root);
-        for (const base of new Set(names.map(name => name.replace(/\.(tmp|bak)$/, '')).filter(name => /^[A-Za-z0-9_-]+\.result\.json$/.test(name)))) {
+        for (const base of new Set(names.map(name => name.replace(/\.(tmp|bak)$/, '')).filter(name => /^[A-Za-z0-9_-]+\.(result|context)\.json$/.test(name)))) {
           const target = `${this.paths.root}/${base}`;
           const valid = async (path: string) => {
             try { return recoveryRecordSchema.safeParse(JSON.parse(await this.files.readText(path)), zodParseContext).success; } catch { return false; }
@@ -270,12 +273,28 @@ export class MiniWorkRepository {
     return { recovery: { draft: record.draft, revision: record.expectedRevision }, session: record.session, writingState: record.writingState };
   }
 
-  load(): Promise<RepositorySnapshot> {
+  load(id?: string): Promise<RepositorySnapshot> {
     // Loading also rebuilds the index and cleans journals; it is a storage transaction.
-    return this.enqueue(() => this.loadInternal()).catch(error => { throw storageError(error); });
+    return this.enqueue(() => this.loadInternal(id)).catch(error => { throw storageError(error); });
   }
 
-  private async loadInternal(): Promise<RepositorySnapshot> {
+  private withInput(draft: Draft): Draft {
+    const input = this.inputs.get(draft.id)?.draft;
+    if (!input || stableJson(documentOf(input)) !== stableJson(documentOf(draft))) return draft;
+    return { ...draft, pendingVoice: input.pendingVoice, segmentEdit: clone(input.segmentEdit) };
+  }
+
+  private async readContext(id: string): Promise<RecoveryRecord | null> {
+    workFileName(id);
+    if (this.contexts.has(id)) return clone(this.contexts.get(id)!);
+    const path = `${this.paths.root}/${id}.context.json`;
+    if (!await this.files.exists(path)) return null;
+    const record = recoveryRecordSchema.parse(JSON.parse(await this.files.readText(path)), zodParseContext);
+    if (record.workId !== id || record.expectedRevision !== 0) throw new MiniStorageError('corrupt');
+    return record;
+  }
+
+  private async loadInternal(id?: string): Promise<RepositorySnapshot> {
     await this.initialize();
     const index = await this.rebuildIndex();
     const aggregates: WorkAggregate[] = [];
@@ -283,7 +302,14 @@ export class MiniWorkRepository {
       const aggregate = await this.readAggregate(entry.id);
       if (aggregate && !aggregate.cloud?.claim) aggregates.push(aggregate);
     }
-    const recovered = await this.loadRecovery(aggregates);
+    let recovered = await this.loadRecovery(aggregates);
+    this.activeContextId ??= recovered.recovery?.draft.id;
+    const contextId = id ?? this.activeContextId;
+    if (contextId && !aggregates.some(item => item.work.id === contextId)) {
+      const context = await this.readContext(contextId);
+      if (context) recovered = { recovery: { draft: context.draft, revision: 0 }, session: context.session };
+    }
+    if (recovered.recovery) recovered.recovery.draft = this.withInput(recovered.recovery.draft);
     const pendingSessions: RecoveryRecord[] = [];
     for (const name of await this.files.list(this.paths.root)) {
       if (!/^[A-Za-z0-9_-]+\.result\.json$/.test(name)) continue;
@@ -291,14 +317,15 @@ export class MiniWorkRepository {
         const record = recoveryRecordSchema.parse(JSON.parse(await this.files.readText(`${this.paths.root}/${name}`)), zodParseContext);
         if (name !== `${record.workId}.result.json` || !record.session) throw new Error('invalid');
         const stored = aggregates.find(item => item.work.id === record.workId);
-        if (stored && stableJson(stored.session) === stableJson(record.session)) {
+        const savedSession = stored?.session ?? (await this.readContext(record.workId))?.session;
+        if (savedSession && stableJson(savedSession) === stableJson(record.session)) {
           await this.clearPendingSessionInternal(record.workId);
         } else pendingSessions.push(record);
       } catch {
         this.issues.push({ category: 'corrupt', message: '一份小文回复恢复记录暂时无法读取，原文件仍保留。', fileName: name });
       }
     }
-    const result = { works: aggregates.map(item => item.work), sessions: aggregates.flatMap(item => item.session ? [item.session] : []), aggregates,
+    const result = { works: aggregates.map(item => ({ ...item.work, draft: this.withInput(item.work.draft) })), sessions: aggregates.flatMap(item => item.session ? [item.session] : []), aggregates,
       writingStates: aggregates.map(item => ({ workId: item.work.id, state: item.writingState ?? emptyWritingState() })),
       recovery: recovered.recovery, recoverySession: recovered.session, recoveryWritingState: recovered.writingState, pendingSessions, issues: [...this.issues] };
     this.issues = [];
@@ -306,7 +333,7 @@ export class MiniWorkRepository {
   }
 
   stageSession(draft: Draft, session: ArticleSession, expectedRevision: number) {
-    const record: RecoveryRecord = { schemaVersion: LOCAL_SCHEMA_VERSION, workId: draft.id, draft: clone(draft), session: clone(session),
+    const record: RecoveryRecord = { schemaVersion: LOCAL_SCHEMA_VERSION, workId: draft.id, draft: withoutTransientInput(draft), session: clone(session),
       expectedRevision, recoveryRevision: expectedRevision + 1, updatedAt: this.now().toISOString() };
     return this.enqueue(async () => {
       await this.initialize();
@@ -324,8 +351,9 @@ export class MiniWorkRepository {
     await this.safeRemove(`${this.paths.root}/${id}.result.json`);
   }
 
-  save(draft: Draft, expectedRevision: number, session?: ArticleSession, writingState?: WritingState): Promise<Work | null> {
-    const draftSnapshot = clone(draft);
+  save(draft: Draft, expectedRevision: number, session?: ArticleSession, writingState?: WritingState, activateContext = true): Promise<Work | null> {
+    const inputSnapshot = clone(draft);
+    const draftSnapshot = withoutTransientInput(draft);
     const sessionSnapshot = session ? clone(session) : undefined;
     return this.enqueue(async () => {
       await this.initialize();
@@ -335,31 +363,38 @@ export class MiniWorkRepository {
       const current = await this.readAggregate(draftSnapshot.id);
       if (current?.cloud?.claim) throw new MiniStorageError('conflict', { message: '作品已归属登录账号，请重新打开。' });
       assertReplyPreserved(current?.session, sessionSnapshot);
+      const context = current ? null : await this.readContext(draftSnapshot.id);
+      assertReplyPreserved(context?.session, sessionSnapshot);
       const journalPath = `${this.paths.root}/${draftSnapshot.id}.result.json`;
       if (await this.files.exists(journalPath)) {
         const journal = recoveryRecordSchema.parse(JSON.parse(await this.files.readText(journalPath)), zodParseContext);
         if (stableJson(journal.session) !== stableJson(sessionSnapshot)) throw new MiniStorageError('conflict', { message: '请先保存已收到的小文回复，或导出当前内容。' });
       }
       // Aggregate commit may succeed before index/cleanup fails. Explicit retry is idempotent.
-      if (current?.work.revision === expectedRevision + 1 && stableJson(current.work.draft) === stableJson(draftSnapshot)
-        && stableJson(current.session) === stableJson(sessionSnapshot) && (!writingState || stableJson(current.writingState) === stableJson(writingState))) {
+      const nextSession = sessionSnapshot ?? current?.session ?? context?.session ?? null;
+      const work = workFromDraft({ ...draftSnapshot,
+        segments: draftSnapshot.inputMode === 'text' && current ? current.work.segments : draftSnapshot.segments }, current?.work);
+      const sameSnapshot = current && stableJson(current.work.draft) === stableJson(work.draft)
+        && stableJson(current.session) === stableJson(nextSession) && stableJson(current.writingState ?? emptyWritingState()) === stableJson(emptyWritingState());
+      if (current?.work.revision === expectedRevision + 1 && sameSnapshot) {
+        this.inputs.set(draftSnapshot.id, { draft: inputSnapshot, state: writingState ? clone(writingState) : undefined });
         await this.rebuildIndex();
         await this.clearRecoveryInternal(draftSnapshot.id);
         return current.work;
       }
       if ((current?.work.revision ?? 0) !== expectedRevision || current?.work.deletedAt) throw new MiniStorageError('conflict');
-      if (!current && !hasContent(draftSnapshot) && !hasSessionContent(sessionSnapshot) && !writingState?.composer.trim()) {
-        // Topic and interview openings must survive navigation without becoming
-        // authored works or producing a cloud mutation.
-        if (sessionSnapshot?.conversation || draftSnapshot.topicSnapshot) {
-          await this.writeRecoveryInternal(draftSnapshot, 0, sessionSnapshot, writingState);
-        }
+      this.inputs.set(draftSnapshot.id, { draft: inputSnapshot, state: writingState ? clone(writingState) : undefined });
+      if (current && sameSnapshot) {
+        await this.clearRecoveryInternal(draftSnapshot.id);
+        return current.work;
+      }
+      if (!current && !hasArticleContent(draftSnapshot)) {
+        await this.writeContext(draftSnapshot, nextSession, activateContext);
         return null;
       }
-      const work = workFromDraft(draftSnapshot, current?.work);
       const aggregate: WorkAggregate = { app: 'suiyue-yousheng', schemaVersion: LOCAL_SCHEMA_VERSION,
-        savedAt: this.now().toISOString(), work, session: sessionSnapshot ?? current?.session ?? null,
-        writingState: writingState ?? current?.writingState ?? emptyWritingState(), cloud: current?.cloud ?? emptyCloudMetadata() };
+        savedAt: this.now().toISOString(), work, session: nextSession,
+        writingState: emptyWritingState(), cloud: current?.cloud ?? emptyCloudMetadata() };
       await this.writeAggregate(aggregate);
       await this.rebuildIndex();
       await this.clearRecoveryInternal(draftSnapshot.id);
@@ -381,15 +416,42 @@ export class MiniWorkRepository {
       throw new MiniStorageError('invalid');
     }
     const current = await this.readAggregate(draft.id);
+    if (current?.cloud?.claim) throw new MiniStorageError('conflict');
     if ((current?.work.revision ?? 0) !== expectedRevision || current?.work.deletedAt) throw new MiniStorageError('conflict');
     assertReplyPreserved(current?.session, session ?? undefined);
+    const context = current ? null : await this.readContext(draft.id);
+    assertReplyPreserved(context?.session, session ?? undefined);
+    const nextSession = session ?? current?.session ?? context?.session ?? null;
+    this.inputs.set(draft.id, { draft: clone(draft), state: writingState ? clone(writingState) : undefined });
+    if (!current && !hasArticleContent(draft)) { await this.writeContext(withoutTransientInput(draft), nextSession); return; }
     const record: RecoveryRecord = { schemaVersion: LOCAL_SCHEMA_VERSION, workId: draft.id, expectedRevision,
-      recoveryRevision: expectedRevision + 1, updatedAt: this.now().toISOString(), draft, session: session ?? null,
-      ...(writingState ? { writingState } : {}) };
+      recoveryRevision: expectedRevision + 1, updatedAt: this.now().toISOString(), draft: withoutTransientInput(draft), session: nextSession };
     await this.writeSmallFile(this.paths.recovery, record, value => recoveryRecordSchema.parse(value, zodParseContext));
   }
 
+  private async writeContext(draft: Draft, session?: ArticleSession | null, activate = true) {
+    const record: RecoveryRecord = { schemaVersion: LOCAL_SCHEMA_VERSION, workId: draft.id, expectedRevision: 0,
+      recoveryRevision: 1, updatedAt: this.now().toISOString(), draft, session: session ?? null };
+    recoveryRecordSchema.parse(record, zodParseContext);
+    assertReplyPreserved((await this.readContext(draft.id))?.session, session ?? undefined);
+    // Input boxes stay in memory. Sent conversations have their own recovery
+    // identity so another active page cannot orphan a late AI response.
+    if (session || draft.topicSnapshot) {
+      await this.writeSmallFile(`${this.paths.root}/${draft.id}.context.json`, record, value => recoveryRecordSchema.parse(value, zodParseContext));
+      this.contexts.set(draft.id, record);
+      if (activate || this.activeContextId === draft.id) {
+        await this.writeSmallFile(this.paths.recovery, record, value => recoveryRecordSchema.parse(value, zodParseContext));
+      }
+    }
+    this.contexts.set(draft.id, record);
+    if (activate) this.activeContextId = draft.id;
+  }
+
   private async clearRecoveryInternal(id: string) {
+    workFileName(id);
+    await this.safeRemove(`${this.paths.root}/${id}.context.json`);
+    this.contexts.delete(id);
+    if (this.activeContextId === id) this.activeContextId = undefined;
     if (!await this.files.exists(this.paths.recovery)) return;
     try {
       const record = recoveryRecordSchema.parse(JSON.parse(await this.files.readText(this.paths.recovery)), zodParseContext);
@@ -438,8 +500,9 @@ export class MiniWorkRepository {
   async exportBackup(): Promise<string> {
     const snapshot = await this.load();
     // Unsaved replies travel as explicit rescue copies, never replace a newer work.
-    const copies = snapshot.pendingSessions.map(record => asImportedCopy(workFromDraft(record.draft)));
-    const rescued = snapshot.pendingSessions.flatMap((record, index) => record.session ? [copySession(record.session, copies[index]!.id)] : []);
+    const articleResults = snapshot.pendingSessions.filter(record => hasArticleContent(record.draft) || snapshot.works.some(work => work.id === record.workId));
+    const copies = articleResults.map(record => asImportedCopy(workFromDraft(withoutTransientInput(record.draft))));
+    const rescued = articleResults.flatMap((record, index) => record.session ? [copySession(record.session, copies[index]!.id)] : []);
     const sessions = snapshot.recoverySession ? [...snapshot.sessions.filter(session => session.workId !== snapshot.recoverySession!.workId), snapshot.recoverySession] : snapshot.sessions;
     const writingStates = [...snapshot.writingStates ?? []];
     if (snapshot.recovery && snapshot.recoveryWritingState) {
@@ -447,7 +510,7 @@ export class MiniWorkRepository {
       if (index >= 0) writingStates.splice(index, 1);
       writingStates.push({ workId: snapshot.recovery.draft.id, state: snapshot.recoveryWritingState });
     }
-    snapshot.pendingSessions.forEach((record, index) => {
+    articleResults.forEach((record, index) => {
       const state = record.writingState ?? writingStates.find(item => item.workId === record.workId)?.state;
       if (state) writingStates.push({ workId: copies[index]!.id, state });
     });
@@ -514,7 +577,7 @@ export class MiniWorkRepository {
   }
 
   private snapshotOf(aggregate: WorkAggregate): WorkSnapshot {
-    return { work: aggregate.work, session: aggregate.session, writingState: aggregate.writingState ?? emptyWritingState() };
+    return { work: { ...aggregate.work, draft: withoutTransientInput(aggregate.work.draft) }, session: aggregate.session, writingState: emptyWritingState() };
   }
 
   queueMutation(id: string, kind?: CloudMutation['kind']): Promise<CloudMutation | null> {
@@ -704,7 +767,7 @@ export class MiniDraftWriter {
   updateLatestSession(id: string, update: (session: ArticleSession) => ArticleSession, fallback?: MiniSessionSaveError['context']) {
     const job = this.tail.catch(() => undefined).then(async () => {
       let snapshot: RepositorySnapshot;
-      try { snapshot = await this.repository.load(); }
+      try { snapshot = await this.repository.load(id); }
       catch (error) {
         if (!fallback) throw error;
         const context = { ...fallback, session: update(clone(fallback.session)) };
@@ -724,7 +787,7 @@ export class MiniDraftWriter {
       this.pending.set(id, pending);
       try { await this.repository.stageSession(draft, nextSession, revision); pending.durable = true; } catch { /* Try the aggregate; retain memory if both writes fail. */ }
       let work: Work | null;
-      try { work = await this.repository.save(clone(draft), revision, clone(nextSession), this.writingStates.get(id)); }
+      try { work = await this.repository.save(clone(draft), revision, clone(nextSession), this.writingStates.get(id), false); }
       catch { throw new MiniSessionSaveError(context, pending.durable); }
       this.revisions.set(id, work?.revision ?? 0);
       this.pending.delete(id);
@@ -740,7 +803,7 @@ export class MiniDraftWriter {
       const pending = this.pending.get(id);
       if (!pending) throw new Error('没有待保存的小文回复。');
       const { draft, session } = pending.context;
-      const work = await this.repository.save(draft, pending.revision, session, this.writingStates.get(id));
+      const work = await this.repository.save(draft, pending.revision, session, this.writingStates.get(id), false);
       this.revisions.set(id, work?.revision ?? 0);
       this.pending.delete(id);
       await this.repository.clearPendingSession(id).catch(() => undefined);

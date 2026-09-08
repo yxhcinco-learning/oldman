@@ -70,7 +70,7 @@ async function server(cloudWorkLimits?: Partial<CloudWorkLimits>) {
 const draft = (text: string) => ({ ...emptyDraft(), inputMode: 'text' as const, textDraft: text, title: '测试作品', pendingVoice: '待确认文字' });
 
 describe('双客户端真实 HTTP 网关、SQLite 与独立磁盘目录联调（微信换码替身）', () => {
-  it('第二设备恢复完整现场，旧会话停止；旧本机未上传稿变成独立恢复稿', async () => {
+  it('第二设备恢复文章与已发送会话，不恢复输入框；旧本机未上传稿变成独立恢复稿', async () => {
     const { device } = await server();
     const a = await device();
     const original = draft('第一版');
@@ -87,8 +87,8 @@ describe('双客户端真实 HTTP 网关、SQLite 与独立磁盘目录联调（
     const b = await device();
     await b.sync.sync();
     const received = (await b.repository.getAggregate(original.id))!;
-    expect(received.writingState?.composer).toBe('未发给小文');
-    expect(received.work.draft.pendingVoice).toBe('待确认文字');
+    expect(received.writingState?.composer).toBe('');
+    expect(received.work.draft.pendingVoice).toBe('');
     expect(received.session?.workId).toBe(original.id);
     expect(received.session).toEqual(scene);
     expect(received.session?.conversation).toMatchObject({ mode: 'interview', materials: [{ text: '我在工厂工作了三十年。' }] });

@@ -50,7 +50,7 @@ describe('登录迁移中的未写作上下文', () => {
     const draft = emptyDraft();
     const session = mode === 'interview' ? startInterview(newSession(draft), draft, 'open') : null;
     await s.guest.writeRecovery(draft, 0, session);
-    const before = await s.files.readText(s.guest.paths.recovery);
+    const before = s.files.files.get(s.guest.paths.recovery);
     await s.sync.sync();
     await s.sync.sync();
     expect(s.sync.snapshot().status).toBe('ready');
@@ -59,21 +59,46 @@ describe('登录迁移中的未写作上下文', () => {
     expect((await s.repository.load()).works.map(work => work.id)).toEqual([previous.id]);
     expect(await s.repository.getAggregate(draft.id)).toBeNull();
     expect(await s.guest.getAggregate(draft.id)).toBeNull();
-    expect(await s.files.readText(s.guest.paths.recovery)).toBe(before);
+    expect(s.files.files.get(s.guest.paths.recovery)).toBe(before);
+    expect((await s.guest.load(draft.id)).recovery?.draft.id).toBe(draft.id);
+    if (mode === 'blank') expect(before).toBeUndefined();
+    else expect((await new MiniWorkRepository(s.files, '/guest-context').load(draft.id)).recoverySession).toEqual(session);
   });
 
-  it.each(['title', 'voice', 'composer', 'message', 'request'] as const)('真实 %s 恢复输入继续阻止迁移，不能遗漏其内容', async kind => {
+  it('真实标题恢复继续阻止迁移，不能遗漏其内容', async () => {
     const s = await setup();
-    const draft = { ...emptyDraft(), ...(kind === 'title' ? { title: '待恢复标题' } : kind === 'voice' ? { pendingVoice: '待确认语音' } : {}) };
-    let session = newSession(draft);
-    if (kind === 'message') session = prepareDialogue(session, draft, 'message', '还没有保存的原话。', 'send');
-    if (kind === 'request') session.turns.push({ id: 'request', createdAt: '2026-09-08T00:00:00.000Z', action: 'question',
-      prompt: '', status: 'failed', inputVersionId: session.versions[0].id, error: '等待重试' });
-    await s.guest.writeRecovery(draft, 0, session, { composer: kind === 'composer' ? '未发送文字' : '', inputSource: 'typed' });
+    const draft = { ...emptyDraft(), title: '待恢复标题' };
+    await s.guest.writeRecovery(draft, 0, newSession(draft));
     const before = await s.files.readText(s.guest.paths.recovery);
     await expect(s.sync.sync()).rejects.toThrow('待恢复的输入');
     expect(s.mutations).toEqual([]);
     expect(await s.files.readText(s.guest.paths.recovery)).toBe(before);
+  });
+
+  it.each(['voice', 'composer', 'message', 'request'] as const)('%s 中间状态不建稿或阻断迁移，已发送会话仍可按 ID 恢复', async kind => {
+    const s = await setup();
+    const draft = { ...emptyDraft(), ...(kind === 'voice' ? { pendingVoice: '待确认语音' } : {}) };
+    let session = newSession(draft);
+    if (kind === 'message') session = prepareDialogue(session, draft, 'message', '还没有保存的原话。', 'send');
+    if (kind === 'request') session.turns.push({ id: 'request', createdAt: '2026-09-08T00:00:00.000Z', action: 'question',
+      prompt: '', status: 'failed', inputVersionId: session.versions[0].id, error: '等待重试' });
+    const state = { composer: kind === 'composer' ? '未发送文字' : '', inputSource: 'typed' as const };
+    await s.guest.writeRecovery(draft, 0, session, state);
+    const before = await s.files.readText(s.guest.paths.recovery);
+    await s.sync.sync();
+    expect(s.sync.snapshot().status).toBe('ready');
+    expect(s.mutations).toEqual([]);
+    expect((await s.repository.load()).works).toEqual([]);
+    expect((await s.guest.load(draft.id)).recovery?.draft.pendingVoice).toBe(draft.pendingVoice);
+    expect(await s.files.readText(s.guest.paths.recovery)).toBe(before);
+    expect(before).not.toContain('待确认语音');
+    expect(before).not.toContain('未发送文字');
+    const reopened = await new MiniWorkRepository(s.files, '/guest-context').load(draft.id);
+    expect(reopened.works).toEqual([]);
+    expect(reopened.recoverySession).toEqual(session);
+    expect(reopened.recovery?.draft.pendingVoice).toBe('');
+    expect(reopened.recoveryWritingState).toBeUndefined();
+    expect(state.composer).toBe(kind === 'composer' ? '未发送文字' : '');
   });
 
   it('既有文章清空后的恢复记录仍阻止迁移旧正文', async () => {
@@ -89,13 +114,24 @@ describe('登录迁移中的未写作上下文', () => {
     expect((await s.guest.getAggregate(work.id))?.work.draft.textDraft).toBe(original.textDraft);
   });
 
-  it('独立待保存结果继续阻止迁移，不能被空白上下文规则跳过', async () => {
+  it('独立待保存的会话结果不创建或上传文章，迁移后恢复文件仍保留完整回复', async () => {
     const s = await setup();
     const draft = emptyDraft();
     await s.guest.writeRecovery(draft, 0, startInterview(newSession(draft), draft, 'open'));
-    await s.guest.stageSession(draft, newSession(draft), 0);
-    await expect(s.sync.sync()).rejects.toThrow('待恢复的输入');
+    const session = newSession(draft);
+    session.turns.push({ id: 'reply', createdAt: '2026-09-08T00:00:00.000Z', action: 'question', prompt: '从哪里讲起？',
+      status: 'answered', inputVersionId: session.versions[0].id, result: { answer: '可以从最难忘的一天讲起。', citedVersionIds: [] } });
+    await s.guest.stageSession(draft, session, 0);
+    const resultPath = `${s.guest.paths.root}/${draft.id}.result.json`;
+    const before = await s.files.readText(resultPath);
+    await s.sync.sync();
+    expect(s.sync.snapshot().status).toBe('ready');
     expect(s.mutations).toEqual([]);
-    expect((await s.guest.load()).pendingSessions).toHaveLength(1);
+    expect((await s.repository.load()).works).toEqual([]);
+    expect(await s.files.readText(resultPath)).toBe(before);
+    const reopened = await new MiniWorkRepository(s.files, '/guest-context').load(draft.id);
+    expect(reopened.works).toEqual([]);
+    expect(reopened.pendingSessions).toHaveLength(1);
+    expect(reopened.pendingSessions[0].session).toEqual(session);
   });
 });

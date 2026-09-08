@@ -54,6 +54,12 @@ export function hasContent(draft: Draft) {
   return Boolean(draft.title.trim() || articleText(effectiveSegments(draft)).trim() || draft.pendingVoice.trim() || draft.segmentEdit?.text.trim() ||
     draft.materials.length);
 }
+export function hasArticleContent(draft: Draft) {
+  return Boolean(draft.title.trim() || articleText(effectiveSegments(draft)).trim());
+}
+export function withoutTransientInput(draft: Draft): Draft {
+  return { ...cloneValue(draft), pendingVoice: '', segmentEdit: null };
+}
 export function workFromDraft(draft: Draft, existing?: Work): Work {
   const now = new Date().toISOString();
   const segments = effectiveSegments(draft);
