@@ -1,5 +1,5 @@
 .privacy-page { padding: 28px 24px max(28px, env(safe-area-inset-bottom)); }
-.privacy-title { margin-bottom: 28px; color: #153b2e; font: 24px/36px "Songti SC", serif; }
+.privacy-title { margin-bottom: 28px; color: #153b2e; font-family: var(--font-ui); font-size: 24px; font-weight: 600; line-height: 36px; }
 .privacy-section { margin-bottom: 28px; }
 .privacy-section view { margin-bottom: 8px; color: #153b2e; font-size: 18px; line-height: 30px; }
 .privacy-section text { color: #515e56; font-size: 16px; line-height: 28px; }

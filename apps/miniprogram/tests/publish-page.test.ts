@@ -5,6 +5,7 @@ import { MiniPublicationStorage, type PublicationDraft, type PublicationFiles } 
 import type { MiniPublicationClient, OwnSubmission } from '../miniprogram/publication/client';
 import type { miniServices } from '../miniprogram/services';
 import { MemoryFileSystem } from './memory-file-system';
+import { compositionCrops, fitCrop, type Crop } from '../miniprogram/publication/crop';
 
 const context = vi.hoisted(() => ({ services: {} as ReturnType<typeof miniServices> }));
 vi.mock('../miniprogram/services', () => ({ miniServices: () => context.services }));
@@ -17,11 +18,12 @@ class Images extends MemoryFileSystem implements PublicationFiles {
 }
 interface PublishPage {
   data: { mode: string; title: string; body: string; authorName: string; wordCount: number; draft: PublicationDraft; preview: PublicationPreview | null;
-    submission: OwnSubmission | null; error: string; coverError: string; busy: string; pendingRetry: boolean; readOnly: boolean };
+    submission: OwnSubmission | null; error: string; coverError: string; busy: string; pendingRetry: boolean; readOnly: boolean; crop: Crop; cropPreviews: ReturnType<typeof compositionCrops> };
   services: ReturnType<typeof miniServices>; controller: MiniPublicationController; loaded: boolean; active: boolean;
   setData(value: object): void; refresh(): Promise<void>; local(): Promise<void>; readWork(): Promise<void>; preparePreview(): Promise<void>;
   submit(): Promise<void>; nameSaved(): Promise<void>; back(): void; cancelCrop(): Promise<void>; confirmCrop(): Promise<void>;
   openCrop(): Promise<void>; chooseCover(): Promise<void>; useLatestCover(): Promise<void>; readSubmission(id?: string): Promise<void>;
+  cropChanging(event: { detail: { crop: Crop } }): void; cropChanged(event: { detail: { crop: Crop } }): Promise<void>;
 }
 async function setup(withCover = true) {
   vi.resetModules();
@@ -43,7 +45,7 @@ async function setup(withCover = true) {
   context.services = services;
   const controller = new MiniPublicationController('work-1', storage, client as unknown as MiniPublicationClient, sync,
     () => { if (context.services !== services) throw new Error('账号已变化'); });
-  if (withCover) { await controller.choose('/photo', 640, 480); await controller.confirmCrop('reading'); await controller.confirmCrop('thumbnail'); await controller.finishCrop(); }
+  if (withCover) { await controller.choose('/photo', 640, 480); await controller.finishCrop(); }
   let definition!: PublishPage;
   vi.stubGlobal('Page', (value: PublishPage) => { definition = value; });
   vi.stubGlobal('wx', { getWindowInfo: () => ({ windowWidth: 390, windowHeight: 844 }), pageScrollTo: vi.fn(), setNavigationBarColor: vi.fn(),
@@ -85,12 +87,32 @@ describe('发表设置与按需阅读预览', () => {
   });
   it('完成裁切仅返回配置，取消重选还原原封面，不自动上传或预览', async () => {
     const s = await setup(); const before = await s.controller.local();
-    await s.controller.choose('/photo', 320, 480); await s.page.local(); s.page.setData({ mode: 'crop', cropKind: 'reading' });
-    await s.page.confirmCrop(); await s.page.confirmCrop();
+    await s.controller.choose('/photo', 320, 480); await s.page.local(); s.page.setData({ mode: 'crop' });
+    await s.page.confirmCrop();
     expect(s.page.data.mode).toBe('settings'); expect(s.client.preview).not.toHaveBeenCalled(); expect(s.client.upload).not.toHaveBeenCalled();
     const current = await s.controller.local();
     await s.controller.choose('/photo', 100, 100); await s.page.local(); s.page.setData({ mode: 'crop' }); await s.page.cancelCrop();
     expect(await s.controller.local()).toEqual(current); expect(current.path).not.toBe(before.path);
+  });
+  it('手势中的两图实时联动，松手才持久保存，完成不会丢失最后一帧', async () => {
+    const s = await setup(); await s.page.openCrop(); const before = await s.controller.local();
+    const reading = fitCrop(640, 480, 1.25, 2);
+    s.page.cropChanging({ detail: { crop: reading } });
+    expect(s.page.data.cropPreviews).toEqual(compositionCrops(reading)); expect(await s.controller.local()).toEqual(before);
+    await s.page.cropChanged({ detail: { crop: reading } });
+    expect((await s.controller.local()).crops).toEqual(compositionCrops(reading));
+    const last = fitCrop(640, 480, 1.25, 3, { x: .6, y: .6 });
+    s.page.cropChanging({ detail: { crop: last } }); await s.page.confirmCrop();
+    expect(s.page.data.mode).toBe('settings'); expect((await s.controller.local()).crops).toEqual(compositionCrops(last));
+  });
+  it('连续调整写入与取消按顺序完成，迟到保存不能覆盖恢复的原封面', async () => {
+    const s = await setup(); const before = await s.controller.local(); await s.page.openCrop();
+    let finish!: () => void; const original = s.controller.compose.bind(s.controller);
+    vi.spyOn(s.controller, 'compose').mockImplementationOnce(async crop => { await new Promise<void>(resolve => { finish = resolve; }); return original(crop); });
+    const write = s.page.cropChanged({ detail: { crop: fitCrop(640, 480, 1.25, 2) } });
+    await vi.waitFor(() => expect(finish).toBeTypeOf('function'));
+    const cancel = s.page.cancelCrop(); finish(); await Promise.all([write, cancel]);
+    expect(await s.controller.local()).toEqual(before); expect(s.page.data.mode).toBe('settings');
   });
   it('响应丢失后设置保留且按钮确认原操作，不受新的页面署名影响', async () => {
     const s = await setup(); s.client.submit.mockRejectedValueOnce(new Error('网络中断'));

@@ -3,8 +3,8 @@
 .overview-write.primary-action { margin: 8px 0 26px; gap: 8px; }
 .overview-write image { width: 22px; height: 22px; }
 .overview-heading { display: flex; min-height: 48px; margin: 16px 0 8px; align-items: center; justify-content: space-between; gap: 12px; }
-.overview-title { color: var(--forest); font: 600 21px/30px "Songti SC", serif; }
-.overview-date { color: var(--muted); font-size: 13px; line-height: 20px; }
+.overview-title { color: var(--forest-soft); font-family: var(--font-ui); font-size: 16px; font-weight: 600; line-height: 24px; }
+.overview-date { color: var(--muted); font-size: 14px; line-height: 22px; }
 .all-entry.text-action { padding: 8px 0 8px 8px; gap: 6px; font-size: 14px; }
 .author-library .recent-draft { display: block; width: 100%; max-width: none; min-width: 0; padding: 18px 20px 15px; border: 1px solid #e5eadd; border-radius: 16px; background: #f0f3ec; text-align: left; position: relative; overflow: hidden; }
 .recent-draft::before { content: ''; position: absolute; left: 0; top: 24px; bottom: 24px; width: 3px; border-radius: 2px; background: #a7b99d; }
@@ -13,11 +13,12 @@
 .recent-draft-bottom { display: flex; margin-top: 12px; align-items: center; justify-content: space-between; color: #78816f; font-size: 13px; line-height: 22px; }
 .draft-arrow { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 50%; background: #e1e9da; }
 .draft-arrow view { width: 11px; height: 11px; border-right: 1.5px solid var(--forest); border-top: 1.5px solid var(--forest); transform: rotate(45deg); }
-.recent-list { border-top: 1px solid var(--line); }
+.recent-list { padding: 0 18px; border-radius: 14px; background: #f3f3ee; }
 .author-library .recent-row { display: flex; width: 100%; min-width: 0; min-height: 84px; margin: 0; padding: 14px 0; align-items: center; gap: 12px; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; text-align: left; }
+.author-library .recent-row:last-child { border-bottom: 0; }
 .recent-copy { flex: 1; min-width: 0; }
-.recent-title { overflow: hidden; color: var(--forest); font: 600 20px/30px "Songti SC", serif; text-overflow: ellipsis; white-space: nowrap; }
-.recent-meta { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 4px; color: var(--muted); font-size: 13px; line-height: 22px; }
+.recent-title { overflow: hidden; color: var(--forest); font-family: var(--font-article); font-size: 22px; font-weight: 600; line-height: 32px; text-overflow: ellipsis; white-space: nowrap; }
+.recent-meta { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 4px; color: var(--muted); font-size: 14px; line-height: 22px; }
 .row-chevron { width: 8px; height: 8px; flex: 0 0 8px; margin: 0 4px; border-right: 1.5px solid #879784; border-top: 1.5px solid #879784; transform: rotate(45deg); }
 .new-author { padding: 24px 0 8px; color: var(--muted); font-size: 16px; line-height: 28px; text-align: center; }
 .new-author > image { display: block; width: 112px; height: 104px; margin: 12px auto 18px; }
@@ -48,7 +49,7 @@
 .work-more view { width: 3px; height: 3px; border-radius: 50%; background: currentColor; }
 .empty-state { padding: 48px 8px; color: var(--muted); font-size: 16px; line-height: 26px; text-align: center; }
 .empty-state .empty-icon { width: 70px; height: 70px; margin-bottom: 20px; }
-.empty-title { margin-bottom: 8px; color: var(--forest); font: 600 23px/34px "Songti SC", serif; }
+.empty-title { margin-bottom: 8px; color: var(--forest); font-family: var(--font-ui); font-size: 22px; font-weight: 600; line-height: 32px; }
 .author-library .library-more { display: flex; width: 100%; margin-top: 16px; }
 .recycle-intro { margin: 8px 0 16px; color: var(--muted); font-size: 14px; line-height: 24px; }
 @media (max-width: 370px) { .author-library .recent-draft { padding: 16px 18px 14px; } .overview-write.primary-action { margin-bottom: 20px; } .overview-heading { margin-top: 12px; } .work-filters { gap: 4px; } .work-filters .filter-button { font-size: 15px; } }

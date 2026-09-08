@@ -11,6 +11,8 @@ page {
   --muted: #717974;
   --line: #e4e6e1;
   --page-gutter: 24px;
+  --font-ui: Manrope, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-article: "Noto Serif SC", "Songti SC", SimSun, serif;
   box-sizing: border-box;
   min-height: 100%;
   background: var(--paper);

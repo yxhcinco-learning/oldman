@@ -7,6 +7,7 @@
 .publication-document > text { flex: 0 0 auto; color: var(--muted); font-size: 14px; line-height: 22px; white-space: nowrap; }
 button.cover-entry { display: flex; position: relative; width: 100%; max-width: none; min-height: 0; margin: 0; padding: 24px 12px; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 1px solid #e7e9e2; border-radius: 16px; background: #f0f1ec; color: var(--forest-soft); font-size: 18px; line-height: 28px; overflow: hidden; }
 button.cover-entry.has-cover { padding: 0; border: 0; }
+.cover-visual { display: block; flex: none; width: 100%; height: 100%; }
 .cover-entry .cover-add { width: 30px; height: 30px; margin-bottom: 4px; opacity: .65; }
 .cover-edit { position: absolute; right: 12px; bottom: 12px; padding: 4px 12px; border-radius: 20px; background: rgba(21,59,46,.9); color: white; font-size: 14px; line-height: 24px; }
 .cover-hint { color: var(--muted); font-size: 14px; line-height: 22px; }
@@ -33,7 +34,7 @@ button.creation-option { font-size: 16px; }
 .result { text-align: center; }
 .result-mark { display: flex; width: 48px; height: 48px; margin: 0 auto 16px; align-items: center; justify-content: center; border-radius: 50%; background: var(--tint); }
 .result-mark image { width: 24px; height: 24px; }
-.result-title { color: var(--forest); font: 28px/40px "Songti SC", serif; }
+.result-title { color: var(--forest); font-size: 28px; line-height: 40px; font-weight: 500; }
 .result-copy { margin: 12px auto 24px; max-width: 320px; color: var(--muted); font-size: 16px; line-height: 28px; }
 .submitted-work { padding: 20px 0; margin-bottom: 24px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); text-align: left; }
 .submitted-work > view { color: var(--forest); font: 22px/32px "Songti SC", serif; overflow-wrap: anywhere; }
@@ -48,19 +49,24 @@ button.creation-option { font-size: 16px; }
 .review-note { margin-top: 32px; color: var(--muted); font-size: 16px; line-height: 26px; }
 .name-mask { position: fixed; z-index: 100; top: 0; right: 0; left: 0; display: flex; align-items: flex-end; justify-content: center; background: rgba(28,50,41,.23); backdrop-filter: blur(8px); }
 .name-sheet { width: 100%; max-height: 100%; box-sizing: border-box; overflow-y: auto; padding: 20px var(--page-gutter) calc(24px + env(safe-area-inset-bottom)); border-radius: 24px 24px 0 0; background: var(--paper); }
-.name-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--forest); font: 22px/32px "Songti SC", serif; }
+.name-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--forest); font-size: 22px; line-height: 32px; font-weight: 500; }
 .name-heading button { display: flex; width: 48px; height: 48px; flex: 0 0 48px; margin: 0; padding: 0; align-items: center; justify-content: center; border-radius: 50%; background: var(--surface); }
 .name-heading image { width: 20px; height: 20px; }
 
 .crop-screen { display: flex; flex-direction: column; width: 100%; background: #17211c; color: white; overflow: hidden; box-sizing: border-box; }
 .crop-screen .journey-header { flex: 0 0 auto; }
-.crop-stage { display: flex; min-height: 0; flex: 1; padding: 4px var(--page-gutter); flex-direction: column; justify-content: center; align-items: center; }
+.crop-stage { display: flex; min-height: 0; flex: 1; padding: 8px var(--page-gutter); flex-direction: column; justify-content: center; align-items: center; overflow-y: auto; }
+.publication-cropper { display: block; width: 100%; flex: 0 0 auto; }
 .crop-error { max-height: 60px; overflow-y: auto; margin-bottom: 8px; color: #f2b794; font-size: 14px; line-height: 20px; }
 .crop-choices { display: flex; gap: 20px; justify-content: center; padding: 8px var(--page-gutter) 0; flex: 0 0 auto; }
-button.crop-choice { display: flex; width: 132px; min-width: 0; min-height: 112px; flex-direction: column; align-items: center; justify-content: center; padding: 6px; gap: 4px; margin: 0; border: 1px solid transparent; border-radius: 12px; background: transparent; color: #b5c2b9; font-size: 16px; line-height: 24px; }
-button.crop-choice.selected { color: white; border-color: #91bda1; background: #25372c; }
+.crop-choice { display: flex; box-sizing: border-box; width: 132px; min-width: 0; min-height: 112px; flex-direction: column; align-items: center; justify-content: center; padding: 6px; gap: 4px; margin: 0; border: 1px solid transparent; border-radius: 12px; background: transparent; color: #b5c2b9; font-size: 16px; line-height: 24px; }
 .crop-mini { height: 56px; border-radius: 4px; overflow: hidden; }
 .crop-ratio { font-size: 12px; line-height: 16px; color: #b5c2b9; }
-.crop-bottom { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 24px; padding: 12px var(--page-gutter) calc(16px + env(safe-area-inset-bottom)); }
-button.crop-cancel { min-height: 56px; width: auto; margin: 0; padding: 8px 0; background: transparent; color: #e0e8e2; font-size: 18px; }
-button.crop-done { width: 144px; min-height: 56px; margin: 0; padding: 8px 20px; border-radius: 28px; background: #dcebe1; color: #153b2e; font-size: 18px; }
+.crop-bottom { display: flex; flex: 0 0 auto; align-items: center; gap: 12px; padding: 12px var(--page-gutter) max(18px, env(safe-area-inset-bottom)); border-top: 1px solid rgba(255,255,255,.1); }
+button.crop-cancel, button.crop-done { box-sizing: border-box; width: 0; min-width: 0; max-width: none; flex: 1 1 0; height: 48px; min-height: 48px; margin: 0; padding: 0 12px; border-radius: 24px; font-size: 16px; font-weight: 500; line-height: 46px; }
+button.crop-cancel { border: 1px solid #657b6c; background: transparent; color: #e0e8e2; }
+button.crop-done { border: 1px solid transparent; background: #e2eee5; color: #153b2e; }
+@media (max-height: 690px) {
+  .crop-stage { padding-top: 0; padding-bottom: 4px; }
+  .crop-bottom { padding-top: 8px; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+}

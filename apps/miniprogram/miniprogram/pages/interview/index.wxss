@@ -1,8 +1,8 @@
 page { height: 100%; overflow: hidden; }
 .interview-page { position: fixed; top: 0; right: 0; bottom: 0; left: 0; display: flex; width: 100%; overflow: hidden; flex-direction: column; background: #fbf9f8; transition: padding-bottom .12s ease; }
 .interview-header { position: relative; z-index: 20; flex: 0 0 auto; border-bottom: 1px solid #e4e6e1; background: #fbf9f8; }
-.interview-nav-row { position: absolute; right: 0; left: 0; display: flex; width: 100%; align-items: center; padding-left: 12px; }
-.interview-title { display: flex; min-width: 0; height: 48px; align-items: center; overflow: hidden; color: #153b2e; font-family: "Noto Serif SC", "Songti SC", SimSun, serif; font-size: 22px; font-weight: 400; line-height: 32px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+.interview-nav-row { position: absolute; right: 0; left: 0; display: flex; width: 100%; align-items: center; gap: 4px; padding-left: 8px; }
+.interview-title { display: flex; min-width: 0; height: 48px; flex: 1; align-items: center; overflow: hidden; color: #153b2e; font-family: var(--font-ui); font-size: 20px; font-weight: 600; line-height: 28px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
 .interview-back { display: grid; width: 48px; height: 48px; flex: 0 0 48px; margin: 0; padding: 0; place-items: center; background: transparent; color: #153b2e; }
 .back-chevron { width: 11px; height: 11px; border-bottom: 2px solid currentColor; border-left: 2px solid currentColor; transform: rotate(45deg); }
 .interview-context { flex: 0 0 auto; padding: 0; }

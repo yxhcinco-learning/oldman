@@ -128,8 +128,8 @@ describe('微信小程序公共工程配置', () => {
     }
     expect(topicDetailStyles).toMatch(/\.detail-topbar\s*\{[^}]*margin-right:\s*-24px/);
     expect(topicDetailStyles).toMatch(/\.detail-topbar\s*\{[^}]*position:\s*sticky[^}]*top:\s*0/);
-    expect(topicDetailStyles).toMatch(/\.detail-nav-row\s*\{[^}]*position:\s*absolute[^}]*grid-template-columns:\s*48px minmax\(0, 1fr\) 48px[^}]*align-items:\s*center/);
-    expect(topicDetailStyles).toMatch(/\.detail-brand\s*\{[^}]*align-items:\s*center[^}]*justify-content:\s*center/);
+    expect(topicDetailStyles).toMatch(/\.detail-nav-row\s*\{[^}]*position:\s*absolute[^}]*grid-template-columns:\s*48px minmax\(0, 1fr\)[^}]*gap:\s*4px[^}]*align-items:\s*center/);
+    expect(topicDetailStyles).toMatch(/\.detail-brand\s*\{[^}]*align-items:\s*center[^}]*justify-content:\s*flex-start/);
     expect(topicDetailStyles).toMatch(/\.start-actions\s*\{[^}]*position:\s*fixed[^}]*right:\s*24px[^}]*bottom:\s*0[^}]*left:\s*24px[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
     expect(topicDetailStyles).toMatch(/\.start-actions button\s*\{[^}]*display:\s*flex[^}]*width:\s*100%[^}]*min-width:\s*0[^}]*align-items:\s*center[^}]*justify-content:\s*center/);
     expect(readText('../miniprogram/pages/articles/index.ts')).toContain('selectTab(this, 1)');
@@ -178,10 +178,10 @@ describe('微信小程序公共工程配置', () => {
     expect(editorStyles).toMatch(/\.dialog-actions button\s*\{[^}]*width:\s*100%[^}]*max-width:\s*100%[^}]*min-width:\s*0[^}]*align-items:\s*center[^}]*justify-content:\s*center/);
     expect(editorStyles).toMatch(/\.xiaowen-panel\s*\{[^}]*max-height:\s*calc\(100% - 48px\)/);
     expect(editor).not.toContain('<view class="save"');
-    expect(editor).toContain('<view class="topbar-spacer"></view>');
+    expect(editor).not.toContain('<view class="topbar-spacer"></view>');
     expect(editor).toContain('正在自动保存');
     expect(editorStyles).toContain('env(safe-area-inset-bottom)');
-    expect(editorStyles).toContain('grid-template-columns: 48px minmax(0, 1fr) 48px');
+    expect(editorStyles).toMatch(/\.editor-nav-row\s*\{[^}]*display:\s*flex[^}]*gap:\s*4px/);
     expect(editorStyles).toContain('.voice-side-slot');
     expect(editorStyles).toMatch(/\.voice-side\s*\{[^}]*width:\s*64px[^}]*height:\s*48px/);
     expect(editorStyles).toMatch(/button\.mic\s*\{[^}]*max-width:\s*76px/);

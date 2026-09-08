@@ -7,16 +7,18 @@ import type { OwnSubmission } from '../../publication/client';
 import { navigationMetrics } from '../../ui/navigation';
 import { aiDisclosureFor, articleText, cloudIdSchema, formatTime, publicationLabel, type CoverCrops, type PublicationStatus, type PublicationPreview } from '../../domain/core';
 import { errorMessage } from '../../ui/error-message';
+import { compositionCrops, validCrop } from '../../publication/crop';
 
 accountPage({
   services: null as unknown as ReturnType<typeof miniServices>,
   controller: null as unknown as MiniPublicationController,
   unsubscribe: undefined as (() => void) | undefined,
   loaded: false, active: true,
+  cropSave: null as Promise<void> | null,
   data: { draft: emptyPublicationDraft('new') as PublicationDraft, status: null as PublicationStatus | null, statusLabel: '',
-    preview: null as PublicationPreview | null, mode: 'settings' as 'settings' | 'preview' | 'crop' | 'review' | 'result', submission: null as OwnSubmission | null, aiAssisted: false, windowHeight: 640, navigationHeight: 88, cropKind: 'reading' as 'thumbnail' | 'reading',
+    preview: null as PublicationPreview | null, mode: 'settings' as 'settings' | 'preview' | 'crop' | 'review' | 'result', submission: null as OwnSubmission | null, aiAssisted: false, windowHeight: 640, navigationHeight: 88,
     crop: null as CoverCrops['thumbnail'] | null, ratio: 1.25, viewportWidth: 300, cropWidth: 280, title: '', body: '', wordCount: 0, authorName: '', error: '', coverError: '', busy: '', image: '', submissionId: '', submissionDate: '',
-    cropConfirmed: false, thumbnailConfirmed: false, readingConfirmed: false, nameKeyboardHeight: 0,
+    cropPreviews: null as CoverCrops | null, thumbnailConfirmed: false, readingConfirmed: false, nameKeyboardHeight: 0,
     editingName: false, submitted: false, pendingRetry: false, actionRetry: false, readOnly: false, notice: '' },
   async onLoad(options: Record<string, string | undefined>) {
     const parsed = cloudIdSchema.safeParse(options.id);
@@ -48,13 +50,14 @@ accountPage({
     const info = wx.getWindowInfo(), gutter = info.windowWidth <= 370 ? 20 : 24;
     const viewportWidth = info.windowWidth - gutter * 2, { navigationHeight } = navigationMetrics();
     const safe = Math.max(0, (info.screenHeight || info.windowHeight) - (info.safeArea?.bottom ?? info.screenHeight ?? info.windowHeight));
-    const available = Math.max(160, info.windowHeight - navigationHeight - safe - 244);
-    this.setData({ viewportWidth, windowHeight: info.windowHeight, navigationHeight, cropWidth: Math.min(viewportWidth, available * this.data.ratio) });
+    const available = Math.max(140, info.windowHeight - navigationHeight - safe - 312);
+    this.setData({ viewportWidth, windowHeight: info.windowHeight, navigationHeight,
+      cropWidth: Math.min(viewportWidth, info.windowHeight * .32 * 1.25, available * 1.25) });
   },
   async local() {
     const draft = await this.controller.local();
     if (!this.active || this.services !== miniServices()) return;
-    this.setData({ draft, crop: draft.crops?.[this.data.cropKind] ?? null, cropConfirmed: draft.confirmed.includes(this.data.cropKind), thumbnailConfirmed: draft.confirmed.includes('thumbnail'), readingConfirmed: draft.confirmed.includes('reading'), pendingRetry: Boolean(draft.submissionOperation), actionRetry: Boolean(draft.actionOperation) });
+    this.setData({ draft, crop: draft.crops?.reading ?? null, cropPreviews: draft.crops, thumbnailConfirmed: draft.confirmed.includes('thumbnail'), readingConfirmed: draft.confirmed.includes('reading'), pendingRetry: Boolean(draft.submissionOperation), actionRetry: Boolean(draft.actionOperation) });
   },
   async readWork() {
     const aggregate = await this.services.repository.getAggregate(this.controller.workId);
@@ -80,14 +83,14 @@ accountPage({
       }
       this.setData({ status, statusLabel: publicationLabel(status), error: '' }); await this.local();
       if (status.pending) { this.setData({ mode: this.data.submitted ? 'result' : 'review' }); await this.readSubmission(status.pending.id); }
-      else if (local.cropBackup) { this.setData({ mode: 'crop', image: '' }); this.selectCrop(local.confirmed.includes('reading') ? 'thumbnail' : 'reading'); }
+      else if (local.cropBackup) { await this.controller.beginCrop(); await this.local(); this.setData({ mode: 'crop', image: '' }); this.resizeContent(); }
       else { this.setData({ mode: 'settings' }); }
     } catch (error) { this.setData({ error: errorMessage(error, '文章暂时无法读取，请重试。') }); }
     finally { this.setData({ busy: '' }); }
   },
   validateSettings() {
     if (!this.data.title.trim() || !this.data.body.trim()) { this.setData({ error: '请返回编辑页补全标题和正文。' }); return false; }
-    if (!this.coverReady()) { this.setData({ coverError: this.data.draft.path ? '请先确认封面的两种展示效果。' : '请先添加封面。' }); return false; }
+    if (!this.coverReady()) { this.setData({ coverError: this.data.draft.path ? '请先完成封面调整。' : '请先添加封面。' }); return false; }
     if (!this.data.authorName.trim()) { this.setData({ error: '请先填写署名。' }); return false; }
     this.setData({ coverError: '' }); return true;
   },
@@ -129,7 +132,7 @@ accountPage({
   },
   async openCrop() {
     if (this.data.busy || this.data.readOnly || !this.active || this.services !== miniServices()) return;
-    try { await this.controller.beginCrop(); await this.local(); this.setData({ mode: 'crop', preview: null, error: '' }); this.selectCrop('reading'); }
+    try { await this.controller.beginCrop(); await this.local(); this.setData({ mode: 'crop', preview: null, error: '' }); this.resizeContent(); }
     catch (error) { this.setData({ error: errorMessage(error, '裁切暂时无法打开。') }); }
   },
   async chooseCover() {
@@ -144,37 +147,37 @@ accountPage({
       const info = await wx.getImageInfo({ src: file.tempFilePath });
       const rotated = /^(left|right)/.test(info.orientation);
       await this.controller.choose(file.tempFilePath, rotated ? info.height : info.width, rotated ? info.width : info.height);
-      await this.local(); this.setData({ mode: 'crop', image: '' }); this.selectCrop('reading');
+      await this.local(); this.setData({ mode: 'crop', image: '' }); this.resizeContent();
     } catch (error) {
       if (!/cancel/i.test(String((error as { errMsg?: string }).errMsg ?? ''))) this.setData({ error: errorMessage(error, '封面未保存，请重试。') });
     } finally { this.setData({ busy: '' }); }
   },
-  selectCrop(cropKind: 'reading' | 'thumbnail') {
-    this.setData({ cropKind, cropConfirmed: this.data.draft.confirmed.includes(cropKind), ratio: cropKind === 'reading' ? 1.25 : 1, crop: this.data.draft.crops?.[cropKind] ?? null }); this.resizeContent();
-  },
-  changeCropKind(event: WechatMiniprogram.TouchEvent) { this.selectCrop(event.currentTarget.dataset.kind === 'reading' ? 'reading' : 'thumbnail'); },
   async cancelCrop() {
     if (this.data.busy) return;
     this.setData({ busy: '正在恢复封面…' });
-    try { await this.controller.cancelCrop(); await this.local(); this.setData({ mode: 'settings', preview: null, image: '', error: '', coverError: '' }); }
+    try { await this.cropSave; await this.controller.cancelCrop(); await this.local(); this.setData({ mode: 'settings', preview: null, image: '', error: '', coverError: '' }); }
     catch (error) { this.setData({ error: errorMessage(error, '原封面尚未恢复，请重试。') }); }
     finally { this.setData({ busy: '' }); }
   },
-  async cropChanged(event: WechatMiniprogram.CustomEvent<{ crop: CoverCrops['thumbnail'] }>) {
-    if (this.data.busy || !this.data.draft.crops) return;
-    this.setData({ busy: '正在保留裁切…', preview: null });
-    try { await this.controller.crop({ ...this.data.draft.crops, [this.data.cropKind]: event.detail.crop }); await this.local(); }
-    catch (error) { this.setData({ error: errorMessage(error, '裁切未保存，请重试。') }); }
-    finally { this.setData({ busy: '' }); }
+  cropChanging(event: WechatMiniprogram.CustomEvent<{ crop: CoverCrops['reading'] }>) {
+    if (this.data.mode !== 'crop' || this.data.busy || this.data.readOnly || !this.active || this.services !== miniServices() || !validCrop(event.detail.crop)) return;
+    this.setData({ crop: event.detail.crop, cropPreviews: compositionCrops(event.detail.crop), preview: null });
+  },
+  async cropChanged(event: WechatMiniprogram.CustomEvent<{ crop: CoverCrops['reading'] }>) {
+    if (this.data.mode !== 'crop' || this.data.busy || this.data.readOnly || !this.active || this.services !== miniServices() || !validCrop(event.detail.crop)) return;
+    this.cropChanging(event);
+    const crop = { ...event.detail.crop };
+    // Keep gesture-end writes in order; live previews do not wait for disk.
+    this.cropSave = (this.cropSave ?? Promise.resolve()).then(async () => { await this.controller.compose(crop); })
+      .catch(error => { this.setData({ error: errorMessage(error, '裁切未保存，请重试。') }); });
+    await this.cropSave;
   },
   async confirmCrop() {
-    if (this.data.busy || this.data.readOnly) return;
+    if (this.data.busy || this.data.readOnly || this.data.mode !== 'crop' || !this.data.crop) return;
     this.setData({ busy: '正在确认封面…', error: '' });
     try {
-      await this.controller.confirmCrop(this.data.cropKind); await this.local();
-      if (this.data.cropKind === 'reading' && !this.data.thumbnailConfirmed) this.selectCrop('thumbnail');
-      else if (!this.data.readingConfirmed) this.selectCrop('reading');
-      else { await this.controller.finishCrop(); await this.local(); this.setData({ mode: 'settings', preview: null, image: '', coverError: '' }); }
+      await this.cropSave; await this.controller.compose(this.data.crop); await this.controller.finishCrop(); await this.local();
+      this.setData({ mode: 'settings', preview: null, image: '', coverError: '' });
     } catch (error) { this.setData({ error: errorMessage(error, '封面未确认，请重试。') }); }
     finally { this.setData({ busy: '' }); }
   },

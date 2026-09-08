@@ -3,19 +3,19 @@
   <page-header class="journey-header" title="调整封面" dark="{{true}}" intercept-back="{{true}}" bindback="back" />
   <view class="crop-stage">
     <view wx:if="{{error}}" class="crop-error" role="alert">{{error}}</view>
-    <cover-cropper class="publication-cropper" wx:if="{{draft.width && draft.height}}" dark="{{true}}" disabled="{{!!busy}}" src="{{draft.path}}" source-width="{{draft.width}}" source-height="{{draft.height}}" crop="{{crop}}" ratio="{{ratio}}" viewport-width="{{cropWidth}}" bindchange="cropChanged" />
+    <cover-cropper class="publication-cropper" wx:if="{{draft.width && draft.height}}" dark="{{true}}" disabled="{{!!busy}}" src="{{draft.path}}" source-width="{{draft.width}}" source-height="{{draft.height}}" crop="{{crop}}" ratio="{{ratio}}" viewport-width="{{cropWidth}}" bindchanging="cropChanging" bindchange="cropChanged" />
   </view>
-  <view class="crop-choices" role="tablist">
-    <button class="crop-choice {{cropKind === 'reading' ? 'selected' : ''}}" data-kind="reading" bindtap="changeCropKind" role="tab" aria-selected="{{cropKind === 'reading'}}" disabled="{{busy}}">
-      <view class="crop-mini"><cover-image src="{{draft.path}}" crop="{{draft.crops.reading}}" width="{{70}}" ratio="{{1.25}}" /></view>
-      <text>阅读与分享 <text wx:if="{{readingConfirmed}}">✓</text></text><text class="crop-ratio">5:4</text>
-    </button>
-    <button class="crop-choice {{cropKind === 'thumbnail' ? 'selected' : ''}}" data-kind="thumbnail" bindtap="changeCropKind" role="tab" aria-selected="{{cropKind === 'thumbnail'}}" disabled="{{busy}}">
-      <view class="crop-mini"><cover-image src="{{draft.path}}" crop="{{draft.crops.thumbnail}}" width="{{56}}" ratio="{{1}}" /></view>
-      <text>文章列表 <text wx:if="{{thumbnailConfirmed}}">✓</text></text><text class="crop-ratio">1:1</text>
-    </button>
+  <view class="crop-choices" aria-label="两种封面实际效果">
+    <view class="crop-choice">
+      <view class="crop-mini" style="width: 70px"><article-cover src="{{draft.path}}" crop="{{cropPreviews.reading}}" width="{{70}}" ratio="{{1.25}}" /></view>
+      <text>阅读与分享</text><text class="crop-ratio">5:4</text>
+    </view>
+    <view class="crop-choice">
+      <view class="crop-mini" style="width: 56px"><article-cover src="{{draft.path}}" crop="{{cropPreviews.thumbnail}}" width="{{56}}" ratio="{{1}}" /></view>
+      <text>文章列表</text><text class="crop-ratio">1:1</text>
+    </view>
   </view>
-  <view class="crop-bottom"><button class="crop-cancel" bindtap="cancelCrop" disabled="{{busy}}">取消</button><button class="crop-done" bindtap="confirmCrop" disabled="{{busy || readOnly}}">{{busy ? '保存中…' : cropKind === 'reading' && !thumbnailConfirmed ? '下一张' : !readingConfirmed && cropKind === 'thumbnail' ? '下一张' : '完成'}}</button></view>
+  <view class="crop-bottom"><button class="crop-cancel" bindtap="cancelCrop" disabled="{{busy}}">取消</button><button class="crop-done" bindtap="confirmCrop" disabled="{{busy || readOnly}}">{{busy ? '保存中…' : '完成'}}</button></view>
 </view>
 <block wx:else>
 <page-header class="journey-header" title="{{mode === 'settings' ? '发表设置' : mode === 'preview' ? '阅读预览' : mode === 'result' ? '提交结果' : '审核详情'}}" action-text="{{mode === 'settings' ? '预览' : ''}}" action-disabled="{{!!busy || readOnly || pendingRetry || actionRetry}}" bind:action="preparePreview" intercept-back="{{true}}" bindback="back" />
@@ -30,10 +30,10 @@
     <view wx:if="{{status.published}}" class="publication-state"><text>修改通过审核前，读者仍会看到原来的文章。</text><button class="text-action" bindtap="readArticle">查看公开文章 ›</button></view>
     <view class="publication-document"><view class="document-title">{{title || '未填写标题'}}</view><text>{{wordCount}} 字</text></view>
     <button class="cover-entry {{draft.path ? 'has-cover' : ''}}" style="height: {{viewportWidth * 0.8}}px" bindtap="coverOptions" disabled="{{busy || readOnly || pendingRetry || actionRetry}}" aria-label="{{draft.path ? '调整或更换封面' : '添加文章封面'}}">
-      <block wx:if="{{draft.path}}"><cover-image src="{{draft.path}}" crop="{{draft.crops.reading}}" width="{{viewportWidth}}" ratio="{{1.25}}" /><text class="cover-edit">调整封面</text></block>
+      <block wx:if="{{draft.path}}"><article-cover class="cover-visual" src="{{draft.path}}" crop="{{draft.crops.reading}}" width="{{viewportWidth}}" ratio="{{1.25}}" /><text class="cover-edit">调整封面</text></block>
       <block wx:else><image class="cover-add" src="/assets/image.svg" /><text>添加封面</text><text class="cover-hint">选择一张与文章有关的照片</text></block>
     </button>
-    <view class="cover-validation" role="status">{{coverError || (draft.path && (!readingConfirmed || !thumbnailConfirmed) ? '请点击封面，确认两种展示效果。' : '')}}</view>
+    <view class="cover-validation" role="status">{{coverError || (draft.path && (!readingConfirmed || !thumbnailConfirmed) ? '请点击封面，完成调整。' : '')}}</view>
     <button class="publication-option" bindtap="editName" disabled="{{busy || readOnly || pendingRetry || actionRetry}}" aria-label="修改署名"><text>署名</text><text class="option-value">{{authorName}}</text><view class="option-chevron" aria-hidden="true" /></button>
     <button wx:if="{{aiAssisted}}" class="publication-option creation-option" bindtap="explainAi"><text>创作方式</text><text class="option-value">AI 辅助整理</text><text class="option-info" aria-hidden="true">i</text></button>
     <view wx:if="{{status.published}}" class="status-actions"><button class="text-action danger" data-action="withdraw" bindtap="withdraw" disabled="{{busy || readOnly || pendingRetry || actionRetry}}">撤回发表</button></view>

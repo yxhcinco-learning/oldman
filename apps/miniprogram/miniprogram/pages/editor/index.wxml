@@ -7,7 +7,6 @@
       <view class="title-button {{draft && !draft.title ? 'empty' : ''}}" bindtap="openTitle" role="button" aria-label="编辑文章标题">
         <text>{{draft && draft.title ? draft.title : '点击编辑标题'}}</text>
       </view>
-      <view class="topbar-spacer"></view>
     </view>
   </view>
 
@@ -30,23 +29,27 @@
 
   <view class="body-wrap {{draft && draft.topicSnapshot ? 'with-topic' : ''}}" bindtap="focusText">
     <textarea disabled="{{readOnly}}" wx:if="{{draft && draft.inputMode === 'text'}}" class="body-input" value="{{body}}" maxlength="-1"
-      placeholder="从想说的一句话开始……" cursor-spacing="24" show-confirm-bar="{{false}}" adjust-position="{{false}}"
+      placeholder="从想说的一句话开始……" placeholder-class="body-placeholder" disable-default-padding="{{true}}" cursor-spacing="24" show-confirm-bar="{{false}}" adjust-position="{{false}}"
       bindinput="onBodyInput" bindkeyboardheightchange="onKeyboardHeight"></textarea>
     <scroll-view wx:elif="{{draft}}" class="body-preview" scroll-y>
       <text wx:if="{{body}}" user-select>{{body}}</text>
-      <text wx:else class="placeholder">从想说的一句话开始……</text>
+      <text wx:else class="body-placeholder">从想说的一句话开始……</text>
     </scroll-view>
   </view>
 
   <view class="editor-dock {{draft && draft.inputMode === 'voice' ? 'voice' : 'text'}}">
     <view class="editor-toolbar">
-      <view class="mode" bindtap="toggleInputMode" role="button" aria-label="{{draft && draft.inputMode === 'text' ? '切换到语音输入' : '切换到文字输入'}}">
-        <image class="mode-icon" src="{{draft && draft.inputMode === 'text' ? '/assets/mic.svg' : '/assets/keyboard.svg'}}" mode="aspectFit"></image>
+      <view class="writing-tools" role="group" aria-label="写作工具">
+        <view class="mode" bindtap="toggleInputMode" role="button" aria-label="{{draft && draft.inputMode === 'text' ? '切换到语音输入' : '切换到文字输入'}}">
+          <image class="mode-icon" src="{{draft && draft.inputMode === 'text' ? '/assets/mic.svg' : '/assets/keyboard.svg'}}" mode="aspectFit"></image>
+          <text>{{draft && draft.inputMode === 'text' ? '语音' : '文字'}}</text>
+        </view>
+        <view class="toolbar-line"></view>
+        <button class="xiaowen" bindtap="openXiaoWen" aria-label="{{xiaowenRunning ? '小文，正在处理' : resultSavePending || xiaowenError ? '小文，需要处理' : '小文'}}"><image src="/assets/leaf.svg" mode="aspectFit"></image><text>小文</text></button>
       </view>
-      <view class="toolbar-line"></view>
-      <button class="xiaowen" bindtap="openXiaoWen"><image src="/assets/leaf.svg" mode="aspectFit"></image><text>小文</text></button>
       <button class="publication-next" bindtap="nextPublication" disabled="{{readOnly || voiceBusy || operationBusy || resultSavePending || navigationSaving}}">下一步</button>
     </view>
+    <button wx:if="{{!xiaowenOpen && (xiaowenRunning || resultSavePending || xiaowenError)}}" class="xiaowen-entry-status" bindtap="openXiaoWen">{{xiaowenRunning ? '小文正在处理…' : resultSavePending ? '小文回复需要保存，点此查看' : '小文需要处理，点此查看'}}</button>
     <view wx:if="{{draft && draft.inputMode === 'voice'}}" class="voice-stage">
       <view class="voice-copy">
         <view wx:if="{{voiceTarget === 'body' && voiceBusy}}" class="live-transcript">
@@ -97,7 +100,7 @@
       <view class="sheet-handle"></view>
       <view wx:if="{{xiaowenView !== 'preview'}}" class="xiaowen-brand">岁月有声</view>
       <view class="xiaowen-header">
-        <view wx:if="{{xiaowenView !== 'chat'}}" class="xiaowen-back" bindtap="backToConversation" role="button" aria-label="返回小文对话">‹</view>
+        <view wx:if="{{xiaowenView !== 'chat'}}" class="xiaowen-back" bindtap="backToConversation" role="button" aria-label="返回小文对话"><view class="back-chevron"></view></view>
         <view class="xiaowen-title"><text>{{xiaowenView === 'preview' ? candidateTitle : xiaowenView === 'version' ? '查看这一版' : xiaowenView === 'history' ? '修改记录' : '小文'}}</text></view>
         <view class="xiaowen-header-actions">
           <view wx:if="{{xiaowenView === 'chat'}}" class="history-button" bindtap="showHistory" role="button" aria-label="查看修改记录"><image class="book-image" src="/assets/book.svg" mode="aspectFit"></image></view>

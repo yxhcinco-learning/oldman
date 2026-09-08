@@ -1,11 +1,10 @@
 .detail-page { padding-top: 0; }
 .detail-page.with-actions { padding-bottom: calc(104px + env(safe-area-inset-bottom)); }
 .detail-topbar { position: sticky; z-index: 30; top: 0; margin-right: -24px; margin-left: -24px; border-bottom: 1px solid #e4e6e1; background: #fbf9f8; }
-.detail-nav-row { position: absolute; right: 0; left: 0; display: grid; width: 100%; grid-template-columns: 48px minmax(0, 1fr) 48px; align-items: center; padding-left: 12px; }
+.detail-nav-row { position: absolute; right: 0; left: 0; display: grid; width: 100%; grid-template-columns: 48px minmax(0, 1fr); gap: 4px; align-items: center; padding-left: 12px; }
 .detail-back { position: relative; z-index: 2; display: grid; width: 48px; min-width: 48px; height: 48px; margin: 0; padding: 0; place-items: center; background: transparent; color: #153b2e; }
 .back-chevron { width: 11px; height: 11px; border-bottom: 2px solid currentColor; border-left: 2px solid currentColor; transform: rotate(45deg); }
-.detail-brand { display: flex; min-width: 0; height: 100%; align-items: center; justify-content: center; overflow: hidden; color: #153b2e; font-family: "Songti SC", serif; font-size: 16px; font-weight: 600; line-height: 24px; text-overflow: ellipsis; white-space: nowrap; }
-.detail-spacer { width: 48px; height: 48px; }
+.detail-brand { display: flex; min-width: 0; height: 100%; align-items: center; justify-content: flex-start; overflow: hidden; color: #153b2e; font-family: var(--font-ui); font-size: 20px; font-weight: 600; line-height: 28px; text-overflow: ellipsis; white-space: nowrap; }
 .topic-state { padding: 24px 0; color: #717974; font-size: 15px; line-height: 24px; }
 .detail-title { margin-top: 20px; font-size: 22px; line-height: 34px; letter-spacing: .5px; }
 .topic-meta { display: flex; flex-wrap: wrap; margin-top: 12px; justify-content: space-between; gap: 8px; color: #717974; font-size: 14px; line-height: 22px; }
@@ -13,7 +12,7 @@
 .correction { margin-top: 16px; padding: 14px; border-radius: 14px; background: #e8eee9; color: #416657; font-size: 14px; line-height: 23px; }
 .correction view { color: #153b2e; font-weight: 600; }
 .section { margin-top: 20px; }
-.section-title { margin-bottom: 10px; color: #153b2e; font-family: "Songti SC", serif; font-size: 18px; font-weight: 600; line-height: 28px; }
+.section-title { margin-bottom: 10px; color: #153b2e; font-family: var(--font-ui); font-size: 18px; font-weight: 600; line-height: 28px; }
 .section-copy { color: #334139; font-size: 16px; line-height: 27px; }
 .angle { display: grid; min-height: 48px; grid-template-columns: 10px minmax(0, 1fr); align-items: center; gap: 9px; margin-top: 10px; padding: 14px 16px; border-radius: 14px; background: #fff; color: #416657; font-size: 16px; line-height: 26px; }
 .angle-dot { width: 6px; height: 6px; border-radius: 50%; background: #944924; }

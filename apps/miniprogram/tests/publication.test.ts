@@ -7,7 +7,7 @@ import { MiniPublicationClient } from '../miniprogram/publication/client';
 import { centeredCrops, emptyDraft, type PublicationPreview, type PublicationStatus } from '../miniprogram/domain/core';
 import { MiniWorkRepository } from '../miniprogram/storage/repository';
 import { syncPublicationWork } from '../miniprogram/publication/sync';
-import { fitCrop, moveCrop } from '../miniprogram/publication/crop';
+import { compositionCrops, fitCrop, moveCrop } from '../miniprogram/publication/crop';
 import { publicationBytes } from '../miniprogram/publication/binary';
 
 class Images extends MemoryFileSystem implements PublicationFiles {
@@ -26,7 +26,7 @@ function setup() {
     action: vi.fn(async () => ({ version: 2 })), ownImage: vi.fn(async () => Uint8Array.from([1, 2, 3]).buffer) };
   const sync = vi.fn(async () => {}), assertActive = vi.fn();
   const controller = new MiniPublicationController('work-1', storage, client as unknown as MiniPublicationClient, sync, assertActive);
-  const ready = async () => { await controller.choose('/temp-photo', 640, 480); await controller.confirmCrop('thumbnail'); await controller.confirmCrop('reading'); await controller.finishCrop(); };
+  const ready = async () => { await controller.choose('/temp-photo', 640, 480); await controller.finishCrop(); };
   return { files, storage, client, sync, assertActive, controller, ready };
 }
 describe('独立发表设置与固定操作重试', () => {
@@ -70,14 +70,28 @@ describe('独立发表设置与固定操作重试', () => {
     expect(await new MiniPublicationStorage(s.files, '/account-a').load('work-1')).toEqual(saved);
     expect((await new MiniPublicationStorage(s.files, '/account-b').load('work-1')).path).toBe('');
   });
-  it('两种裁切独立确认，改变一种只取消该种确认，未确认不会上传', async () => {
+  it('一份构图同时生成两种比例，点击一次完成才可上传', async () => {
     const s = setup(); await s.ready();
-    const saved = await s.controller.local();
-    await s.controller.crop({ ...saved.crops!, thumbnail: fitCrop(640, 480, 1, 2, saved.crops!.thumbnail) });
-    expect((await s.controller.local()).confirmed).toEqual(['reading']);
-    await expect(s.controller.prepare()).rejects.toThrow('分别确认'); expect(s.client.upload).not.toHaveBeenCalled();
-    await s.controller.confirmCrop('thumbnail'); await expect(s.controller.prepare()).resolves.toEqual(preview);
+    await s.controller.beginCrop();
+    const reading = fitCrop(640, 480, 1.25, 2, { x: .75, y: .25 });
+    await s.controller.compose(reading);
+    expect((await s.controller.local()).crops).toEqual(compositionCrops(reading));
+    expect((await s.controller.local()).confirmed).toEqual([]);
+    await expect(s.controller.prepare()).rejects.toThrow('完成封面裁切'); expect(s.client.upload).not.toHaveBeenCalled();
+    await s.controller.finishCrop(); await expect(s.controller.prepare()).resolves.toEqual(preview);
     expect(s.sync).toHaveBeenCalledTimes(2);
+  });
+  it('旧独立裁切在读取和投稿时原样保留，进入调整才联动，取消还原旧两图', async () => {
+    const s = setup(); await s.ready(); const original = await s.controller.local();
+    const crops = { reading: fitCrop(640, 480, 1.25, 2, { x: .7, y: .3 }), thumbnail: fitCrop(640, 480, 1, 3, { x: .2, y: .8 }) };
+    await s.storage.save({ ...original, crops });
+    await s.controller.prepare();
+    expect(s.client.settings).toHaveBeenCalledWith('work-1', expect.objectContaining({ crops }));
+    const baseline = await s.controller.local(); expect(baseline.crops).toEqual(crops);
+    await s.controller.beginCrop();
+    expect((await s.controller.local()).crops).toEqual(compositionCrops(crops.reading));
+    await s.controller.compose(fitCrop(640, 480, 1.25));
+    await s.controller.cancelCrop(); expect(await s.controller.local()).toEqual(baseline);
   });
   it('上传或设置响应丢失时跨重启重试原 ID，保留图片和裁切', async () => {
     const s = setup(); await s.ready();
@@ -163,15 +177,17 @@ describe('独立发表设置与固定操作重试', () => {
   });
   it('裁切取消恢复原封面，未完成进度在重启后可继续且不会提前上传', async () => {
     const s = setup(); await s.ready(); await s.controller.prepare(); const before = await s.controller.local();
-    await s.controller.choose('/temp-photo', 320, 480); await s.controller.confirmCrop('reading');
+    await s.controller.choose('/temp-photo', 320, 480);
+    const reading = fitCrop(320, 480, 1.25, 2); await s.controller.compose(reading);
     const resumed = new MiniPublicationController('work-1', new MiniPublicationStorage(s.files, '/account-a'), s.client as unknown as MiniPublicationClient, s.sync, s.assertActive);
-    expect(await resumed.local()).toMatchObject({ width: 320, confirmed: ['reading'], cropBackup: { path: before.path } });
+    expect(await resumed.local()).toMatchObject({ width: 320, crops: compositionCrops(reading), confirmed: [], cropBackup: { path: before.path } });
+    await resumed.beginCrop(); expect((await resumed.local()).crops).toEqual(compositionCrops(reading));
     await expect(resumed.prepare()).rejects.toThrow('完成封面裁切');
     await resumed.cancelCrop(); expect(await resumed.local()).toEqual(before);
-    await resumed.beginCrop(); const crop = (await resumed.local()).crops!;
-    await resumed.crop({ ...crop, reading: fitCrop(640, 480, 1.25, 2) });
-    expect((await resumed.local()).confirmed).toEqual(['thumbnail']);
-    await resumed.confirmCrop('reading'); await resumed.finishCrop();
+    await resumed.beginCrop();
+    await resumed.compose(fitCrop(640, 480, 1.25, 2));
+    expect((await resumed.local()).confirmed).toEqual([]);
+    await resumed.finishCrop();
     expect((await resumed.local()).cropBackup).toBeNull(); expect((await resumed.local()).confirmed).toHaveLength(2);
   });
   it('首次选图取消回到没有封面的同篇草稿；旧侧文件自动补裁切备份字段', async () => {
@@ -187,6 +203,15 @@ describe('独立发表设置与固定操作重试', () => {
       const moved = moveCrop(crop, 100, -100, 300, ratio);
       expect(moved.x + moved.width).toBeLessThanOrEqual(1); expect(moved.y).toBeGreaterThanOrEqual(0);
       expect(moved.width * width! / (moved.height * height!)).toBeCloseTo(ratio, 6);
+    }
+  });
+  it('共同构图的方图始终是阅读图正中间，移动缩放不会额外偏移', () => {
+    for (const [width, height] of [[640, 480], [300, 900], [2048, 500]]) {
+      const reading = moveCrop(fitCrop(width!, height!, 1.25, 2), 60, -80, 280, 1.25);
+      const { thumbnail } = compositionCrops(reading);
+      expect(thumbnail.x + thumbnail.width / 2).toBeCloseTo(reading.x + reading.width / 2);
+      expect(thumbnail.y).toBe(reading.y); expect(thumbnail.height).toBe(reading.height);
+      expect(thumbnail.width * width! / (thumbnail.height * height!)).toBeCloseTo(1, 8);
     }
   });
 });

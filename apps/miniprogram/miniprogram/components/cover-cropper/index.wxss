@@ -1,15 +1,22 @@
-.crop-window { position:relative; overflow:hidden; margin:0 auto; border-radius:16px; background:#efeded; }
+:host { display:block; width:100%; }
+.crop-window { position:relative; overflow:hidden; margin:0 auto; background:#25342b; }
 .crop-image { position:absolute; }
 .crop-grid { position:absolute; inset:0; pointer-events:none; border:1px solid rgba(255,255,255,.7); }
 .crop-grid::before,.crop-grid::after { content:""; position:absolute; left:0; right:0; height:1px; background:rgba(255,255,255,.5); top:33.333%; }
 .crop-grid::after { top:66.666%; }
 .crop-line { position:absolute; top:0; bottom:0; width:1px; background:rgba(255,255,255,.5); left:33.333%; }
 .crop-line.second { left:66.666%; }
-.crop-controls { display:flex; gap:12px; justify-content:center; align-items:center; margin-top:12px; color:#717974; font-size:14px; }
+.crop-controls { display:flex; gap:12px; justify-content:center; align-items:center; color:#717974; font-size:14px; min-height:48px; }
 .crop-controls .crop-control { box-sizing:border-box; width:48px; min-width:48px; max-width:48px; flex:0 0 48px; height:48px; min-height:48px; padding:0; margin:0; border:0; line-height:48px; background:#e8eee9; color:#153b2e; font-size:24px; border-radius:24px; }
 .crop-controls .crop-control::after { border:0; }
 .crop-controls .crop-control.disabled { background:#efeded; color:#717974; }
-.crop-help { flex:1; min-width:0; text-align:center; line-height:22px; }
+.crop-slider { flex:1; min-width:0; width:0; margin:0; }
+.crop-adjust-caption { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:48px; margin-top:8px; color:#717974; font-size:14px; line-height:22px; }
+.crop-reset { display:flex; align-items:center; justify-content:flex-end; gap:5px; box-sizing:border-box; width:auto; min-width:64px; height:48px; padding:0; margin:0; border:0; border-radius:0; background:transparent; color:inherit; font:14px/22px -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif; }
+.crop-reset::after { border:0; }
+.crop-reset > text { font-size:22px; }
+.crop-adjust-caption.dark { color:#aabdae; }
+.crop-failed { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#e1e9e3; background:#25342b; font-size:14px; }
 
 .crop-controls.dark { color: #c6d0c9; }
 .dark .crop-control { background: #34483c; color: #fff; }

@@ -22,7 +22,9 @@ export async function checkClientJourney({ mini, info, output, check }) {
   const recentDraft = await library.data('recentDraft'); check('最近草稿不重复出现在摘要',(await library.data('recentCards')).every(c=>c.id!==recentDraft.id));
   const overviewBox=await library.$('.author-library');
   check('最近草稿铺满个人中心内容宽度',await fillsWidth(await library.$('.recent-draft'),overviewBox));
-  check('每条摘要行铺满个人中心内容宽度',(await Promise.all((await library.$$('.recent-row')).map(row=>fillsWidth(row,overviewBox)))).every(Boolean));
+  const recentList=await library.$('.recent-list'), listSize=await recentList.size(), listOffset=await recentList.offset();
+  check('文章摘要在独立容器内留出18px内边距',(await Promise.all((await library.$$('.recent-row')).map(async row=>Math.abs((await row.size()).width-listSize.width+36)<1&&Math.abs((await row.offset()).left-listOffset.left-18)<1))).every(Boolean));
+  check('分组标题使用小字号，文章题目层级更突出',parseFloat(await (await library.$('.overview-title')).style('font-size'))===16&&parseFloat(await (await library.$('.recent-title')).style('font-size'))===22);
   check('个人中心写作主入口至少56px且无越界',await fits(await library.$('.overview-write'),56));await shot('journey-profile');
   await page.callMethod('openSettings');check('设置为完整子视图且不夹带作品列表',!!await page.$('.settings-page')&&!await page.$('.author-articles'));await shot('journey-settings');
   await page.callMethod('openProfile');let username=await page.$('.publication-username');
@@ -56,7 +58,9 @@ export async function checkClientJourney({ mini, info, output, check }) {
   page=await mini.reLaunch('/pages/publish/index?id='+id);await wait(async()=>await page.data('mode')==='settings'&&!await page.data('busy'));
   const original=(await page.data('draft')).path;await page.callMethod('openCrop');await wait(async()=>await page.data('mode')==='crop');
   const crop=await page.$('.publication-cropper');await crop.callMethod('enlarge');await wait(async()=>!await page.data('busy'));
-  check('裁切取消和完成可达',await fits(await page.$('.crop-cancel'),56)&&await fits(await page.$('.crop-done'),56));await shot('journey-crop');
+  const cancel=await page.$('.crop-cancel'), done=await page.$('.crop-done');
+  check('裁切取消和完成等宽48px并且完整可达',await fits(cancel,48)&&await fits(done,48)&&(await cancel.size()).height===48&&(await done.size()).height===48&&Math.abs((await cancel.size()).width-(await done.size()).width)<1);await shot('journey-crop');
+  check('底栏不越出屏幕，还原留在调整区',Math.max((await cancel.offset()).top+48,(await done.offset()).top+48)<=await mini.evaluate(()=>wx.getWindowInfo().windowHeight)&&!!await crop.$('.crop-adjust-caption .crop-reset'));
   await page.callMethod('cancelCrop');await wait(async()=>await page.data('mode')==='settings'&&!await page.data('busy'));
   check('取消裁切保留原封面且不强制预览',(await page.data('draft')).path===original&&!(await page.data('draft')).cropBackup&&!await page.data('preview'));
   await mini.evaluate(()=>{const q=getApp().__publicationQa,p=getCurrentPages().at(-1);q.nickname='一位喜欢观察日常生活的作者';q.draft.title='老街清晨的风与那些平凡日子里值得写下来的故事：用于检查完整换行的长标题';q.draft.textDraft=('一段检查长文滚动的合成文字，写下生活、诗歌和自己的想法。\n\n').repeat(24);p.setData({title:q.draft.title,body:q.draft.textDraft,authorName:q.nickname});});
@@ -74,5 +78,12 @@ export async function checkClientJourney({ mini, info, output, check }) {
   check('分享固定可达且作者管理可见',await fits(await page.$('.share-button'),56)&&!!await page.$('.author-actions'));
   const end=await page.$('.author-actions'),dock=await page.$('.reader-share-dock');check('文末操作完整滚到分享栏上方',(await end.offset()).top+(await end.size()).height<=(await dock.offset()).top+1);
   page=await mini.navigateTo('/pages/editor/index');await wait(async()=>!!await page.data('draft'));await page.callMethod('toggleInputMode');await shot('journey-editor');
-  check('原编辑器下一步及小文可达',await fits(await page.$('.publication-next'),56)&&await fits(await page.$('.xiaowen')));
+  const next=await page.$('.publication-next');
+  check('原编辑器下一步为88×48且小文可达',await fits(next,48)&&(await next.size()).width===88&&(await next.size()).height===48&&await fits(await page.$('.xiaowen')));
+  check('输入切换和小文归入同一工具组',!!await page.$('.writing-tools .mode')&&!!await page.$('.writing-tools .xiaowen'));
+  const input=await page.$('.body-input'), beforeInput=await input.offset();
+  check('原生正文使用18/32排版且没有默认内边距',parseFloat(await input.style('font-size'))===18&&parseFloat(await input.style('line-height'))===32&&parseFloat(await input.style('padding-top'))===0);
+  await input.input('从想说的一句话开始……');await wait(async()=>await page.data('body')==='从想说的一句话开始……');await shot('journey-editor-text');
+  check('输入前后正文框首行位置不跳动',Math.abs((await input.offset()).top-beforeInput.top)<1);
+  await page.callMethod('flushAutoSave');await mini.switchTab('/pages/profile/index');
 }

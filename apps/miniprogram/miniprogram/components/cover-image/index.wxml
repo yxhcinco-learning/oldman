@@ -1,3 +1,5 @@
-<view class="cover-window" style="width: {{width}}px; height: {{width / ratio}}px">
-  <image wx:if="{{src && crop}}" class="cover-picture" src="{{src}}" mode="scaleToFill" style="width: {{100 / crop.width}}%; height: {{100 / crop.height}}%; left: {{-100 * crop.x / crop.width}}%; top: {{-100 * crop.y / crop.height}}%" />
+<view class="cover-window" style="width: {{frameWidth}}px; height: {{frameHeight}}px">
+  <image wx:if="{{imageSource && valid}}" class="cover-picture" src="{{imageSource}}" mode="scaleToFill" style="width: {{drawWidth}}px; height: {{drawHeight}}px; left: {{left}}px; top: {{top}}px" bindload="imageLoaded" binderror="imageFailed" />
+  <view wx:if="{{!valid || failed}}" class="cover-feedback" role="alert"><text>封面暂未显示</text><view wx:if="{{valid}}" class="cover-retry" role="button" catchtap="retry" aria-label="重新加载封面">重试</view><text wx:else class="cover-detail">请重新调整</text></view>
+  <view wx:elif="{{!loaded}}" class="cover-loading" role="status">加载封面…</view>
 </view>

@@ -1,6 +1,7 @@
 import { newId, centeredCrops, type CoverCrops, type PublicationPreview, type PublicationStatus } from '../domain/core';
 import { MiniPublicationClient } from './client';
 import { MiniPublicationStorage, type PublicationDraft } from './storage';
+import { compositionCrops, type Crop } from './crop';
 
 export class MiniPublicationController {
   constructor(readonly workId: string, readonly storage: MiniPublicationStorage, readonly client: MiniPublicationClient,
@@ -14,7 +15,10 @@ export class MiniPublicationController {
   async beginCrop() {
     const draft = await this.local();
     if (draft.settingOperation || draft.submissionOperation || draft.actionOperation) throw new Error('请先重试上次操作。');
-    if (!draft.cropBackup) await this.save({ ...draft, cropBackup: this.coverState(draft) });
+    if (!draft.path || !draft.crops) throw new Error('请先添加文章封面。');
+    // Only entering the adjustment flow links old independently cropped images.
+    await this.save({ ...draft, cropBackup: draft.cropBackup ?? this.coverState(draft),
+      crops: compositionCrops(draft.crops.reading), confirmed: [], dirty: true });
   }
   async cancelCrop() {
     const draft = await this.local();
@@ -23,15 +27,20 @@ export class MiniPublicationController {
   }
   async finishCrop() {
     const draft = await this.local();
-    if (draft.confirmed.length !== 2) throw new Error('请分别确认两张封面的效果。');
-    await this.save({ ...draft, cropBackup: null });
+    if (!draft.path || !draft.crops || !draft.cropBackup || draft.settingOperation || draft.submissionOperation || draft.actionOperation) throw new Error('请先完成当前操作。');
+    await this.save({ ...draft, crops: compositionCrops(draft.crops.reading), confirmed: ['thumbnail', 'reading'], dirty: true, cropBackup: null });
   }
   async choose(source: string, width: number, height: number) {
     const current = await this.local();
     if (current.settingOperation || current.submissionOperation || current.actionOperation) throw new Error('请先重试上次操作，再更换封面。');
     const path = await this.storage.preserveImage(source);
     this.assertActive();
-    return this.save({ ...current, cropBackup: current.cropBackup ?? this.coverState(current), path, width, height, crops: centeredCrops(width, height), confirmed: [], assetId: null, uploadId: newId(), dirty: true });
+    return this.save({ ...current, cropBackup: current.cropBackup ?? this.coverState(current), path, width, height, crops: compositionCrops(centeredCrops(width, height).reading), confirmed: [], assetId: null, uploadId: newId(), dirty: true });
+  }
+  async compose(reading: Crop) {
+    const current = await this.local();
+    if (!current.cropBackup || current.settingOperation || current.submissionOperation || current.actionOperation) throw new Error('请先打开封面调整。');
+    return this.save({ ...current, crops: compositionCrops(reading), confirmed: [], dirty: true });
   }
   async crop(crops: CoverCrops) {
     const current = await this.local();
@@ -65,7 +74,7 @@ export class MiniPublicationController {
     if (draft.cropBackup) throw new Error('请先完成封面裁切。');
     if (draft.actionOperation || draft.submissionOperation) throw new Error('上次发表操作尚未确认，请先重试。');
     if (!draft.path || !draft.crops) throw new Error('请先添加文章封面。');
-    if (draft.dirty && draft.confirmed.length !== 2) throw new Error('请分别确认列表封面与阅读、好友分享封面。');
+    if (draft.dirty && draft.confirmed.length !== 2) throw new Error('请先完成封面调整。');
     if (draft.dirty || draft.settingOperation) {
       if (!draft.path || !draft.crops) throw new Error('请先选择文章封面。');
       if (!draft.assetId || draft.uploadId) {

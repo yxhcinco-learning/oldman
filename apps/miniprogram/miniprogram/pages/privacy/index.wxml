@@ -1,3 +1,4 @@
+<page-header title="隐私说明" intercept-back="{{true}}" bind:back="back" />
 <view class="privacy-page">
   <view class="privacy-title">您的文字，由您做主</view>
   <view class="privacy-section"><view>微信登录与作品保存</view><text>点击微信授权登录后，首次使用会自动创建账号。本机尚未归属的作品（含回收站）会自动保存到该账号，包括正文、修改记录、小文会话、素材及已保存的输入。系统会生成唯一用户名，您可以修改，使用过的名字始终归您保留。头像可选，不需要手机号。</text></view>
