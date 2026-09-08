@@ -95,9 +95,9 @@ Component({
       const snapshot = await services.repository.load();
       if (services !== miniServices() || !state.alive || !state.visible || sequence !== state.sequence) return;
       let statuses: Awaited<ReturnType<typeof services.publications.statuses>> = { publications: [] };
-      let statusKnown = !services.account || services.account.snapshot().status === 'authenticated';
+      let statusKnown = Boolean(this.data.recycle) || !services.account || services.account.snapshot().status === 'authenticated';
       let publicationIssue = '';
-      if (statusKnown) try { statuses = await services.publications.statuses(); } catch (error) { statusKnown = false; publicationIssue = errorMessage(error, '发表状态暂未更新，请稍后重试。'); }
+      if (statusKnown && !this.data.recycle) try { statuses = await services.publications.statuses(); } catch (error) { statusKnown = false; publicationIssue = errorMessage(error, '发表状态暂未更新，请稍后重试。'); }
       if (services !== miniServices() || !state.alive || !state.visible || sequence !== state.sequence) return;
       state.snapshot = snapshot; state.statuses = statuses.publications;
       const cards = snapshot.works.map(work => { const aggregate = snapshot.aggregates?.find(item => item.work.id === work.id) ?? null;
@@ -201,7 +201,7 @@ Component({
       const result = await wx.showModal({ title: '删除这篇文章？', content: '文章将移入回收站，可以恢复。' + (item?.published || item?.category === 'pending' ? '待审核稿和已发表文章也会撤下，恢复后需要重新投稿。' : ''), confirmText: '删除', confirmColor: '#944924' });
       if (!result.confirm || services !== miniServices() || !context(this).alive) return;
       await services.sync.lifecycle(id, 'trash', revision);
-      await this.refresh(true, true);
+      if (services === miniServices() && context(this).alive) await this.refresh(services.sync.snapshot().status !== 'ready', true);
     } catch (error) { if (services === miniServices() && context(this).alive) this.setData({ issue: errorMessage(error, '删除未完成，请重试。') }); }
     finally { if (context(this).alive && services === miniServices()) this.setData({ deleting: false }); }
   },
@@ -210,7 +210,7 @@ Component({
     if (!services || this.data.deleting) return;
     const id = String(event.currentTarget.dataset.id), revision = Number(event.currentTarget.dataset.revision);
     this.setData({ deleting: true, issue: '' });
-    try { await services.sync.lifecycle(id, 'restore', revision); if (services === miniServices() && state.alive) await this.refresh(true, true); }
+    try { await services.sync.lifecycle(id, 'restore', revision); if (services === miniServices() && state.alive) await this.refresh(services.sync.snapshot().status !== 'ready', true); }
     catch (error) { if (services === miniServices() && state.alive) this.setData({ issue: errorMessage(error, '恢复失败。') }); }
     finally { if (services === miniServices() && state.alive) this.setData({ deleting: false }); }
   },
@@ -238,7 +238,7 @@ Component({
       const result = await wx.showModal({ title: '永久删除这篇文章？', content: '删除后只能通过你之前导出的文字副本恢复。其他文章不受影响。', confirmText: '永久删除', confirmColor: '#944924' });
       if (!result.confirm || services !== miniServices() || !state.alive) return;
       await services.sync.lifecycle(id, 'purge', revision);
-      if (services === miniServices() && state.alive) await this.refresh(true, true);
+      if (services === miniServices() && state.alive) await this.refresh(services.sync.snapshot().status !== 'ready', true);
     } catch (error) { if (services === miniServices() && state.alive) this.setData({ issue: errorMessage(error, '永久删除失败，文章仍保留在回收站。') }); }
     finally { if (services === miniServices() && state.alive) this.setData({ deleting: false }); }
   },

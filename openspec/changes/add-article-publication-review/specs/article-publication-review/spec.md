@@ -83,6 +83,14 @@
 - **WHEN** 发表状态请求因网络中断失败，或入口返回限流响应
 - **THEN** 同一次失败不通过离线通知触发新的请求循环；保留作品和可操作的重试，限流有明确提示，主动重试成功后清除旧错误
 
+#### Scenario: Refresh after confirmed deletion
+- **WHEN** 移入回收站、恢复或永久删除已由服务端确认，且同步处于正常就绪状态
+- **THEN** 列表从已确认的本机结果更新，不再仅为刷新界面启动一轮完整同步；回收站不查询无关的发表状态。已有同步失败不能被界面隐藏，仍保留重试和真实错误
+
+#### Scenario: Previously purged works remain in the cloud directory
+- **WHEN** 云目录保留永久删除标记，而本机已不存在对应作品
+- **THEN** 不为这些标记重复读取作品明细，后续同步的明细请求量不随已删除文章数量累积；仍存在本机内容的删除记录继续核对版本、保留必要恢复内容并收回编辑资格
+
 ### Requirement: Evidence separates simulated and actual use
 系统 SHALL 以真实本地 HTTP、SQLite、图片处理和两个隔离客户端验证服务闭环，运行完整检查、构建、小程序三尺寸和后台三尺寸回归；手机选图及好友实际收发 MUST 单列证据。
 

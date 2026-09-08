@@ -61,13 +61,15 @@ export class MiniCloudSync {
       const result = await this.transport.mutate(operation);
       this.assertActive();
       await this.repository.acknowledge(aggregate.work.id, result);
-      if (!result.entry.purged) this.readyIds.add(aggregate.work.id);
+      if (result.entry.purged) this.readyIds.delete(aggregate.work.id);
+      else this.readyIds.add(aggregate.work.id);
     } catch (error) {
       if (!(error instanceof AccountRequestError) || error.status !== 409 || error.code === 'operation_mismatch') throw error;
       const remote = await this.transport.get(aggregate.work.id);
       this.assertActive();
       await this.repository.installRemote(remote);
-      if (!remote.purged) this.readyIds.add(remote.id);
+      if (remote.purged) this.readyIds.delete(remote.id);
+      else this.readyIds.add(remote.id);
     }
   }
 
@@ -115,6 +117,11 @@ export class MiniCloudSync {
     for (const entry of entries.values()) {
       this.assertActive();
       const local = locals.get(entry.id);
+      if (entry.purged) {
+        this.readyIds.delete(entry.id);
+        // No local aggregate remains to reconcile; leave any recovery journals untouched.
+        if (!local) continue;
+      }
       if (!local || entry.version > (local.cloud?.version ?? 0)) {
         const remote = await this.transport.get(entry.id);
         this.assertActive();

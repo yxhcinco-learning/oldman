@@ -12,9 +12,9 @@ vi.mock('../miniprogram/ui/navigation', () => ({ navigationMetrics: () => ({ nav
 vi.mock('../miniprogram/ui/tab-bar', () => ({ selectTab() {}, setTabBarHidden() {} }));
 
 interface Library {
-  data: { cards: Array<{ id: string; publication: string }>; visible: object[]; statusUnavailable: boolean; loading: boolean; issue: string };
+  data: { recycle: boolean; cards: Array<{ id: string; publication: string }>; visible: object[]; statusUnavailable: boolean; loading: boolean; issue: string };
   setData(value: object): void; triggerEvent(): void;
-  refresh(connect?: boolean, changed?: boolean): Promise<void>; moveToRecycle(event: object): Promise<void>;
+  refresh(connect?: boolean, changed?: boolean): Promise<void>; moveToRecycle(event: object): Promise<void>; restore(event: object): Promise<void>; permanentlyDelete(event: object): Promise<void>;
 }
 interface Definition { data: object; methods: object; lifetimes: { attached(this: Library): void; detached(this: Library): void }; pageLifetimes: { show(this: Library): void; hide(this: Library): void } }
 interface Profile { data: object; onLoad(): void; onShow(): void; onHide(): void; onUnload(): void; refreshState(): Promise<void>; setData(value: object): void }
@@ -129,6 +129,39 @@ describe('作者列表可见性与合并刷新', () => {
     const deleting = instance.moveToRecycle({ currentTarget: { dataset: { id: 'isolated-0', revision: 1 } } }); await settle();
     response.resolve({ statusCode: 200, data: { publications: [] } }); await Promise.all([oldRefresh, deleting]);
     expect(s.sync.lifecycle).toHaveBeenCalledTimes(1); expect(instance.data.cards).toEqual([]); expect(instance.data.visible).toEqual([]);
+  });
+
+  it.each([
+    ['trash', 'moveToRecycle'], ['restore', 'restore'], ['purge', 'permanentlyDelete'],
+  ] as const)('%s 已确认且同步就绪后不再为界面启动完整同步', async (kind, method) => {
+    const s = await services(); const { instances } = await libraries(); const instance = instances[0]!;
+    const before = { ...workFromDraft({ ...emptyDraft(), id: 'isolated-0', title: '隔离文章' }), deletedAt: kind === 'trash' ? null : '2026-09-08T00:00:00Z' };
+    s.setWorks([before]); instance.data.recycle = kind !== 'trash'; await instance.refresh(false);
+    s.sync.sync.mockClear(); s.publicationResponse.mockClear();
+    s.sync.lifecycle.mockImplementationOnce(async () => { s.setWorks(kind === 'purge' ? [] : [{ ...before, deletedAt: kind === 'trash' ? '2026-09-08T00:00:00Z' : null }]); });
+    vi.stubGlobal('wx', { showModal: async () => ({ confirm: true }) });
+    await instance[method]({ currentTarget: { dataset: { id: before.id, revision: before.revision } } });
+    expect(s.sync.lifecycle).toHaveBeenCalledWith(before.id, kind, before.revision);
+    expect(s.sync.sync).not.toHaveBeenCalled(); expect(instance.data.visible).toEqual([]); expect(instance.data.issue).toBe('');
+    expect(s.publicationResponse).toHaveBeenCalledTimes(kind === 'trash' ? 1 : 0);
+  });
+
+  it('回收站不依赖发表查询，但仍显示真实同步失败', async () => {
+    const s = await services(); const { instances } = await libraries(); const instance = instances[0]!;
+    instance.data.recycle = true; s.publicationResponse.mockClear(); s.publicationResponse.mockRejectedValue(new Error('无关发表服务失败'));
+    s.publish('error', '请求较频繁，请稍后重试。'); await instance.refresh(false);
+    expect(s.publicationResponse).not.toHaveBeenCalled(); expect(instance.data.statusUnavailable).toBe(false);
+    expect(instance.data.issue).toContain('请求较频繁');
+  });
+
+  it('删除成功但既有同步失败时仍重试同步并清除恢复后的错误', async () => {
+    const s = await services(); const { instances } = await libraries(); const instance = instances[0]!;
+    s.publish('error', '请求较频繁，请稍后重试。'); await instance.refresh(false); s.sync.sync.mockClear();
+    s.sync.lifecycle.mockImplementationOnce(async () => { s.setWorks([]); });
+    s.sync.sync.mockImplementationOnce(async () => { s.publish('syncing'); s.publish('ready'); });
+    vi.stubGlobal('wx', { showModal: async () => ({ confirm: true }) });
+    await instance.moveToRecycle({ currentTarget: { dataset: { id: 'isolated-0', revision: 1 } } });
+    expect(s.sync.sync).toHaveBeenCalledTimes(1); expect(instance.data.issue).toBe(''); expect(instance.data.cards).toEqual([]);
   });
 
   it('账号变化立即清除旧卡片，旧在途结果不能覆盖新账号', async () => {
