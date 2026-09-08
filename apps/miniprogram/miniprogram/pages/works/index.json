@@ -3,5 +3,7 @@
   "usingComponents": {
     "page-header": "/components/page-header/index",
     "author-articles": "/components/author-articles/index"
-  }
+  },
+  "enablePullDownRefresh": true,
+  "backgroundColor": "#fbf9f8"
 }

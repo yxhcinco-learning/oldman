@@ -222,7 +222,8 @@ export class PublicationStore {
         ORDER BY a.first_published_at DESC,a.id DESC LIMIT 21`).all(position?.time ?? null, position?.time ?? null, position?.time ?? null, position?.id ?? null) as unknown as ArticleRow[];
       const page = rows.slice(0, 20), last = page.at(-1);
       const articles: PublicArticleCard[] = page.map(a => { const item = this.publicContent(a, this.submission(db, a.published_id)!);
-        return { id: item.id, title: item.title, authorName: item.authorName, aiAssisted: item.aiAssisted, version: item.version, publishedAt: item.publishedAt }; });
+        return { id: item.id, title: item.title, authorName: item.authorName, aiAssisted: item.aiAssisted, version: item.version, publishedAt: item.publishedAt,
+          excerpt: Array.from(item.body.replace(/\s+/gu, ' ').trim()).slice(0, 120).join('') }; });
       return { articles, cursor: rows.length > 20 && last ? Buffer.from(JSON.stringify({ time: last.first_published_at, id: last.id })).toString('base64url') : null };
     });
   }

@@ -98,7 +98,8 @@ describe('微信小程序公共工程配置', () => {
     expect(navigation).toContain('wx:if="{{!hidden}}"');
     expect(navigation).toContain('bindtap="switchTab"');
     expect(works).toContain('<author-articles');
-    expect(readText('../miniprogram/pages/profile/index.wxml')).toContain('bindtap="writeArticle"');
+    expect(readText('../miniprogram/pages/profile/index.wxml')).toContain('embedded="{{true}}"');
+    expect(readText('../miniprogram/components/author-articles/index.wxml')).toContain('bindtap="startWriting"');
     expect(navigationStyles).toContain('repeat(3, minmax(0, 1fr))');
     expect(navigationStyles).toMatch(/\.tab-bar\s*\{[^}]*position:\s*fixed/);
     expect(navigationStyles).toMatch(/\.tab-bar\s*\{[^}]*right:\s*0[^}]*left:\s*0[^}]*box-sizing:\s*border-box/);
@@ -214,7 +215,7 @@ describe('微信小程序公共工程配置', () => {
     expect(editor).not.toContain('<button class="topic-heading"');
     expect(editorController).toContain('dismissKeyboard()');
     expect(readText('../miniprogram/components/author-articles/index.ts')).toContain('await services.writer.flush()');
-    expect(readText('../miniprogram/pages/profile/index.wxml')).toContain('class="profile-create"');
+    expect(readText('../miniprogram/components/author-articles/index.wxml')).toContain('class="overview-write primary-action"');
     expect(readText('../miniprogram/app.wxss')).toMatch(/\.page-actions\s*\{[^}]*right:\s*0[^}]*left:\s*0/);
     expect(readText('../miniprogram/app.wxss')).toMatch(/button\.primary-action, button\.secondary-action\s*\{[^}]*width:\s*100%[^}]*max-width:\s*100%[^}]*min-width:\s*0/);
     const allStyles = [readText('../miniprogram/app.wxss'), navigationStyles, brandStyles,

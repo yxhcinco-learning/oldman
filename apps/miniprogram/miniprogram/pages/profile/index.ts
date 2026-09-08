@@ -8,26 +8,27 @@ import type { AccountProfile } from '../../domain/core';
 import type { AccountStatus } from '../../auth/account-client';
 
 accountPage({
+  alive: true, refreshSequence: 0,
   accountUnsubscribe: undefined as (() => void) | undefined,
   syncUnsubscribe: undefined as (() => void) | undefined,
   observed: undefined as ReturnType<typeof miniServices> | undefined,
-  data: { ...navigationMetrics(), settingsOpen: false, libraryManaging: false, menuOpen: false, editingProfile: false, logoutOpen: false, cloudError: '', canReconnect: false, needsLogin: true,
+  data: { ...navigationMetrics(), articleTotal: 0, publishedCount: 0, libraryReady: false, publicationKnown: false, profileReturn: 'home', settingsOpen: false, libraryManaging: false, menuOpen: false, editingProfile: false, logoutOpen: false, cloudError: '', canReconnect: false, needsLogin: true,
     nicknameInput: '', nicknameValid: true, busy: '', notice: '', error: '', nameKeyboardHeight: 0, compactProfile: false,
     account: null as AccountProfile | null, status: 'guest' as AccountStatus, avatarPath: '', syncText: '本机草稿', accountText: '尚未登录',
-    exportLabel: '导出本机备份' },
+    exportLabel: '导出本机文字副本' },
 
   onLoad() { this.accountUnsubscribe = miniServices().account.subscribe(() => { void this.refreshState(); }); },
   onShow() { selectTab(this, 2); if (this.data.menuOpen || this.data.editingProfile || this.data.settingsOpen || this.data.logoutOpen) setTabBarHidden(this, true); void this.refreshState(); },
   onHide() { setTabBarHidden(this, false); },
-  onUnload() { this.accountUnsubscribe?.(); this.syncUnsubscribe?.(); },
+  onUnload() { this.alive = false; this.refreshSequence++; this.accountUnsubscribe?.(); this.syncUnsubscribe?.(); },
   nameKeyboard(event: WechatMiniprogram.CustomEvent<{ height: number }>) {
     const height = event.detail.height;
     this.setData({ nameKeyboardHeight: height, compactProfile: height > 0 && wx.getWindowInfo().windowHeight - height - this.data.navigationHeight < 460 });
   },
   async refreshState() {
-    const services = miniServices();
+    const services = miniServices(), sequence = ++this.refreshSequence;
     if (this.observed !== services) {
-      this.setData({ settingsOpen: false, libraryManaging: false, avatarPath: '', editingProfile: false, nicknameInput: '', nameKeyboardHeight: 0, compactProfile: false, error: '', notice: '', menuOpen: false, logoutOpen: false });
+      this.setData({ settingsOpen: false, libraryManaging: false, articleTotal: 0, publishedCount: 0, libraryReady: false, publicationKnown: false, profileReturn: 'home', avatarPath: '', editingProfile: false, nicknameInput: '', nameKeyboardHeight: 0, compactProfile: false, busy: '', error: '', notice: '', menuOpen: false, logoutOpen: false });
       setTabBarHidden(this, false);
       this.syncUnsubscribe?.();
       this.observed = services;
@@ -38,7 +39,7 @@ accountPage({
     const works = await services.repository.allAggregates().catch(error => {
       readError = errorMessage(error, '本机作品暂时无法读取。'); return [];
     });
-    if (services !== miniServices()) return;
+    if (services !== miniServices() || !this.alive || sequence !== this.refreshSequence) return;
     const unsent = works.filter(item => !item.cloud?.recoveryOf && (!item.cloud?.version || item.cloud.operation || item.work.revision !== item.cloud.syncedRevision)).length;
     const accountText = { guest: '登录后保存您的作品', connecting: '正在登录', authenticated: '编辑头像与用户名', offline: '当前离线', expired: '登录已过期', replaced: '已在其他设备登录' }[state.status];
     const needsLogin = ['guest', 'expired', 'replaced', 'connecting'].includes(state.status);
@@ -47,7 +48,7 @@ accountPage({
       needsLogin, canReconnect: Boolean(state.account && !needsLogin && sync.status !== 'syncing' && (readError || sync.status === 'error' || state.status === 'offline')),
       syncText: readError ? '作品暂时无法读取' : needsLogin && state.account ? '请重新登录' : sync.status === 'syncing' ? '正在同步…'
         : !works.length ? '还没有作品' : unsent ? `${unsent} 篇待同步` : works.every(item => item.cloud?.recoveryOf) ? '恢复稿保存在本机' : '作品已保存到云端',
-      exportLabel: state.status === 'authenticated' ? '导出全部备份' : '导出本机备份',
+      exportLabel: state.status === 'authenticated' ? '导出文字副本' : '导出本机文字副本',
       cloudError: readError || (state.account && cloudIssue ? errorMessage(cloudIssue, '保存暂未完成，请重试。') : '') });
     if (!state.account?.hasAvatar) { this.setData({ avatarPath: '' }); return; }
     const path = services.repository.paths.root + '/avatar-' + state.account.avatarVersion + '.jpg';
@@ -58,7 +59,7 @@ accountPage({
         if (!(data instanceof ArrayBuffer) || data.byteLength > 256 * 1024) return;
         wx.getFileSystemManager().writeFileSync(path, data);
       }
-      if (services === miniServices() && await services.files.exists(path)) this.setData({ avatarPath: path });
+      if (await services.files.exists(path) && services === miniServices() && this.alive && sequence === this.refreshSequence) this.setData({ avatarPath: path });
     } catch { /* Profile remains usable with the default avatar. */ }
   },
   async login() {
@@ -73,8 +74,8 @@ accountPage({
     catch (error) { this.setData({ error: errorMessage(error, '连接未成功。') }); }
     finally { this.setData({ busy: '' }); await this.refreshState(); }
   },
-  logout() { this.setData({ settingsOpen: false, logoutOpen: true, error: '' }); setTabBarHidden(this, true); },
-  closeLogout() { if (this.data.busy) return; this.setData({ logoutOpen: false }); setTabBarHidden(this, false); },
+  logout() { this.setData({ logoutOpen: true, error: '' }); setTabBarHidden(this, true); },
+  closeLogout() { if (this.data.busy) return; this.setData({ logoutOpen: false }); setTabBarHidden(this, this.data.settingsOpen); },
   async confirmLogout() {
     if (this.data.busy) return;
     const services = miniServices();
@@ -89,8 +90,8 @@ accountPage({
     } catch (error) { this.setData({ error: errorMessage(error, '暂时未能退出，请重试。') }); }
     finally { this.setData({ busy: '' }); }
   },
-  openProfile() { this.setData({ settingsOpen: false, editingProfile: true, nicknameInput: this.data.account?.nickname ?? '', nicknameValid: true, error: '' }); setTabBarHidden(this, true); },
-  closeProfile() { this.setData({ editingProfile: false, nameKeyboardHeight: 0, compactProfile: false }); setTabBarHidden(this, false); },
+  openProfile() { this.setData({ profileReturn: this.data.settingsOpen ? 'settings' : 'home', settingsOpen: false, editingProfile: true, nicknameInput: this.data.account?.nickname ?? '', nicknameValid: true, error: '' }); setTabBarHidden(this, true); },
+  closeProfile() { const settingsOpen = this.data.profileReturn === 'settings'; this.setData({ editingProfile: false, nameKeyboardHeight: 0, compactProfile: false, settingsOpen }); setTabBarHidden(this, settingsOpen); },
   async chooseAvatar(event: WechatMiniprogram.CustomEvent<{ avatarUrl: string }>) {
     if (!event.detail.avatarUrl || this.data.busy) return;
     const services = miniServices();
@@ -102,19 +103,19 @@ accountPage({
       const data = manager.readFileSync(event.detail.avatarUrl);
       if (!(data instanceof ArrayBuffer)) throw new Error('无法读取头像，请重新选择。');
       await services.account.updateAvatar(data);
-    } catch (error) { this.setData({ error: errorMessage(error, '头像未保存，请重试。') }); }
-    finally { this.setData({ busy: '' }); await this.refreshState(); }
+    } catch (error) { if (services === miniServices()) this.setData({ error: errorMessage(error, '头像未保存，请重试。') }); }
+    finally { if (services === miniServices()) { this.setData({ busy: '' }); await this.refreshState(); } }
   },
   openMenu() { setTabBarHidden(this, true); this.setData({ settingsOpen: false, menuOpen: true, notice: '', error: '' }); },
-  closeMenu() { this.setData({ menuOpen: false }); setTabBarHidden(this, false); void this.selectComponent('.author-articles')?.refresh(false); },
-  openPrivacy() { this.closeSettings(); void wx.navigateTo({ url: '/pages/privacy/index' }); },
+  closeMenu() { if (this.data.busy) return; this.setData({ menuOpen: false, settingsOpen: true }); setTabBarHidden(this, true); },
+  openPrivacy() { void wx.navigateTo({ url: '/pages/privacy/index' }); },
   async nameSaved() { this.closeProfile(); await this.refreshState(); },
-  manageWorks() { this.closeSettings(); void wx.pageScrollTo({ selector: '.author-articles', duration: 200 }); },
+  manageWorks() { this.closeSettings(); void wx.navigateTo({ url: '/pages/works/index' }); },
   openSettings() { this.setData({ settingsOpen: true }); setTabBarHidden(this, true); },
   closeSettings() { this.setData({ settingsOpen: false }); setTabBarHidden(this, false); },
+  articleSummary(event: WechatMiniprogram.CustomEvent<{ total: number; published: number; statusKnown: boolean }>) { this.setData({ articleTotal: event.detail.total, publishedCount: event.detail.published, libraryReady: true, publicationKnown: event.detail.statusKnown }); },
   libraryManage(event: WechatMiniprogram.CustomEvent<{ value: boolean }>) { this.setData({ libraryManaging: event.detail.value }); },
   writeArticle() { void wx.navigateTo({ url: '/pages/editor/index' }); },
-  onReachBottom() { this.selectComponent('.author-articles')?.more(); },
   async onPullDownRefresh() { try { await this.selectComponent('.author-articles')?.refresh(); await this.refreshState(); } finally { void wx.stopPullDownRefresh(); } },
   openRecycle() { this.closeSettings(); setTabBarHidden(this, false); void wx.navigateTo({ url: '/pages/works/index?recycle=1' }); },
   async exportBackup() {
@@ -124,9 +125,9 @@ accountPage({
       if (services.account.snapshot().status === 'authenticated') await services.sync.sync();
       if (services !== miniServices()) throw new Error('账号已变化，请重新导出。');
       await services.backups.exportAll();
-      this.setData({ notice: '备份已准备好，请在微信中保存文件。' });
-    } catch (error) { this.setData({ error: errorMessage(error, '备份导出失败。') }); }
-    finally { this.setData({ busy: '' }); }
+      if (services === miniServices()) this.setData({ notice: '文字副本已准备好，请在微信中保存文件。' });
+    } catch (error) { if (services === miniServices()) this.setData({ error: errorMessage(error, '文字副本导出失败。') }); }
+    finally { if (services === miniServices()) this.setData({ busy: '' }); }
   },
   async importBackup() {
     const services = miniServices();
@@ -134,8 +135,8 @@ accountPage({
     try {
       const count = await services.backups.chooseAndImport();
       if (services === miniServices()) this.setData({ notice: count ? '已恢复 ' + count + ' 篇作品副本。' : '' });
-    } catch (error) { this.setData({ error: errorMessage(error, '备份导入失败，原作品未改变。') }); }
-    finally { this.setData({ busy: '' }); }
+    } catch (error) { if (services === miniServices()) this.setData({ error: errorMessage(error, '备份导入失败，原作品未改变。') }); }
+    finally { if (services === miniServices()) this.setData({ busy: '' }); }
   },
   noop() {},
 });

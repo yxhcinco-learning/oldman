@@ -1,4 +1,6 @@
 .reader-page { padding: 20px var(--page-gutter) calc(32px + env(safe-area-inset-bottom)); }
+.reader-page.with-share { padding-bottom: calc(116px + env(safe-area-inset-bottom)); }
+.reader-share-dock { position: fixed; z-index: 20; right: 0; bottom: 0; left: 0; padding: 12px var(--page-gutter) calc(16px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--paper); }
 .reading-cover { display: block; width: 100%; border-radius: 16px; background: var(--surface); }
 .reading-title { margin: 24px 0 20px; color: var(--forest); font: 600 28px/40px "Songti SC", serif; overflow-wrap: anywhere; }
 .reading-author { display: flex; align-items: center; gap: 12px; min-width: 0; color: var(--muted); }
@@ -6,7 +8,7 @@
 .reading-author > view { min-width: 0; }
 .reading-name { display: block; font-size: 16px; line-height: 26px; overflow-wrap: anywhere; }
 .reading-date { display: block; font-size: 14px; line-height: 22px; }
-.ai-label { margin-top: 16px; font-size: 14px; line-height: 22px; color: var(--muted); }
+.ai-label { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 14px; line-height: 22px; color: var(--muted); }
 .reading-body { display: block; margin-top: 32px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 18px; line-height: 32px; }
 .reading-end { display: flex; align-items: center; justify-content: center; gap: 16px; margin: 40px 0 28px; }
 .reading-end > view { width: 40px; height: 1px; background: var(--line); }

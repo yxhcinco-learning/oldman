@@ -18,46 +18,49 @@
   <view class="crop-bottom"><button class="crop-cancel" bindtap="cancelCrop" disabled="{{busy}}">取消</button><button class="crop-done" bindtap="confirmCrop" disabled="{{busy || readOnly}}">{{busy ? '保存中…' : cropKind === 'reading' && !thumbnailConfirmed ? '下一张' : !readingConfirmed && cropKind === 'thumbnail' ? '下一张' : '完成'}}</button></view>
 </view>
 <block wx:else>
-<page-header class="journey-header" title="{{mode === 'preview' ? '发表预览' : mode === 'result' ? '提交结果' : '审核详情'}}" intercept-back="{{true}}" bindback="back" />
-<view class="publish-page {{mode === 'result' ? 'result-page' : ''}}">
-  <view wx:if="{{error}}" class="error-panel" role="alert"><text>{{error}}</text><button class="text-action" bindtap="refresh" disabled="{{busy}}">重试</button><button wx:if="{{status.settings.assetId && mode === 'preview'}}" class="text-action" bindtap="useLatestCover" disabled="{{busy}}">使用最新封面</button></view>
+<page-header class="journey-header" title="{{mode === 'settings' ? '发表设置' : mode === 'preview' ? '阅读预览' : mode === 'result' ? '提交结果' : '审核详情'}}" action-text="{{mode === 'settings' ? '预览' : ''}}" action-disabled="{{!!busy || readOnly || pendingRetry || actionRetry}}" bind:action="preparePreview" intercept-back="{{true}}" bindback="back" />
+<view class="publish-page {{mode === 'settings' ? 'settings-page' : ''}} {{mode === 'result' ? 'result-page' : ''}}">
+  <view wx:if="{{error}}" class="error-panel" role="alert"><text>{{error}}</text><button class="text-action" bindtap="retry" disabled="{{busy}}">重试</button><button wx:if="{{status.settings.assetId && mode === 'settings' && !pendingRetry && !actionRetry}}" class="text-action" bindtap="useLatestCover" disabled="{{busy}}">使用最新封面</button></view>
   <view wx:if="{{busy}}" class="progress" role="status">{{busy}}</view>
   <view wx:if="{{pendingRetry}}" class="retry-panel"><text>上次投稿结果尚未确认</text><button class="primary-action" bindtap="submit" disabled="{{busy}}">确认投稿结果</button></view>
   <view wx:if="{{actionRetry}}" class="retry-panel"><text>上次撤回结果尚未确认</text><button class="secondary-action" bindtap="retryAction" disabled="{{busy}}">重试撤回</button></view>
-  <block wx:if="{{mode === 'preview'}}">
+  <block wx:if="{{mode === 'settings'}}">
     <view wx:if="{{status.lastSubmission.state === 'rejected'}}" class="reason">审核未通过：{{status.lastSubmission.reason}}</view>
     <view wx:elif="{{status.reason}}" class="reason">{{status.reason}}</view>
     <view wx:if="{{status.published}}" class="publication-state"><text>修改通过审核前，读者仍会看到原来的文章。</text><button class="text-action" bindtap="readArticle">查看公开文章 ›</button></view>
-    <button class="cover-entry {{draft.path ? 'has-cover' : ''}}" bindtap="coverOptions" disabled="{{busy || readOnly || pendingRetry || actionRetry}}" aria-label="{{draft.path ? '调整或更换封面' : '添加文章封面'}}">
-      <block wx:if="{{draft.path}}"><image wx:if="{{image && preview}}" class="reading-cover" style="height: {{viewportWidth * 0.8}}px" src="{{image}}" mode="aspectFit" /><cover-image wx:else src="{{draft.path}}" crop="{{draft.crops.reading}}" width="{{viewportWidth}}" ratio="{{1.25}}" /><text class="cover-edit">调整封面</text></block>
-      <block wx:else><image class="cover-add" src="/assets/image.svg" /><text>添加封面</text><text class="cover-hint">选一张适合这篇文章的照片</text></block>
+    <view class="publication-document"><view class="document-title">{{title || '未填写标题'}}</view><text>{{wordCount}} 字</text></view>
+    <button class="cover-entry {{draft.path ? 'has-cover' : ''}}" style="height: {{viewportWidth * 0.8}}px" bindtap="coverOptions" disabled="{{busy || readOnly || pendingRetry || actionRetry}}" aria-label="{{draft.path ? '调整或更换封面' : '添加文章封面'}}">
+      <block wx:if="{{draft.path}}"><cover-image src="{{draft.path}}" crop="{{draft.crops.reading}}" width="{{viewportWidth}}" ratio="{{1.25}}" /><text class="cover-edit">调整封面</text></block>
+      <block wx:else><image class="cover-add" src="/assets/image.svg" /><text>添加封面</text><text class="cover-hint">选择一张与文章有关的照片</text></block>
     </button>
-    <view wx:if="{{draft.path && (!readingConfirmed || !thumbnailConfirmed)}}" class="field-hint">请点击封面，确认两种展示效果。</view>
-    <view class="article-title">{{title || '请返回编辑页填写标题'}}</view>
-    <view class="author-row"><image src="/assets/leaf.svg" /><text>{{authorName}}</text><button class="text-action" bindtap="editName" disabled="{{busy}}" aria-label="修改用户名">修改</button></view>
-    <view wx:if="{{aiAssisted}}" class="ai-label">本文包含 AI 辅助创作内容</view>
-    <text class="article-body" user-select>{{body || '请返回编辑页写下正文。'}}</text>
-    <button class="text-action edit-body" bindtap="backToEditor">修改正文 ›</button>
-    <button wx:if="{{preview}}" class="examples-toggle" bindtap="toggleExamples" aria-expanded="{{showExamples}}"><text>{{showExamples ? '收起展示效果' : '看看列表和好友卡片效果'}}</text><text aria-hidden="true">{{showExamples ? '−' : '＋'}}</text></button>
-    <view wx:if="{{preview && showExamples}}" class="distribution-examples"><view class="section-title">文章列表</view><view class="sample-card"><image src="{{thumbnail}}" /><view>{{title}}<text>{{authorName}}</text></view></view><view class="section-title">好友卡片</view><view class="sample-share"><view>{{title}}</view><image src="{{image}}" mode="widthFix" /><text>岁月有声</text></view></view>
-    <view wx:if="{{status.published}}" class="status-actions"><button class="text-action danger" data-action="withdraw" bindtap="withdraw" disabled="{{busy || readOnly}}">撤回发表</button></view>
+    <view class="cover-validation" role="status">{{coverError || (draft.path && (!readingConfirmed || !thumbnailConfirmed) ? '请点击封面，确认两种展示效果。' : '')}}</view>
+    <button class="publication-option" bindtap="editName" disabled="{{busy || readOnly || pendingRetry || actionRetry}}" aria-label="修改署名"><text>署名</text><text class="option-value">{{authorName}}</text><view class="option-chevron" aria-hidden="true" /></button>
+    <button wx:if="{{aiAssisted}}" class="publication-option creation-option" bindtap="explainAi"><text>创作方式</text><text class="option-value">AI 辅助整理</text><text class="option-info" aria-hidden="true">i</text></button>
+    <view wx:if="{{status.published}}" class="status-actions"><button class="text-action danger" data-action="withdraw" bindtap="withdraw" disabled="{{busy || readOnly || pendingRetry || actionRetry}}">撤回发表</button></view>
+  </block>
+  <block wx:elif="{{mode === 'preview' && preview}}">
+    <image class="reading-cover" style="height: {{viewportWidth * 0.8}}px" src="{{image}}" mode="aspectFit" />
+    <view class="article-title">{{preview.title}}</view>
+    <view class="author-row"><image src="/assets/leaf.svg" /><text>{{preview.authorName}}</text></view>
+    <text class="article-body" user-select>{{preview.body}}</text>
+    <view wx:if="{{preview.aiAssisted}}" class="ai-label">本文含 AI 辅助整理内容</view>
   </block>
   <view wx:elif="{{mode === 'result'}}" class="result">
     <view class="result-mark"><image src="/assets/check.svg" /></view><view class="result-title">已提交审核</view>
     <view class="result-copy">审核通过后，其他人就能阅读这篇文章。</view>
-    <view class="submitted-work"><view>{{title}}</view><text>{{notice || '可以在“我的”查看审核状态。'}}</text></view>
+    <view class="submitted-work"><view>{{submission.title || '投稿已收到'}}</view><text>{{notice || '可以在“我的”查看审核状态。'}}</text></view>
     <button class="primary-action" bindtap="myArticles">完成</button><button class="text-action result-detail" bindtap="showSubmission">查看本次投稿 ›</button>
   </view>
   <block wx:elif="{{mode === 'review'}}">
-    <view class="review-status"><view class="section-title">{{statusLabel}}</view><view wx:if="{{status.pending}}">审核通过后，这篇投稿才会公开。</view><view wx:if="{{status.pending && status.published}}">原来的公开文章仍可阅读。</view><view wx:if="{{submission}}" class="submission-time">提交于 {{submission.createdAt}}</view></view>
+    <view class="review-status"><view class="section-title">{{statusLabel}}</view><view wx:if="{{status.pending}}">审核通过后，这篇投稿才会公开。</view><view wx:if="{{status.pending && status.published}}">原来的公开文章仍可阅读。</view><view wx:if="{{submission}}" class="submission-time">提交于 {{submissionDate}}</view></view>
     <view wx:if="{{status.lastSubmission.reason}}" class="reason">{{status.lastSubmission.reason}}</view>
-    <block wx:if="{{submission}}"><image class="reading-cover" style="height: {{viewportWidth * 0.8}}px" src="{{image}}" mode="aspectFit" /><view class="article-title">{{submission.title}}</view><view class="author-row"><image src="/assets/leaf.svg" /><text>{{submission.authorName}}</text></view><view wx:if="{{submission.aiAssisted}}" class="ai-label">本文包含 AI 辅助创作内容</view><text class="article-body" user-select>{{submission.body}}</text></block>
+    <block wx:if="{{submission}}"><image class="reading-cover" style="height: {{viewportWidth * 0.8}}px" src="{{image}}" mode="aspectFit" /><view class="article-title">{{submission.title}}</view><view class="author-row"><image src="/assets/leaf.svg" /><text>{{submission.authorName}}</text></view><text class="article-body" user-select>{{submission.body}}</text><view wx:if="{{submission.aiAssisted}}" class="ai-label">本文含 AI 辅助整理内容</view></block>
     <view class="review-note">继续编辑会保留为修改稿，不会改变这次投稿。</view>
     <view class="result-links"><button class="text-action" bindtap="backToEditor">编辑文章</button><button wx:if="{{status.published}}" class="text-action" bindtap="readArticle">查看公开文章</button></view>
     <view class="status-actions"><button wx:if="{{status.pending}}" class="text-action danger" data-action="withdraw-review" bindtap="withdraw" disabled="{{busy || readOnly}}">撤回审核</button><button wx:if="{{status.published}}" class="text-action danger" data-action="withdraw" bindtap="withdraw" disabled="{{busy || readOnly}}">撤回发表</button></view>
   </block>
 </view>
-<view wx:if="{{mode === 'preview' && !pendingRetry && !actionRetry}}" class="page-actions publish-dock"><view class="submission-note">{{!draft.path ? '添加封面后即可提交审核' : '审核通过后，其他人才能阅读'}}</view><button wx:if="{{!preview && error && draft.path && readingConfirmed && thumbnailConfirmed}}" class="primary-action" bindtap="preparePreview" disabled="{{busy || readOnly}}">重新预览</button><button wx:else class="primary-action" bindtap="submit" disabled="{{busy || readOnly || !preview}}">{{busy ? '请稍候…' : '提交审核'}}</button></view>
+<view wx:if="{{mode === 'settings' && !pendingRetry && !actionRetry}}" class="page-actions publish-dock"><view class="submission-note">审核通过后，文章才会公开</view><button class="primary-action" bindtap="submit" disabled="{{busy || readOnly}}">{{busy ? '请稍候…' : '提交审核'}}</button></view>
 </block>
 <view wx:if="{{editingName}}" class="name-mask" style="top: {{navigationHeight}}px; bottom: {{nameKeyboardHeight}}px" catchtap="closeName" catchtouchmove="noop"><view class="name-sheet" catchtap="noop" role="dialog" aria-modal="true" aria-label="修改用户名"><view class="name-heading"><view>修改用户名</view><button bindtap="closeName" aria-label="关闭"><image src="/assets/close.svg" /></button></view><username-editor class="publication-username" value="{{authorName}}" bindsaved="nameSaved" bindkeyboard="nameKeyboard" /></view></view>
 </block>

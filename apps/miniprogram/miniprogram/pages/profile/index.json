@@ -3,7 +3,8 @@
   "usingComponents": {
     "app-brand": "/components/app-brand/index",
     "username-editor": "/components/username-editor/index",
-    "author-articles": "/components/author-articles/index"
+    "author-articles": "/components/author-articles/index",
+    "page-header": "/components/page-header/index"
   },
   "enablePullDownRefresh": true,
   "backgroundColor": "#fbf9f8"

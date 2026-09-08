@@ -1,17 +1,17 @@
 <block wx:if="{{accountReady}}">
-<page-header class="journey-header" title="阅读文章" fallback="/pages/articles/index" />
-<view class="reader-page">
+<page-header class="journey-header" title="文章" fallback="/pages/articles/index" />
+<view class="reader-page {{article && shareReady ? 'with-share' : ''}}">
   <view wx:if="{{loading}}" class="reader-status" role="status">正在打开文章…</view>
   <view wx:if="{{error}}" class="reader-error" role="alert"><image src="/assets/book.svg" /><view>{{error}}</view><view class="reader-error-actions"><button class="primary-action" bindtap="refresh">重新读取</button><button class="text-action" bindtap="list">返回文章列表</button></view></view>
   <block wx:if="{{article}}">
     <image class="reading-cover" style="height: {{coverHeight}}px" src="{{image}}" mode="aspectFit" />
     <view class="reading-title">{{article.title}}</view>
     <view class="reading-author"><image src="/assets/leaf.svg" /><view><text class="reading-name">{{article.authorName}}</text><text class="reading-date">{{date}} 发表</text></view></view>
-    <view wx:if="{{article.aiAssisted}}" class="ai-label">本文包含 AI 辅助创作内容</view>
     <text class="reading-body" user-select>{{article.body}}</text>
+    <view wx:if="{{article.aiAssisted}}" class="ai-label">本文含 AI 辅助整理内容</view>
     <view class="reading-end"><view /><image src="/assets/leaf.svg" /><view /></view>
-    <button wx:if="{{shareReady}}" open-type="share" class="primary-action share-button">分享给好友</button>
     <view wx:if="{{ownerWorkId}}" class="author-actions"><button class="text-action" bindtap="editArticle">编辑文章</button><button class="text-action" data-manage="{{true}}" bindtap="editArticle">发表管理</button></view>
   </block>
 </view>
+<view wx:if="{{article && shareReady}}" class="reader-share-dock"><button open-type="share" class="primary-action share-button">分享给好友</button></view>
 </block>

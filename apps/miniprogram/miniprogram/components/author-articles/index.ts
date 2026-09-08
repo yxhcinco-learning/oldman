@@ -1,13 +1,18 @@
 import { errorMessage } from '../../ui/error-message';
 import { authorArticleAction } from '../../publication/presentation';
 import type { OwnSubmission } from '../../publication/client';
-import { countWords, formatTime, publicationLabel, type Work } from '../../domain/core';
+import { articleText, countWords, formatTime, publicationLabel, type Work } from '../../domain/core';
 import { miniServices } from '../../services';
+import { authorOverview, selectAuthorArticles } from '../../ui/author-library';
 
 interface WorkCard {
   id: string;
   title: string;
   meta: string;
+  excerpt: string;
+  date: string;
+  words: number;
+  updatedAt: string;
   revision: number;
   deleted: boolean;
   recovery: boolean;
@@ -19,7 +24,7 @@ interface WorkCard {
 }
 
 function card(work: Work): WorkCard {
-  return { id: work.id, title: work.title, action: '编辑文章', url: '/pages/editor/index?id=' + encodeURIComponent(work.id), revision: work.revision, deleted: Boolean(work.deletedAt),
+  return { id: work.id, title: work.title, excerpt: articleText(work.segments).replace(/\s+/g, ' ').trim(), date: formatTime(work.updatedAt), words: countWords(work.segments), updatedAt: work.updatedAt, action: '编辑文章', url: '/pages/editor/index?id=' + encodeURIComponent(work.id), revision: work.revision, deleted: Boolean(work.deletedAt),
     recovery: false, publication: '草稿', category: 'draft', published: false, meta: `${formatTime(work.updatedAt)} · ${countWords(work.segments)} 字` };
 }
 
@@ -31,14 +36,14 @@ const states = new WeakMap<object, LibraryState>();
 function context(instance: object) { let state = states.get(instance); if (!state) { state = { alive: true, sequence: 0, statuses: [], submissions: new Map() }; states.set(instance, state); } return state; }
 Component({
   options: { styleIsolation: 'apply-shared' },
-  properties: { recycle: Boolean, embedded: Boolean },
+  properties: { recycle: Boolean, embedded: Boolean, suppressIssue: Boolean },
   data: { loading: true, manage: false, filter: 'all', empty: false, total: 0, limit: 20, hasMore: false,
-    statusUnavailable: false, cards: [] as WorkCard[], visible: [] as WorkCard[], issue: '', deleting: false },
+    query: '', recentDraft: null as WorkCard | null, recentCards: [] as WorkCard[], publishedCount: 0, statusUnavailable: false, cards: [] as WorkCard[], visible: [] as WorkCard[], issue: '', deleting: false },
   lifetimes: {
     attached() {
       const state = context(this); state.alive = true;
       state.accountUnsubscribe = miniServices().account.subscribe(() => { if (state.services !== miniServices()) {
-        this.setData({ cards: [], visible: [], total: 0, empty: false, loading: true, manage: false }); state.submissions.clear();
+        this.setData({ cards: [], visible: [], recentDraft: null, recentCards: [], total: 0, publishedCount: 0, empty: false, loading: true, manage: false, query: '', filter: 'all', limit: 20, deleting: false, issue: '', statusUnavailable: false }); state.snapshot = undefined; state.statuses = []; state.submissions.clear();
       } void this.refresh(false); });
       void this.refresh();
     },
@@ -74,16 +79,23 @@ Component({
   },
 
   filterCards() {
-    const works = this.data.cards.filter(item => item.deleted === this.data.recycle);
-    const matching = works.filter(item => this.data.recycle || this.data.filter === 'all' || (this.data.filter === 'published' ? item.published : item.category === this.data.filter));
-    this.setData({ visible: matching.slice(0, this.data.limit), total: works.length, empty: matching.length === 0, hasMore: matching.length > this.data.limit });
+    const works = this.data.cards.filter(item => item.deleted === Boolean(this.data.recycle));
+    const matching = selectAuthorArticles(this.data.cards, Boolean(this.data.recycle), this.data.filter, this.data.query);
+    const overview = authorOverview(this.data.cards);
+    this.setData({ visible: matching.slice(0, this.data.limit), total: works.length, empty: matching.length === 0, hasMore: !this.data.embedded && matching.length > this.data.limit,
+      recentDraft: overview.draft, recentCards: overview.recent, publishedCount: overview.published });
+    this.triggerEvent('summary', { total: overview.total, published: overview.published, statusKnown: !this.data.statusUnavailable });
     void this.updateVisibleActions();
   },
+  searchArticles(event: WechatMiniprogram.Input) { this.setData({ query: event.detail.value, limit: 20 }); this.filterCards(); },
+  openAll() { void wx.navigateTo({ url: '/pages/works/index' }); },
+  retry() { void this.refresh(); },
   more() { this.setData({ limit: this.data.limit + 20 }); this.filterCards(); },
   async updateVisibleActions() {
     const state = context(this), services = state.services, sequence = state.sequence;
     if (!services || this.data.recycle) return;
-    const pending = this.data.visible.filter(item => item.published && item.category !== 'pending');
+    const displayed = this.data.embedded ? [this.data.recentDraft, ...this.data.recentCards].filter((item): item is WorkCard => Boolean(item)) : this.data.visible;
+    const pending = displayed.filter(item => item.published && item.category !== 'pending');
     for (let offset = 0; offset < pending.length; offset += 4) await Promise.all(pending.slice(offset, offset + 4).map(async item => {
       const status = state.statuses.find(p => p.workId === item.id), aggregate = state.snapshot?.aggregates?.find(a => a.work.id === item.id);
       if (!status?.lastSubmission || status.lastSubmission.state !== 'approved' || !aggregate) return;
@@ -95,10 +107,13 @@ Component({
         if (!state.alive || sequence !== state.sequence || services !== miniServices()) return;
         const action = authorArticleAction(aggregate.work, aggregate.session, status, submitted, local.dirty);
         const update = { ...item, ...action, publication: action.changed ? '已发表 · 有未提交修改' : item.publication };
-        this.setData({ cards: this.data.cards.map(c => c.id === item.id ? update : c), visible: this.data.visible.map(c => c.id === item.id ? update : c) });
+        this.setData({ cards: this.data.cards.map(c => c.id === item.id ? update : c), visible: this.data.visible.map(c => c.id === item.id ? update : c), recentCards: this.data.recentCards.map(c => c.id === item.id ? update : c) });
       } catch {
         state.submissions.delete(status.lastSubmission.id);
-        if (state.alive && sequence === state.sequence && services === miniServices()) this.setData({ visible: this.data.visible.map(c => c.id === item.id ? { ...c, action: '编辑文章', url: '/pages/editor/index?id=' + encodeURIComponent(c.id) } : c) });
+        if (state.alive && sequence === state.sequence && services === miniServices()) {
+          const safeAction = (c: WorkCard) => c.id === item.id ? { ...c, action: '编辑文章', url: '/pages/editor/index?id=' + encodeURIComponent(c.id) } : c;
+          this.setData({ cards: this.data.cards.map(safeAction), visible: this.data.visible.map(safeAction), recentCards: this.data.recentCards.map(safeAction) });
+        }
       }
     }));
   },
@@ -108,6 +123,26 @@ Component({
     this.setData({ filter, limit: 20 }); this.filterCards();
   },
 
+  async openMenu(event: WechatMiniprogram.TouchEvent) {
+    const state = context(this), services = state.services;
+    const item = this.data.cards.find(c => c.id === String(event.currentTarget.dataset.id));
+    if (!services || !item || this.data.deleting) return;
+    const choices = this.data.recycle ? ['永久删除'] : item.recovery ? ['查看恢复稿', '另存新篇', '导出文字', '移入回收站']
+      : item.category === 'pending' ? ['查看本次投稿', '移入回收站'] : item.published ? ['编辑文章', '查看发表状态', '移入回收站'] : ['编辑文章', '移入回收站'];
+    try {
+      const result = await wx.showActionSheet({ itemList: choices });
+      if (services !== miniServices() || !state.alive) return;
+      const latest = this.data.cards.find(c => c.id === item.id);
+      if (!latest || latest.revision !== item.revision || latest.deleted !== item.deleted) { await this.refresh(false); return; }
+      const selected = choices[result.tapIndex];
+      const actionEvent = { currentTarget: { dataset: { id: item.id, revision: item.revision } } } as unknown as WechatMiniprogram.TouchEvent;
+      if (selected === '永久删除') this.permanentlyDelete(actionEvent);
+      else if (selected === '移入回收站') await this.moveToRecycle(actionEvent);
+      else if (selected === '另存新篇') await this.promoteRecovery(actionEvent);
+      else if (selected === '导出文字') await this.exportRecovery(actionEvent);
+      else void wx.navigateTo({ url: (selected === '查看本次投稿' || selected === '查看发表状态' ? '/pages/publish/index?id=' : '/pages/editor/index?id=') + encodeURIComponent(item.id) });
+    } catch (error) { if (services === miniServices() && state.alive && !String((error as { errMsg?: string }).errMsg ?? error).includes('cancel')) this.setData({ issue: errorMessage(error, '操作暂时无法打开，请重试。') }); }
+  },
   toggleManage() { this.setData({ manage: !this.data.manage }); this.triggerEvent('manage', { value: this.data.manage }); },
   startWriting() {
     wx.navigateTo({ url: '/pages/editor/index', fail: error => {
@@ -118,8 +153,8 @@ Component({
   },
 
   openArticle(event: WechatMiniprogram.TouchEvent) {
-    if (this.data.recycle || this.data.manage) return;
-    const item = this.data.visible.find(c => c.id === String(event.currentTarget.dataset.id));
+    if (this.data.recycle) return;
+    const item = this.data.cards.find(c => c.id === String(event.currentTarget.dataset.id));
     if (item) void wx.navigateTo({ url: item.url });
   },
   async moveToRecycle(event: WechatMiniprogram.TouchEvent) {
@@ -136,10 +171,13 @@ Component({
     finally { if (context(this).alive && services === miniServices()) this.setData({ deleting: false }); }
   },
   async restore(event: WechatMiniprogram.TouchEvent) {
-    const id = String(event.currentTarget.dataset.id);
-    const revision = Number(event.currentTarget.dataset.revision);
-    try { await context(this).services!.sync.lifecycle(id, 'restore', revision); await this.refresh(); }
-    catch (error) { this.setData({ issue: errorMessage(error, '恢复失败。') }); }
+    const state = context(this), services = state.services;
+    if (!services || this.data.deleting) return;
+    const id = String(event.currentTarget.dataset.id), revision = Number(event.currentTarget.dataset.revision);
+    this.setData({ deleting: true, issue: '' });
+    try { await services.sync.lifecycle(id, 'restore', revision); if (services === miniServices() && state.alive) await this.refresh(); }
+    catch (error) { if (services === miniServices() && state.alive) this.setData({ issue: errorMessage(error, '恢复失败。') }); }
+    finally { if (services === miniServices() && state.alive) this.setData({ deleting: false }); }
   },
 
   viewRecovery(event: WechatMiniprogram.TouchEvent) {
@@ -147,26 +185,27 @@ Component({
   },
   async promoteRecovery(event: WechatMiniprogram.TouchEvent) {
     const services = context(this).services!;
-    try { await services.repository.promoteRecovery(String(event.currentTarget.dataset.id)); await this.refresh(); }
-    catch (error) { this.setData({ issue: errorMessage(error, '另存失败，恢复稿仍保留。') }); }
+    try { await services.repository.promoteRecovery(String(event.currentTarget.dataset.id)); if (services === miniServices() && context(this).alive) await this.refresh(); }
+    catch (error) { if (services === miniServices() && context(this).alive) this.setData({ issue: errorMessage(error, '另存失败，恢复稿仍保留。') }); }
   },
   async exportRecovery(event: WechatMiniprogram.TouchEvent) {
     const services = context(this).services!;
     try { const item = await services.repository.getAggregate(String(event.currentTarget.dataset.id));
       if (item && services === miniServices()) await services.backups.rescue(item.work.draft, item.session, item.writingState);
-    } catch (error) { this.setData({ issue: errorMessage(error, '恢复稿导出失败。') }); }
+    } catch (error) { if (services === miniServices() && context(this).alive) this.setData({ issue: errorMessage(error, '恢复稿导出失败。') }); }
   },
-  permanentlyDelete(event: WechatMiniprogram.TouchEvent) {
-    const id = String(event.currentTarget.dataset.id);
-    const revision = Number(event.currentTarget.dataset.revision);
-    const services = context(this).services!;
-    wx.showModal({ title: '永久删除这篇作品？', content: '删除后只能通过你之前导出的备份恢复。其他作品不受影响。', confirmText: '永久删除', confirmColor: '#944924',
-      success: result => {
-        if (!result.confirm || services !== miniServices()) return;
-        void services.sync.lifecycle(id, 'purge', revision).then(() => this.refresh()).catch(error => {
-          this.setData({ issue: errorMessage(error, '永久删除失败，作品仍保留在回收站。') });
-        });
-      } });
+  async permanentlyDelete(event: WechatMiniprogram.TouchEvent) {
+    const state = context(this), services = state.services;
+    if (!services || this.data.deleting) return;
+    const id = String(event.currentTarget.dataset.id), revision = Number(event.currentTarget.dataset.revision);
+    this.setData({ deleting: true, issue: '' });
+    try {
+      const result = await wx.showModal({ title: '永久删除这篇文章？', content: '删除后只能通过你之前导出的文字副本恢复。其他文章不受影响。', confirmText: '永久删除', confirmColor: '#944924' });
+      if (!result.confirm || services !== miniServices() || !state.alive) return;
+      await services.sync.lifecycle(id, 'purge', revision);
+      if (services === miniServices() && state.alive) await this.refresh();
+    } catch (error) { if (services === miniServices() && state.alive) this.setData({ issue: errorMessage(error, '永久删除失败，文章仍保留在回收站。') }); }
+    finally { if (services === miniServices() && state.alive) this.setData({ deleting: false }); }
   },
   },
 });

@@ -1,1 +1,1 @@
-.recycle-page { padding-top: 16px; padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
+.works-page { padding-top: 12px; padding-bottom: calc(32px + env(safe-area-inset-bottom)); }

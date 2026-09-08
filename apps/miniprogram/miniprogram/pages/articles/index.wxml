@@ -1,10 +1,13 @@
 <block wx:if="{{accountReady}}">
-<view class="page-shell articles-page"><app-brand /><view class="articles-heading"><view class="page-title">文章</view></view>
+<view class="page-shell articles-page">
+  <app-brand />
+  <view class="articles-heading"><view class="page-title">文章</view><button class="write-entry" bindtap="write"><image src="/assets/pen.svg" aria-hidden="true" />写文章</button></view>
   <view wx:if="{{error}}" class="error-panel" role="alert"><text>{{error}}</text><button class="text-action" bindtap="refresh" disabled="{{loading}}">重试</button></view>
   <view wx:if="{{empty && !loading && !error}}" class="articles-empty"><image class="empty-drawing" src="/assets/letter.svg" mode="aspectFit" aria-hidden="true" /><view class="empty-title">还没有发表的文章</view><text>这里会慢慢留下大家的文字。</text></view>
   <view class="public-card" wx:for="{{cards}}" wx:key="id" data-id="{{item.id}}" bindtap="open" role="button" aria-label="{{'阅读：' + item.title}}">
-    <image wx:if="{{item.image}}" src="{{item.image}}" mode="aspectFill" /><view wx:else class="image-placeholder"><image src="/assets/book.svg" /></view>
-    <view class="card-copy"><view class="card-title">{{item.title}}</view><view class="card-author"><image src="/assets/leaf.svg" /><text>{{item.authorName}}</text></view><view class="card-date">{{item.date}}</view></view>
+    <view class="card-copy"><view class="card-title">{{item.title}}</view><view wx:if="{{item.excerpt}}" class="card-excerpt">{{item.excerpt}}</view><view class="card-meta"><text class="card-author">{{item.authorName}}</text><text class="card-date">{{item.date}}</text></view></view>
+    <image wx:if="{{item.image}}" class="card-cover" src="{{item.image}}" mode="aspectFill" aria-hidden="true" /><view wx:else class="image-placeholder"><image src="/assets/book.svg" aria-hidden="true" /></view>
   </view>
   <view wx:if="{{loading}}" class="articles-loading" role="status">正在读取文章…</view><button wx:elif="{{cursor}}" class="load-more" bindtap="more">查看更多文章</button>
-</view><view class="writing-dock"><button class="primary-action writing-action" hover-class="writing-pressed" bindtap="write">写文章</button></view></block>
+</view>
+</block>

@@ -27,7 +27,7 @@ export interface PublicationStatus {
   pending: SubmissionSummary | null; published: boolean; lastSubmission: SubmissionSummary | null; reason: string;
 }
 export interface PublicationPreview extends PublicationContent { articleId: string; assetId: string; workVersion: number; settingsVersion: number; version: number }
-export interface PublicArticleCard { id: string; title: string; authorName: string; aiAssisted: boolean; publishedAt: string; version: number }
+export interface PublicArticleCard { id: string; title: string; authorName: string; aiAssisted: boolean; publishedAt: string; version: number; excerpt?: string }
 export interface PublicArticle extends PublicArticleCard { body: string }
 export interface PublicArticlePage { articles: PublicArticleCard[]; cursor: string | null }
 export interface AdminArticle extends PublicationContent {

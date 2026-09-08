@@ -47,7 +47,7 @@ describe('独立发表设置与固定操作重试', () => {
     const s = setup(); await s.ready(); await s.controller.prepare();
     const controller = new MiniPublicationController('work-1', s.storage, s.client as unknown as MiniPublicationClient, async () => 2, s.assertActive);
     await expect(controller.prepare()).rejects.toThrow('正文已有变化');
-    await expect(controller.submit(preview)).rejects.toThrow('正文已有变化');
+    await expect(controller.submit(preview.authorName)).rejects.toThrow('正文已有变化');
     expect(s.client.submit).not.toHaveBeenCalled(); expect((await controller.local()).submissionOperation).toBeNull();
   });
 
@@ -93,19 +93,59 @@ describe('独立发表设置与固定操作重试', () => {
     expect(uploadId).toBeTruthy(); expect(s.client.settings.mock.calls[0]).toEqual(s.client.settings.mock.calls[1]);
     expect(pending?.operationId).toBeTruthy(); expect((await restored.local()).settingOperation).toBeNull();
   });
-  it('投稿先同步，结果不明保留回执 ID，冲突才要求重新预览；改名使用新署名', async () => {
+  it('投稿内部准备当前快照，结果不明原样重试，明确冲突后可直接重新投稿', async () => {
     const s = setup(); await s.ready(); await s.controller.prepare();
     s.client.submit.mockRejectedValueOnce(new Error('响应丢失'));
-    await expect(s.controller.submit(preview)).rejects.toThrow('响应丢失');
+    await expect(s.controller.submit(preview.authorName)).rejects.toThrow('响应丢失');
     const pending = (await s.controller.local()).submissionOperation;
     await expect(s.controller.choose('/temp-photo', 100, 100)).rejects.toThrow('先重试');
-    await s.controller.submit(null);
+    await s.controller.submit();
     expect(s.client.submit.mock.calls[0]).toEqual(s.client.submit.mock.calls[1]);
     expect(pending?.authorName).toBe(preview.authorName); expect(s.sync).toHaveBeenCalledTimes(2);
     s.client.submit.mockRejectedValueOnce(Object.assign(new Error('内容变化'), { status: 409 }));
-    await expect(s.controller.submit({ ...preview, authorName: '新的署名' })).rejects.toThrow('内容变化');
+    s.client.preview.mockResolvedValueOnce({ ...preview, authorName: '新的署名' });
+    await expect(s.controller.submit('新的署名')).rejects.toThrow('内容变化');
     expect((await s.controller.local()).submissionOperation).toBeNull();
     expect(s.client.submit).toHaveBeenLastCalledWith('work-1', expect.objectContaining({ authorName: '新的署名' }));
+  });
+  it('没有打开阅读预览也可提交，正文同步和封面设置先完成再固定投稿操作', async () => {
+    const s = setup(); await s.ready();
+    await s.controller.submit(preview.authorName);
+    expect(s.sync).toHaveBeenCalledTimes(1); expect(s.client.preview).toHaveBeenCalledTimes(1);
+    expect(s.client.upload).toHaveBeenCalledTimes(1); expect(s.client.settings).toHaveBeenCalledTimes(1);
+    expect(s.client.submit).toHaveBeenCalledWith('work-1', expect.objectContaining({ workVersion: 1, settingsVersion: 1, authorName: preview.authorName }));
+    expect(s.client.settings.mock.invocationCallOrder[0]).toBeLessThan(s.client.submit.mock.invocationCallOrder[0]!);
+    expect(await s.controller.local()).toMatchObject({ dirty: false, submissionOperation: null, settingOperation: null });
+  });
+  it('预览之后改正文和署名，直接投稿使用新版本，旧预览不能决定提交内容', async () => {
+    const s = setup(); await s.ready();
+    const old = await s.controller.prepare();
+    s.client.preview.mockResolvedValueOnce({ ...preview, title: '新标题', body: '新正文', authorName: '新署名', workVersion: 2 });
+    const controller = new MiniPublicationController('work-1', s.storage, s.client as unknown as MiniPublicationClient, async () => 2, s.assertActive);
+    await controller.submit('新署名');
+    expect(old).toEqual(preview);
+    expect(s.client.submit).toHaveBeenCalledWith('work-1', expect.objectContaining({ workVersion: 2, authorName: '新署名' }));
+  });
+  it('投稿响应丢失后跨重启先确认原操作，不因正文或名字变化准备第二份投稿', async () => {
+    const s = setup(); await s.ready();
+    s.client.submit.mockRejectedValueOnce(new Error('响应丢失'));
+    await expect(s.controller.submit()).rejects.toThrow('响应丢失');
+    const pending = (await s.controller.local()).submissionOperation;
+    const sync = vi.fn(async () => { throw new Error('不能同步改稿'); });
+    s.client.preview.mockImplementationOnce(async () => { throw new Error('不能准备新稿'); });
+    const restored = new MiniPublicationController('work-1', new MiniPublicationStorage(s.files, '/account-a'), s.client as unknown as MiniPublicationClient, sync, s.assertActive);
+    await restored.submit('改后的名字');
+    expect(sync).not.toHaveBeenCalled(); expect(s.client.preview).toHaveBeenCalledTimes(1);
+    expect(s.client.submit).toHaveBeenLastCalledWith('work-1', pending);
+    expect(s.client.submit.mock.calls[0]).toEqual(s.client.submit.mock.calls[1]);
+  });
+  it('缺封面、未看到的新署名和远端封面变化都不生成投稿操作', async () => {
+    const s = setup(); await expect(s.controller.submit()).rejects.toThrow('添加文章封面');
+    await s.ready();
+    await expect(s.controller.submit('未展示的新署名')).rejects.toThrow('署名已更新');
+    s.client.preview.mockResolvedValueOnce({ ...preview, settingsVersion: 2, assetId: 'remote-cover' });
+    await expect(s.controller.submit()).rejects.toThrow('封面设置已变化');
+    expect(s.client.submit).not.toHaveBeenCalled(); expect((await s.controller.local()).submissionOperation).toBeNull();
   });
   it('账号接管时不写入迟到的上传结果；新封面尺寸从实际文件重新读取', async () => {
     const s = setup(); await s.ready();
@@ -116,9 +156,9 @@ describe('独立发表设置与固定操作重试', () => {
     await s.controller.useRemote({ settings: { version: 2, assetId: 'remote', crops: centeredCrops(200, 400) } } as PublicationStatus);
     expect(await s.controller.local()).toMatchObject({ width: 0, height: 0, settingsVersion: 2 });
   });
-  it('正文同步失败时不会发送投稿，原预览保留以便明确重试', async () => {
+  it('正文同步失败时不会发送投稿，正文及封面保留以便重试', async () => {
     const s = setup(); await s.ready(); await s.controller.prepare(); s.sync.mockRejectedValueOnce(new Error('正文未同步'));
-    await expect(s.controller.submit(preview)).rejects.toThrow('正文未同步');
+    await expect(s.controller.submit(preview.authorName)).rejects.toThrow('正文未同步');
     expect(s.client.submit).not.toHaveBeenCalled(); expect((await s.controller.local()).submissionOperation).toBeNull();
   });
   it('裁切取消恢复原封面，未完成进度在重启后可继续且不会提前上传', async () => {

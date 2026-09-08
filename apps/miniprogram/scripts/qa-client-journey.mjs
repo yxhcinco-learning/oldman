@@ -1,91 +1,78 @@
-// Actual Mini Program views with isolated account, network and file fixtures.
-/* eslint-disable @typescript-eslint/no-require-imports -- callbacks execute in DevTools. */
+// Real Mini Program rendering with isolated synthetic content and service adapters.
+/* eslint-disable @typescript-eslint/no-require-imports -- evaluate callbacks run in DevTools. */
 import { resolve } from 'node:path';
 export async function checkClientJourney({ mini, info, output, check }) {
-  const wait = async (test, attempts = 80) => { for (let i = 0; i < attempts; i++) { if (await test()) return; await new Promise(r => setTimeout(r, 100)); } throw new Error('完整流程页面未准备好'); };
-  const shot = async name => { await new Promise(r => setTimeout(r, 400)); await mini.screenshot({ path: resolve(output, name + '.png') }); };
-  const fits = async (el, height = 48) => { if (!el) return false; const size = await el.size(), offset = await el.offset(); return size.height >= height && size.width > 0 && offset.left >= -1 && offset.left + size.width <= info.windowWidth + 1; };
-  const id = await mini.evaluate(() => { const q = getApp().__publicationQa; q.unavailable = false; q.status.pending = { ...q.submitted, state: 'pending' }; q.status.published = true; return q.draft.id; });
-  let page = await mini.reLaunch('/pages/publish/index?id=' + id);
-  await wait(async () => await page.data('mode') === 'review' && !!await page.data('submission'));
-  check('待审重入显示冻结投稿和旧版提示，没有裁切表单', !!await page.$('.review-status') && !await page.$('.crop-screen') && !await page.$('.publish-dock'));
-  check('投稿预览使用提交时署名与正文', (await page.data('submission')).authorName === '老街写作者' && (await page.data('submission')).body === await mini.evaluate(() => getApp().__publicationQa.submitted.body));
-  await shot('journey-review'); await page.callMethod('myArticles');
-  await wait(async () => (await mini.currentPage()).path === 'pages/profile/index'); page = await mini.currentPage();
-  let library = await page.$('.author-articles'); await wait(async () => !!library && (await library.data('visible')).length === 1);
-  check('我的主页直接展示文章，只有一个查看审核入口', (await library.$$('.article-entry')).length === 1 && !await library.$('.continue') && !await library.$('.publication-entry'));
-  for (const button of await library.$$('.filter-button')) check('作者筛选触控和边界正确', await fits(button));
-  await library.callMethod('selectFilter', { currentTarget: { dataset: { filter: 'published' } } }); check('重审稿在已发表中仍只占一条记录', (await library.data('visible')).length === 1);
-  await library.callMethod('selectFilter', { currentTarget: { dataset: { filter: 'draft' } } }); check('没有草稿时明确显示筛选空态', (await library.data('visible')).length === 0 && !!await library.$('.empty-state'));
-  await library.callMethod('selectFilter', { currentTarget: { dataset: { filter: 'all' } } });
-  check('我的页写文章入口全宽56px并避开导航', await fits(await page.$('.profile-create .primary-action'),56)); await shot('journey-my');
-  await page.callMethod('openSettings'); check('回收站备份隐私和资料集中到设置，写作底栏隐藏', (await page.$$('.settings-sheet .tool')).length === 4 && !await page.$('.profile-create')); await shot('journey-settings');
-  await page.callMethod('openProfile'); let username = await page.$('.publication-username'); await username.callMethod('keyboard', { detail: { height: 260 } });
-  await wait(async () => await page.data('nameKeyboardHeight') === 260);
-  const save = await username.$('.username-save'); check('资料抽屉保存宽度和键盘避让正确', await fits(save,56) && (await save.offset()).top + (await save.size()).height <= await mini.evaluate(() => wx.getWindowInfo().windowHeight) - 260 + 1);
-  await shot('journey-profile-keyboard'); await username.callMethod('blur'); await page.callMethod('closeProfile');
-  await page.callMethod('openMenu'); await shot('journey-backup'); for (const b of await page.$$('.sheet-tools > button')) check('备份工具行完整可用', await fits(b,56)); await page.callMethod('closeMenu');
-  // A unique empty work in the fixture's directory; the lifecycle adapter rejects every other ID.
-  const deletion = await mini.evaluate(async () => { const q = getApp().__publicationQa, core = require('domain/core.js'); const draft = { ...core.emptyDraft(), id: 'qa-delete-' + Date.now(), title: '用于验收的空正文文章' }; await q.services.repository.save(draft,0); q.deleteId = draft.id; return draft.id; });
-  library = await page.$('.author-articles'); await library.callMethod('refresh',false); await library.callMethod('toggleManage');
-  check('管理模式显示删除并隐藏写文章', !!await library.$('.remove') && !await page.$('.profile-create')); await shot('journey-manage');
-  if (process.env.MINI_QA_NATIVE_DELETE === '1') {
-    const deleteButton = await library.$('.remove[data-id="' + deletion + '"]'); await deleteButton.tap();
-    console.info('NATIVE_DELETE_READY: 等待确认隔离空稿的原生删除弹窗');
-    await wait(async () => await mini.evaluate(async () => !!(await getApp().__publicationQa.services.repository.getAggregate(getApp().__publicationQa.deleteId))?.work.deletedAt),600);
-    check('原生删除确认完成，空正文作品真实移入隔离回收站', true);
-  } else {
-    await mini.mockWxMethod('showModal', { confirm: true, cancel: false });
-    try { const row = (await library.data('visible')).find(w => w.id === deletion); await library.callMethod('moveToRecycle', { currentTarget: { dataset: { id: row.id, revision: row.revision } } }); }
-    finally { await mini.restoreWxMethod('showModal'); }
-    check('确认删除后空正文作品真实移入隔离回收站', await mini.evaluate(async () => !!(await getApp().__publicationQa.services.repository.getAggregate(getApp().__publicationQa.deleteId))?.work.deletedAt));
-  }
-  await library.callMethod('toggleManage'); await page.callMethod('openRecycle'); await wait(async () => (await mini.currentPage()).path === 'pages/works/index'); page = await mini.currentPage(); library = await page.$('.author-articles');
-  await wait(async () => (await library.data('visible')).some(w => w.id === deletion)); await shot('journey-recycle');
-  const row = (await library.data('visible')).find(w => w.id === deletion); await library.callMethod('restore', { currentTarget: { dataset: { id: row.id, revision: row.revision } } });
-  check('回收站恢复空正文作品，仍为私有稿', await mini.evaluate(async () => { const q = getApp().__publicationQa, item = await q.services.repository.getAggregate(q.deleteId); return !!item && !item.work.deletedAt; }));
-  await mini.evaluate(() => { const q = getApp().__publicationQa; q.status.pending = null; q.status.published = false; });
-  page = await mini.reLaunch('/pages/publish/index?id=' + id); await wait(async () => !!await page.data('preview') && !await page.data('busy'));
-  const originalPath = (await page.data('draft')).path;
-  await page.callMethod('openCrop'); await wait(async () => await page.data('mode') === 'crop');
-  const crop = await page.$('.publication-cropper'); await crop.callMethod('enlarge'); await wait(async () => !await page.data('busy'));
-  check('全屏裁切底部取消和完成可达', await fits(await page.$('.crop-cancel'),56) && await fits(await page.$('.crop-done'),56));
-  const done = await page.$('.crop-done'); check('裁切主操作位于实际窗口内', (await done.offset()).top + (await done.size()).height <= await mini.evaluate(() => wx.getWindowInfo().windowHeight) + 1);
-  await shot('journey-crop'); await page.callMethod('cancelCrop'); await wait(async () => !!await page.data('preview') && !await page.data('busy'));
-  check('取消裁切回到同篇预览并保留原封面', (await page.data('draft')).path === originalPath && !(await page.data('draft')).cropBackup);
-  await page.callMethod('editName'); username = await page.$('.publication-username'); await username.callMethod('keyboard',{detail:{height:260}}); await shot('journey-preview-name'); await username.callMethod('blur'); await page.callMethod('closeName');
-  await mini.evaluate(() => { const q = getApp().__publicationQa, p = getCurrentPages().at(-1); q.nickname = '一位喜欢观察日常生活也愿意分享诗歌与往事的作者'; q.draft.title = '老街清晨的风与那些平凡日子里值得写下来的故事：一篇用于检查长标题完整换行的文章'; q.draft.textDraft = ('这是一段用于检查长文滚动的合成文字。文章可以写日常生活、诗歌和自己的想法。\n\n').repeat(24); p.setData({ title:q.draft.title,body:q.draft.textDraft,authorName:q.nickname }); });
-  await shot('journey-preview-long'); check('长文预览只有一个主要提交按钮', (await page.$$('.publish-dock .primary-action')).length === 1 && await fits(await page.$('.publish-dock .primary-action'),56));
-  await mini.evaluate(() => wx.pageScrollTo({scrollTop:100000,duration:0})); await shot('journey-preview-end');
-  const end = await page.$('.edit-body'), dock = await page.$('.publish-dock'); check('正文末尾可完整滚动至固定底栏上方',(await end.offset()).top+(await end.size()).height <= (await dock.offset()).top+1);
-  page = await mini.switchTab('/pages/articles/index'); await wait(async () => (await page.data('cards')).length === 1);
-  check('正常公共列表没有刷新按钮', !await page.$('.refresh-action')); check('公开列表长标题最多三行',(await (await page.$('.card-title')).size()).height<=96); await shot('journey-public-list-long');
-  await mini.evaluate(() => { getApp().__publicationQa.status.published = true; });
-  page = await mini.navigateTo('/pages/article/index?id=qa-article'); await wait(async () => !!await page.data('ownerWorkId')); await shot('journey-reader-long');
-  await mini.evaluate(() => wx.pageScrollTo({scrollTop:100000,duration:0})); await shot('journey-reader-end');
-  check('作者阅读可以分享、编辑和管理，其他用户不会获得私有标识', await fits(await page.$('.share-button'),56) && !!await page.$('.author-actions'));
-  page = await mini.navigateTo('/pages/editor/index'); await wait(async () => !!await page.data('draft')); await page.callMethod('toggleInputMode'); await shot('journey-editor');
-  check('编辑下一步有56px高度，小文辅助入口可达', await fits(await page.$('.publication-next'),56) && await fits(await page.$('.xiaowen')));
-  await mini.evaluate(() => {
-    const q = getApp().__publicationQa, topics = require('network/topics.js').miniTopics;
-    q.topicOriginals = { list: topics.list, detail: topics.detail };
-    const topic = { id: 'qa-journey', revision: 1, status: 'published', kind: 'slow', title: '从街巷的变化聊起，哪些日常小事让你有了新的想法？',
-      summary: '这是一条用于页面布局验收的合成话题。'.repeat(8), whyItMatters: '用于验收阅读话题到写作入口的展示。',
-      publishedAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', expiresAt: null, reviewedBy: 'qa', reviewedAt: '2026-01-01T00:00:00Z',
-      sources: [{ id: 'source', title: '用于检验长来源标题自动换行的合成资料，没有访问外部页面', publisher: '布局验收', url: 'https://example.com', publishedAt: '2026-01-01T00:00:00Z' }],
-      angles: [{ id: 'angle', title: '写下你的日常观察', prompt: '说说自己看到的变化。' }], starterQuestion: '你最近留意到什么变化？', tags: ['合成'] };
-    topics.list = async () => [topic]; topics.detail = async () => topic;
+  const wait = async test => { for (let i=0;i<100;i++) { if(await test())return; await new Promise(r=>setTimeout(r,100)); } throw Error('流程页面未准备好'); };
+  const shot = async name => { await new Promise(r=>setTimeout(r,250)); await mini.screenshot({path:resolve(output,name+'.png')}); };
+  const fits = async (el,height=48) => { if(!el)return false; const s=await el.size(),p=await el.offset();return s.height>=height && s.width>0 && p.left>=-1 && p.left+s.width<=info.windowWidth+1; };
+  const fillsWidth = async (el,parent) => { if(!el||!parent)return false; const [s,p,box,origin]=await Promise.all([el.size(),el.offset(),parent.size(),parent.offset()]); return Math.abs(s.width-box.width)<=1 && Math.abs(p.left-origin.left)<=1; };
+  const id = await mini.evaluate(async () => {
+    const q=getApp().__publicationQa,core=require('domain/core.js'); q.unavailable=false;q.status.pending={...q.submitted,state:'pending'};q.status.published=true;
+    for(let i=0;i<24;i++){const d={...core.emptyDraft(),id:'qa-summary-'+i,title:'日常写作 '+i,inputMode:'text',textDraft:'用于检查个人中心摘要和完整列表的合成文字。'};await q.services.repository.save(d,0);}
+    return q.draft.id;
   });
-  page = await mini.switchTab('/pages/home/index'); await page.callMethod('loadTopics');
-  await wait(async () => !!await page.$('.topic-card'));
-  check('热门话题长标题卡片铺满内容且无横向越界', await fits(await page.$('.topic-card')) && (await (await page.$('.topic-card')).size()).width >= info.windowWidth - 48);
-  await shot('journey-home');
-  await page.callMethod('openTopic', { currentTarget: { dataset: { id: 'qa-journey' } } });
-  await wait(async () => (await mini.currentPage()).path === 'pages/topic-detail/index'); page = await mini.currentPage();
-  await wait(async () => !!await page.data('topic')); await shot('journey-topic');
-  check('话题有来源时显示真实来源入口', (await page.data('sources')).length === 1 && !!await page.$('.source'));
-  for (const button of await page.$$('.start-actions button')) check('话题到写作的主次操作完整且至少 56px', await fits(button, 56));
-  await mini.evaluate(() => wx.pageScrollTo({ scrollTop: 100000, duration: 0 })); await shot('journey-topic-end');
-  const source = await page.$('.source');
-  check('长来源可以滚动至完整可见，不被话题底栏遮挡', (await source.offset()).top + (await source.size()).height <= (await (await page.$('.start-actions')).offset()).top + 1);
+  let page=await mini.reLaunch('/pages/publish/index?id='+id);
+  await wait(async()=>await page.data('mode')==='review' && !!await page.data('submission'));
+  check('待审使用固定投稿，不能混入封面配置',!!await page.$('.review-status')&&!await page.$('.cover-entry')&&!await page.$('.publish-dock'));
+  check('待审仍保留投稿时署名',(await page.data('submission')).authorName==='老街写作者');await shot('journey-review');
+  page=await mini.switchTab('/pages/profile/index');let library=await page.$('.author-articles');
+  await wait(async()=>!!library && await library.data('total')===25 && !await library.data('loading'));
+  check('个人中心仅展示一篇最近草稿和两条其他摘要',!!await library.$('.recent-draft')&&(await library.$$('.recent-row')).length===2);
+  check('个人中心没有筛选条或完整管理行',!await library.$('.work-filters')&&!await library.$('.work-card'));
+  const recentDraft = await library.data('recentDraft'); check('最近草稿不重复出现在摘要',(await library.data('recentCards')).every(c=>c.id!==recentDraft.id));
+  const overviewBox=await library.$('.author-library');
+  check('最近草稿铺满个人中心内容宽度',await fillsWidth(await library.$('.recent-draft'),overviewBox));
+  check('每条摘要行铺满个人中心内容宽度',(await Promise.all((await library.$$('.recent-row')).map(row=>fillsWidth(row,overviewBox)))).every(Boolean));
+  check('个人中心写作主入口至少56px且无越界',await fits(await library.$('.overview-write'),56));await shot('journey-profile');
+  await page.callMethod('openSettings');check('设置为完整子视图且不夹带作品列表',!!await page.$('.settings-page')&&!await page.$('.author-articles'));await shot('journey-settings');
+  await page.callMethod('openProfile');let username=await page.$('.publication-username');
+  check('保留原生头像修改',!!await page.$('.avatar-choose'));
+  await username.callMethod('keyboard',{detail:{height:260}});await wait(async()=>await page.data('nameKeyboardHeight')===260);
+  const save=await username.$('.username-save');check('资料用户名保存避让键盘',await fits(save,56)&&(await save.offset()).top+(await save.size()).height<=await mini.evaluate(()=>wx.getWindowInfo().windowHeight)-260+1);
+  await shot('journey-profile-keyboard');await username.callMethod('blur');await page.callMethod('closeProfile');
+  check('资料关闭回到原设置页',await page.data('settingsOpen'));
+  await page.callMethod('openMenu');check('低频文字导出与导入在独立数据工具',(await page.$$('.data-row')).length===2&&!await page.$('.settings-page'));await shot('journey-data-tools');
+  await page.callMethod('closeMenu');check('数据工具返回设置',await page.data('settingsOpen')&&!await page.data('menuOpen'));await page.callMethod('closeSettings');
+  library=await page.$('.author-articles');await wait(async()=>!!library&&!await library.data('loading'));
+  await library.callMethod('openAll');await wait(async()=>(await mini.currentPage()).path==='pages/works/index');page=await mini.currentPage();library=await page.$('.author-articles');
+  await wait(async()=>(await library.data('visible'))?.length===20);
+  check('完整文章行内容铺满列表容器',await fillsWidth(await library.$('.work-copy'),await library.$('.author-library')));
+  check('完整列表每页20篇并可继续加载',await library.data('hasMore')&&(await library.$$('.work-more')).length===20);
+  await library.callMethod('more');check('翻页后文章不重复',(await library.data('visible')).length===25&&new Set((await library.data('visible')).map(c=>c.id)).size===25);
+  await library.callMethod('searchArticles',{detail:{value:'日常写作 23'}});check('标题搜索缩小结果',(await library.data('visible')).length===1);
+  await library.callMethod('searchArticles',{detail:{value:''}});await library.callMethod('selectFilter',{currentTarget:{dataset:{filter:'pending'}}});
+  check('审核中与已发表筛选保留同一篇记录',(await library.data('visible')).length===1);await library.callMethod('selectFilter',{currentTarget:{dataset:{filter:'published'}}});check('公开旧稿和待审新稿只有一条',(await library.data('visible')).length===1);
+  await library.callMethod('selectFilter',{currentTarget:{dataset:{filter:'all'}}});await shot('journey-library');
+  const deletion=await mini.evaluate(async()=>{const q=getApp().__publicationQa,c=require('domain/core.js'),d={...c.emptyDraft(),id:'qa-delete-'+Date.now(),title:'用于验收的空正文文章'};await q.services.repository.save(d,0);q.deleteId=d.id;return d.id;});
+  await library.callMethod('refresh',false);
+  await mini.mockWxMethod('showModal',{confirm:true,cancel:false});
+  try{const row=(await library.data('cards')).find(c=>c.id===deletion);await library.callMethod('moveToRecycle',{currentTarget:{dataset:{id:row.id,revision:row.revision}}});}finally{await mini.restoreWxMethod('showModal');}
+  check('空正文真实隔离作品可移入回收站',await mini.evaluate(async()=>!!(await getApp().__publicationQa.services.repository.getAggregate(getApp().__publicationQa.deleteId)).work.deletedAt));
+  await page.callMethod('openRecycle');await wait(async()=>await (await mini.currentPage()).data('recycle') === true);page=await mini.currentPage();library=await page.$('.author-articles');
+  await wait(async()=>(await library.data('visible'))?.some(c=>c.id===deletion));await shot('journey-recycle');
+  const row=(await library.data('visible')).find(c=>c.id===deletion);await library.callMethod('restore',{currentTarget:{dataset:{id:row.id,revision:row.revision}}});
+  check('恢复后仍是私有稿',await mini.evaluate(async()=>!(await getApp().__publicationQa.services.repository.getAggregate(getApp().__publicationQa.deleteId)).work.deletedAt));
+  await mini.evaluate(()=>{const q=getApp().__publicationQa;q.status.pending=null;q.status.published=false;});
+  page=await mini.reLaunch('/pages/publish/index?id='+id);await wait(async()=>await page.data('mode')==='settings'&&!await page.data('busy'));
+  const original=(await page.data('draft')).path;await page.callMethod('openCrop');await wait(async()=>await page.data('mode')==='crop');
+  const crop=await page.$('.publication-cropper');await crop.callMethod('enlarge');await wait(async()=>!await page.data('busy'));
+  check('裁切取消和完成可达',await fits(await page.$('.crop-cancel'),56)&&await fits(await page.$('.crop-done'),56));await shot('journey-crop');
+  await page.callMethod('cancelCrop');await wait(async()=>await page.data('mode')==='settings'&&!await page.data('busy'));
+  check('取消裁切保留原封面且不强制预览',(await page.data('draft')).path===original&&!(await page.data('draft')).cropBackup&&!await page.data('preview'));
+  await mini.evaluate(()=>{const q=getApp().__publicationQa,p=getCurrentPages().at(-1);q.nickname='一位喜欢观察日常生活的作者';q.draft.title='老街清晨的风与那些平凡日子里值得写下来的故事：用于检查完整换行的长标题';q.draft.textDraft=('一段检查长文滚动的合成文字，写下生活、诗歌和自己的想法。\n\n').repeat(24);p.setData({title:q.draft.title,body:q.draft.textDraft,authorName:q.nickname});});
+  await shot('journey-settings-long');check('设置主操作完整可达',await fits(await page.$('.publish-dock .primary-action'),56)&&!await page.$('.article-body'));
+  await page.callMethod('preparePreview');await wait(async()=>await page.data('mode')==='preview'&&!await page.data('busy'));await shot('journey-preview-long');
+  check('阅读预览无提交或配置按钮',!await page.$('.publish-dock')&&!await page.$('.cover-entry')&&!await page.$('.publication-option'));
+  await mini.evaluate(()=>wx.pageScrollTo({scrollTop:100000,duration:0}));await shot('journey-preview-end');
+  check('长文末尾可读',(await (await page.$('.article-body')).offset()).top+(await (await page.$('.article-body')).size()).height<=await mini.evaluate(()=>wx.getWindowInfo().windowHeight)+1);
+  await page.callMethod('back');check('预览返回配置仍是同篇',await page.data('mode')==='settings'&&(await page.data('draft')).path===original);
+  page=await mini.switchTab('/pages/articles/index');await wait(async()=>(await page.data('cards'))?.length===1);
+  check('公共文章页头写入口且无底部大按钮',await fits(await page.$('.write-entry'))&&!await page.$('.writing-dock'));
+  check('公共长标题最多三行',(await (await page.$('.card-title')).size()).height<=96);await shot('journey-public-list-long');
+  await mini.evaluate(()=>{getApp().__publicationQa.status.published=true;});page=await mini.navigateTo('/pages/article/index?id=qa-article');await wait(async()=>!!await page.data('ownerWorkId'));await shot('journey-reader-long');
+  await mini.evaluate(()=>wx.pageScrollTo({scrollTop:100000,duration:0}));await shot('journey-reader-end');
+  check('分享固定可达且作者管理可见',await fits(await page.$('.share-button'),56)&&!!await page.$('.author-actions'));
+  const end=await page.$('.author-actions'),dock=await page.$('.reader-share-dock');check('文末操作完整滚到分享栏上方',(await end.offset()).top+(await end.size()).height<=(await dock.offset()).top+1);
+  page=await mini.navigateTo('/pages/editor/index');await wait(async()=>!!await page.data('draft'));await page.callMethod('toggleInputMode');await shot('journey-editor');
+  check('原编辑器下一步及小文可达',await fits(await page.$('.publication-next'),56)&&await fits(await page.$('.xiaowen')));
 }

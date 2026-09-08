@@ -64,6 +64,7 @@ export class MiniPublicationController {
     let draft = await this.local();
     if (draft.cropBackup) throw new Error('请先完成封面裁切。');
     if (draft.actionOperation || draft.submissionOperation) throw new Error('上次发表操作尚未确认，请先重试。');
+    if (!draft.path || !draft.crops) throw new Error('请先添加文章封面。');
     if (draft.dirty && draft.confirmed.length !== 2) throw new Error('请分别确认列表封面与阅读、好友分享封面。');
     if (draft.dirty || draft.settingOperation) {
       if (!draft.path || !draft.crops) throw new Error('请先选择文章封面。');
@@ -85,15 +86,18 @@ export class MiniPublicationController {
     }
     const preview = await this.client.preview(this.workId);
     this.assertActive();
-    if (workVersion !== undefined && workVersion !== preview.workVersion) throw new Error('正文已有变化，请重新预览。');
+    if (workVersion !== undefined && workVersion !== preview.workVersion) throw new Error('正文已有变化，请重试。');
+    if (preview.settingsVersion !== draft.settingsVersion || preview.assetId !== draft.assetId) throw new Error('封面设置已变化，请刷新后重试。');
     return preview;
   }
-  async submit(preview: PublicationPreview | null) {
+  async submit(authorName?: string) {
     let draft = await this.local();
+    this.assertActive();
     if (!draft.submissionOperation) {
-      const workVersion = await this.sync(); this.assertActive();
-      if (!preview || draft.dirty || draft.settingOperation || draft.actionOperation) throw new Error('请先预览文章。');
-      if (workVersion !== undefined && workVersion !== preview.workVersion) throw new Error('正文已有变化，请重新预览。');
+      // Preparation is part of submission. A reading preview is optional and never supplies the submitted content.
+      const preview = await this.prepare();
+      if (authorName !== undefined && authorName !== preview.authorName) throw new Error('署名已更新，请刷新后再提交。');
+      draft = await this.local();
       draft = { ...draft, submissionOperation: { operationId: newId(), expectedVersion: preview.version, workVersion: preview.workVersion,
         settingsVersion: preview.settingsVersion, authorName: preview.authorName } };
       await this.save(draft);

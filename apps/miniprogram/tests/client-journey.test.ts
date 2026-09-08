@@ -57,12 +57,12 @@ describe('客户端作品管理与发表阶段', () => {
     expect(page.data.recycle).toBe(true); expect(ids()).toEqual(['recycle']);
   });
 
-  it.each([{ pending: true, published: false, mode: 'review' }, { pending: true, published: true, mode: 'review' }, { pending: false, published: true, mode: 'preview' }])('重开稿件时按真实状态展示 $mode（待审 $pending，已发表 $published）', async expected => {
+  it.each([{ pending: true, published: false, mode: 'review' }, { pending: true, published: true, mode: 'review' }, { pending: false, published: true, mode: 'settings' }])('重开稿件时按真实状态展示 $mode（待审 $pending，已发表 $published）', async expected => {
     const draft = { ...emptyDraft(), title: '同一篇文章', textDraft: '正文' };
     const saved = { ...emptyPublicationDraft(draft.id), path: '/cover', width: 640, height: 480 };
     const current = status(draft.id, expected.pending, expected.published);
     context.services = { repository: { getAggregate: async () => ({ work: workFromDraft(draft) }) },
-      account: { snapshot: () => ({ account: { nickname: '作者' } }) }, sync: { sync: async () => {} },
+      account: { snapshot: () => ({ account: { nickname: '作者' } }), refresh: async () => {} }, sync: { sync: async () => {} },
       publications: { status: async () => current, submission: async () => ({ id: 'submitted', title: '投稿时标题', body: '投稿时正文', authorName: '投稿时署名', assetId: 'cover', createdAt: '2026-09-08' }), ownImage: async () => new ArrayBuffer(0) }, publicationStorage: { cacheImage: async () => '/submitted-cover' } } as unknown as ReturnType<typeof miniServices>;
     const page = await capture<PublishPage>(() => import('../miniprogram/pages/publish/index'));
     page.services = context.services; page.loaded = true;

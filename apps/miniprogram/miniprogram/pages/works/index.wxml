@@ -1,1 +1,1 @@
-<block wx:if="{{accountReady}}"><page-header title="回收站" /><view class="page-shell recycle-page"><author-articles class="author-articles" recycle="{{true}}" /></view></block>
+<block wx:if="{{accountReady}}"><page-header title="{{recycle ? '回收站' : '我的文章'}}" action-text="{{recycle ? '' : '回收站'}}" bind:action="openRecycle" /><view class="page-shell works-page"><author-articles class="author-articles" recycle="{{recycle}}" /></view></block>

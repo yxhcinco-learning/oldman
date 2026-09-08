@@ -161,10 +161,14 @@ describe('文章发表与人工审核', () => {
     expect(visible.statusCode).toBe(200);
     expect(Object.keys(visible.json()).sort()).toEqual(['aiAssisted', 'authorName', 'body', 'id', 'publishedAt', 'title', 'version'].sort());
     expect(visible.body).not.toContain('私有');
+    const list = (await s.app.inject({ url: '/api/mini/articles', headers: s.other })).json<PublicArticlePage>();
+    expect(list.articles[0]?.excerpt).toBe('确认后的文章正文');
+    expect(Object.keys(list.articles[0]!).sort()).toEqual(['aiAssisted', 'authorName', 'excerpt', 'id', 'publishedAt', 'title', 'version'].sort());
+    expect(JSON.stringify(list)).not.toContain('私有');
     expect(JSON.stringify(s.logs)).not.toContain('确认后的文章正文');
     expect((await s.app.inject({ url: '/api/mini/articles/' + p.articleId })).statusCode).toBe(401);
   });
-  it('同操作重试返回同回执，变更正文或署名必须重新预览', async () => {
+  it('同操作重试返回同回执，变更正文或署名必须重新准备快照', async () => {
     const s = await setup(), { response, payload } = await s.submit();
     expect((await s.app.inject({ method: 'POST', url: s.base + '/submissions', headers: s.headers, payload })).json()).toEqual(response.json());
     expect((await s.app.inject({ method: 'POST', url: s.base + '/submissions', headers: s.headers, payload: { ...payload, authorName: '其他名字' } })).statusCode).toBe(409);
@@ -185,10 +189,12 @@ describe('文章发表与人工审核', () => {
     await s.submit();
     expect((await s.review(first.articleId, 'reject', '请补充说明')).statusCode).toBe(200);
     expect((await s.app.inject({ url: '/api/mini/articles/' + first.articleId, headers: s.other })).json().body).toBe(old.body);
+    expect((await s.app.inject({ url: '/api/mini/articles', headers: s.other })).json<PublicArticlePage>().articles[0]?.excerpt).toBe(old.body);
     expect((await s.status()).lastSubmission?.reason).toBe('请补充说明');
     await s.submit(); await s.review(first.articleId, 'approve');
     const page = (await s.app.inject({ url: '/api/mini/articles', headers: s.other })).json<PublicArticlePage>();
     expect(page.articles).toHaveLength(1);
+    expect(page.articles[0]?.excerpt).toBe('新的确认正文');
     const next = (await s.app.inject({ url: '/api/mini/articles/' + first.articleId, headers: s.other })).json();
     expect(next.body).toBe('新的确认正文'); expect(next.publishedAt).toBe(old.publishedAt);
   });

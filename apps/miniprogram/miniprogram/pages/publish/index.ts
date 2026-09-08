@@ -5,7 +5,7 @@ import { syncPublicationWork } from '../../publication/sync';
 import { emptyPublicationDraft, type PublicationDraft } from '../../publication/storage';
 import type { OwnSubmission } from '../../publication/client';
 import { navigationMetrics } from '../../ui/navigation';
-import { aiDisclosureFor, articleText, cloudIdSchema, publicationLabel, type CoverCrops, type PublicationStatus, type PublicationPreview } from '../../domain/core';
+import { aiDisclosureFor, articleText, cloudIdSchema, formatTime, publicationLabel, type CoverCrops, type PublicationStatus, type PublicationPreview } from '../../domain/core';
 import { errorMessage } from '../../ui/error-message';
 
 accountPage({
@@ -14,9 +14,9 @@ accountPage({
   unsubscribe: undefined as (() => void) | undefined,
   loaded: false, active: true,
   data: { draft: emptyPublicationDraft('new') as PublicationDraft, status: null as PublicationStatus | null, statusLabel: '',
-    preview: null as PublicationPreview | null, mode: 'preview' as 'preview' | 'crop' | 'review' | 'result', submission: null as OwnSubmission | null, aiAssisted: false, windowHeight: 640, navigationHeight: 88, cropKind: 'reading' as 'thumbnail' | 'reading',
-    crop: null as CoverCrops['thumbnail'] | null, ratio: 1.25, viewportWidth: 300, cropWidth: 280, title: '', body: '', authorName: '', error: '', busy: '', image: '', thumbnail: '',
-    cropConfirmed: false, thumbnailConfirmed: false, readingConfirmed: false, showExamples: false, nameKeyboardHeight: 0,
+    preview: null as PublicationPreview | null, mode: 'settings' as 'settings' | 'preview' | 'crop' | 'review' | 'result', submission: null as OwnSubmission | null, aiAssisted: false, windowHeight: 640, navigationHeight: 88, cropKind: 'reading' as 'thumbnail' | 'reading',
+    crop: null as CoverCrops['thumbnail'] | null, ratio: 1.25, viewportWidth: 300, cropWidth: 280, title: '', body: '', wordCount: 0, authorName: '', error: '', coverError: '', busy: '', image: '', submissionId: '', submissionDate: '',
+    cropConfirmed: false, thumbnailConfirmed: false, readingConfirmed: false, nameKeyboardHeight: 0,
     editingName: false, submitted: false, pendingRetry: false, actionRetry: false, readOnly: false, notice: '' },
   async onLoad(options: Record<string, string | undefined>) {
     const parsed = cloudIdSchema.safeParse(options.id);
@@ -40,7 +40,7 @@ accountPage({
     });
     this.loaded = true;
   },
-  async onShow() { this.active = true; if (this.loaded && !this.data.busy) await this.refresh(); },
+  async onShow() { this.active = true; if (this.loaded && !this.data.busy && !(this.data.mode === 'preview' && this.data.preview)) await this.refresh(); },
   onHide() { /* Selecting a photo may hide this page; keep its account-bound persistence active. */ },
   onUnload() { this.active = false; this.unsubscribe?.(); void wx.setNavigationBarColor({ frontColor: '#000000', backgroundColor: '#fbf9f8' }); },
   onResize() { this.resizeContent(); },
@@ -59,7 +59,8 @@ accountPage({
   async readWork() {
     const aggregate = await this.services.repository.getAggregate(this.controller.workId);
     if (!aggregate) throw new Error('文章暂时无法读取，请返回我的文章重试。');
-    this.setData({ title: aggregate.work.draft.title, body: articleText(aggregate.work.segments),
+    const body = articleText(aggregate.work.segments);
+    this.setData({ title: aggregate.work.draft.title, body, wordCount: body.replace(/\s/g, '').length,
       aiAssisted: aiDisclosureFor(this.controller.workId, aggregate.session).aiAssisted,
       authorName: this.services.account.snapshot().account?.nickname ?? '', readOnly: false });
   },
@@ -68,7 +69,7 @@ accountPage({
     this.setData({ busy: '正在读取文章…', preview: null, error: '' });
     try {
       await this.local(); await this.readWork();
-      await this.services.sync.sync(); await this.readWork();
+      await Promise.all([this.services.sync.sync(), this.services.account.refresh()]); await this.readWork();
       const status = await this.services.publications.status(this.controller.workId);
       if (!this.active || this.services !== miniServices()) return;
       let local = await this.controller.local();
@@ -78,24 +79,41 @@ accountPage({
         const info = await wx.getImageInfo({ src: local.path }); await this.controller.dimensions(info.width, info.height);
       }
       this.setData({ status, statusLabel: publicationLabel(status), error: '' }); await this.local();
-      if (status.pending) { this.setData({ mode: this.data.submitted ? 'result' : 'review' }); await this.readSubmission(); }
+      if (status.pending) { this.setData({ mode: this.data.submitted ? 'result' : 'review' }); await this.readSubmission(status.pending.id); }
       else if (local.cropBackup) { this.setData({ mode: 'crop', image: '' }); this.selectCrop(local.confirmed.includes('reading') ? 'thumbnail' : 'reading'); }
-      else { this.setData({ mode: 'preview' }); }
+      else { this.setData({ mode: 'settings' }); }
     } catch (error) { this.setData({ error: errorMessage(error, '文章暂时无法读取，请重试。') }); }
     finally { this.setData({ busy: '' }); }
-    if (!this.data.error && this.data.mode === 'preview' && this.coverReady()) await this.preparePreview();
+  },
+  validateSettings() {
+    if (!this.data.title.trim() || !this.data.body.trim()) { this.setData({ error: '请返回编辑页补全标题和正文。' }); return false; }
+    if (!this.coverReady()) { this.setData({ coverError: this.data.draft.path ? '请先确认封面的两种展示效果。' : '请先添加封面。' }); return false; }
+    if (!this.data.authorName.trim()) { this.setData({ error: '请先填写署名。' }); return false; }
+    this.setData({ coverError: '' }); return true;
+  },
+  retry() {
+    if (this.data.mode === 'preview') void this.preparePreview();
+    else if (this.data.mode === 'review' || this.data.mode === 'result') void this.showSubmission();
+    else void this.refresh();
+  },
+  async explainAi() {
+    try { await wx.showModal({ title: '创作方式', content: '这篇文章使用过小文的 AI 辅助整理。发表后，读者会看到相应标识。', showCancel: false, confirmText: '知道了' }); }
+    catch { this.setData({ error: '说明暂时无法打开，请重试。' }); }
   },
   coverReady() { return Boolean(this.data.draft.path && this.data.draft.confirmed.length === 2 && !this.data.draft.cropBackup && !this.data.pendingRetry && !this.data.actionRetry); },
-  async readSubmission() {
-    const id = this.data.status?.pending?.id ?? this.data.status?.lastSubmission?.id;
+  async readSubmission(submissionId?: string) {
+    const id = submissionId || this.data.submissionId || this.data.status?.pending?.id || this.data.status?.lastSubmission?.id;
     if (!id) return;
     this.setData({ submission: null, image: '' });
     const submission = await this.services.publications.submission(this.controller.workId, id);
+    if (!this.active || this.services !== miniServices()) return;
     const bytes = await this.services.publications.ownImage(this.controller.workId, submission.assetId, 'reading');
+    if (!this.active || this.services !== miniServices()) return;
     const image = await this.services.publicationStorage.cacheImage('submitted-' + id, bytes);
-    this.setData({ submission, image });
+    this.setData({ submission, image, submissionId: id, submissionDate: formatTime(submission.createdAt) });
   },
   async showSubmission() {
+    if (this.data.busy || this.data.readOnly) return;
     this.setData({ mode: 'review', error: '', busy: '正在读取投稿…' });
     try { await this.readSubmission(); } catch (error) { this.setData({ error: errorMessage(error, '投稿暂时无法读取，请重试。') }); }
     finally { this.setData({ busy: '' }); }
@@ -110,6 +128,7 @@ accountPage({
     } catch (error) { if (!/cancel/i.test(String((error as { errMsg?: string }).errMsg ?? ''))) this.setData({ error: errorMessage(error, '封面操作暂时无法打开。') }); }
   },
   async openCrop() {
+    if (this.data.busy || this.data.readOnly || !this.active || this.services !== miniServices()) return;
     try { await this.controller.beginCrop(); await this.local(); this.setData({ mode: 'crop', preview: null, error: '' }); this.selectCrop('reading'); }
     catch (error) { this.setData({ error: errorMessage(error, '裁切暂时无法打开。') }); }
   },
@@ -137,10 +156,9 @@ accountPage({
   async cancelCrop() {
     if (this.data.busy) return;
     this.setData({ busy: '正在恢复封面…' });
-    try { await this.controller.cancelCrop(); await this.local(); this.setData({ mode: 'preview', preview: null, image: '', error: '' }); }
+    try { await this.controller.cancelCrop(); await this.local(); this.setData({ mode: 'settings', preview: null, image: '', error: '', coverError: '' }); }
     catch (error) { this.setData({ error: errorMessage(error, '原封面尚未恢复，请重试。') }); }
     finally { this.setData({ busy: '' }); }
-    if (this.data.mode === 'preview' && this.coverReady()) await this.preparePreview();
   },
   async cropChanged(event: WechatMiniprogram.CustomEvent<{ crop: CoverCrops['thumbnail'] }>) {
     if (this.data.busy || !this.data.draft.crops) return;
@@ -152,43 +170,42 @@ accountPage({
   async confirmCrop() {
     if (this.data.busy || this.data.readOnly) return;
     this.setData({ busy: '正在确认封面…', error: '' });
-    let done = false;
     try {
       await this.controller.confirmCrop(this.data.cropKind); await this.local();
       if (this.data.cropKind === 'reading' && !this.data.thumbnailConfirmed) this.selectCrop('thumbnail');
       else if (!this.data.readingConfirmed) this.selectCrop('reading');
-      else { await this.controller.finishCrop(); await this.local(); this.setData({ mode: 'preview', preview: null, image: '' }); done = true; }
+      else { await this.controller.finishCrop(); await this.local(); this.setData({ mode: 'settings', preview: null, image: '', coverError: '' }); }
     } catch (error) { this.setData({ error: errorMessage(error, '封面未确认，请重试。') }); }
     finally { this.setData({ busy: '' }); }
-    if (done) await this.preparePreview();
   },
   async preparePreview() {
-    if (this.data.busy || this.data.readOnly) return;
+    if (this.data.busy || this.data.readOnly || !this.validateSettings()) return;
     this.setData({ busy: '正在准备预览…', error: '', notice: '' });
     try {
       const preview = await this.controller.prepare();
-      const reading = await this.services.publications.ownImage(this.controller.workId, preview.assetId, 'reading');
-      const image = await this.services.publicationStorage.cacheImage('preview-' + preview.assetId, reading);
-      const thumb = await this.services.publications.ownImage(this.controller.workId, preview.assetId, 'thumbnail');
-      const thumbnail = await this.services.publicationStorage.cacheImage('thumb-' + preview.assetId, thumb);
       if (!this.active || this.services !== miniServices()) return;
-      this.setData({ preview, image, thumbnail, title: preview.title, body: preview.body, aiAssisted: preview.aiAssisted, authorName: preview.authorName, mode: 'preview', error: '' });
+      const reading = await this.services.publications.ownImage(this.controller.workId, preview.assetId, 'reading');
+      if (!this.active || this.services !== miniServices()) return;
+      const image = await this.services.publicationStorage.cacheImage('preview-' + preview.assetId, reading);
+      if (!this.active || this.services !== miniServices()) return;
+      this.setData({ preview, image, mode: 'preview', error: '' });
       void wx.pageScrollTo({ scrollTop: 0, duration: 0 });
     } catch (error) { if (this.active) this.setData({ preview: null, error: errorMessage(error, '预览未完成，请重试。') }); }
     finally { this.setData({ busy: '' }); await this.local(); }
   },
   async submit() {
-    if (this.data.busy || this.data.readOnly) return;
+    if (this.data.busy || this.data.readOnly || this.data.mode === 'preview' || (!this.data.pendingRetry && !this.validateSettings())) return;
     this.setData({ busy: '正在提交…', error: '' });
     try {
-      await this.controller.submit(this.data.preview);
+      const receipt = await this.controller.submit(this.data.authorName);
       if (!this.active || this.services !== miniServices()) return;
-      this.setData({ submitted: true, mode: 'result', preview: null });
+      this.setData({ submitted: true, mode: 'result', preview: null, submission: null, submissionId: receipt.submissionId, notice: '' });
+      try { await this.readSubmission(receipt.submissionId); } catch { this.setData({ notice: '投稿已收到，可稍后查看本次投稿。' }); }
       try { const status = await this.services.publications.status(this.controller.workId); this.setData({ status, statusLabel: publicationLabel(status) }); } catch { this.setData({ notice: '投稿已收到，审核状态稍后更新。' }); }
       void wx.pageScrollTo({ scrollTop: 0, duration: 0 });
     } catch (error) {
       this.setData({ preview: null, error: errorMessage(error, '提交结果尚未确认，请重试。') });
-      if ((error as { status?: number }).status === 409) this.setData({ preview: null, mode: 'preview' });
+      if ((error as { status?: number }).status === 409) this.setData({ preview: null, mode: 'settings' });
     } finally { this.setData({ busy: '' }); await this.local(); }
   },
   async withdraw(event: WechatMiniprogram.TouchEvent) {
@@ -202,7 +219,7 @@ accountPage({
         content: action === 'withdraw-review' ? '本次投稿将停止审核，您可以修改后重新提交。' : '文章将不再公开，待审核修改也会撤回。私有原稿仍保留。', confirmText: '确认撤回' });
       if (!result.confirm || services !== miniServices() || !this.active) return;
       this.setData({ busy: '正在撤回…' }); await this.controller.withdraw(status, action);
-      this.setData({ mode: 'preview', submitted: false, preview: null, submission: null }); withdrawn = true;
+      this.setData({ mode: 'settings', submitted: false, preview: null, submission: null, submissionId: '' }); withdrawn = true;
     } catch (error) { this.setData({ error: errorMessage(error, '撤回结果尚未确认，请重试。') }); }
     finally { this.setData({ busy: '' }); await this.local(); }
     if (withdrawn) await this.refresh();
@@ -217,16 +234,18 @@ accountPage({
     finally { this.setData({ busy: '' }); await this.local(); }
   },
   async useLatestCover() {
-    if (this.data.busy) return;
-    const result = await wx.showModal({ title: '使用最新封面？', content: '将以已保存到账号的封面和裁切继续，本机原图仍保留。', confirmText: '使用最新' });
-    if (!result.confirm) return;
-    this.setData({ busy: '正在读取…' });
+    if (this.data.busy || this.data.readOnly || this.data.pendingRetry || this.data.actionRetry) return;
+    this.setData({ busy: '等待确认…' });
     try {
+      const result = await wx.showModal({ title: '使用最新封面？', content: '将以已保存到账号的封面和裁切继续，本机原图仍保留。', confirmText: '使用最新' });
+      if (!result.confirm || !this.active || this.services !== miniServices()) return;
+      this.setData({ busy: '正在读取…' });
       // A confirmed conflict is safe to abandon; unknown outcomes must first retry the same operation.
       const draft = await this.controller.local();
       if (draft.settingOperation) {
         try { await this.services.publications.settings(this.controller.workId, draft.settingOperation); }
         catch (error) { if ((error as { status?: number }).status !== 409) throw error; }
+        if (!this.active || this.services !== miniServices()) return;
         await this.services.publicationStorage.save({ ...draft, settingOperation: null });
       }
       const status = await this.services.publications.status(this.controller.workId);
@@ -236,21 +255,26 @@ accountPage({
       this.setData({ preview: null, image: '', error: '' }); await this.local();
     } catch (error) { this.setData({ error: errorMessage(error, '最新封面未读取，请重试。') }); }
     finally { this.setData({ busy: '' }); }
-    if (this.coverReady()) await this.preparePreview();
   },
-  editName() { if (!this.data.busy) this.setData({ editingName: true }); },
+  editName() { if (!this.data.busy && !this.data.readOnly && !this.data.pendingRetry && !this.data.actionRetry) this.setData({ editingName: true }); },
   closeName() { this.setData({ editingName: false, nameKeyboardHeight: 0 }); },
   nameKeyboard(event: WechatMiniprogram.CustomEvent<{ height: number }>) { this.setData({ nameKeyboardHeight: event.detail.height }); },
-  toggleExamples() { this.setData({ showExamples: !this.data.showExamples }); },
   async nameSaved() {
     this.setData({ editingName: false, nameKeyboardHeight: 0, preview: null, authorName: this.services.account.snapshot().account?.nickname ?? '' });
-    if (this.data.mode === 'preview' && this.coverReady()) await this.preparePreview();
   },
   settings() { void this.openCrop(); },
-  back() { if (this.data.mode === 'crop') void this.cancelCrop(); else if (this.data.mode === 'preview') void this.backToEditor(); else this.myArticles(); },
+  back() {
+    if (this.data.busy) return;
+    if (this.data.mode === 'crop') void this.cancelCrop();
+    else if (this.data.mode === 'preview') { this.setData({ mode: 'settings', preview: null, error: '' }); void wx.pageScrollTo({ scrollTop: 0, duration: 0 }); }
+    else if (this.data.mode === 'settings') void this.backToEditor();
+    else this.myArticles();
+  },
   async backToEditor() {
     if (!this.loaded) { void wx.navigateBack(); return; }
-    await this.services.publicationStorage.flush();
+    try { await this.services.publicationStorage.flush(); }
+    catch (error) { this.setData({ error: errorMessage(error, '发表设置尚未保存，请重试。') }); return; }
+    if (!this.active || this.services !== miniServices()) return;
     if (getCurrentPages().at(-2)?.route === 'pages/editor/index') void wx.navigateBack();
     else void wx.redirectTo({ url: '/pages/editor/index?id=' + encodeURIComponent(this.controller.workId) });
   },
