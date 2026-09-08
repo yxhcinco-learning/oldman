@@ -48,7 +48,7 @@ export async function checkClientJourney({ mini, info, output, check }) {
   await mini.mockWxMethod('showModal',{confirm:true,cancel:false});
   try{const row=(await library.data('cards')).find(c=>c.id===deletion);await library.callMethod('moveToRecycle',{currentTarget:{dataset:{id:row.id,revision:row.revision}}});}finally{await mini.restoreWxMethod('showModal');}
   check('空正文真实隔离作品可移入回收站',await mini.evaluate(async()=>!!(await getApp().__publicationQa.services.repository.getAggregate(getApp().__publicationQa.deleteId)).work.deletedAt));
-  await page.callMethod('openRecycle');await wait(async()=>await (await mini.currentPage()).data('recycle') === true);page=await mini.currentPage();library=await page.$('.author-articles');
+  await page.callMethod('openRecycle');await wait(async()=>await mini.evaluate(()=>getCurrentPages().at(-1)?.data.recycle === true));page=await mini.currentPage();library=await page.$('.author-articles');
   await wait(async()=>(await library.data('visible'))?.some(c=>c.id===deletion));await shot('journey-recycle');
   const row=(await library.data('visible')).find(c=>c.id===deletion);await library.callMethod('restore',{currentTarget:{dataset:{id:row.id,revision:row.revision}}});
   check('恢复后仍是私有稿',await mini.evaluate(async()=>!(await getApp().__publicationQa.services.repository.getAggregate(getApp().__publicationQa.deleteId)).work.deletedAt));

@@ -8,7 +8,7 @@ import type { AccountProfile } from '../../domain/core';
 import type { AccountStatus } from '../../auth/account-client';
 
 accountPage({
-  alive: true, refreshSequence: 0,
+  alive: true, visible: true, refreshSequence: 0,
   accountUnsubscribe: undefined as (() => void) | undefined,
   syncUnsubscribe: undefined as (() => void) | undefined,
   observed: undefined as ReturnType<typeof miniServices> | undefined,
@@ -17,29 +17,30 @@ accountPage({
     account: null as AccountProfile | null, status: 'guest' as AccountStatus, avatarPath: '', syncText: '本机草稿', accountText: '尚未登录',
     exportLabel: '导出本机文字副本' },
 
-  onLoad() { this.accountUnsubscribe = miniServices().account.subscribe(() => { void this.refreshState(); }); },
-  onShow() { selectTab(this, 2); if (this.data.menuOpen || this.data.editingProfile || this.data.settingsOpen || this.data.logoutOpen) setTabBarHidden(this, true); void this.refreshState(); },
-  onHide() { setTabBarHidden(this, false); },
+  onLoad() { this.accountUnsubscribe = miniServices().account.subscribe(() => { if (this.visible) void this.refreshState(); }); },
+  onShow() { this.visible = true; selectTab(this, 2); if (this.data.menuOpen || this.data.editingProfile || this.data.settingsOpen || this.data.logoutOpen) setTabBarHidden(this, true); void this.refreshState(); },
+  onHide() { this.visible = false; this.refreshSequence++; setTabBarHidden(this, false); },
   onUnload() { this.alive = false; this.refreshSequence++; this.accountUnsubscribe?.(); this.syncUnsubscribe?.(); },
   nameKeyboard(event: WechatMiniprogram.CustomEvent<{ height: number }>) {
     const height = event.detail.height;
     this.setData({ nameKeyboardHeight: height, compactProfile: height > 0 && wx.getWindowInfo().windowHeight - height - this.data.navigationHeight < 460 });
   },
   async refreshState() {
+    if (!this.alive || !this.visible) return;
     const services = miniServices(), sequence = ++this.refreshSequence;
     if (this.observed !== services) {
       this.setData({ settingsOpen: false, libraryManaging: false, articleTotal: 0, publishedCount: 0, libraryReady: false, publicationKnown: false, profileReturn: 'home', avatarPath: '', editingProfile: false, nicknameInput: '', nameKeyboardHeight: 0, compactProfile: false, busy: '', error: '', notice: '', menuOpen: false, logoutOpen: false });
       setTabBarHidden(this, false);
       this.syncUnsubscribe?.();
       this.observed = services;
-      this.syncUnsubscribe = services.sync.subscribe(() => { void this.refreshState(); });
+      this.syncUnsubscribe = services.sync.subscribe(() => { if (this.visible) void this.refreshState(); });
     }
     const state = services.account.snapshot(), sync = services.sync.snapshot();
     let readError = '';
     const works = await services.repository.allAggregates().catch(error => {
       readError = errorMessage(error, '本机作品暂时无法读取。'); return [];
     });
-    if (services !== miniServices() || !this.alive || sequence !== this.refreshSequence) return;
+    if (services !== miniServices() || !this.alive || !this.visible || sequence !== this.refreshSequence) return;
     const unsent = works.filter(item => !item.cloud?.recoveryOf && (!item.cloud?.version || item.cloud.operation || item.work.revision !== item.cloud.syncedRevision)).length;
     const accountText = { guest: '登录后保存您的作品', connecting: '正在登录', authenticated: '编辑头像与用户名', offline: '当前离线', expired: '登录已过期', replaced: '已在其他设备登录' }[state.status];
     const needsLogin = ['guest', 'expired', 'replaced', 'connecting'].includes(state.status);
@@ -54,12 +55,14 @@ accountPage({
     const path = services.repository.paths.root + '/avatar-' + state.account.avatarVersion + '.jpg';
     try {
       await services.repository.load();
-      if (!await services.files.exists(path) && state.status === 'authenticated') {
+      const exists = await services.files.exists(path);
+      if (services !== miniServices() || !this.alive || !this.visible || sequence !== this.refreshSequence) return;
+      if (!exists && state.status === 'authenticated') {
         const data = await services.account.request('/api/mini/account/avatar', 'GET', undefined, true);
         if (!(data instanceof ArrayBuffer) || data.byteLength > 256 * 1024) return;
         wx.getFileSystemManager().writeFileSync(path, data);
       }
-      if (await services.files.exists(path) && services === miniServices() && this.alive && sequence === this.refreshSequence) this.setData({ avatarPath: path });
+      if (await services.files.exists(path) && services === miniServices() && this.alive && this.visible && sequence === this.refreshSequence) this.setData({ avatarPath: path });
     } catch { /* Profile remains usable with the default avatar. */ }
   },
   async login() {

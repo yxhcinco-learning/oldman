@@ -29,11 +29,12 @@ function card(work: Work): WorkCard {
 }
 
 type Services = ReturnType<typeof miniServices>;
-interface LibraryState { services?: Services; unsubscribe?: () => void; accountUnsubscribe?: () => void; alive: boolean; sequence: number;
+interface LibraryState { services?: Services; unsubscribe?: () => void; accountUnsubscribe?: () => void; alive: boolean; visible: boolean; sequence: number;
+  flight?: Promise<void>; refreshAgain: boolean; connectAgain: boolean; connecting: boolean; syncKey?: string;
   snapshot?: Awaited<ReturnType<Services['repository']['load']>>; statuses: Awaited<ReturnType<Services['publications']['statuses']>>['publications'];
   submissions: Map<string, Promise<OwnSubmission>> }
 const states = new WeakMap<object, LibraryState>();
-function context(instance: object) { let state = states.get(instance); if (!state) { state = { alive: true, sequence: 0, statuses: [], submissions: new Map() }; states.set(instance, state); } return state; }
+function context(instance: object) { let state = states.get(instance); if (!state) { state = { alive: true, visible: true, sequence: 0, refreshAgain: false, connectAgain: false, connecting: false, statuses: [], submissions: new Map() }; states.set(instance, state); } return state; }
 Component({
   options: { styleIsolation: 'apply-shared' },
   properties: { recycle: Boolean, embedded: Boolean, suppressIssue: Boolean },
@@ -44,37 +45,70 @@ Component({
       const state = context(this); state.alive = true;
       state.accountUnsubscribe = miniServices().account.subscribe(() => { if (state.services !== miniServices()) {
         this.setData({ cards: [], visible: [], recentDraft: null, recentCards: [], total: 0, publishedCount: 0, empty: false, loading: true, manage: false, query: '', filter: 'all', limit: 20, deleting: false, issue: '', statusUnavailable: false }); state.snapshot = undefined; state.statuses = []; state.submissions.clear();
-      } void this.refresh(false); });
+        state.unsubscribe?.(); state.services = undefined; state.sequence++; void this.refresh(false, true);
+      } });
       void this.refresh();
     },
     detached() { const state = context(this); state.alive = false; state.sequence++; state.unsubscribe?.(); state.accountUnsubscribe?.(); },
   },
-  pageLifetimes: { show() { void this.refresh(); } },
+  pageLifetimes: {
+    show() { const state = context(this), wasVisible = state.visible; state.visible = true; void this.refresh(true, !wasVisible); },
+    hide() { const state = context(this); state.visible = false; state.sequence++; state.refreshAgain = true; },
+  },
   methods: {
-  async refresh(connect = true) {
+  refresh(connect = true, changed = false): Promise<void> {
+    const state = context(this);
+    if (!state.alive || !state.visible) { state.refreshAgain = true; return Promise.resolve(); }
+    if (state.flight) {
+      if (changed) { state.refreshAgain = true; state.connectAgain ||= connect; state.sequence++; }
+      return state.flight;
+    }
+    state.refreshAgain = true; state.connectAgain = connect;
+    state.flight = (async () => {
+      while (state.alive && state.visible && state.refreshAgain) {
+        const shouldConnect = state.connectAgain; state.refreshAgain = false; state.connectAgain = false;
+        await this.readCards(shouldConnect);
+      }
+    })().finally(() => { state.flight = undefined; });
+    return state.flight;
+  },
+  async readCards(connect: boolean) {
     const state = context(this), sequence = ++state.sequence;
     const services = miniServices();
-    if (context(this).services !== services) { context(this).unsubscribe?.(); context(this).services = services; context(this).unsubscribe = services.sync.subscribe(() => { void this.refresh(false); }); }
+    if (state.services !== services) {
+      state.unsubscribe?.(); state.services = services; state.syncKey = undefined;
+      state.unsubscribe = services.sync.subscribe(sync => {
+        const key = sync.status + ':' + sync.error, previous = state.syncKey; state.syncKey = key;
+        if (!state.alive || !state.visible || sync.status === 'syncing' || key === previous || state.connecting) return;
+        void this.refresh(false, true);
+      });
+    }
     try {
       await services.writer.flush();
+      if (services !== miniServices() || !state.alive || !state.visible || sequence !== state.sequence) return;
       let cloudIssue = '';
-      if (connect) try { await services.sync.sync(); } catch (error) { cloudIssue = errorMessage(error, '云端尚未连接。'); }
+      if (connect) {
+        state.connecting = true;
+        try { await services.sync.sync(); } catch (error) { cloudIssue = errorMessage(error, '云端尚未连接。'); }
+        finally { state.connecting = false; }
+      }
       const snapshot = await services.repository.load();
-      if (services !== miniServices() || !state.alive || sequence !== state.sequence) return;
+      if (services !== miniServices() || !state.alive || !state.visible || sequence !== state.sequence) return;
       let statuses: Awaited<ReturnType<typeof services.publications.statuses>> = { publications: [] };
-      let statusKnown = true;
-      try { statuses = await services.publications.statuses(); } catch { statusKnown = false; }
-      if (services !== miniServices() || !state.alive || sequence !== state.sequence) return;
+      let statusKnown = !services.account || services.account.snapshot().status === 'authenticated';
+      let publicationIssue = '';
+      if (statusKnown) try { statuses = await services.publications.statuses(); } catch (error) { statusKnown = false; publicationIssue = errorMessage(error, '发表状态暂未更新，请稍后重试。'); }
+      if (services !== miniServices() || !state.alive || !state.visible || sequence !== state.sequence) return;
       state.snapshot = snapshot; state.statuses = statuses.publications;
       const cards = snapshot.works.map(work => { const aggregate = snapshot.aggregates?.find(item => item.work.id === work.id) ?? null;
         const status = statuses.publications.find(item => item.workId === work.id);
         const category: WorkCard['category'] = !statusKnown ? 'unknown' : status?.pending ? 'pending' : status?.published ? 'published' : 'draft';
         return { ...card(work), ...authorArticleAction(work, aggregate?.session, status), category, published: Boolean(status?.published), publication: statusKnown ? publicationLabel(status) : '发表状态暂未更新', recovery: Boolean(aggregate?.cloud?.recoveryOf) }; });
       this.setData({ loading: false, cards, statusUnavailable: !statusKnown,
-        issue: cloudIssue || services.sync.snapshot().error || snapshot.issues.map(item => item.message).join(' ') });
+        issue: cloudIssue || services.sync.snapshot().error || publicationIssue || snapshot.issues.map(item => item.message).join(' ') });
       this.filterCards();
     } catch (error) {
-      if (state.alive && services === miniServices() && sequence === state.sequence) this.setData({ loading: false, issue: errorMessage(error, '本机作品暂时无法读取。') });
+      if (state.alive && state.visible && services === miniServices() && sequence === state.sequence) this.setData({ loading: false, issue: errorMessage(error, '本机作品暂时无法读取。') });
     }
   },
 
@@ -93,10 +127,11 @@ Component({
   more() { this.setData({ limit: this.data.limit + 20 }); this.filterCards(); },
   async updateVisibleActions() {
     const state = context(this), services = state.services, sequence = state.sequence;
-    if (!services || this.data.recycle) return;
+    if (!services || !state.alive || !state.visible || this.data.recycle) return;
     const displayed = this.data.embedded ? [this.data.recentDraft, ...this.data.recentCards].filter((item): item is WorkCard => Boolean(item)) : this.data.visible;
     const pending = displayed.filter(item => item.published && item.category !== 'pending');
     for (let offset = 0; offset < pending.length; offset += 4) await Promise.all(pending.slice(offset, offset + 4).map(async item => {
+      if (!state.alive || !state.visible || sequence !== state.sequence || services !== miniServices()) return;
       const status = state.statuses.find(p => p.workId === item.id), aggregate = state.snapshot?.aggregates?.find(a => a.work.id === item.id);
       if (!status?.lastSubmission || status.lastSubmission.state !== 'approved' || !aggregate) return;
       try {
@@ -104,13 +139,13 @@ Component({
         if (!state.submissions.has(id)) state.submissions.set(id, services.publications.submission(item.id, id));
         const submitted = await state.submissions.get(id)!;
         const local = await services.publicationStorage.load(item.id);
-        if (!state.alive || sequence !== state.sequence || services !== miniServices()) return;
+        if (!state.alive || !state.visible || sequence !== state.sequence || services !== miniServices()) return;
         const action = authorArticleAction(aggregate.work, aggregate.session, status, submitted, local.dirty);
         const update = { ...item, ...action, publication: action.changed ? '已发表 · 有未提交修改' : item.publication };
         this.setData({ cards: this.data.cards.map(c => c.id === item.id ? update : c), visible: this.data.visible.map(c => c.id === item.id ? update : c), recentCards: this.data.recentCards.map(c => c.id === item.id ? update : c) });
       } catch {
         state.submissions.delete(status.lastSubmission.id);
-        if (state.alive && sequence === state.sequence && services === miniServices()) {
+        if (state.alive && state.visible && sequence === state.sequence && services === miniServices()) {
           const safeAction = (c: WorkCard) => c.id === item.id ? { ...c, action: '编辑文章', url: '/pages/editor/index?id=' + encodeURIComponent(c.id) } : c;
           this.setData({ cards: this.data.cards.map(safeAction), visible: this.data.visible.map(safeAction), recentCards: this.data.recentCards.map(safeAction) });
         }
@@ -166,7 +201,7 @@ Component({
       const result = await wx.showModal({ title: '删除这篇文章？', content: '文章将移入回收站，可以恢复。' + (item?.published || item?.category === 'pending' ? '待审核稿和已发表文章也会撤下，恢复后需要重新投稿。' : ''), confirmText: '删除', confirmColor: '#944924' });
       if (!result.confirm || services !== miniServices() || !context(this).alive) return;
       await services.sync.lifecycle(id, 'trash', revision);
-      await this.refresh();
+      await this.refresh(true, true);
     } catch (error) { if (services === miniServices() && context(this).alive) this.setData({ issue: errorMessage(error, '删除未完成，请重试。') }); }
     finally { if (context(this).alive && services === miniServices()) this.setData({ deleting: false }); }
   },
@@ -175,7 +210,7 @@ Component({
     if (!services || this.data.deleting) return;
     const id = String(event.currentTarget.dataset.id), revision = Number(event.currentTarget.dataset.revision);
     this.setData({ deleting: true, issue: '' });
-    try { await services.sync.lifecycle(id, 'restore', revision); if (services === miniServices() && state.alive) await this.refresh(); }
+    try { await services.sync.lifecycle(id, 'restore', revision); if (services === miniServices() && state.alive) await this.refresh(true, true); }
     catch (error) { if (services === miniServices() && state.alive) this.setData({ issue: errorMessage(error, '恢复失败。') }); }
     finally { if (services === miniServices() && state.alive) this.setData({ deleting: false }); }
   },
@@ -185,7 +220,7 @@ Component({
   },
   async promoteRecovery(event: WechatMiniprogram.TouchEvent) {
     const services = context(this).services!;
-    try { await services.repository.promoteRecovery(String(event.currentTarget.dataset.id)); if (services === miniServices() && context(this).alive) await this.refresh(); }
+    try { await services.repository.promoteRecovery(String(event.currentTarget.dataset.id)); if (services === miniServices() && context(this).alive) await this.refresh(true, true); }
     catch (error) { if (services === miniServices() && context(this).alive) this.setData({ issue: errorMessage(error, '另存失败，恢复稿仍保留。') }); }
   },
   async exportRecovery(event: WechatMiniprogram.TouchEvent) {
@@ -203,7 +238,7 @@ Component({
       const result = await wx.showModal({ title: '永久删除这篇文章？', content: '删除后只能通过你之前导出的文字副本恢复。其他文章不受影响。', confirmText: '永久删除', confirmColor: '#944924' });
       if (!result.confirm || services !== miniServices() || !state.alive) return;
       await services.sync.lifecycle(id, 'purge', revision);
-      if (services === miniServices() && state.alive) await this.refresh();
+      if (services === miniServices() && state.alive) await this.refresh(true, true);
     } catch (error) { if (services === miniServices() && state.alive) this.setData({ issue: errorMessage(error, '永久删除失败，文章仍保留在回收站。') }); }
     finally { if (services === miniServices() && state.alive) this.setData({ deleting: false }); }
   },

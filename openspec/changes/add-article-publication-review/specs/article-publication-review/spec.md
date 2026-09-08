@@ -72,6 +72,17 @@
 - **WHEN** 导入备份或恢复回收站文章
 - **THEN** 作品保持私有，导入创建新 ID 并需重新选封面，不能借历史回执或旧审核使文章公开
 
+### Requirement: Bounded author list refresh
+作者列表 SHALL 合并同一页面正在进行的刷新与同账号正在进行的发表状态请求；隐藏页面 MUST 停止由账号或同步通知触发的联网读取。同账号状态通知、重复离线通知及同步过程中的中间状态不得造成重新发起请求的反馈循环。重新显示或主动重试时仍读取当前账号的最新作品和发表状态，错误不得伪装为草稿或空列表。
+
+#### Scenario: Overview remains behind the full library
+- **WHEN** 从个人中心进入完整文章列表，后台同步或账号资料核对完成
+- **THEN** 只有可见列表更新，不因隐藏的个人中心或重复同步通知持续查询发表状态；返回个人中心后能读到最新状态
+
+#### Scenario: Offline request and retry
+- **WHEN** 发表状态请求因网络中断失败，或入口返回限流响应
+- **THEN** 同一次失败不通过离线通知触发新的请求循环；保留作品和可操作的重试，限流有明确提示，主动重试成功后清除旧错误
+
 ### Requirement: Evidence separates simulated and actual use
 系统 SHALL 以真实本地 HTTP、SQLite、图片处理和两个隔离客户端验证服务闭环，运行完整检查、构建、小程序三尺寸和后台三尺寸回归；手机选图及好友实际收发 MUST 单列证据。
 

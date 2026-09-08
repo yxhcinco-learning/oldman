@@ -8,8 +8,8 @@ export class MiniCloudTransport {
     const result = await this.auth.authorizedRequest(token => this.platform.request(path, method, token, data));
     if (result.statusCode < 200 || result.statusCode >= 300) {
       const error = result.data as { code?: unknown; error?: unknown } | null;
-      throw new AccountRequestError(typeof error?.code === 'string' ? error.code : 'cloud_unavailable',
-        errorMessage(error?.error, '同步暂未完成，请重试。'), result.statusCode);
+      throw new AccountRequestError(typeof error?.code === 'string' ? error.code : result.statusCode === 429 ? 'rate_limited' : 'cloud_unavailable',
+        errorMessage(error?.error, result.statusCode === 429 ? '请求较频繁，请稍后重试。' : '同步暂未完成，请重试。'), result.statusCode);
     }
     return result.data;
   }

@@ -18,8 +18,8 @@ export class AccountRequestError extends Error {
 }
 const payloadError = (response: AuthenticatedMiniResponse<unknown>) => {
   const payload = response.data as { code?: unknown; error?: unknown } | null;
-  return new AccountRequestError(typeof payload?.code === 'string' ? payload.code : 'request_failed',
-    errorMessage(payload?.error, '暂时无法连接云端，请稍后重试。'), response.statusCode);
+  return new AccountRequestError(typeof payload?.code === 'string' ? payload.code : response.statusCode === 429 ? 'rate_limited' : 'request_failed',
+    errorMessage(payload?.error, response.statusCode === 429 ? '请求较频繁，请稍后重试。' : '暂时无法连接云端，请稍后重试。'), response.statusCode);
 };
 
 export class MiniAccountClient implements MiniSessionAuthorizer {
@@ -101,7 +101,12 @@ export class MiniAccountClient implements MiniSessionAuthorizer {
     if (session) await this.platform.request('/api/mini/account/session', 'DELETE', session.token).catch(() => undefined);
   }
 
-  setOffline() { if (this.session && !['expired', 'replaced'].includes(this.state.status)) this.publish({ status: 'offline', error: '网络不可用，云作品暂停编辑。' }); }
+  setOffline() {
+    const error = '网络不可用，云作品暂停编辑。';
+    if (this.session && !['expired', 'replaced'].includes(this.state.status) && (this.state.status !== 'offline' || this.state.error !== error)) {
+      this.publish({ status: 'offline', error });
+    }
+  }
 
   private rejectSession(response: AuthenticatedMiniResponse<unknown>) {
     const error = payloadError(response);
