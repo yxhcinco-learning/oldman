@@ -10,6 +10,9 @@
     </view>
     <button wx:if="{{needsLogin}}" class="account-primary" bindtap="login" disabled="{{busy || status === 'connecting'}}">{{status === 'replaced' ? '微信登录，在此设备继续' : '微信登录'}}</button>
     <view wx:if="{{cloudError || canReconnect}}" class="sync-row" role="status"><view class="account-error">{{cloudError || '保存暂未完成，请重试。'}}</view><button wx:if="{{canReconnect}}" bindtap="reconnect" disabled="{{busy}}">重试</button></view></view>
+    <view class="profile-social-stats"><button bindtap="openSocial" data-page="relationships" data-tab="following"><text>{{socialSummary ? socialSummary.following : '—'}}</text>关注</button><button bindtap="openSocial" data-page="relationships" data-tab="followers"><text>{{socialSummary ? socialSummary.followers : '—'}}</text>粉丝</button><button bindtap="openSocial" data-page="relationships" data-tab="mutuals"><text>{{socialSummary ? socialSummary.mutuals : '—'}}</text>互关</button></view>
+    <view class="profile-social-tools"><button bindtap="openSocial" data-page="collections"><image src="/assets/social-star.svg" /><text>我的收藏</text></button><button bindtap="openSocial" data-page="flowers"><image src="/assets/social-flower.svg" /><text>我的小花花{{flowerWallet ? ' · ' + flowerWallet.balance : ''}}</text></button></view>
+    <view wx:if="{{socialError}}" class="error-panel">{{socialError}}<button class="text-action" bindtap="refreshSocial">重新读取</button></view>
     <author-articles class="author-articles" embedded="{{true}}" suppress-issue="{{cloudError || canReconnect}}" bind:summary="articleSummary" />
   </view>
   <block wx:if="{{settingsOpen}}">

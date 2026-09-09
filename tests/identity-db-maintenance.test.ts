@@ -2,7 +2,7 @@
 import { execFile } from 'node:child_process';
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { DatabaseSync } from 'node:sqlite';
@@ -16,6 +16,27 @@ afterEach(async () => {
 });
 
 describe('SQLite 数据库部署维护', () => {
+  it('社交 schema 4 保留新增账本并拒绝 schema 3 发布及历史备份覆盖', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'suiyue-social-restore-'));
+    directories.push(directory);
+    const script = fileURLToPath(new URL('../deploy/server/sqlite-db.mjs', import.meta.url));
+    const current = join(directory, 'auth.sqlite');
+    const db = new DatabaseSync(current);
+    db.exec("CREATE TABLE ledger (operation TEXT PRIMARY KEY, amount INTEGER); INSERT INTO ledger VALUES ('gift-confirmed', -1); PRAGMA user_version=4;"); db.close();
+    await mkdir(join(directory, 'deploy'));
+    await writeFile(join(directory, 'deploy/schema-ceilings.json'), JSON.stringify({ auth: 3, topics: 1, usage: 1 }));
+    await expect(execute(process.execPath, [script, 'check-release', current, directory, 'auth'])).rejects.toMatchObject({ code: 2 });
+    const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
+    await expect(execute(process.execPath, [script, 'check-release', current, root, 'auth'])).resolves.toMatchObject({ stdout: expect.stringContaining('schema 4') });
+    for (const version of [3, 4]) {
+      const path = join(directory, `old-${version}.sqlite`), old = new DatabaseSync(path);
+      old.exec(`PRAGMA user_version=${version}`); old.close();
+      await expect(execute(process.execPath, [script, 'restore', path, current, join(directory, 'quarantine-' + version)])).rejects.toMatchObject({ code: 2 });
+    }
+    const retained = new DatabaseSync(current, { readOnly: true });
+    expect(retained.prepare('SELECT * FROM ledger').get()).toEqual({ operation: 'gift-confirmed', amount: -1 }); retained.close();
+  });
+
   it('发表数据库禁止由旧库、同 schema 历史备份或空状态覆盖新增内容', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'suiyue-publication-restore-'));
     directories.push(directory);

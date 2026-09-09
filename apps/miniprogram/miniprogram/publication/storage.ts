@@ -1,4 +1,4 @@
-import { z, cloudIdSchema, coverCropsSchema, submissionInputSchema, publicationSettingsInputSchema, publicationActionSchema, newId } from '../domain/core';
+import { z, cloudIdSchema, coverCropsSchema, submissionInputSchema, publicationSettingsInputSchema, publicationActionSchema, audienceInputSchema, newId } from '../domain/core';
 import { WxLocalFileSystem, type LocalFileSystem } from '../storage/file-system';
 import { publicationBytes } from './binary';
 
@@ -25,10 +25,12 @@ export const publicationDraftSchema = z.object({
   uploadId: cloudIdSchema.nullable(), dirty: z.boolean(),
   settingOperation: publicationSettingsInputSchema.nullable(), submissionOperation: submissionInputSchema.nullable(), actionOperation: publicationActionSchema.nullable(),
   cropBackup: coverStateSchema.nullable().default(null),
+  audienceChoice: z.enum(['account', 'guest']).nullable().default(null),
+  audienceOperation: audienceInputSchema.nullable().default(null),
 }).strict();
 export type PublicationDraft = z.infer<typeof publicationDraftSchema>;
 export const emptyPublicationDraft = (workId: string): PublicationDraft => ({ version: 1, workId, path: '', width: 0, height: 0, crops: null,
-  confirmed: [], settingsVersion: 0, assetId: null, uploadId: null, dirty: false, settingOperation: null, submissionOperation: null, actionOperation: null, cropBackup: null });
+  confirmed: [], settingsVersion: 0, assetId: null, uploadId: null, dirty: false, settingOperation: null, submissionOperation: null, actionOperation: null, cropBackup: null, audienceChoice: null, audienceOperation: null });
 
 /** Independent of .work.json, scoped to the repository's verified account root. */
 export class MiniPublicationStorage {

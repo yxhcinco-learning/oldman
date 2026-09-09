@@ -24,6 +24,7 @@
   <view wx:if="{{busy}}" class="progress" role="status">{{busy}}</view>
   <view wx:if="{{pendingRetry}}" class="retry-panel"><text>上次投稿结果尚未确认</text><button class="primary-action" bindtap="submit" disabled="{{busy}}">确认投稿结果</button></view>
   <view wx:if="{{actionRetry}}" class="retry-panel"><text>上次撤回结果尚未确认</text><button class="secondary-action" bindtap="retryAction" disabled="{{busy}}">重试撤回</button></view>
+  <view wx:if="{{audiencePending}}" class="retry-panel"><text>阅读范围尚未确认</text><button class="text-action" bindtap="retryAudience" disabled="{{busy}}">核对上次修改</button></view>
   <block wx:if="{{mode === 'settings'}}">
     <view wx:if="{{status.lastSubmission.state === 'rejected'}}" class="reason">审核未通过：{{status.lastSubmission.reason}}</view>
     <view wx:elif="{{status.reason}}" class="reason">{{status.reason}}</view>
@@ -35,6 +36,7 @@
     </button>
     <view class="cover-validation" role="status">{{coverError || (draft.path && (!readingConfirmed || !thumbnailConfirmed) ? '请点击封面，完成调整。' : '')}}</view>
     <button class="publication-option" bindtap="editName" disabled="{{busy || readOnly || pendingRetry || actionRetry}}" aria-label="修改署名"><text>署名</text><text class="option-value">{{authorName}}</text><view class="option-chevron" aria-hidden="true" /></button>
+    <button class="publication-option" bindtap="chooseAudience" disabled="{{busy || readOnly || pendingRetry || audiencePending}}" aria-label="修改阅读范围"><text>阅读范围</text><text class="option-value">{{audience === 'guest' ? '所有人可读' : '登录后可读'}}</text><view class="option-chevron" aria-hidden="true" /></button>
     <button wx:if="{{aiAssisted}}" class="publication-option creation-option" bindtap="explainAi"><text>创作方式</text><text class="option-value">AI 辅助整理</text><text class="option-info" aria-hidden="true">i</text></button>
     <view wx:if="{{status.published}}" class="status-actions"><button class="text-action danger" data-action="withdraw" bindtap="withdraw" disabled="{{busy || readOnly || pendingRetry || actionRetry}}">撤回发表</button></view>
   </block>
@@ -53,6 +55,7 @@
   </view>
   <block wx:elif="{{mode === 'review'}}">
     <view class="review-status"><view class="section-title">{{statusLabel}}</view><view wx:if="{{status.pending}}">审核通过后，这篇投稿才会公开。</view><view wx:if="{{status.pending && status.published}}">原来的公开文章仍可阅读。</view><view wx:if="{{submission}}" class="submission-time">提交于 {{submissionDate}}</view></view>
+    <button wx:if="{{status.published}}" class="publication-option" bindtap="chooseAudience" disabled="{{busy || readOnly || pendingRetry || audiencePending}}" aria-label="修改阅读范围"><text>阅读范围</text><text class="option-value">{{audience === 'guest' ? '所有人可读' : '登录后可读'}}</text><view class="option-chevron" aria-hidden="true" /></button>
     <view wx:if="{{status.lastSubmission.reason}}" class="reason">{{status.lastSubmission.reason}}</view>
     <block wx:if="{{submission}}"><image class="reading-cover" style="height: {{viewportWidth * 0.8}}px" src="{{image}}" mode="aspectFit" /><view class="article-title">{{submission.title}}</view><view class="author-row"><image src="/assets/leaf.svg" /><text>{{submission.authorName}}</text></view><text class="article-body" user-select>{{submission.body}}</text><view wx:if="{{submission.aiAssisted}}" class="ai-label">本文含 AI 辅助整理内容</view></block>
     <view class="review-note">继续编辑会保留为修改稿，不会改变这次投稿。</view>

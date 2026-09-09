@@ -47,6 +47,10 @@ auth.sqlite schema 3 包含账号、私有作品、唯一用户名归属与独�
 
 ## 小程序本地验收入口
 
+读者互动隔离联调使用 `npx vitest run tests/social.test.ts tests/social-client-integration.test.ts`，覆盖真实本地 HTTP/SQLite，微信换码使用替身。运营运行 `scripts/social-qa-server.ts` 与 `scripts/qa-social-admin.mjs`，只连接隔离端口与合成内容。小程序运行 `node apps/miniprogram/scripts/qa-reader-social-simulator.mjs`，沿用下述 `MINI_AUTOMATOR_PATH`、`MINI_QA_OUTPUT`、合成图片 `MINI_QA_COVER` 和 `MINI_QA_EXPECTED_WIDTH`，开始前无真实登录、停止源码热编译；脚本结束恢复原服务和登录页。尺寸以实际模拟器为准，键盘、账号、网络替身不能作为真机证据。
+
+本轮社交代码使用 auth schema 4，`deploy/schema-ceilings.json` 是发布兼容上限的唯一入口；安装与校验脚本读取该清单。历史schema3网关不能接升级库，不以历史备份覆盖新内容。`SOCIAL_WRITES_ENABLED`、`SOCIAL_GUEST_OPENING_ENABLED`、`SOCIAL_COMMENTS_ENABLED` 控制新增写入/新游客开放/评论入口，读取和原已提交回执保持；评论还要求独立后台审核已配置。配置示例是本地发布准备，不代表已经修改线上。
+
 共享接口变化后执行 `npm run devtool:build-npm --workspace @suiyue/miniprogram`，刷新实际 npm 运行包并验证导出；命令只清代码编译缓存，不清作品、文件或身份。然后执行普通编译。开发者工具若显示首页白屏且自动化超时，先查原生编译和模拟器启动日志；排除编译错误后可重新启动 IDE 复核，不能将单纯构建成功当运行成功。
 
 若磁盘 npm 导出校验已通过，而实际页面加载的 npm 仍缺少新导出，关闭项目可能不足以释放全局运行缓存。确认没有其他正在编辑的项目后退出整个 IDE，等待旧自动化端口释放，再从同一项目路径冷启动；不以反复构建或清除用户数据代替运行时核对。

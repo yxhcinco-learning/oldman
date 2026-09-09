@@ -1,15 +1,15 @@
 import { errorMessage } from '../../ui/error-message';
 import { miniServices, loginMiniAccount, refreshMiniAccount } from '../../services';
-import { finishLogin } from '../../auth/navigation';
+import { finishLogin, hasSocialLoginReturn, cancelSocialLogin, socialLoginReason, prepareSocialLoginAttempt } from '../../auth/navigation';
 
 Page({
   visible: true,
   visibilityVersion: 0,
-  data: { contextual: false, busy: false, error: '', signedIn: false, reason: '' },
+  data: { contextual: false, socialReturn: false, busy: false, error: '', signedIn: false, reason: '' },
   onLoad(options: Record<string, string | undefined>) {
     const state = miniServices().account.snapshot();
-    this.setData({ contextual: options.return === '1', signedIn: state.status === 'authenticated',
-      reason: state.status === 'replaced' ? '账号已在其他设备登录，您可以在这里继续。' : state.status === 'expired' ? '登录已过期，请重新登录。' : '' });
+    this.setData({ contextual: options.return === '1', socialReturn: hasSocialLoginReturn(), signedIn: state.status === 'authenticated',
+      reason: socialLoginReason() || (state.status === 'replaced' ? '账号已在其他设备登录，您可以在这里继续。' : state.status === 'expired' ? '登录已过期，请重新登录。' : '') });
   },
   onShow() { this.visible = true; },
   onHide() { this.visible = false; this.visibilityVersion++; },
@@ -22,7 +22,12 @@ Page({
       await miniServices().account.restore();
       if (!this.visible || version !== this.visibilityVersion) return;
       const state = miniServices().account.snapshot();
-      if (state.status === 'authenticated') await miniServices().sync.sync();
+      if (hasSocialLoginReturn()) {
+        // Reading and social writes do not depend on private work synchronization.
+        if (state.status === 'offline' && state.account) await miniServices().account.refresh();
+        else if (state.status !== 'authenticated') { prepareSocialLoginAttempt(state.generation); await miniServices().account.login(); }
+      }
+      else if (state.status === 'authenticated') await miniServices().sync.sync();
       else if (state.status === 'offline' && state.account) await refreshMiniAccount();
       else await loginMiniAccount();
       await finishLogin(() => this.visible && version === this.visibilityVersion);
@@ -34,4 +39,5 @@ Page({
     }
   },
   openPrivacy() { void wx.navigateTo({ url: '/pages/privacy/index' }); },
+  async cancel() { this.visible = false; this.visibilityVersion++; await cancelSocialLogin(); },
 });

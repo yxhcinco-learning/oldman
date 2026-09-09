@@ -1,0 +1,2 @@
+@import "../../social/shared.wxss";
+@import "../../social/pages.wxss";

@@ -1,17 +1,55 @@
-<block wx:if="{{accountReady}}">
 <page-header class="journey-header" title="文章" fallback="/pages/articles/index" />
-<view class="reader-page {{article && shareReady ? 'with-share' : ''}}">
+<view class="reader-page {{article ? 'with-share' : ''}}">
   <view wx:if="{{loading}}" class="reader-status" role="status">正在打开文章…</view>
-  <view wx:if="{{error}}" class="reader-error" role="alert"><image src="/assets/book.svg" /><view>{{error}}</view><view class="reader-error-actions"><button class="primary-action" bindtap="refresh">重新读取</button><button class="text-action" bindtap="list">返回文章列表</button></view></view>
+  <view wx:if="{{error}}" class="reader-error" role="alert"><image src="/assets/book.svg" /><view>{{error}}</view><view class="reader-error-actions"><button class="secondary-action" bindtap="refresh">重新读取</button><button wx:if="{{!logged}}" class="text-action" bindtap="loginRead">登录后查看</button><button wx:if="{{giftPending && logged}}" class="text-action" bindtap="sendFlower" disabled="{{busy}}">核对上次赠送结果</button><view wx:if="{{notice}}">{{notice}}</view><view wx:if="{{socialError}}">{{socialError}}</view><button class="text-action" bindtap="list">返回文章列表</button></view></view>
   <block wx:if="{{article}}">
-    <image class="reading-cover" style="height: {{coverHeight}}px" src="{{image}}" mode="aspectFit" />
+    <image wx:if="{{image}}" class="reading-cover" style="height: {{coverHeight}}px" src="{{image}}" mode="aspectFit" />
     <view class="reading-title">{{article.title}}</view>
-    <view class="reading-author"><image src="/assets/leaf.svg" /><view><text class="reading-name">{{article.authorName}}</text><text class="reading-date">{{date}} 发表</text></view></view>
+    <view class="reading-author"><button class="author-link" bindtap="openAuthor"><image src="/assets/leaf.svg" /><view><text class="reading-name">{{article.authorName}}</text><text class="reading-date">{{date}} 发表</text></view></button><button wx:if="{{article.publicAuthorId && !engagement.relationship.self}}" class="follow-button {{engagement.relationship.active ? 'active' : ''}}" data-kind="follow" bindtap="react" disabled="{{busy || (logged && !engagement)}}">{{followLabel}}</button></view>
     <text class="reading-body" user-select>{{article.body}}</text>
     <view wx:if="{{article.aiAssisted}}" class="ai-label">本文含 AI 辅助整理内容</view>
     <view class="reading-end"><view /><image src="/assets/leaf.svg" /><view /></view>
+    <view class="flower-summary"><image src="/assets/social-flower-art.svg" /><text>{{counts.flowers}} 朵小花花</text><button class="text-action" bindtap="openGift">送一朵</button></view>
     <view wx:if="{{ownerWorkId}}" class="author-actions"><button class="text-action" bindtap="editArticle">编辑文章</button><button class="text-action" data-manage="{{true}}" bindtap="editArticle">发表管理</button></view>
+    <view class="comment-heading"><text>评论 {{counts.comments}}</text><button class="text-action" bindtap="openComments">写评论</button></view>
+    <view wx:if="{{commentsError}}" class="error-panel">{{commentsError}}<button class="text-action" bindtap="loadComments">重试</button></view>
+    <view wx:elif="{{!comments.length && !commentsLoading}}" class="social-empty-compact">还没有评论，写下第一句回应吧。</view>
+    <view wx:for="{{comments}}" wx:key="id" wx:if="{{index < 3}}" class="comment-row"><button class="comment-person" bindtap="openAuthor" data-id="{{item.publicAuthorId}}"><image src="/assets/leaf.svg" /><text>{{item.authorName}}</text></button><text class="comment-body" user-select>{{item.text}}</text><view class="comment-meta"><text>{{item.stateLabel || item.date}}</text><button class="social-icon-button" bindtap="commentMore" data-id="{{item.id}}" aria-label="{{item.own ? '我的评论操作' : '评论更多操作'}}"><image src="/assets/social-more.svg" /></button></view></view>
+    <button class="text-action all-comments" bindtap="openComments">查看全部评论</button>
+    <view wx:if="{{socialError && !sheet}}" class="error-panel">{{socialError}}<button class="text-action" bindtap="retrySocial">重试互动读取</button></view>
+    <button wx:if="{{shareReady}}" open-type="share" class="secondary-action share-button">分享给好友</button>
   </block>
 </view>
-<view wx:if="{{article && shareReady}}" class="reader-share-dock"><button open-type="share" class="primary-action share-button">分享给好友</button></view>
-</block>
+<view wx:if="{{article}}" class="social-dock">
+  <button class="dock-comment" bindtap="openComments">写句回应…</button>
+  <button class="dock-action {{engagement.like.active ? 'selected' : ''}}" data-kind="like" bindtap="react" disabled="{{busy}}" aria-label="{{engagement.like.active ? '取消点赞' : '点赞'}}"><image src="/assets/social-heart.svg" /><text>{{counts.likes || '赞'}}</text></button>
+  <button class="dock-action {{engagement.collection.active ? 'selected' : ''}}" data-kind="collect" bindtap="react" disabled="{{busy}}" aria-label="{{engagement.collection.active ? '取消收藏' : '收藏'}}"><image src="/assets/social-star.svg" /><text>{{engagement.collection.active ? '已收藏' : '收藏'}}</text></button>
+  <button class="dock-action" bindtap="openGift" aria-label="送礼物"><image src="/assets/social-flower.svg" /><text>送花</text></button>
+</view>
+<view wx:if="{{sheet}}" class="social-mask" style="bottom: {{keyboardHeight}}px" bindtap="closeSheet" catchtouchmove="noop">
+  <view class="social-sheet {{compactKeyboard ? 'compact-keyboard' : ''}}" style="height: {{sheetHeight}}px; max-height: {{sheetHeight}}px" catchtap="noop" role="dialog" aria-modal="true" aria-label="{{sheet === 'gift' ? '送礼物' : '评论'}}">
+    <view class="social-sheet-head"><text>{{sheet === 'gift' ? '送一份小心意' : '评论 ' + counts.comments}}</text><button class="social-icon-button" bindtap="closeSheet" aria-label="关闭"><image src="/assets/close.svg" /></button></view>
+    <scroll-view scroll-y class="social-sheet-scroll" style="height: {{scrollHeight}}px" scroll-top="{{commentScroll}}" bindscroll="commentScrolled">
+      <block wx:if="{{sheet === 'comments'}}">
+        <view wx:if="{{commentsError}}" class="error-panel">{{commentsError}}<button class="text-action" bindtap="loadComments">重新读取</button></view>
+        <view wx:elif="{{!comments.length && !commentsLoading}}" class="social-empty-compact">还没有评论，写下第一句回应吧。</view>
+        <view wx:for="{{comments}}" wx:key="id" class="comment-row"><button class="comment-person" bindtap="openAuthor" data-id="{{item.publicAuthorId}}"><image src="/assets/leaf.svg" /><text>{{item.authorName}}</text></button><text class="comment-body" user-select>{{item.text}}</text><view class="comment-meta"><text>{{item.stateLabel || item.date}}</text><button class="social-icon-button" bindtap="commentMore" data-id="{{item.id}}" aria-label="{{item.own ? '我的评论操作' : '评论更多操作'}}"><image src="/assets/social-more.svg" /></button></view></view>
+        <button wx:if="{{commentsCursor}}" class="text-action" bindtap="moreComments" disabled="{{commentsLoading}}">{{commentsLoading ? '正在读取…' : '更多评论'}}</button><view wx:elif="{{comments.length}}" class="list-end">已读完</view>
+      </block>
+      <block wx:elif="{{sheet === 'gift'}}">
+        <view class="gift-recipient">送给 {{article.authorName}}<text>《{{article.title}}》</text></view>
+        <view class="gift-feature"><image src="/assets/social-flower-art.svg" /><view>小花花<text>每次送出 1 朵</text></view></view>
+        <view class="stationery"><view wx:for="{{stationery}}" wx:key="*this" class="stationery-item" aria-disabled="true"><image src="/assets/social-{{item}}.svg" /><text>{{stationeryNames[index]}}</text><text class="disabled-note">暂未开放</text></view></view>
+        <view wx:if="{{walletError}}" class="error-panel">{{walletError}}<button class="text-action" bindtap="openGift">重试读取</button></view>
+        <view class="flower-rule">{{!logged ? '登录后，每天首次进入可领 3 朵。' : wallet ? '剩余 ' + wallet.balance + ' 朵 · ' + (wallet.claimedToday ? '今日已领取 3 朵' : '今日尚未领取') : '正在核对库存…'}}</view>
+        <view wx:if="{{engagement.relationship.self}}" class="flower-rule">不能给自己的文章送花。</view>
+        <view wx:elif="{{wallet && !wallet.balance}}" class="flower-rule">今天的小花花用完了，明天再来领取。</view>
+      </block>
+    </scroll-view>
+    <view class="social-sheet-bottom">
+      <view wx:if="{{socialError}}" class="error-panel" role="alert">{{socialError}}</view><view wx:if="{{notice}}" class="notice" role="status">{{notice}}</view>
+      <block wx:if="{{sheet === 'comments'}}"><textarea class="comment-input" value="{{draft}}" bindinput="inputComment" bindkeyboardheightchange="keyboard" bindblur="blurComment" maxlength="-1" disabled="{{busy || commentPending}}" placeholder="写下您的回应…" adjust-position="{{false}}" show-confirm-bar="{{false}}" /><view class="comment-compose-bottom"><text>{{draftLength}} / 300</text><button class="primary-action" bindtap="publishComment" disabled="{{busy || !draftLength || draftLength > 300}}">{{busy === 'comment' ? '正在提交…' : commentPending ? '确认上次提交' : '发布评论'}}</button></view></block>
+      <button wx:else class="primary-action" bindtap="sendFlower" disabled="{{busy || (logged && !giftPending && (!wallet || !wallet.balance || engagement.relationship.self || !engagement.writesEnabled))}}">{{busy === 'gift' ? '正在确认…' : giftPending ? '确认上次赠送结果' : logged ? '送出 1 朵小花花' : '登录后送花'}}</button>
+    </view>
+  </view>
+</view>

@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react';
 
-export type AdminIconName = 'dashboard' | 'topics' | 'sparkles' | 'calendar' | 'history' | 'monitoring' | 'menu' | 'close' | 'chevron' | 'plus' | 'arrow';
+export type AdminIconName = 'dashboard' | 'topics' | 'comments' | 'flag' | 'sparkles' | 'calendar' | 'history' | 'monitoring' | 'menu' | 'close' | 'chevron' | 'plus' | 'arrow';
 
 export function AdminIcon({ name, size = 20 }: { name: AdminIconName; size?: number }) {
   const paths: Record<AdminIconName, ReactNode> = {
     dashboard: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>,
     topics: <><path d="M6 4h12a2 2 0 0 1 2 2v13a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" /><path d="M8 8h8M8 12h8M8 16h5" /></>,
+    comments: <><path d="M20 15a3 3 0 0 1-3 3H9l-5 3V6a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3Z" /><path d="M8 8h8M8 12h5" /></>,
+    flag: <><path d="M5 21V4m0 0c5-4 9 4 14 0v10c-5 4-9-4-14 0" /></>,
     sparkles: <><path d="m12 3 1.2 3.1L16 7.5l-2.8 1.4L12 12l-1.2-3.1L8 7.5l2.8-1.4L12 3Z" /><path d="m6 13 .8 2.2L9 16l-2.2.8L6 19l-.8-2.2L3 16l2.2-.8L6 13Zm12-1 .7 1.8 1.8.7-1.8.7L18 17l-.7-1.8-1.8-.7 1.8-.7L18 12Z" /></>,
     calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" /></>,
     history: <><path d="M4 5h16M4 12h16M4 19h16" /><path d="M7 3v4M7 10v4M7 17v4" /></>,

@@ -31,11 +31,20 @@ describe('微信小程序公共工程配置', () => {
     expect(app.permission).toBeUndefined();
   });
 
-  it('除开屏、登录和隐私外，所有路由必须先经过账号门禁', () => {
+  it('公共阅读白名单之外的路由必须先经过账号门禁', () => {
     const pages = readJson('../miniprogram/app.json').pages as string[];
-    for (const route of pages.filter(path => !['pages/launch/index', 'pages/login/index', 'pages/privacy/index'].includes(path))) {
+    for (const route of pages.filter(path => !['pages/launch/index', 'pages/login/index', 'pages/privacy/index', 'pages/article/index', 'pages/author/index', 'pages/collections/index', 'pages/relationships/index', 'pages/flowers/index'].includes(path))) {
       expect(readText('../miniprogram/' + route + '.ts')).toContain('accountPage({');
       expect(readText('../miniprogram/' + route + '.wxml')).toMatch(/^<block wx:if="{{accountReady}}">/);
+    }
+  });
+
+  it('新增私有社交页使用同一账号守卫，公共作者是唯一例外', () => {
+    const factory = readText('../miniprogram/social/page.ts');
+    expect(factory).toContain("kind === 'author' ? Page : accountPage");
+    for (const page of ['collections', 'relationships', 'flowers']) {
+      expect(readText('../miniprogram/pages/' + page + '/index.ts')).toContain("socialPage('" + page + "')");
+      expect(readText('../miniprogram/pages/' + page + '/index.wxml').trimStart()).toMatch(/^<block wx:if="{{accountReady}}">/);
     }
   });
 

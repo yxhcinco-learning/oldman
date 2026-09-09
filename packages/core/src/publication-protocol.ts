@@ -25,9 +25,11 @@ export interface SubmissionSummary { id: string; state: 'pending' | 'approved' |
 export interface PublicationStatus {
   workId: string; articleId: string | null; version: number; settings: PublicationSettings;
   pending: SubmissionSummary | null; published: boolean; lastSubmission: SubmissionSummary | null; reason: string;
+  audience?: 'account' | 'guest'; audienceVersion?: number;
 }
 export interface PublicationPreview extends PublicationContent { articleId: string; assetId: string; workVersion: number; settingsVersion: number; version: number }
-export interface PublicArticleCard { id: string; title: string; authorName: string; aiAssisted: boolean; publishedAt: string; version: number; excerpt?: string }
+export interface PublicArticleCard { id: string; title: string; authorName: string; aiAssisted: boolean; publishedAt: string; version: number; excerpt?: string;
+  publicAuthorId?: string; audienceVersion?: number; counts?: import('./social-protocol.js').EngagementCounts }
 export interface PublicArticle extends PublicArticleCard { body: string }
 export interface PublicArticlePage { articles: PublicArticleCard[]; cursor: string | null }
 export interface AdminArticle extends PublicationContent {

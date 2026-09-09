@@ -57,7 +57,7 @@ export function ArticleReviewPanel({ request }: { request: Request }) {
     try {
       await request(`/api/admin/articles/${operation.id}/actions`, { method: 'POST', body: operation.input });
       setPending(null); setSelected(null); setAudits([]); setReason('');
-      setNotice(operation.input.action === 'approve' ? '已通过审核，文章现在可供登录用户阅读。' : operation.input.action === 'reject' ? '已驳回，原因已反馈给作者。' : '已下架，现有待审核稿也已取消。');
+      setNotice(operation.input.action === 'approve' ? '文章已发表。' : operation.input.action === 'reject' ? '已驳回，原因已反馈给作者。' : '已下架，现有待审核稿也已取消。');
       await load();
     } catch (error) {
       const status = (error as { status?: number }).status;

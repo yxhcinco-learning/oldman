@@ -18,10 +18,10 @@ class Images extends MemoryFileSystem implements PublicationFiles {
 }
 interface PublishPage {
   data: { mode: string; title: string; body: string; authorName: string; wordCount: number; draft: PublicationDraft; preview: PublicationPreview | null;
-    submission: OwnSubmission | null; error: string; coverError: string; busy: string; pendingRetry: boolean; readOnly: boolean; crop: Crop; cropPreviews: ReturnType<typeof compositionCrops> };
+    audience: 'account' | 'guest'; audiencePending: boolean; status: PublicationStatus | null; submission: OwnSubmission | null; error: string; coverError: string; busy: string; pendingRetry: boolean; readOnly: boolean; crop: Crop; cropPreviews: ReturnType<typeof compositionCrops> };
   services: ReturnType<typeof miniServices>; controller: MiniPublicationController; loaded: boolean; active: boolean;
   setData(value: object): void; refresh(): Promise<void>; local(): Promise<void>; readWork(): Promise<void>; preparePreview(): Promise<void>;
-  submit(): Promise<void>; nameSaved(): Promise<void>; back(): void; cancelCrop(): Promise<void>; confirmCrop(): Promise<void>;
+  chooseAudience(): Promise<void>; saveAudience(): Promise<void>; retryAudience(): Promise<void>; submit(): Promise<void>; nameSaved(): Promise<void>; back(): void; cancelCrop(): Promise<void>; confirmCrop(): Promise<void>;
   openCrop(): Promise<void>; chooseCover(): Promise<void>; useLatestCover(): Promise<void>; readSubmission(id?: string): Promise<void>;
   cropChanging(event: { detail: { crop: Crop } }): void; cropChanged(event: { detail: { crop: Crop } }): Promise<void>;
 }
@@ -40,11 +40,12 @@ async function setup(withCover = true) {
       settings: { version: 0, assetId: null, crops: null }, published: false, pending: frozen, lastSubmission: frozen, reason: '' })),
     submission: vi.fn(async () => frozen!), ownImage: vi.fn(async () => Uint8Array.from([1, 2, 3]).buffer) };
   const sync = vi.fn(async () => version);
+  const audience = vi.fn(async (_id: string, input: {audience: 'account' | 'guest'; expectedVersion: number}) => ({audience: input.audience, audienceVersion: input.expectedVersion + 1}));
   const services = { account: { snapshot: () => ({ status: 'authenticated', account: { nickname: name } }), refresh: vi.fn(async () => {}) },
-    repository: { getAggregate: async () => ({ work, session: undefined }) }, sync: { sync }, publications: client, publicationStorage: storage } as unknown as ReturnType<typeof miniServices>;
+    repository: { getAggregate: async () => ({ work, session: undefined }) }, sync: { sync }, publications: client, publicationStorage: storage, social: {audience} } as unknown as ReturnType<typeof miniServices>;
   context.services = services;
   const controller = new MiniPublicationController('work-1', storage, client as unknown as MiniPublicationClient, sync,
-    () => { if (context.services !== services) throw new Error('账号已变化'); });
+    () => { if (context.services !== services) throw new Error('账号已变化'); }, () => page.saveAudience());
   if (withCover) { await controller.choose('/photo', 640, 480); await controller.finishCrop(); }
   let definition!: PublishPage;
   vi.stubGlobal('Page', (value: PublishPage) => { definition = value; });
@@ -55,11 +56,46 @@ async function setup(withCover = true) {
   const page: PublishPage = { ...definition, data: structuredClone(definition.data), services, controller, active: true, loaded: true,
     setData(values) { Object.assign(this.data, values); } };
   await page.local(); await page.readWork();
-  return { page, controller, files, storage, client, sync, services,
+  return { page, controller, files, storage, client, sync, services, audience,
     change(title: string, body: string, author: string) { work = workFromDraft({ ...work.draft, title, textDraft: body }); name = author; version += 1; } };
 }
 
 describe('发表设置与按需阅读预览', () => {
+  it('默认新稿登录可读，未主动选择受众时投稿不修改服务器受众', async () => {
+    const s = await setup(); expect(s.page.data.audience).toBe('account'); await s.page.submit();
+    expect(s.audience).not.toHaveBeenCalled(); expect(s.client.submit).toHaveBeenCalledTimes(1);
+  });
+  it('新稿明确同意游客后先保存封面，再确认受众，最后投稿；选择跨本机重开保留', async () => {
+    const s = await setup(); await s.page.chooseAudience();
+    expect(s.page.data.audience).toBe('guest'); expect(s.audience).not.toHaveBeenCalled();
+    expect((await new MiniPublicationStorage(s.files, '/account-a').load('work-1')).audienceChoice).toBe('guest');
+    await s.page.submit(); expect(s.audience).toHaveBeenCalledWith('work-1', expect.objectContaining({audience:'guest',expectedVersion:0,consentVersion:'guest-reading-v1'}));
+    expect(s.client.settings.mock.invocationCallOrder[0]).toBeLessThan(s.audience.mock.invocationCallOrder[0]);
+    expect(s.audience.mock.invocationCallOrder[0]).toBeLessThan(s.client.submit.mock.invocationCallOrder[0]);
+  });
+  it('受众确认响应丢失保留固定操作且不投稿，重试确认同ID后才能投稿', async () => {
+    const s = await setup(); await s.page.chooseAudience(); s.audience.mockRejectedValueOnce(new Error('结果丢失'));
+    await s.page.submit(); expect(s.client.submit).not.toHaveBeenCalled(); expect(s.page.data.audiencePending).toBe(true);
+    const first = s.audience.mock.calls[0]; await s.page.retryAudience(); expect(s.audience.mock.calls[1]).toEqual(first);
+    expect(s.page.data.audiencePending).toBe(false); expect((await s.controller.local()).audienceChoice).toBeNull();
+    await s.page.submit(); expect(s.client.submit).toHaveBeenCalledTimes(1);
+  });
+  it('有待审修改的已发表版也可立即开放游客，明确说明即时影响并不重新投稿', async () => {
+    const s=await setup();const base=await s.client.status();const status={...base,published:true,audience:'account' as const,audienceVersion:2};
+    s.client.status.mockResolvedValue(status);s.page.setData({mode:'review',status,audience:'account'});
+    await s.page.chooseAudience();expect(wx.showModal).toHaveBeenCalledWith(expect.objectContaining({content:expect.stringContaining('将立即允许')}));
+    expect(s.audience).toHaveBeenCalledWith('work-1',expect.objectContaining({audience:'guest',expectedVersion:2}));expect(s.client.submit).not.toHaveBeenCalled();expect(s.sync).not.toHaveBeenCalled();
+  });
+  it('旧稿关闭游客权限明确确认并即时保存，取消或换账号确认不写任何受众', async () => {
+    const s = await setup(); const status = await s.client.status();
+    s.client.status.mockResolvedValue({...status,published:true,audience:'guest',audienceVersion:2});
+    s.page.setData({status:{...status,published:true,audience:'guest',audienceVersion:2},audience:'guest'});
+    await s.page.chooseAudience(); expect(s.audience).toHaveBeenCalledWith('work-1',expect.objectContaining({audience:'account',expectedVersion:2}));
+    expect(s.page.data.audience).toBe('account'); s.audience.mockClear();
+    vi.mocked(wx.showModal).mockResolvedValueOnce({confirm:false,cancel:true,errMsg:''}); await s.page.chooseAudience(); expect(s.audience).not.toHaveBeenCalled();
+    vi.mocked(wx.showModal).mockImplementationOnce(async()=>{context.services={} as ReturnType<typeof miniServices>;return{confirm:true,cancel:false,errMsg:''};});
+    await s.page.chooseAudience(); expect(s.audience).not.toHaveBeenCalled();
+  });
   it('进入设置和改名不准备阅读预览，有效设置可以直接提交', async () => {
     const s = await setup(); await s.page.refresh();
     expect(s.page.data.mode).toBe('settings'); expect(s.client.preview).not.toHaveBeenCalled();

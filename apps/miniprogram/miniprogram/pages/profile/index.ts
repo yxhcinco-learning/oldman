@@ -4,22 +4,22 @@ import { miniServices, refreshMiniAccount } from '../../services';
 import { openLogin, clearLoginReturn } from '../../auth/navigation';
 import { navigationMetrics } from '../../ui/navigation';
 import { selectTab, setTabBarHidden } from '../../ui/tab-bar';
-import type { AccountProfile } from '../../domain/core';
+import type { SocialSummary, FlowerWallet, AccountProfile } from '../../domain/core';
 import type { AccountStatus } from '../../auth/account-client';
 
 accountPage({
-  alive: true, visible: true, refreshSequence: 0,
+  alive: true, visible: true, refreshSequence: 0, socialSequence: 0,
   accountUnsubscribe: undefined as (() => void) | undefined,
   syncUnsubscribe: undefined as (() => void) | undefined,
   observed: undefined as ReturnType<typeof miniServices> | undefined,
-  data: { ...navigationMetrics(), articleTotal: 0, publishedCount: 0, libraryReady: false, publicationKnown: false, profileReturn: 'home', settingsOpen: false, libraryManaging: false, menuOpen: false, editingProfile: false, logoutOpen: false, cloudError: '', canReconnect: false, needsLogin: true,
+  data: { socialSummary: null as SocialSummary | null, flowerWallet: null as FlowerWallet | null, socialError: '', ...navigationMetrics(), articleTotal: 0, publishedCount: 0, libraryReady: false, publicationKnown: false, profileReturn: 'home', settingsOpen: false, libraryManaging: false, menuOpen: false, editingProfile: false, logoutOpen: false, cloudError: '', canReconnect: false, needsLogin: true,
     nicknameInput: '', nicknameValid: true, busy: '', notice: '', error: '', nameKeyboardHeight: 0, compactProfile: false,
     account: null as AccountProfile | null, status: 'guest' as AccountStatus, avatarPath: '', syncText: '本机草稿', accountText: '尚未登录',
     exportLabel: '导出本机文字副本' },
 
-  onLoad() { this.accountUnsubscribe = miniServices().account.subscribe(() => { if (this.visible) void this.refreshState(); }); },
-  onShow() { this.visible = true; selectTab(this, 2); if (this.data.menuOpen || this.data.editingProfile || this.data.settingsOpen || this.data.logoutOpen) setTabBarHidden(this, true); void this.refreshState(); },
-  onHide() { this.visible = false; this.refreshSequence++; setTabBarHidden(this, false); },
+  onLoad() { this.accountUnsubscribe = miniServices().account.subscribe(state => { if (!['authenticated', 'offline'].includes(state.status) || this.observed !== miniServices()) { this.socialSequence++; this.setData({ socialSummary: null, flowerWallet: null }); } if (this.visible) void this.refreshState(); }); },
+  onShow() { this.visible = true; selectTab(this, 2); if (this.data.menuOpen || this.data.editingProfile || this.data.settingsOpen || this.data.logoutOpen) setTabBarHidden(this, true); void this.refreshState(); void this.refreshSocial(); },
+  onHide() { this.visible = false; this.refreshSequence++; this.socialSequence++; setTabBarHidden(this, false); },
   onUnload() { this.alive = false; this.refreshSequence++; this.accountUnsubscribe?.(); this.syncUnsubscribe?.(); },
   nameKeyboard(event: WechatMiniprogram.CustomEvent<{ height: number }>) {
     const height = event.detail.height;
@@ -29,7 +29,7 @@ accountPage({
     if (!this.alive || !this.visible) return;
     const services = miniServices(), sequence = ++this.refreshSequence;
     if (this.observed !== services) {
-      this.setData({ settingsOpen: false, libraryManaging: false, articleTotal: 0, publishedCount: 0, libraryReady: false, publicationKnown: false, profileReturn: 'home', avatarPath: '', editingProfile: false, nicknameInput: '', nameKeyboardHeight: 0, compactProfile: false, busy: '', error: '', notice: '', menuOpen: false, logoutOpen: false });
+      this.setData({ socialSummary: null, flowerWallet: null, socialError: '', settingsOpen: false, libraryManaging: false, articleTotal: 0, publishedCount: 0, libraryReady: false, publicationKnown: false, profileReturn: 'home', avatarPath: '', editingProfile: false, nicknameInput: '', nameKeyboardHeight: 0, compactProfile: false, busy: '', error: '', notice: '', menuOpen: false, logoutOpen: false });
       setTabBarHidden(this, false);
       this.syncUnsubscribe?.();
       this.observed = services;
@@ -64,6 +64,18 @@ accountPage({
       }
       if (await services.files.exists(path) && services === miniServices() && this.alive && this.visible && sequence === this.refreshSequence) this.setData({ avatarPath: path });
     } catch { /* Profile remains usable with the default avatar. */ }
+  },
+  async refreshSocial() {
+    const source = miniServices(), sequence = ++this.socialSequence;
+    this.setData({ socialSummary: null, flowerWallet: null, socialError: '' });
+    const valid = () => this.alive && this.visible && source === miniServices() && sequence === this.socialSequence;
+    await Promise.all([source.social.summary().then(socialSummary => { if (valid()) this.setData({ socialSummary }); }), source.social.wallet().then(flowerWallet => { if (valid()) this.setData({ flowerWallet }); })].map(p => p.catch(error => { if (valid()) this.setData({ socialError: errorMessage(error, '阅读与关注暂时无法读取。') }); })));
+  },
+  openSocial(event: WechatMiniprogram.TouchEvent) {
+    const page = event.currentTarget.dataset.page, tab = event.currentTarget.dataset.tab;
+    if (!['collections', 'flowers', 'relationships'].includes(page)) return;
+    const query = page === 'relationships' && ['following', 'followers', 'mutuals'].includes(tab) ? '?tab=' + tab : '';
+    void wx.navigateTo({ url: '/pages/' + page + '/index' + query });
   },
   async login() {
     if (this.data.busy) return;

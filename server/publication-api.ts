@@ -16,6 +16,7 @@ const imageVariant = z.enum(['thumbnail', 'reading']);
 const querySchema = z.object({ cursor: z.string().max(512).optional() }).strict();
 const sendImage = (reply: FastifyReply, data: Buffer) => reply.type('image/jpeg').header('X-Content-Type-Options', 'nosniff').send(data);
 function fail(reply: FastifyReply, error: unknown) {
+  reply.type('application/json');
   if (error instanceof PublicationError) return reply.code(error.status).send({ code: error.code, error: error.message });
   if (error instanceof MiniIdentityError) return reply.code(401).send({ code: error.category,
     error: error.category === 'session_replaced' ? '已在其他设备登录，请主动登录后继续。' : '登录已失效，请重新登录。' });

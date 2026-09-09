@@ -1,0 +1,13 @@
+<page-header title="作者主页" fallback="/pages/articles/index" />
+<view class="social-page">
+  <view wx:if="{{error}}" class="error-panel" role="alert">{{error}}<button class="text-action" bindtap="refresh">重新读取</button></view>
+  <view wx:if="{{loading}}" class="social-empty-compact">正在打开作者主页…</view>
+  <block wx:if="{{author}}">
+    <view class="public-author-identity"><image src="/assets/leaf.svg" /><view class="social-heading">{{author.name}}</view><button wx:if="{{!author.relationship.self}}" class="follow-button {{author.relationship.active ? 'active' : ''}}" bindtap="follow" disabled="{{busy}}">{{followLabel}}</button></view>
+    <view class="author-stats"><view><text>{{author.articles}}</text>文章</view><view><text>{{author.following}}</text>关注</view><view><text>{{author.followers}}</text>粉丝</view><view><text>{{author.flowers}}</text>小花花</view></view>
+    <view class="social-section-title">已发表的文章</view>
+    <view wx:for="{{articles}}" wx:key="id" class="social-article"><button class="social-article-open" bindtap="openArticle" data-id="{{item.id}}"><view class="social-article-copy"><view class="social-article-title">{{item.title}}</view><view class="social-article-excerpt">{{item.excerpt}}</view></view><image wx:if="{{item.image}}" src="{{item.image}}" mode="aspectFill" /></button><view class="social-article-meta"><text>{{item.date}}</text></view></view>
+    <view wx:if="{{!loading && !error && !articles.length}}" class="social-empty"><image src="/assets/book.svg" /><view class="social-empty-title">还没有可阅读的文章</view><button class="secondary-action" bindtap="readArticles">去读一篇文章</button></view>
+  </block>
+  <button wx:if="{{cursor}}" class="text-action" bindtap="more" disabled="{{moreLoading}}">{{moreLoading ? '正在读取…' : '更多文章'}}</button><view wx:elif="{{articles.length}}" class="list-end">已读完</view>
+</view>

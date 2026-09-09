@@ -1,16 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fixture = vi.hoisted(() => ({
+  social: false, accountLogin: vi.fn(), accountRefresh: vi.fn(), prepare: vi.fn(),
   state: { status: 'guest', account: null as { id: string } | null },
   restore: vi.fn(), sync: vi.fn(), login: vi.fn(), refresh: vi.fn(), finish: vi.fn(), clear: vi.fn(),
 }));
-vi.mock('../miniprogram/services', () => ({ miniServices: () => ({ account: { snapshot: () => fixture.state, restore: fixture.restore }, sync: { sync: fixture.sync } }),
+vi.mock('../miniprogram/services', () => ({ miniServices: () => ({ account: { snapshot: () => fixture.state, restore: fixture.restore, login: fixture.accountLogin, refresh: fixture.accountRefresh }, sync: { sync: fixture.sync } }),
   loginMiniAccount: fixture.login, refreshMiniAccount: fixture.refresh }));
-vi.mock('../miniprogram/auth/navigation', () => ({ finishLogin: fixture.finish }));
+vi.mock('../miniprogram/auth/navigation', () => ({ finishLogin: fixture.finish, hasSocialLoginReturn: () => fixture.social, socialLoginReason: () => '', cancelSocialLogin: fixture.clear, prepareSocialLoginAttempt: fixture.prepare }));
 
 interface LoginPage {
   data: { busy: boolean; error: string; signedIn: boolean; contextual: boolean };
-  login(): Promise<void>; skip(): void; onHide(): void; onShow(): void;
+  login(): Promise<void>; cancel(): Promise<void>; skip(): void; onHide(): void; onShow(): void;
   setData(value: Record<string, unknown>): void;
 }
 async function page() {
@@ -21,12 +22,28 @@ async function page() {
   return { ...definition, data: { ...definition.data }, setData(value: Record<string, unknown>) { Object.assign(this.data, value); } };
 }
 beforeEach(() => {
-  fixture.state = { status: 'guest', account: null };
-  for (const mock of [fixture.restore, fixture.sync, fixture.login, fixture.refresh, fixture.finish, fixture.clear]) mock.mockReset();
+  fixture.social = false; fixture.state = { status: 'guest', account: null };
+  for (const mock of [fixture.restore, fixture.sync, fixture.login, fixture.refresh, fixture.finish, fixture.clear, fixture.accountLogin, fixture.accountRefresh, fixture.prepare]) mock.mockReset();
 });
 afterEach(() => vi.unstubAllGlobals());
 
 describe('独立授权登录页', () => {
+  it('社交登录以账号成功为准，不等待或重试私有作品同步', async () => {
+    fixture.social = true; fixture.sync.mockRejectedValue(new Error('作品同步不可用'));
+    fixture.accountLogin.mockImplementation(async () => { fixture.state = {status:'authenticated', account:{id:'account'}}; });
+    const login = await page(); await login.login();
+    expect(fixture.accountLogin).toHaveBeenCalledOnce(); expect(fixture.sync).not.toHaveBeenCalled(); expect(fixture.login).not.toHaveBeenCalled(); expect(fixture.finish).toHaveBeenCalledOnce();
+  });
+  it('社交入口已有有效账号不再次换码，离线只核对原会话', async () => {
+    fixture.social = true; fixture.state = {status:'authenticated',account:{id:'account'}};
+    const login = await page(); await login.login(); expect(fixture.accountLogin).not.toHaveBeenCalled(); expect(fixture.sync).not.toHaveBeenCalled();
+    fixture.state = {status:'offline',account:{id:'account'}}; await login.login(); expect(fixture.accountRefresh).toHaveBeenCalledOnce(); expect(fixture.refresh).not.toHaveBeenCalled();
+  });
+  it('取消仍在进行的社交登录后迟到成功不能强制导航', async () => {
+    fixture.social = true; let resolve!:()=>void; fixture.accountLogin.mockReturnValue(new Promise<void>(yes=>{resolve=yes;}));
+    const login = await page(); const flight=login.login(); await Promise.resolve(); await login.cancel(); resolve(); await flight;
+    expect(fixture.clear).toHaveBeenCalledOnce(); const active=fixture.finish.mock.calls[0][0] as ()=>boolean; expect(active()).toBe(false);
+  });
   it('加载不换码，点击失败保留重试，重复点击只发一次', async () => {
     const login = await page();
     expect(fixture.login).not.toHaveBeenCalled();

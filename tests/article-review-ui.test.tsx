@@ -41,7 +41,7 @@ it('审核结果丢失后重试完全相同的操作 ID 与稿件条件', async 
   await waitFor(() => expect(screen.getByRole('button', { name: '通过审核' })).toBeEnabled());
   fireEvent.click(screen.getByRole('button', { name: '通过审核' }));
   fireEvent.click(await screen.findByRole('button', { name: '重试原操作' }));
-  await screen.findByText('已通过审核，文章现在可供登录用户阅读。');
+  await screen.findByText('文章已发表。');
   const writes = request.mock.calls.filter(([, options]) => options?.method === 'POST');
   expect(writes).toHaveLength(2); expect(writes[0]).toEqual(writes[1]);
 });

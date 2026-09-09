@@ -4,6 +4,34 @@ import { expect, it } from 'vitest';
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
+it('社交白名单区分公共只读、账号写入和审核，拒绝私有字段路径和未知变体', () => {
+  const nginx = read('deploy/nginx/suiyue-yousheng.conf');
+  const routes = [...nginx.matchAll(/location ~ "([^"]+)" \{([\s\S]*?)\n    \}/g)]
+    .map(match => ({ pattern: new RegExp(match[1]!), body: match[2]! }));
+  const match = (path: string) => routes.find(route => route.pattern.test(path))?.body;
+  const groups: [string, string[]][] = [
+    ['GET', ['/api/public/articles/a-1', '/api/public/articles/a-1/images/reading', '/api/public/articles/a-1/comments', '/api/public/authors/u-1', '/api/public/authors/u-1/articles', '/api/mini/articles/a-1/engagement', '/api/mini/authors/u-1', '/api/mini/me/collections', '/api/mini/me/flowers/history', '/api/admin/comments/c-1/audit', '/api/admin/comment-reports', '/api/admin/social/metrics']],
+    ['PUT', ['/api/mini/articles/a-1/like', '/api/mini/articles/a-1/collection', '/api/mini/authors/u-1/follow', '/api/mini/publications/w-1/audience']],
+    ['POST', ['/api/public/social/events', '/api/mini/social/events', '/api/mini/articles/a-1/gifts', '/api/mini/comments/c-1/delete', '/api/mini/comments/c-1/reports', '/api/mini/me/flowers/claim', '/api/admin/comments/c-1/actions', '/api/admin/comment-reports/r-1/resolve']],
+    ['GET POST', ['/api/mini/articles/a-1/comments']],
+  ];
+  for (const [methods, paths] of groups) for (const path of paths) {
+    const body = match(path);
+    expect(body, path).toContain(`limit_except ${methods} { deny all; }`);
+    expect(body, path).toContain('auth_basic off;');
+    expect(body, path).toContain('access_log off;');
+    expect(body, path).toContain('client_max_body_size 4k;');
+  }
+  for (const path of ['/api/public/articles/a-1/images/master', '/api/public/articles/a-1/engagement', '/api/public/authors/u-1/followers', '/api/public/me/flowers', '/api/mini/me/collections/u-2', '/api/mini/authors/u-1/following', '/api/mini/articles/a-1/gifts/pen', '/api/mini/comments/c-1/edit', '/api/admin/comments/c-1/actions/extra']) {
+    expect(match(path), path).toBeUndefined();
+  }
+  expect(nginx).not.toContain('location ^~ /api/admin/');
+  for (const path of ['deploy/server/activate-release.sh', 'deploy/server/verify-host.sh']) {
+    expect(read(path)).toContain('check-release "$identity_db" "$release_dir" auth');
+    expect(read(path)).not.toMatch(/check "\$identity_db" [123]/);
+  }
+});
+
 it('发表白名单精确限定路由、方法和图片大小，未知图片变体不会放行', () => {
   const nginx = read('deploy/nginx/suiyue-yousheng.conf');
   const routes = [...nginx.matchAll(/location ~ "([^"]+)" \{([\s\S]*?)\n    \}/g)].map(match => ({ pattern: new RegExp(match[1]!), body: match[2]! }));
@@ -19,7 +47,7 @@ it('发表白名单精确限定路由、方法和图片大小，未知图片变�
   expect(match('/api/admin/articles/article-1/actions')).toContain('limit_except POST');
   expect(match('/api/admin/articles/article-1/actions/extra')).toBeUndefined();
   expect(nginx).toContain('location /api/admin/articles { auth_basic off; return 404; }');
-  expect(JSON.parse(read('deploy/schema-ceilings.json'))).toEqual({ auth: 3, topics: 1, usage: 1 });
+  expect(JSON.parse(read('deploy/schema-ceilings.json'))).toEqual({ auth: 4, topics: 1, usage: 1 });
 });
 
 it('keeps application services isolated, restartable and loopback-only', () => {
@@ -54,7 +82,7 @@ it('protects the exact HTTPS origin while preserving same-origin API and WebSock
   expect(nginx).toContain('location ^~ /api/ai/');
   expect(nginx).toContain('location = /admin/topics');
   expect(nginx).toContain('location ^~ /_next/static/');
-  expect(nginx).toContain('location ^~ /api/admin/');
+  expect(nginx).toContain('location /api/admin/');
   expect(nginx).toContain('location = /api/operations/events');
   expect(nginx).toContain('location = /api/topics');
   expect(nginx).toContain('location ~ ^/api/topics/[a-z0-9]+(?:-[a-z0-9]+)*$');

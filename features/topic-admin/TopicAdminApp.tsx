@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { TopicEditableContent, TopicKind, TopicPlacement, WritingTopic } from '../../packages/core/src/topics';
 import { ArticleReviewPanel } from './ArticleReviewPanel';
+import { CommentReviewPanel } from './CommentReviewPanel';
+import { SocialMetricsPanel } from './SocialMetricsPanel';
 import { AdminIcon, type AdminIconName } from './AdminIcon';
 import styles from './topic-admin.module.css';
 
-type AdminView = 'articles' | 'dashboard' | 'topics' | 'new' | 'schedule' | 'history' | 'monitoring';
+type AdminView = 'articles' | 'comments' | 'reports' | 'dashboard' | 'topics' | 'new' | 'schedule' | 'history' | 'monitoring';
 type StoredRevision = { topic: WritingTopic; editVersion: number; editorBrief: string };
 type Placement = TopicPlacement & { id: string };
 type Generation = { id: string; topicId: string | null; revision: number | null; brief: string; urls: string[]; webSearchEnabled: boolean;
@@ -18,7 +20,7 @@ type AiCostMetric = { inputTokens: number; outputTokens: number; usedTokens: num
   remainingTokens: number; estimatedCny: number | null };
 type SpeechCostMetric = { usedSeconds: number; reservedSeconds: number; limitSeconds: number; remainingSeconds: number; estimatedCny: number | null };
 type MonitoringData = {
-  capabilities: Record<'aiConfigured' | 'speechConfigured' | 'topicsConfigured' | 'topicAiConfigured' | 'topicAdminConfigured' | 'miniIdentityConfigured' | 'costGovernanceConfigured', boolean>;
+  capabilities: Record<'aiConfigured' | 'speechConfigured' | 'topicsConfigured' | 'topicAiConfigured' | 'topicAdminConfigured' | 'miniIdentityConfigured' | 'cloudWorksConfigured' | 'costGovernanceConfigured', boolean>;
   metrics: { startedAt: string; generatedAt: string; uptimeSeconds: number; lifetime: OperationMetric; last15Minutes: OperationMetric;
     last60Minutes: OperationMetric; actions: Array<OperationMetric & { action: string; lastSeenAt: string }> };
   costGovernance: null | { day: string; timezone: 'Asia/Shanghai'; generatedAt: string; resetsAt: string;
@@ -41,14 +43,20 @@ const operationLabel: Record<string, string> = {
   'event.app.opened': '打开应用', 'event.topic.opened': '查看话题', 'event.writing.started.blank': '开始空白写作',
   'event.writing.started.topic': '开始话题写作', 'event.writing.started.interview': '开始采访写作',
   'event.backup.exported': '导出备份', 'event.backup.imported': '导入备份', 'event.report': '事件入口拒绝',
+  'social.admin.read': '互动后台读取', 'social.admin.write': '互动后台处理', 'social.comment.submit': '提交评论', 'social.comment.report': '举报评论',
+  'social.comment.delete': '本人删除评论', 'social.like': '设置点赞', 'social.collection': '设置收藏', 'social.follow': '设置关注', 'social.gift': '赠送小花花',
+  'social.flowers.claim': '每日小花花领取', 'social.events': '互动转化事件',
 };
 const capabilityLabel: Record<keyof MonitoringData['capabilities'], string> = {
   aiConfigured: '文章 AI', speechConfigured: '语音', topicsConfigured: '话题库', topicAiConfigured: '话题 AI',
   topicAdminConfigured: '后台登录', miniIdentityConfigured: '小程序身份', costGovernanceConfigured: '用量保护',
+  cloudWorksConfigured: '云作品',
 };
 
 const viewMeta: Record<AdminView, { label: string; description: string }> = {
   articles: { label: '文章审核', description: '人工审核作者投稿与维护已发表文章。' },
+  comments: { label: '评论审核', description: '审核读者评论与查看处理记录。' },
+  reports: { label: '举报处理', description: '核对评论举报并记录处理结果。' },
   dashboard: { label: '工作台', description: '查看当前内容状态、首页席位与近期运营动作。' },
   topics: { label: '话题内容', description: '筛选、审核和维护全部话题修订。' },
   new: { label: '生成与新建', description: '由引子生成候选，或完全手工创建草稿。' },
@@ -59,7 +67,7 @@ const viewMeta: Record<AdminView, { label: string; description: string }> = {
 
 const navGroups: Array<{ label: string; items: Array<{ id: AdminView; icon: AdminIconName }> }> = [
   { label: '工作台', items: [{ id: 'dashboard', icon: 'dashboard' }] },
-  { label: '内容管理', items: [{ id: 'articles', icon: 'topics' }, { id: 'topics', icon: 'topics' }, { id: 'new', icon: 'sparkles' }, { id: 'schedule', icon: 'calendar' }, { id: 'history', icon: 'history' }] },
+  { label: '内容管理', items: [{ id: 'articles', icon: 'topics' }, { id: 'comments', icon: 'comments' }, { id: 'reports', icon: 'flag' }, { id: 'topics', icon: 'topics' }, { id: 'new', icon: 'sparkles' }, { id: 'schedule', icon: 'calendar' }, { id: 'history', icon: 'history' }] },
   { label: '系统', items: [{ id: 'monitoring', icon: 'monitoring' }] },
 ];
 
@@ -185,6 +193,7 @@ export function TopicAdminApp() {
         onBusy={setBusy} onError={setError} onDone={() => handleResult('排期已更新。')} />}
       {view === 'history' && <HistoryPanel generations={generations} audits={audits} />}
       {view === 'articles' && <ArticleReviewPanel request={request} />}
+      {(view === 'comments' || view === 'reports') && <CommentReviewPanel key={view} request={request} mode={view} />}
       {view === 'monitoring' && <MonitoringPanel request={request} />}
     </section>
   </main>;
@@ -529,6 +538,7 @@ function MonitoringPanel({ request }: { request: Request }) {
     <PageHeader title="运行监控" description="查看当前进程状态，以及跨服务重启保留的今日付费用量。" actions={
       <button className={styles.secondaryButton} type="button" disabled={loading} onClick={() => void load()}>{loading ? '刷新中…' : '立即刷新'}</button>} />
     {error && <div className={styles.error} role="alert">{error}</div>}
+    <SocialMetricsPanel request={request} />
     {data && <>
       <div className={styles.runtimeBar}><div><span className={styles.liveDot} />当前进程运行正常</div><span>启动于 {displayTime(data.metrics.startedAt)} · 已运行 {formatUptime(data.metrics.uptimeSeconds)}</span><span>更新于 {displayTime(data.metrics.generatedAt)}</span></div>
       <div className={styles.capabilities}>{Object.entries(data.capabilities).map(([key, configured]) => <span className={configured ? styles.capabilityOn : styles.capabilityOff} key={key}>

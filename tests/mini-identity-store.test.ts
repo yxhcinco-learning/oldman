@@ -29,7 +29,7 @@ describe('小程序最小身份 SQLite 仓储', () => {
     store.close();
     resources.find(item => item.store === store)!.store = undefined;
     const database = new DatabaseSync(path);
-    for (const table of ['publication_audit', 'publication_operations', 'publication_submissions', 'publication_assets', 'publication_articles', 'username_claims', 'username_sequence']) database.exec('DROP TABLE ' + table);
+    for (const table of ['social_daily_metrics', 'social_events', 'social_operations', 'flower_ledger', 'flower_accounts', 'comment_audit', 'comment_reports', 'article_comments', 'author_follows', 'article_collections', 'article_likes', 'publication_audience_consents', 'public_authors', 'publication_audit', 'publication_operations', 'publication_submissions', 'publication_assets', 'publication_articles', 'username_claims', 'username_sequence']) database.exec('DROP TABLE ' + table);
     database.exec('DROP TABLE cloud_operations; DROP TABLE cloud_works; DROP TABLE mini_accounts; ALTER TABLE mini_sessions DROP COLUMN kind; ALTER TABLE mini_sessions DROP COLUMN revoked_reason; PRAGMA user_version=1;');
     database.close();
     const migrated = new MiniIdentityStore({ path });
@@ -42,15 +42,17 @@ describe('小程序最小身份 SQLite 仓储', () => {
   });
   it('迁移文件库、启用 WAL 并分表保存账号与私有作品', async () => {
     const { store, path, directory } = await setup();
-    expect(store.statistics()).toMatchObject({ users: 0, identities: 0, sessions: 0, usedCodes: 0, journalMode: 'wal', schemaVersion: 3 });
+    expect(store.statistics()).toMatchObject({ users: 0, identities: 0, sessions: 0, usedCodes: 0, journalMode: 'wal', schemaVersion: 4 });
     store.assertIntegrity();
     store.close();
 
     const database = new DatabaseSync(path, { readOnly: true });
     try {
       const tables = database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all().map(row => String(row.name));
-      expect(tables).toEqual(['cloud_operations', 'cloud_works', 'mini_accounts', 'mini_sessions', 'publication_articles', 'publication_assets',
-        'publication_audit', 'publication_operations', 'publication_submissions', 'used_wechat_codes', 'username_claims', 'username_sequence', 'users', 'wechat_identities']);
+      expect(tables).toEqual(['article_collections', 'article_comments', 'article_likes', 'author_follows', 'cloud_operations', 'cloud_works',
+        'comment_audit', 'comment_reports', 'flower_accounts', 'flower_ledger', 'mini_accounts', 'mini_sessions', 'public_authors',
+        'publication_articles', 'publication_assets', 'publication_audience_consents', 'publication_audit', 'publication_operations', 'publication_submissions',
+        'social_daily_metrics', 'social_events', 'social_operations', 'used_wechat_codes', 'username_claims', 'username_sequence', 'users', 'wechat_identities']);
       const columns = tables.flatMap(table => database.prepare(`PRAGMA table_info(${table})`).all().map(row => String(row.name)));
       expect(columns).not.toContain('phone');
       expect(columns).not.toContain('audio');
@@ -60,7 +62,7 @@ describe('小程序最小身份 SQLite 仓储', () => {
 
     const reopened = new MiniIdentityStore({ path });
     resources.push({ store: reopened, directory });
-    expect(reopened.statistics().schemaVersion).toBe(3);
+    expect(reopened.statistics().schemaVersion).toBe(4);
   });
 
   it('原子消费 code 哈希、复用内部用户并只保存业务 token 哈希', async () => {

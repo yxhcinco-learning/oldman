@@ -9,6 +9,7 @@
     <view wx:if="{{reason}}" class="login-reason">{{reason}}</view>
     <view wx:if="{{error}}" class="error-panel" role="alert">{{error}}</view>
     <button class="login-primary" bindtap="login" disabled="{{busy}}" loading="{{busy}}">{{busy ? (signedIn ? '正在进入' : '正在登录') : signedIn ? '重试并进入' : '微信授权登录'}}</button>
+    <button wx:if="{{socialReturn}}" class="text-action" bindtap="cancel">先继续阅读</button>
     <view class="login-terms"><button bindtap="openPrivacy">隐私说明<text> ›</text></button></view>
   </view>
 </view>

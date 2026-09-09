@@ -4,5 +4,5 @@ export * from '@suiyue/core';
 export { conversationOf, conversationView, prepareDialogue, settleDialogue, hasSessionContent, hasArticleContent, withoutTransientInput,
   startInterview, validateDialogueResult, cloudIdSchema, cloudMutationSchema, cloudWorkSchema, cloudChangesSchema,
   cloudMutationResultSchema, accountLoginSchema, accountProfileSchema, workSnapshotSchema, writingStateSchema,
-  centeredCrops, publicationLabel, coverCropsSchema, submissionInputSchema, publicationSettingsInputSchema, publicationActionSchema,
+  centeredCrops, publicationLabel, coverCropsSchema, submissionInputSchema, publicationSettingsInputSchema, publicationActionSchema, audienceInputSchema,
   emptyWritingState, makeBackupVolumes, stableJson } from '@suiyue/core';

@@ -8,4 +8,5 @@ export * from './backup.js';
 export * from './writing-state.js';
 export * from './cloud-protocol.js';
 export * from './publication-protocol.js';
+export * from './social-protocol.js';
 export { z } from 'zod';

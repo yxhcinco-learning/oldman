@@ -9,9 +9,10 @@ import { publicationContentSchema, type PublicationContent, type PublicationStat
 import { MiniIdentityStore, sha256 } from './mini-identity-store';
 import { PublicationError, publicationConflict, publicationMissing } from './publication-errors';
 import { processCover, type ProcessedCover } from './publication-images';
+import { publicSocialFields } from './social-projection';
 
 interface ArticleRow { id: string; user_id: string; work_id: string; version: number; settings_version: number; asset_id: string | null;
-  pending_id: string | null; published_id: string | null; first_published_at: string | null; reason: string }
+  pending_id: string | null; published_id: string | null; first_published_at: string | null; reason: string; audience: 'account' | 'guest'; audience_version: number }
 interface SubmissionRow { id: string; article_id: string; asset_id: string; content: string; state: SubmissionSummary['state'];
   reason: string; created_at: string; reviewed_at: string | null }
 interface AssetRow { id: string; user_id: string; work_id: string; digest: string; master: Uint8Array; thumbnail: Uint8Array; reading: Uint8Array;
@@ -50,7 +51,7 @@ export class PublicationStore {
     const pending = this.submission(db, article?.pending_id ?? null);
     const last = article ? read<SubmissionRow>(db, 'SELECT * FROM publication_submissions WHERE article_id=? ORDER BY created_at DESC,rowid DESC LIMIT 1', article.id) : undefined;
     const asset = article?.asset_id ? this.asset(db, article.user_id, workId, article.asset_id) : undefined;
-    return { workId, articleId: article?.id ?? null, version: article?.version ?? 0,
+    return { workId, articleId: article?.id ?? null, version: article?.version ?? 0, audience: article?.audience ?? 'account', audienceVersion: article?.audience_version ?? 0,
       settings: { version: article?.settings_version ?? 0, assetId: article?.asset_id ?? null, crops: asset ? JSON.parse(asset.crops) as CoverCrops : null },
       pending: pending ? summary(pending) : null, published: Boolean(article?.published_id), lastSubmission: last ? summary(last) : null, reason: article?.reason ?? '' };
   }
@@ -203,10 +204,10 @@ export class PublicationStore {
     if (!article || !submission || submission.state !== 'approved') throw publicationMissing();
     return { article, submission };
   }
-  private publicContent(article: ArticleRow, submission: SubmissionRow): PublicArticle {
-    return { ...contentOf(submission), id: article.id, version: article.version, publishedAt: article.first_published_at! };
+  private publicContent(db: DatabaseSync, article: ArticleRow, submission: SubmissionRow): PublicArticle {
+    return { ...contentOf(submission), id: article.id, version: article.version, publishedAt: article.first_published_at!, ...publicSocialFields(db, article) };
   }
-  publicArticle(token: string, id: string) { return this.own(token, db => { const { article, submission } = this.publicRow(db, id); return this.publicContent(article, submission); }); }
+  publicArticle(token: string, id: string) { return this.own(token, db => { const { article, submission } = this.publicRow(db, id); return this.publicContent(db, article, submission); }); }
   publicList(token: string, cursor?: string): PublicArticlePage {
     let position: { time: string; id: string } | undefined;
     if (cursor) {
@@ -221,9 +222,9 @@ export class PublicationStore {
         AND (? IS NULL OR a.first_published_at < ? OR (a.first_published_at=? AND a.id < ?))
         ORDER BY a.first_published_at DESC,a.id DESC LIMIT 21`).all(position?.time ?? null, position?.time ?? null, position?.time ?? null, position?.id ?? null) as unknown as ArticleRow[];
       const page = rows.slice(0, 20), last = page.at(-1);
-      const articles: PublicArticleCard[] = page.map(a => { const item = this.publicContent(a, this.submission(db, a.published_id)!);
+      const articles: PublicArticleCard[] = page.map(a => { const item = this.publicContent(db, a, this.submission(db, a.published_id)!);
         return { id: item.id, title: item.title, authorName: item.authorName, aiAssisted: item.aiAssisted, version: item.version, publishedAt: item.publishedAt,
-          excerpt: Array.from(item.body.replace(/\s+/gu, ' ').trim()).slice(0, 120).join('') }; });
+          ...publicSocialFields(db, a), excerpt: Array.from(item.body.replace(/\s+/gu, ' ').trim()).slice(0, 120).join('') }; });
       return { articles, cursor: rows.length > 20 && last ? Buffer.from(JSON.stringify({ time: last.first_published_at, id: last.id })).toString('base64url') : null };
     });
   }

@@ -1,10 +1,12 @@
 import { miniServices } from '../services';
+import { bindSocialReturn, discardSocialReturn, saveCancelledContext, socialUrl, type SocialReturn } from '../social/intent';
 
 type Services = ReturnType<typeof miniServices>;
 export interface LoginReturn {
   url: string;
   workId?: string;
   source?: Services;
+  social?: SocialReturn;
 }
 let destination: LoginReturn | undefined;
 let opening = false;
@@ -19,10 +21,22 @@ export async function openLogin(target?: LoginReturn) {
   finally { opening = false; }
 }
 
-export function clearLoginReturn() { destination = undefined; }
+export function clearLoginReturn() { destination = undefined; discardSocialReturn(); }
+export function hasSocialLoginReturn() { return Boolean(destination?.social); }
+export function prepareSocialLoginAttempt(generation: number) { if (destination?.social) destination.social.loginGeneration = generation + 1; }
+export async function cancelSocialLogin() {
+  const target = destination?.social;
+  clearLoginReturn();
+  if (target) { saveCancelledContext(target, miniServices().account.snapshot().generation); await wx.reLaunch({ url: socialUrl(target) }); }
+}
+export function socialLoginReason() {
+  const kind = destination?.social?.intent.kind;
+  return kind ? ({ like: '登录后，为喜欢的文字点个赞。', collect: '登录后，把这篇文章加入您的收藏。', follow: '登录后，关注这位作者。', comment: '登录后保留草稿，由您再次确认发布。', gift: '登录后领取小花花，由您再次确认赠送。', read: '这篇文章需要登录后阅读。', report: '登录后可继续举报这条评论。' })[kind] : '';
+}
 
 export async function resolveLoginReturn(target: LoginReturn | undefined, services: Services): Promise<string> {
   if (!target) return '/pages/home/index';
+  if (target.social) return socialUrl(target.social);
   if (!target.workId || !target.source) return target.url;
   const owner = services.repository.accountId;
   if (!owner || target.source.repository.accountId && target.source.repository.accountId !== owner) return '/pages/works/index';
@@ -42,6 +56,11 @@ export async function finishLogin(isActive: () => boolean) {
   const target = destination;
   const url = await resolveLoginReturn(target, services);
   if (!isActive() || services !== miniServices()) return;
+  if (target?.social) {
+    const state = services.account.snapshot();
+    if (state.status !== 'authenticated' || !state.account) return;
+    bindSocialReturn(target.social, state.account.id, state.generation);
+  }
   destination = undefined;
   await wx.reLaunch({ url });
 }

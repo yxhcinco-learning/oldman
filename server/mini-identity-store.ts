@@ -2,11 +2,12 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { migrateAccounts } from './account-schema';
 import { migratePublications } from './publication-schema';
+import { migrateSocial, ensurePublicAuthor } from './social-schema';
 import { generatedUsername } from './username-store';
 
 export const DEFAULT_MINI_IDENTITY_DB_PATH = '/var/lib/suiyue-yousheng/auth.sqlite';
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type MiniIdentityErrorCategory = 'invalid_session' | 'session_replaced' | 'session_expired' | 'account_upgrade_required' | 'replayed_code' | 'integrity_failed';
@@ -115,7 +116,8 @@ export class MiniIdentityStore {
         PRAGMA user_version = 1;
       `);
       if (version < 2) migrateAccounts(this.database);
-      migratePublications(this.database);
+      if (version < 3) migratePublications(this.database);
+      if (version < 4) migrateSocial(this.database);
     });
   }
 
@@ -181,6 +183,7 @@ export class MiniIdentityStore {
       if (kind === 'account') {
         const created = this.database.prepare('INSERT OR IGNORE INTO mini_accounts (user_id, created_at) VALUES (?, ?)').run(userId, now);
         if (created.changes) generatedUsername(this.database, userId);
+        ensurePublicAuthor(this.database, userId);
       }
 
       this.database.prepare('INSERT INTO mini_sessions (id, user_id, token_hash, created_at, expires_at, kind) VALUES (?, ?, ?, ?, ?, ?)')

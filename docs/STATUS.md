@@ -4,13 +4,13 @@
 
 ## 阶段结论
 
-2026-09-09 用户在互动 H5 方案 02 及收藏空态按钮居中修正后明确“OK 推进实现吧”，已开始 [add-reader-social-engagement](../openspec/changes/add-reader-social-engagement/tasks.md) 业务实施。按确认规则接入独立游客阅读、受众同意、点赞/私有收藏/评论审核、小花花和作者关系，保留现有创作区。正式规格暂不归档；以下仅 H5 及线上版本段落为此前记录，不能据实施授权推断部署、上传或真机验收已完成。
+2026-09-09 用户确认“OK 推进实现吧”后，[add-reader-social-engagement](../openspec/changes/add-reader-social-engagement/tasks.md) 已接入小程序、网关与运营后台：独立游客阅读和受众同意、点赞/私有收藏/评论审核、小花花及作者关系，保留原创作区。历史文章仍默认登录，作者主动开放后才供游客阅读；账号库升级至schema4的迁移和发布保护已在本地准备。分层证据和未完成真机项见[读者互动验收](READER-SOCIAL-ACCEPTANCE.md)。本轮不部署、不上传、不推送，变更待真实双账号手机验收后归档。以下 H5 和线上版本段落是此前记录，不代表本轮代码已上线。
 
 2026-09-09 读者互动 H5 更新为方案 02：关注移到作者身份行右侧；个人中心“最近在写”“我的文章”及日期、全部篇数、整卡/整行入口恢复此前方案 06.1；收藏取消移到每条元信息行右侧图标，清理新增页多余介绍；举报收进评论“更多”二级菜单。仍仅调整 [设计稿](design-demos/reader-social.md)，没有开始社交业务实施，真实服务和小程序版本保持原记录。
 
 2026-09-08 新增“读者互动与作者关系”的规划评审，活跃变更 [add-reader-social-engagement](../openspec/changes/add-reader-social-engagement/proposal.md)。用户明确先规划并用 H5 确认效果，再实施；[互动原型](design-demos/reader-social.html)及[方案说明](design-demos/reader-social.md)独立于现行客户端，覆盖游客阅读后登录、点赞、收藏、审核评论、小花花、作者关注/互关和个人入口。拟议每日 3 朵、一次 1 朵，笔墨纸砚置灰；历史文章默认维持登录受众，作者主动开放后才供游客阅读。本轮不修改真实业务、数据库、线上服务或小程序包，规格保持增量未归档；用户确认及后续验收见该变更任务。
 
-第二阶段的微信账号、私有云作品、自动同步、单设备续写、个人中心和 JSON v6 已完成。用户于 2026-09-07 明确确认任务 4.4 手动验收通过；正式规格已同步，[add-account-cloud-work-sync](../openspec/changes/archive/2026-09-07-add-account-cloud-work-sync/tasks.md) 已归档，25 项任务完成。当前活跃变更为 add-article-publication-review、improve-voice-start 与待评审的 add-reader-social-engagement；第二阶段分级证据见[第二阶段验收](PHASE-TWO-ACCEPTANCE.md)，现行行为见[账号与私有云规格](../openspec/specs/account-cloud-work-sync/spec.md)。代码在当前 main 分阶段本地提交，未推送。
+第二阶段的微信账号、私有云作品、自动同步、单设备续写、个人中心和 JSON v6 已完成。用户于 2026-09-07 明确确认任务 4.4 手动验收通过；正式规格已同步，[add-account-cloud-work-sync](../openspec/changes/archive/2026-09-07-add-account-cloud-work-sync/tasks.md) 已归档，25 项任务完成。当前活跃变更为 add-article-publication-review、improve-voice-start 与 add-reader-social-engagement；第二阶段分级证据见[第二阶段验收](PHASE-TWO-ACCEPTANCE.md)，现行行为见[账号与私有云规格](../openspec/specs/account-cloud-work-sync/spec.md)。代码在当前 main 分阶段本地提交，未推送。
 
 2026-09-08 用户追加要求核对后端并更新线上测试、小程序新体验版本。17:21左右测试网关已切换为 **voice-f856731-gateway**，含语音实时队列和收尾保护；运营网页保持 **approved-demo-c8f19f1**。auth/topics/usage仍为3/1/1，已有数据、配置及网页进程保持。小程序最新开发版本 **0.3.4 / f856731** 于17:22:06通过官方CLI上传（829262字节），包含语音启动优化和仅标题/正文建稿修复。官方CLI没有设体验版命令，公众平台入口此前受浏览器访问策略限制；需用户在版本管理中将 **0.3.4** 设为体验版，不能把上传视为已生效。未提审、正式发布或推送Git，准确范围与证据见[部署说明](DEPLOYMENT.md)。
 

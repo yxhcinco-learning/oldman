@@ -12,7 +12,11 @@
     "pages/privacy/index",
     "pages/articles/index",
     "pages/publish/index",
-    "pages/article/index"
+    "pages/article/index",
+    "pages/author/index",
+    "pages/collections/index",
+    "pages/relationships/index",
+    "pages/flowers/index"
   ],
   "window": {
     "navigationBarBackgroundColor": "#fbf9f8",

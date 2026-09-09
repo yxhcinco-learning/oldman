@@ -36,7 +36,7 @@ try {
       await page.getByText('已驳回，原因已反馈给作者。').waitFor();
     } else {
       await page.getByRole('button', { name: '通过审核', exact: true }).click();
-      await page.getByText('已通过审核，文章现在可供登录用户阅读。').waitFor();
+      await page.getByText('文章已发表。').waitFor();
     }
     passed.push(`${viewport.width}×${viewport.height} 列表、完整预览、图片比例和实际审核请求`);
   }

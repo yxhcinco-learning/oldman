@@ -123,7 +123,7 @@ describe('文章发表与人工审核', () => {
     expect((await review('approve')).status).toBe(200);
     const first = await reader.publications.article(submitted.articleId);
     expect(first).toMatchObject({ body: '确认后的文章正文', authorName: 'HTTP 写作者' });
-    expect(Object.keys(first).sort()).toEqual(['id', 'title', 'body', 'authorName', 'aiAssisted', 'publishedAt', 'version'].sort());
+    expect(Object.keys(first).sort()).toEqual(['id', 'title', 'body', 'authorName', 'aiAssisted', 'publishedAt', 'version', 'publicAuthorId', 'audienceVersion', 'counts'].sort());
     const image = await reader.publications.image(submitted.articleId, 'reading');
     expect(await sharp(Buffer.from(image)).metadata()).toMatchObject({ width: 1000, height: 800 });
     const draft = { ...s.snapshot.work.draft, textDraft: '改写后的正文仍需人工审核' };
@@ -159,11 +159,11 @@ describe('文章发表与人工审核', () => {
     expect((await s.review(p.articleId, 'approve')).statusCode).toBe(200);
     const visible = await s.app.inject({ url: '/api/mini/articles/' + p.articleId, headers: s.other });
     expect(visible.statusCode).toBe(200);
-    expect(Object.keys(visible.json()).sort()).toEqual(['aiAssisted', 'authorName', 'body', 'id', 'publishedAt', 'title', 'version'].sort());
+    expect(Object.keys(visible.json()).sort()).toEqual(['aiAssisted', 'audienceVersion', 'authorName', 'body', 'counts', 'id', 'publicAuthorId', 'publishedAt', 'title', 'version'].sort());
     expect(visible.body).not.toContain('私有');
     const list = (await s.app.inject({ url: '/api/mini/articles', headers: s.other })).json<PublicArticlePage>();
     expect(list.articles[0]?.excerpt).toBe('确认后的文章正文');
-    expect(Object.keys(list.articles[0]!).sort()).toEqual(['aiAssisted', 'authorName', 'excerpt', 'id', 'publishedAt', 'title', 'version'].sort());
+    expect(Object.keys(list.articles[0]!).sort()).toEqual(['aiAssisted', 'audienceVersion', 'authorName', 'counts', 'excerpt', 'id', 'publicAuthorId', 'publishedAt', 'title', 'version'].sort());
     expect(JSON.stringify(list)).not.toContain('私有');
     expect(JSON.stringify(s.logs)).not.toContain('确认后的文章正文');
     expect((await s.app.inject({ url: '/api/mini/articles/' + p.articleId })).statusCode).toBe(401);
@@ -278,7 +278,7 @@ describe('唯一用户名迁移与历史归属', () => {
     const initial = new MiniIdentityStore({ path }); initial.close();
     const db = new DatabaseSync(path);
     db.exec('PRAGMA foreign_keys=OFF;');
-    for (const table of ['publication_audit', 'publication_operations', 'publication_submissions', 'publication_assets', 'publication_articles', 'username_claims', 'username_sequence']) db.exec('DROP TABLE ' + table);
+    for (const table of ['social_daily_metrics', 'social_events', 'social_operations', 'flower_ledger', 'flower_accounts', 'comment_audit', 'comment_reports', 'article_comments', 'author_follows', 'article_collections', 'article_likes', 'publication_audience_consents', 'public_authors', 'publication_audit', 'publication_operations', 'publication_submissions', 'publication_assets', 'publication_articles', 'username_claims', 'username_sequence']) db.exec('DROP TABLE ' + table);
     for (const [i, name] of ['老张', '老张', '', '岁月作者000001'].entries()) {
       db.prepare('INSERT INTO users(id,created_at,updated_at) VALUES(?,?,?)').run('u' + i, i, i);
       db.prepare('INSERT INTO mini_accounts(user_id,nickname,created_at) VALUES(?,?,?)').run('u' + i, name, i);
@@ -287,7 +287,7 @@ describe('唯一用户名迁移与历史归属', () => {
     db.close();
     const upgraded = new MiniIdentityStore({ path });
     cleanups.push(async () => { upgraded.close(); await rm(dir, { recursive: true, force: true }); });
-    expect(upgraded.statistics().schemaVersion).toBe(3);
+    expect(upgraded.statistics().schemaVersion).toBe(4);
     const inspect = new DatabaseSync(path);
     const names = inspect.prepare('SELECT nickname FROM mini_accounts ORDER BY user_id').all().map(row => row.nickname);
     expect(names[0]).toBe('老张'); expect(names[1]).toMatch(/^老张\d+$/);

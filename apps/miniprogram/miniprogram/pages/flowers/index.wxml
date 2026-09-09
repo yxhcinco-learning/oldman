@@ -1,0 +1,12 @@
+<block wx:if="{{accountReady}}"><page-header title="我的小花花" />
+<view class="social-page">
+  <view wx:if="{{error}}" class="error-panel" role="alert">{{error}}<button wx:if="{{needsLogin}}" class="text-action" bindtap="login">微信登录</button><button wx:else class="text-action" bindtap="refresh">重新读取</button></view>
+  <view wx:if="{{loading && !wallet}}" class="social-empty-compact">正在核对库存…</view>
+  <block wx:if="{{wallet}}"><view class="wallet-balance"><image src="/assets/social-flower-art.svg" /><view class="wallet-number">{{wallet.balance}}<text>朵小花花</text></view><view class="flower-rule">{{wallet.claimedToday ? '今日已领取 3 朵' : '今日尚未领取'}}</view></view>
+    <view class="wallet-rules"><view>每天首次登录或进入，自动领 3 朵。</view><view>可以累积，每次送出 1 朵。</view><view>收到的小花花表达心意，不计入可送余额。</view></view>
+    <view class="social-section-title">文房四宝</view><view class="stationery"><view wx:for="{{stationery}}" wx:key="*this" class="stationery-item" aria-disabled="true"><image src="/assets/social-{{item}}.svg" /><text>{{stationeryNames[index]}}</text><text class="disabled-note">暂未开放</text></view></view>
+    <view class="social-section-title">送出的心意</view><view wx:for="{{history}}" wx:key="id" class="flower-history"><image src="/assets/social-flower.svg" /><view>送出 1 朵小花花<text>{{item.date}}</text></view><text>−1</text></view>
+    <view wx:if="{{!loading && !history.length && !error}}" class="social-empty-compact">还没有送出小花花，读到喜欢的文章时送一朵吧。</view>
+  </block>
+  <button wx:if="{{cursor}}" class="text-action" bindtap="more" disabled="{{moreLoading}}">{{moreLoading ? '正在读取…' : '更多记录'}}</button><view wx:elif="{{history.length}}" class="list-end">已读完</view>
+</view></block>

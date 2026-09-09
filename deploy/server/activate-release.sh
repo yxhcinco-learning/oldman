@@ -113,7 +113,7 @@ for database_path in "$identity_db" "$topics_db" "$usage_db"; do
   fi
 done
 if [[ -e "$identity_db" ]]; then
-  /usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check "$identity_db" 2
+  /usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check-release "$identity_db" "$release_dir" auth
   identity_backup="$data_dir/backups/${release_name}-${database_stamp}-auth.sqlite"
   /usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" backup "$identity_db" "$identity_backup"
   chown root:root "$identity_backup"
@@ -150,7 +150,7 @@ grep -Fq '"topicAiConfigured":true' <<<"$health"
 grep -Fq '"topicAdminConfigured":true' <<<"$health"
 grep -Fq '"costGovernanceConfigured":true' <<<"$health"
 /usr/bin/curl -fsS --max-time 5 http://127.0.0.1:3011/ >/dev/null
-/usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check "$identity_db" 2
+/usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check-release "$identity_db" "$release_dir" auth
 /usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check "$topics_db" 1
 /usr/bin/node "$release_dir/deploy/server/sqlite-db.mjs" check "$usage_db" 1
 secure_database_files "$identity_db"

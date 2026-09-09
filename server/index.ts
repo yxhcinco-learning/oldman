@@ -8,6 +8,7 @@ import { createTopicRuntime, loadTopicRuntime } from './topic-runtime';
 import { loadTopicAdminConfiguration, TopicAdminAuthService } from './topic-admin-auth';
 import { createCostRuntime, loadCostRuntime } from './cost-runtime';
 import { loadCloudRuntime } from './cloud-runtime';
+import { loadSocialRuntime } from './social-runtime';
 
 const runtime = loadGatewayRuntime();
 const engineModel = loadAsrEngineModel();
@@ -44,6 +45,7 @@ if (topicRuntime && topicAdminLoad.configuration) {
 const paidCredentials = costRuntime ? credentials : undefined;
 const paidAiConfiguration = costRuntime ? aiConfiguration : undefined;
 const gateway = await createGateway({ credentials: paidCredentials, origin: runtime.origin, ...loadCloudRuntime(),
+  social: loadSocialRuntime(),
   engineModel, maxConnections: Math.max(1, Math.min(5, Number(process.env.ASR_MAX_CONNECTIONS) || 2)), ai: { configuration: paidAiConfiguration },
   ...(miniIdentity ? { miniAuth: { service: miniIdentity.service } } : {}), ...(topicRuntime ? { topics: topicRuntime.store } : {}),
   ...(topicAdmin ? { topicAdmin: { auth: topicAdmin } } : {}), ...(paidAiConfiguration ? { topicAi: { configuration: paidAiConfiguration } } : {}),

@@ -39,7 +39,8 @@ async function services(worksCount = 1) {
   const repository = { load: vi.fn(async () => ({ works: [...works], issues: [] })), allAggregates: vi.fn(async () => []), paths: { root: '/isolated' } };
   const writer = { flush: vi.fn(async () => {}) };
   const publications = new MiniPublicationClient(account.bound(account.snapshot().generation, accountRecord.id), platform);
-  const result = { account, writer, repository, publications, sync };
+  const social = { summary: vi.fn(async () => ({ publicAuthorId: 'public-author', following: 0, followers: 0, mutuals: 0 })), wallet: vi.fn(async () => ({ balance: 3, version: 1, today: '2026-09-09', claimedToday: true, dailyAmount: 3 })) };
+  const result = { account, writer, repository, publications, sync, social };
   context.services = result as unknown as ReturnType<typeof miniServices>;
   return { ...result, publicationResponse, publish, accountRequest, setWorks(value: Work[]) { works = value; } };
 }

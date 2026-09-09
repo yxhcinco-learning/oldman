@@ -1,0 +1,65 @@
+/** Explicit local fixture: isolated SQLite, synthetic accounts/text, no paid upstream. */
+import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { resolve, join } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import assert from 'node:assert/strict';
+import sharp from 'sharp';
+import { MiniIdentityStore } from '../server/mini-identity-store';
+import { WechatAuthService } from '../server/wechat-auth';
+import { TopicStore } from '../server/topic-store';
+import { TopicAdminAuthService, createTopicAdminPasswordHash } from '../server/topic-admin-auth';
+import { createGateway } from '../server/gateway';
+import { emptyDraft, workFromDraft, emptyWritingState, newSession } from '../packages/core/src/index';
+
+if (!process.env.SUIYUE_SOCIAL_QA_OUTPUT) throw new Error('请显式指定独立 QA 输出目录。');
+const output = resolve(process.env.SUIYUE_SOCIAL_QA_OUTPUT);
+await mkdir(output, { recursive: true });
+const directory = await mkdtemp(join(output, 'database-'));
+const identity = new MiniIdentityStore({ path: join(directory, 'auth.sqlite') });
+const topics = new TopicStore({ path: join(directory, 'topics.sqlite') });
+const service = new WechatAuthService({ appId: 'social-local-qa' }, identity, { exchange: async code => ({ appId: 'social-local-qa', openid: code.split(':')[0]! }) });
+const auth = new TopicAdminAuthService(topics, { username: 'reviewer', passwordHash: createTopicAdminPasswordHash('local-social-qa-only'), secureCookie: false, sessionDurationMs: 3600_000 });
+const app = await createGateway({ origin: 'http://localhost:3813', miniAuth: { service }, topics, topicAdmin: { auth }, operations: () => {} });
+const adminLogin = await app.inject({ method: 'POST', url: '/api/admin/auth/login', headers: { origin: 'http://localhost:3813' }, payload: { username: 'reviewer', password: 'local-social-qa-only' } });
+assert.equal(adminLogin.statusCode, 200, adminLogin.body);
+const admin = { origin: 'http://localhost:3813', cookie: String(adminLogin.headers['set-cookie']).split(';')[0]!, 'x-csrf-token': adminLogin.json().csrfToken };
+const headersFor = async (name: string) => {
+  const response = await app.inject({ method: 'POST', url: '/api/mini/account/login', payload: { code: name + ':' + randomUUID() } });
+  assert.equal(response.statusCode, 200, response.body);
+  return { authorization: 'Bearer ' + response.json().token };
+};
+const author = await headersFor('author'), reader = await headersFor('reader'), reporter = await headersFor('reporter');
+const draft = { ...emptyDraft(), title: '老街的清晨（隔离验收）', inputMode: 'text' as const, textDraft: '小时候，我们沿着老街走过四季。清晨的风轻轻掠过门前的树叶。', pendingVoice: '不可公开的待确认语音' };
+const snapshot = { work: workFromDraft(draft), session: newSession(draft), writingState: { ...emptyWritingState(), composer: '不可公开的私有会话' } };
+const create = await app.inject({ method: 'POST', url: '/api/mini/works/mutations', headers: author, payload: { operationId: randomUUID(), workId: draft.id, kind: 'create', baseVersion: 0, snapshot } });
+assert.equal(create.statusCode, 200, create.body);
+const cover = await sharp({ create: { width: 1000, height: 800, channels: 3, background: '#718375' } }).jpeg().toBuffer();
+const base = '/api/mini/publications/' + draft.id;
+const uploadResponse = await app.inject({ method: 'POST', url: base + '/images/' + randomUUID(), headers: { ...author, 'content-type': 'application/octet-stream' }, payload: cover });
+assert.equal(uploadResponse.statusCode, 200, uploadResponse.body);
+const upload = uploadResponse.json();
+const settings = await app.inject({ method: 'PUT', url: base + '/settings', headers: author, payload: { operationId: randomUUID(), expectedVersion: 0, assetId: upload.assetId, crops: upload.crops } });
+assert.equal(settings.statusCode, 200, settings.body);
+const preview = (await app.inject({ url: base + '/preview', headers: author })).json();
+const submit = await app.inject({ method: 'POST', url: base + '/submissions', headers: author, payload: { operationId: randomUUID(), expectedVersion: preview.version, workVersion: preview.workVersion, settingsVersion: preview.settingsVersion, authorName: preview.authorName } });
+assert.equal(submit.statusCode, 200, submit.body);
+const articleId = submit.json().articleId;
+const article = (await app.inject({ url: `/api/admin/articles/${articleId}/submissions/${submit.json().submissionId}`, headers: admin })).json();
+const approve = await app.inject({ method: 'POST', url: `/api/admin/articles/${articleId}/actions`, headers: admin, payload: { operationId: randomUUID(), expectedVersion: article.version, submissionId: article.submission.id, action: 'approve', reason: '' } });
+assert.equal(approve.statusCode, 200, approve.body);
+const comments = [];
+for (const text of ['清晨的风，让我也想起了家。', '这段文字中的地名需要再核对。', '第三条评论，用于小屏审核。', '举报核对专用评论，本文仅为合成数据。', '并发审核专用评论。', '未知结果专用评论。']) {
+  const response = await app.inject({ method: 'POST', url: `/api/mini/articles/${articleId}/comments`, headers: reader, payload: { operationId: randomUUID(), text } });
+  assert.equal(response.statusCode, 200, response.body);
+  comments.push(response.json());
+}
+const reported = comments[3]!;
+const approveComment = await app.inject({ method: 'POST', url: `/api/admin/comments/${reported.id}/actions`, headers: admin, payload: { operationId: randomUUID(), expectedVersion: reported.version, action: 'approve', reason: '' } });
+assert.equal(approveComment.statusCode, 200, approveComment.body);
+const reportedResponse = await app.inject({ method: 'POST', url: `/api/mini/comments/${reported.id}/reports`, headers: reporter, payload: { operationId: randomUUID(), reason: '请核对这条评论中的公开信息。' } });
+assert.equal(reportedResponse.statusCode, 200, reportedResponse.body);
+await writeFile(join(output, 'fixture.json'), JSON.stringify({ articleId, comments: comments.map(item => ({ id: item.id, text: item.text })), directory }, null, 2));
+await app.listen({ port: 3814, host: '127.0.0.1' });
+console.info('本地社交审核夹具已就绪：127.0.0.1:3814（独立 SQLite，无外部调用）');
+const close = async () => { await app.close(); identity.close(); topics.close(); };
+process.once('SIGINT', () => { void close(); }); process.once('SIGTERM', () => { void close(); });

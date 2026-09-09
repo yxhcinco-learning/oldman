@@ -8,6 +8,9 @@ export function revokeWorkPublication(database: DatabaseSync, userId: string, wo
     database.prepare('INSERT INTO publication_audit(article_id,actor,action,version,created_at) VALUES(?,?,?,?,?)')
       .run(row.id, userId, purge ? 'purge' : 'trash', row.version + 1, now);
     if (purge) {
+      database.prepare("UPDATE comment_reports SET reason='',resolution='',state='resolved',version=version+1 WHERE comment_id IN (SELECT id FROM article_comments WHERE article_id=?)").run(row.id);
+      database.prepare("UPDATE comment_audit SET reason='' WHERE comment_id IN (SELECT id FROM article_comments WHERE article_id=?)").run(row.id);
+      database.prepare("UPDATE article_comments SET text='',reason='',state='deleted',version=version+1 WHERE article_id=?").run(row.id);
       database.prepare('DELETE FROM publication_submissions WHERE article_id=?').run(row.id);
       database.prepare('UPDATE publication_articles SET asset_id=NULL,settings_version=settings_version+1 WHERE id=?').run(row.id);
       database.prepare("UPDATE publication_audit SET reason='' WHERE article_id=?").run(row.id);

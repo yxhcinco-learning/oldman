@@ -5,7 +5,7 @@ import { compositionCrops, type Crop } from './crop';
 
 export class MiniPublicationController {
   constructor(readonly workId: string, readonly storage: MiniPublicationStorage, readonly client: MiniPublicationClient,
-    private readonly sync: () => Promise<number | void>, private readonly assertActive: () => void) {}
+    private readonly sync: () => Promise<number | void>, private readonly assertActive: () => void, private readonly beforeSubmit?: () => Promise<void>) {}
   async local() { return this.storage.load(this.workId); }
   private async save(draft: PublicationDraft) { this.assertActive(); return this.storage.save(draft); }
   private coverState(draft: PublicationDraft) {
@@ -105,6 +105,7 @@ export class MiniPublicationController {
     if (!draft.submissionOperation) {
       // Preparation is part of submission. A reading preview is optional and never supplies the submitted content.
       const preview = await this.prepare();
+      await this.beforeSubmit?.(); this.assertActive();
       if (authorName !== undefined && authorName !== preview.authorName) throw new Error('署名已更新，请刷新后再提交。');
       draft = await this.local();
       draft = { ...draft, submissionOperation: { operationId: newId(), expectedVersion: preview.version, workVersion: preview.workVersion,

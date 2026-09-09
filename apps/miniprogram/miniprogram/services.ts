@@ -9,6 +9,7 @@ import { AuthenticatedMiniAiTransport } from './network/ai';
 import { MiniCloudTransport } from './network/cloud';
 import { MiniCloudSync } from './sync/controller';
 import { MiniPublicationClient } from './publication/client';
+import { MiniSocialClient } from './social/client';
 import { MiniPublicationStorage, WxPublicationFiles } from './publication/storage';
 import { MiniSpeechSession, MiniSpeechTicketClient, WxMiniRecorder, WxMiniSpeechPermissions, WxMiniSpeechSocketFactory, WxMiniSpeechTicketPlatform } from './speech/session';
 import { MiniAiConsent, WxMiniAiConsentPlatform } from './privacy/ai-consent';
@@ -31,10 +32,13 @@ function createServices(state: AccountState) {
     tickets: new MiniSpeechTicketClient(authorizer, new WxMiniSpeechTicketPlatform()), sockets: new WxMiniSpeechSocketFactory(), recorder: new WxMiniRecorder() });
   const sync = new MiniCloudSync(repository, writer, account, new MiniCloudTransport(authorizer, adapter), state.generation, owner ? guestRepository : undefined);
   const publications = new MiniPublicationClient(authorizer, adapter);
+  const social = new MiniSocialClient(authorizer, adapter);
+  const publicImages = new MiniPublicationStorage(new WxPublicationFiles(), wx.env.USER_DATA_PATH + '/public-reader');
   const publicationStorage = new MiniPublicationStorage(new WxPublicationFiles(), repository.paths.root);
-  return { files, repository, writer, backups, conversations, articleAi, auth: account, account, speech, aiConsent, sync, publications, publicationStorage, generation: state.generation };
+  return { files, repository, writer, backups, conversations, articleAi, auth: account, account, speech, aiConsent, sync, publications, publicationStorage, social, publicImages, generation: state.generation };
 }
 let current = createServices(account.snapshot());
+let lastFlowerGeneration = -1;
 let foregroundTimer: ReturnType<typeof setInterval> | undefined;
 account.subscribe(state => {
   if (current.generation !== state.generation || current.repository.accountId !== state.account?.id) {
@@ -49,6 +53,7 @@ account.subscribe(state => {
     current.speech.interrupt('在线连接已中断，已收到的文字保留在本机。');
     if (['expired', 'replaced'].includes(state.status)) void current.articleAi.cancelActive().catch(() => undefined);
   }
+  if (state.status === 'authenticated' && lastFlowerGeneration !== state.generation) { lastFlowerGeneration = state.generation; void current.social.claim().catch(() => undefined); }
 });
 
 export function miniServices() { return current; }
@@ -74,6 +79,7 @@ export async function refreshMiniAccount() {
 }
 export function resumeMiniServices() {
   void refreshMiniAccount().catch(() => undefined);
+  void account.restore().then(() => { if (account.snapshot().status === 'authenticated') void current.social.claim().catch(() => undefined); });
   if (!foregroundTimer) foregroundTimer = setInterval(() => { void refreshMiniAccount().catch(() => undefined); }, 30_000);
 }
 export function pauseMiniServices() {

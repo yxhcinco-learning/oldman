@@ -11,6 +11,8 @@ import { registerMiniAuth, type MiniAuthGatewayOptions } from './mini-auth';
 import { registerAccountApi } from './account-api';
 import { PublicationStore } from './publication-store';
 import { registerPublicationApi } from './publication-api';
+import { SocialStore, type SocialOptions } from './social-store';
+import { registerSocialApi } from './social-api';
 import type { CloudWorkLimits } from './cloud-work-store';
 import { SpeechTicketError, SpeechTicketStore } from './speech-ticket-store';
 import { MiniIdentityError } from './mini-identity-store';
@@ -35,6 +37,7 @@ export interface GatewayOptions {
   costGovernance?: CostGovernanceStore;
   cloudWorkLimits?: Partial<CloudWorkLimits>;
   accountRequestsPerMinute?: number;
+  social?: SocialOptions;
 }
 export async function createGateway(options: GatewayOptions) {
   const app = Fastify({ logger: false, bodyLimit: 64 * 1024 });
@@ -54,11 +57,14 @@ export async function createGateway(options: GatewayOptions) {
   registerArticleAi(app, { ...options.ai, origin: options.origin, operations, miniAuthService: options.miniAuth?.service, costGovernance: options.costGovernance });
   registerTopics(app, { origin: options.origin, store: options.topics, operations });
   const publications = options.miniAuth?.service ? new PublicationStore(options.miniAuth.service.store) : undefined;
-  registerTopicAdmin(app, { ...options.topicAdmin, publications, origin: options.origin, store: options.topics, operations, ai: options.topicAi,
+  const social = options.miniAuth?.service ? new SocialStore(options.miniAuth.service.store, { ...options.social,
+    commentsEnabled: (options.social?.commentsEnabled ?? true) && Boolean(options.topicAdmin?.auth && options.topics) }) : undefined;
+  registerTopicAdmin(app, { ...options.topicAdmin, publications, social, origin: options.origin, store: options.topics, operations, ai: options.topicAi,
     costGovernance: options.costGovernance, monitor, capabilities });
   registerMiniAuth(app, { ...options.miniAuth, operations });
   registerAccountApi(app, { service: options.miniAuth?.service, operations, limits: options.cloudWorkLimits, requestsPerMinute: options.accountRequestsPerMinute });
   registerPublicationApi(app, { identity: options.miniAuth?.service?.store, store: publications, operations });
+  registerSocialApi(app, { identity: options.miniAuth?.service?.store, store: social, operations });
   registerOperationalEvents(app, { origin: options.origin, operations, requestsPerMinute: options.eventRequestsPerMinute });
   const active = new Set<WebSocket>();
   const speechTickets = options.speechTickets ?? new SpeechTicketStore();

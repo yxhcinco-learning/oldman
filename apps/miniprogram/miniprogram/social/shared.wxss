@@ -1,0 +1,46 @@
+.social-page { padding: 20px var(--page-gutter) calc(32px + env(safe-area-inset-bottom)); }
+.social-heading { color: var(--forest); font: 600 28px/40px var(--font-article); overflow-wrap: anywhere; }
+.social-muted { color: var(--muted); font-size: 14px; line-height: 24px; }
+.social-icon-button { margin: 0; display: flex; align-items: center; justify-content: center; flex: 0 0 48px; width: 48px; height: 48px; padding: 12px; }
+.social-icon-button image { width: 24px; height: 24px; }
+.follow-button { width: auto; margin: 0; flex: 0 0 auto; min-width: 90px; min-height: 48px; padding: 10px 14px; border-radius: 24px; color: var(--white); background: var(--forest); font-size: 16px; line-height: 26px; }
+.follow-button.active { color: var(--forest); background: var(--tint); }
+.follow-button[disabled] { background: var(--surface-mid); color: var(--muted); }
+.social-empty { padding: 52px 4px; text-align: center; }
+.social-empty > image { display: block; width: 44px; height: 44px; opacity: .6; margin: 0 auto 28px; }
+.social-empty-title { color: var(--forest); font: 500 22px/34px var(--font-article); }
+.social-empty-copy { margin: 12px 0 24px; color: var(--muted); font-size: 16px; line-height: 27px; }
+.social-empty > button.secondary-action { display: inline-flex; width: auto; margin: 24px 0 0; padding: 12px 20px; }
+.social-empty-compact { padding: 20px 0; font-size: 16px; line-height: 27px; color: var(--muted); }
+.social-mask { position: fixed; z-index: 100; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: flex-end; background: rgba(24,40,31,.32); }
+.social-sheet { display: flex; flex-direction: column; min-height: 180px; width: 100%; max-height: 82vh; border-radius: 24px 24px 0 0; padding: 12px var(--page-gutter) calc(16px + env(safe-area-inset-bottom)); background: var(--paper); overflow: hidden; }
+.social-sheet-head { display: flex; flex: 0 0 52px; align-items: center; justify-content: space-between; font: 600 22px/32px var(--font-article); color: var(--forest); }
+.social-sheet-scroll { min-height: 32px; flex: 0 0 auto; }
+.social-sheet-bottom { flex: 0 0 auto; padding-top: 12px; }
+.social-sheet-bottom .error-panel, .social-sheet-bottom .notice { max-height: 56px; overflow: auto; margin: 0 0 8px; }
+.list-end { padding: 18px 0; text-align: center; color: var(--muted); font-size: 14px; }
+.gift-recipient { margin: 12px 0 20px; color: var(--forest); font-size: 18px; line-height: 28px; }
+.gift-recipient text { display: block; color: var(--muted); font-size: 16px; line-height: 27px; }
+.gift-feature { display: flex; justify-content: center; gap: 24px; align-items: center; padding: 24px; border-radius: 20px; background: #f3f1e6; color: var(--forest); font: 600 23px/34px var(--font-article); }
+.gift-feature > image { width: 64px; height: 76px; }
+.gift-feature text { display: block; margin-top: 4px; color: var(--muted); font: 400 14px/24px var(--font-ui); }
+.stationery { display: flex; gap: 8px; padding: 24px 0 12px; }
+.stationery-item { flex: 1; min-width: 0; text-align: center; opacity: .48; color: var(--muted); }
+.stationery-item image { display: block; width: 28px; height: 28px; margin: 0 auto 8px; }
+.stationery-item text { display: block; font-size: 16px; line-height: 26px; }
+.stationery-item text.disabled-note { font-size: 12px; line-height: 20px; }
+.flower-rule { padding: 8px 0; text-align: center; color: var(--muted); font-size: 14px; line-height: 24px; }
+.social-article { padding: 18px 0; border-bottom: 1px solid var(--line); }
+.social-article-open { margin: 0; display: flex; width: 100%; align-items: flex-start; gap: 18px; padding: 0; text-align: left; border-radius: 0; }
+.social-article-copy { flex: 1; min-width: 0; }
+.social-article-title { color: var(--forest); font: 600 23px/34px var(--font-article); overflow-wrap: anywhere; }
+.social-article-excerpt { display: -webkit-box; margin-top: 8px; color: var(--muted); font-size: 16px; line-height: 27px; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.social-article-open > image { flex: 0 0 78px; width: 78px; height: 78px; border-radius: 12px; background: var(--surface); }
+.social-article-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; color: var(--muted); font-size: 14px; line-height: 24px; }
+.social-article-meta > text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+
+/* Native button:not([size=mini]) has attribute specificity; scope resets to the containing view. */
+.social-sheet button.social-icon-button, .reader-page button.social-icon-button, .social-page button.social-icon-button { width: 48px; margin: 0; padding: 12px; }
+.reader-page button.follow-button, .social-page button.follow-button { width: auto; margin: 0; }
+.social-page .social-empty > button.secondary-action { display: inline-flex; width: auto; margin: 24px 0 0; }
+.social-page .social-article > button.social-article-open { width: 100%; margin: 0; padding: 0; }
