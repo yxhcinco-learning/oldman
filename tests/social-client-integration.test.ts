@@ -78,12 +78,11 @@ async function setup() {
   return { author, reader, guest, device, admin, open, id: preview.articleId, workId: draft.id, base };
 }
 
-it('真实客户端经 HTTP 读取受众投影，公开读取无身份，收回同意不受旧图片影响', async () => {
+it('真实客户端无需阅读范围设置即可匿名读已发表文章，下架仍切断公开内容', async () => {
   const s = await setup(), guest = s.guest.social(), reader = s.reader.social();
-  await expect(guest.article(s.id, false)).rejects.toMatchObject({ status: 404 });
+  expect((await guest.article(s.id, false)).id).toBe(s.id);
   const member = await reader.article(s.id, true);
   expect(member.body).toBe('这是明确投稿的正文。');
-  const consent = await s.open('guest');
   const article = await guest.article(s.id, false);
   expect(article.publicAuthorId).toBeTruthy();
   expect(article).not.toHaveProperty('workId'); expect(article).not.toHaveProperty('userId');
@@ -91,11 +90,14 @@ it('真实客户端经 HTTP 读取受众投影，公开读取无身份，收回�
   expect((await guest.articles(article.publicAuthorId!, false)).articles).toHaveLength(1);
   expect(s.guest.calls.every(c => !c.authorized)).toBe(true);
   expect(s.guest.account.snapshot().account).toBeNull();
-  await s.open('account', consent.audienceVersion);
+  await s.open('account');
+  expect((await guest.article(s.id, false)).id).toBe(s.id);
+  const status = await s.author.request<PublicationStatus>(s.base);
+  await s.admin('articles/' + s.id + '/actions', { operationId: randomUUID(), expectedVersion: status.version, action: 'takedown', reason: '隔离下架' });
   await expect(guest.article(s.id, false)).rejects.toMatchObject({ status: 404 });
   await expect(guest.image(s.id, false)).rejects.toMatchObject({ status: 404 });
   await expect(guest.comments(s.id, false)).rejects.toMatchObject({ status: 404 });
-  expect((await reader.article(s.id, true)).id).toBe(s.id);
+  await expect(reader.article(s.id, true)).rejects.toMatchObject({ status: 404 });
 });
 
 it('客户端关系与收藏互通，待审仅本人可见，审核后公开并可举报隐藏', async () => {

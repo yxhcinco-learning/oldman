@@ -1,23 +1,23 @@
 ## Purpose
 
-定义好友分享带来的未登录读者如何在作者同意的公开范围内阅读文章、查看评论和作者资料，并在主动互动时登录及续接原目标，同时保护历史发表受众、私有写作内容和账号归属。
+定义好友分享带来的未登录读者如何在审核通过的已发表范围内阅读文章、查看评论和作者资料，并在主动互动时登录及续接原目标，同时保护私有写作内容和账号归属。
 
 ## ADDED Requirements
 
-### Requirement: Author consent controls guest reading
-系统 SHALL 仅向游客提供当前已审核且作者明确同意游客公开的文章、处理后的公开封面和已通过评论。新投稿 MUST 展示并记录游客公开的明确选择；历史文章 MUST 默认保持原有登录阅读范围，仅在作者主动开放后允许游客读取。作者未作选择、客户端缺少该字段或迁移旧记录均不得自动扩大受众。
+### Requirement: Approved publication allows guest reading
+系统 SHALL 向游客提供当前已审核且已发表的文章、处理后的公开封面和已通过评论，包含历史文章；MUST 移除发表设置及审核详情中的阅读范围选择。旧 audience 字段与接口仅保留兼容元数据，不决定阅读权限，也不要求作者另行开放。私有工作稿及未审核修改 MUST 保持不可公开读取。
 
 #### Scenario: Open an eligible shared article
-- **WHEN** 未登录用户打开作者已同意游客公开且仍有效的好友文章
+- **WHEN** 未登录用户打开仍有效的已审核发表文章
 - **THEN** 无需登录即可读取当前已审核全文、阅读封面、公开署名和已通过评论，不提前创建账号或申请资料权限
 
-#### Scenario: Preserve the audience of an existing article
-- **WHEN** 迁移已有发表记录，或未登录用户打开作者尚未主动开放的历史文章
-- **THEN** 文章保持登录阅读范围，游客不能获得正文、封面或评论内容；页面提供登录入口，作者可在发表管理中主动开放并看到受众将扩大的说明
+#### Scenario: Read an existing article without audience setup
+- **WHEN** 未登录用户打开历史已发表文章，包含旧 audience 为 account 或旧客户端缺少选择的记录
+- **THEN** 正文、封面、通过评论及作者已发表列表均可读取；发表流程不请求或等待阅读范围设置
 
-#### Scenario: Revoke guest access
-- **WHEN** 作者关闭游客公开，或文章被撤回、下架、删除
-- **THEN** 后续游客正文、封面和评论读取立即按当前权限拒绝，客户端清理已加载的失效阅读状态；不承诺回收微信已缓存的好友卡片
+#### Scenario: Revoke publication
+- **WHEN** 文章被撤回、下架或删除
+- **THEN** 后续游客正文、封面和评论读取立即拒绝，作者公开列表不再包含该文章，客户端清理已加载的失效阅读状态；不承诺回收微信已缓存的好友卡片
 
 ### Requirement: Public projections preserve private boundaries
 系统 MUST 以明确字段白名单提供公开文章、作者和评论，不公开工作稿、私有作品标识、账号内部标识、OpenID、自选头像、未通过评论、小文会话或未审核修改。作者身份 SHALL 使用稳定公开作者标识和默认头像；匿名读取 MUST 有分页、响应大小和频率边界，不能获得个人收藏、关系明细、库存或待审内容。

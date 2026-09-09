@@ -72,10 +72,10 @@ export class SocialStore {
     const { body, ...value } = this.content(db, article);
     return { ...value, excerpt: Array.from(body.replace(/\s+/gu, ' ').trim()).slice(0, 120).join('') };
   }
-  article(articleId: string) { return this.access(undefined, db => this.content(db, readableArticle(db, articleId, true))); }
+  article(articleId: string) { return this.access(undefined, db => this.content(db, readableArticle(db, articleId))); }
   image(articleId: string, variant: 'thumbnail' | 'reading') {
     return this.access(undefined, db => {
-      const article = readableArticle(db, articleId, true);
+      const article = readableArticle(db, articleId);
       const row = read<{ image: Uint8Array }>(db, `SELECT ${variant} image FROM publication_assets WHERE id=?`, article.asset_id);
       if (!row) throw publicationMissing();
       return Buffer.from(row.image);
@@ -104,7 +104,7 @@ export class SocialStore {
     const row = read<{ user_id: string }>(db, 'SELECT user_id FROM public_authors WHERE public_id=?', publicId);
     if (!row) throw publicationMissing(); return row.user_id;
   }
-  private profile(db: DatabaseSync, user: string, guest: boolean): PublicAuthor {
+  private profile(db: DatabaseSync, user: string): PublicAuthor {
     const name = read<{ nickname: string }>(db, 'SELECT nickname FROM mini_accounts WHERE user_id=?', user);
     if (!name) throw publicationMissing();
     return { id: ensurePublicAuthor(db, user), name: name.nickname, avatar: 'default',
@@ -113,7 +113,7 @@ export class SocialStore {
       flowers: count(db, "SELECT COUNT(*) n FROM flower_ledger WHERE author_id=? AND kind='gift_sent'", user),
       articles: count(db, `SELECT COUNT(*) n FROM publication_articles a JOIN publication_submissions s ON s.id=a.published_id
         JOIN cloud_works w ON w.user_id=a.user_id AND w.id=a.work_id WHERE a.user_id=? AND s.state='approved'
-        AND w.purged=0 AND w.deleted_at IS NULL AND (?=0 OR a.audience='guest')`, user, Number(guest)) };
+        AND w.purged=0 AND w.deleted_at IS NULL`, user) };
   }
   private relationship(db: DatabaseSync, user: string, target: string): FollowState {
     const row = read<RelationRow>(db, 'SELECT active,version FROM author_follows WHERE follower_id=? AND followed_id=?', user, target);
@@ -122,18 +122,18 @@ export class SocialStore {
     return { active, version: row?.version ?? 0, followedBy, mutual: active && followedBy, self: user === target };
   }
   author(publicId: string, token?: string): AuthorProfile {
-    return this.access(token, (db, user) => { const target = this.authorUser(db, publicId); return { ...this.profile(db, target, !user),
+    return this.access(token, (db, user) => { const target = this.authorUser(db, publicId); return { ...this.profile(db, target),
       ...(user ? { relationship: this.relationship(db, user, target) } : {}) }; });
   }
   authorArticles(publicId: string, token?: string, cursor?: string): PublicArticlePage {
     const after = position(cursor);
-    return this.access(token, (db, user) => {
+    return this.access(token, db => {
       const target = this.authorUser(db, publicId);
       const rows = db.prepare(`SELECT a.id,a.first_published_at position_time FROM publication_articles a JOIN publication_submissions s ON s.id=a.published_id
         JOIN cloud_works w ON w.user_id=a.user_id AND w.id=a.work_id WHERE a.user_id=? AND s.state='approved' AND w.purged=0 AND w.deleted_at IS NULL
-        AND (?=0 OR a.audience='guest') AND (? IS NULL OR a.first_published_at<? OR (a.first_published_at=? AND a.id<?))
-        ORDER BY a.first_published_at DESC,a.id DESC LIMIT 21`).all(target, Number(!user), ...positionArgs(after)) as { id: string; position_time: string }[];
-      return { articles: rows.slice(0, 20).map(row => this.card(db, readableArticle(db, row.id, !user))), cursor: pageCursor(rows) };
+        AND (? IS NULL OR a.first_published_at<? OR (a.first_published_at=? AND a.id<?))
+        ORDER BY a.first_published_at DESC,a.id DESC LIMIT 21`).all(target, ...positionArgs(after)) as { id: string; position_time: string }[];
+      return { articles: rows.slice(0, 20).map(row => this.card(db, readableArticle(db, row.id))), cursor: pageCursor(rows) };
     });
   }
   follow(token: string, publicId: string, input: SocialMutation): FollowState {
@@ -154,7 +154,7 @@ export class SocialStore {
     return this.own(token, (db, user) => {
       const operation = { kind, articleId, ...input }, receipt = this.receipt<ReactionResult>(db, user, input.operationId, operation);
       if (receipt) return receipt; this.write();
-      if (kind !== 'collection' || input.active) readableArticle(db, articleId, false);
+      if (kind !== 'collection' || input.active) readableArticle(db, articleId);
       const table = kind === 'like' ? 'article_likes' : 'article_collections';
       const row = read<RelationRow>(db, `SELECT active,version FROM ${table} WHERE user_id=? AND article_id=?`, user, articleId);
       if ((row?.version ?? 0) !== input.expectedVersion) throw publicationConflict();
@@ -186,7 +186,7 @@ export class SocialStore {
     return this.own(token, (db, user) => {
       const operation = { kind: 'gift', articleId, ...input }, receipt = this.receipt<GiftReceipt>(db, user, input.operationId, operation);
       if (receipt) return receipt; this.write();
-      const article = readableArticle(db, articleId, false);
+      const article = readableArticle(db, articleId);
       if (article.user_id === user) throw invalid('self_gift', '不能给自己的文章送花。');
       const changed = db.prepare('UPDATE flower_accounts SET balance=balance-1,version=version+1 WHERE user_id=? AND balance>=1').run(user);
       if (!changed.changes) throw invalid('insufficient_flowers', '小花花不足，明日可再领取。', 409);
@@ -206,15 +206,15 @@ export class SocialStore {
   }
   private comment(db: DatabaseSync, id: string) { const row = read<CommentRow>(db, 'SELECT * FROM article_comments WHERE id=?', id); if (!row) throw publicationMissing(); return row; }
   private commentPublic(db: DatabaseSync, row: CommentRow): PublicComment {
-    const author = this.profile(db, row.user_id, false);
+    const author = this.profile(db, row.user_id);
     return { id: row.id, articleId: row.article_id, publicAuthorId: author.id, authorName: author.name, avatar: 'default', text: row.text,
       createdAt: row.published_at ?? row.created_at, version: row.version };
   }
   private commentOwn(db: DatabaseSync, row: CommentRow): OwnComment { return { ...this.commentPublic(db, row), state: row.state, reason: row.reason }; }
   comments(articleId: string, token?: string, cursor?: string): CommentPage {
     const after = position(cursor);
-    return this.access(token, (db, user) => {
-      readableArticle(db, articleId, !user);
+    return this.access(token, db => {
+      readableArticle(db, articleId);
       const rows = db.prepare("SELECT *,published_at position_time FROM article_comments WHERE article_id=? AND state='approved' AND (? IS NULL OR published_at<? OR (published_at=? AND id<?)) ORDER BY published_at DESC,id DESC LIMIT 21")
         .all(articleId, ...positionArgs(after)) as unknown as (CommentRow & { position_time: string })[];
       return { comments: rows.slice(0, 20).map(row => this.commentPublic(db, row)), cursor: pageCursor(rows) };
@@ -222,7 +222,7 @@ export class SocialStore {
   }
   engagement(token: string, articleId: string): Engagement {
     return this.own(token, (db, user) => {
-      const article = readableArticle(db, articleId, false);
+      const article = readableArticle(db, articleId);
       const state = (table: string) => { const row = read<RelationRow>(db, `SELECT active,version FROM ${table} WHERE user_id=? AND article_id=?`, user, articleId); return { active: Boolean(row?.active), version: row?.version ?? 0 }; };
       const own = db.prepare("SELECT * FROM article_comments WHERE article_id=? AND user_id=? AND state!='deleted' ORDER BY created_at DESC,id DESC LIMIT 20").all(articleId, user) as unknown as CommentRow[];
       return { articleId, counts: engagementCounts(db, articleId), like: state('article_likes'), collection: state('article_collections'),
@@ -236,7 +236,7 @@ export class SocialStore {
       const operation = { kind: 'comment', articleId, ...parsed }, receipt = this.receipt<{ id: string }>(db, user, input.operationId, operation);
       // Return current state rather than storing a second durable copy of the text in the receipt.
       if (receipt) return this.commentOwn(db, this.comment(db, receipt.id)); this.write(true);
-      readableArticle(db, articleId, false);
+      readableArticle(db, articleId);
       const id = randomUUID();
       db.prepare("INSERT INTO article_comments(id,article_id,user_id,text,state,version,created_at) VALUES(?,?,?,?,'pending',1,?)").run(id, articleId, user, parsed.text, this.stamp());
       this.remember(db, user, input.operationId, operation, { id }, articleId, 'comment');
@@ -258,7 +258,7 @@ export class SocialStore {
     return this.own(token, (db, user) => {
       const operation = { kind: 'report', id, ...input }, receipt = this.receipt<{ reported: true }>(db, user, input.operationId, operation);
       if (receipt) return receipt; this.write(true);
-      const row = this.comment(db, id); readableArticle(db, row.article_id, false);
+      const row = this.comment(db, id); readableArticle(db, row.article_id);
       if (row.state !== 'approved') throw publicationMissing();
       db.prepare("INSERT INTO comment_reports(id,comment_id,user_id,reason,state,version,created_at) VALUES(?,?,?,?,'pending',1,?)")
         .run(randomUUID(), id, user, input.reason, this.stamp());
@@ -272,7 +272,7 @@ export class SocialStore {
         .all(user, ...positionArgs(after)) as { id: string; version: number; position_time: string }[];
       return { collections: rows.slice(0, 20).map(row => {
         let article: PublicArticleCard | null = null;
-        try { article = this.card(db, readableArticle(db, row.id, false)); } catch (error) { if (!(error instanceof PublicationError) || error.status !== 404) throw error; }
+        try { article = this.card(db, readableArticle(db, row.id)); } catch (error) { if (!(error instanceof PublicationError) || error.status !== 404) throw error; }
         return { articleId: row.id, available: article !== null, article, version: row.version, collectedAt: row.position_time };
       }), cursor: pageCursor(rows) };
     });
@@ -285,7 +285,7 @@ export class SocialStore {
         WHERE p.user_id!=? AND (? IS NULL OR f.created_at<? OR (f.created_at=? AND p.public_id<?))
         ${kind === 'mutuals' ? 'AND EXISTS(SELECT 1 FROM author_follows r WHERE r.active=1 AND r.follower_id=p.user_id AND r.followed_id=?)' : ''}
         ORDER BY f.created_at DESC,p.public_id DESC LIMIT 21`).all(user, user, ...positionArgs(after), ...(kind === 'mutuals' ? [user] : [])) as { id: string; user_id: string; position_time: string }[];
-      return { authors: rows.slice(0, 20).map(row => ({ ...this.profile(db, row.user_id, false), relationship: this.relationship(db, user, row.user_id) })), cursor: pageCursor(rows) };
+      return { authors: rows.slice(0, 20).map(row => ({ ...this.profile(db, row.user_id), relationship: this.relationship(db, user, row.user_id) })), cursor: pageCursor(rows) };
     });
   }
   private audit(db: DatabaseSync, id: string, actor: string, action: string, version: number, reason: string) {
@@ -293,7 +293,7 @@ export class SocialStore {
   }
   summary(token: string) {
     return this.own(token, (db, user) => {
-      const author = this.profile(db, user, false);
+      const author = this.profile(db, user);
       return { publicAuthorId: author.id, following: author.following, followers: author.followers,
         mutuals: count(db, `SELECT COUNT(*) n FROM author_follows a JOIN author_follows b ON b.follower_id=a.followed_id AND b.followed_id=a.follower_id
           WHERE a.follower_id=? AND a.active=1 AND b.active=1`, user) };
@@ -302,7 +302,7 @@ export class SocialStore {
   private adminComment(db: DatabaseSync, id: string): AdminComment {
     const row = this.comment(db, id);
     let articleTitle = '文章已失效', articleAvailable = false;
-    try { articleTitle = this.content(db, readableArticle(db, row.article_id, false)).title; articleAvailable = true; } catch (error) { if (!(error instanceof PublicationError) || error.status !== 404) throw error; }
+    try { articleTitle = this.content(db, readableArticle(db, row.article_id)).title; articleAvailable = true; } catch (error) { if (!(error instanceof PublicationError) || error.status !== 404) throw error; }
     return { ...this.commentOwn(db, row), articleTitle, articleAvailable, reports: count(db, "SELECT COUNT(*) n FROM comment_reports WHERE comment_id=? AND state='pending'", id) };
   }
   adminComments(state: OwnComment['state'], cursor?: string): AdminCommentPage {
@@ -320,7 +320,7 @@ export class SocialStore {
       if (receipt) return this.adminComment(db, receipt.id);
       const row = this.comment(db, id); if (row.version !== input.expectedVersion) throw publicationConflict();
       if (input.action === 'hide' ? row.state !== 'approved' : row.state !== 'pending') throw publicationConflict();
-      if (input.action !== 'hide') readableArticle(db, row.article_id, false);
+      if (input.action !== 'hide') readableArticle(db, row.article_id);
       if (input.action !== 'approve' && !input.reason) throw invalid('reason_required', '请填写处理原因。');
       const state = input.action === 'approve' ? 'approved' : input.action === 'reject' ? 'rejected' : 'hidden';
       db.prepare('UPDATE article_comments SET state=?,version=version+1,reason=?,published_at=CASE WHEN ?=\'approved\' THEN ? ELSE published_at END WHERE id=?')
@@ -359,7 +359,7 @@ export class SocialStore {
   event(input: SocialEventInput, token?: string) {
     return this.access(token, (db, user) => {
       if ((input.event === 'login_success' || input.event === 'return_visit') && !user) throw invalid('login_required', '请先登录。', 401);
-      readableArticle(db, input.articleId, !user);
+      readableArticle(db, input.articleId);
       this.cleanupOf(db);
       const first = read<{ created_at: number }>(db, 'SELECT MIN(created_at) created_at FROM social_events WHERE session_id=?', input.sessionId);
       if (first?.created_at && first.created_at < this.now() - 30 * 60_000) throw invalid('event_session_expired', '统计会话已结束。');

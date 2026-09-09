@@ -5,7 +5,7 @@ import { syncPublicationWork } from '../../publication/sync';
 import { emptyPublicationDraft, type PublicationDraft } from '../../publication/storage';
 import type { OwnSubmission } from '../../publication/client';
 import { navigationMetrics } from '../../ui/navigation';
-import { aiDisclosureFor, articleText, cloudIdSchema, newId, formatTime, publicationLabel, type CoverCrops, type PublicationStatus, type PublicationPreview } from '../../domain/core';
+import { aiDisclosureFor, articleText, cloudIdSchema, formatTime, publicationLabel, type CoverCrops, type PublicationStatus, type PublicationPreview } from '../../domain/core';
 import { errorMessage } from '../../ui/error-message';
 import { compositionCrops, validCrop } from '../../publication/crop';
 
@@ -19,7 +19,7 @@ accountPage({
     preview: null as PublicationPreview | null, mode: 'settings' as 'settings' | 'preview' | 'crop' | 'review' | 'result', submission: null as OwnSubmission | null, aiAssisted: false, windowHeight: 640, navigationHeight: 88,
     crop: null as CoverCrops['thumbnail'] | null, ratio: 1.25, viewportWidth: 300, cropWidth: 280, title: '', body: '', wordCount: 0, authorName: '', error: '', coverError: '', busy: '', image: '', submissionId: '', submissionDate: '',
     cropPreviews: null as CoverCrops | null, thumbnailConfirmed: false, readingConfirmed: false, nameKeyboardHeight: 0,
-    audience: 'account' as 'account' | 'guest', audiencePending: false, editingName: false, submitted: false, pendingRetry: false, actionRetry: false, readOnly: false, notice: '' },
+    editingName: false, submitted: false, pendingRetry: false, actionRetry: false, readOnly: false, notice: '' },
   async onLoad(options: Record<string, string | undefined>) {
     const parsed = cloudIdSchema.safeParse(options.id);
     if (!parsed.success) { this.setData({ error: '文章地址无效。', readOnly: true }); return; }
@@ -35,7 +35,7 @@ accountPage({
     };
     this.controller = new MiniPublicationController(parsed.data, source.publicationStorage, source.publications,
       () => syncPublicationWork(parsed.data, source.repository, () => source.sync.sync()),
-      () => { if (source !== miniServices() || !this.active) throw new Error('账号或页面已变化，请重新打开文章。'); }, () => this.saveAudience());
+      () => { if (source !== miniServices() || !this.active) throw new Error('账号或页面已变化，请重新打开文章。'); });
     this.resizeContent();
     this.unsubscribe = source.account.subscribe(state => {
       if (source !== miniServices() || !['authenticated', 'offline'].includes(state.status)) render({ ...blank, readOnly: true });
@@ -57,7 +57,7 @@ accountPage({
   async local() {
     const draft = await this.controller.local();
     if (!this.active || this.services !== miniServices()) return;
-    this.setData({ draft, audience: draft.audienceChoice ?? this.data.status?.audience ?? 'account', audiencePending: Boolean(draft.audienceOperation), crop: draft.crops?.reading ?? null, cropPreviews: draft.crops, thumbnailConfirmed: draft.confirmed.includes('thumbnail'), readingConfirmed: draft.confirmed.includes('reading'), pendingRetry: Boolean(draft.submissionOperation), actionRetry: Boolean(draft.actionOperation) });
+    this.setData({ draft, crop: draft.crops?.reading ?? null, cropPreviews: draft.crops, thumbnailConfirmed: draft.confirmed.includes('thumbnail'), readingConfirmed: draft.confirmed.includes('reading'), pendingRetry: Boolean(draft.submissionOperation), actionRetry: Boolean(draft.actionOperation) });
   },
   async readWork() {
     const aggregate = await this.services.repository.getAggregate(this.controller.workId);
@@ -258,43 +258,6 @@ accountPage({
       this.setData({ preview: null, image: '', error: '' }); await this.local();
     } catch (error) { this.setData({ error: errorMessage(error, '最新封面未读取，请重试。') }); }
     finally { this.setData({ busy: '' }); }
-  },
-  async chooseAudience() {
-    if (this.data.busy || this.data.readOnly || this.data.pendingRetry || this.data.audiencePending) return;
-    const audience = this.data.audience === 'guest' ? 'account' : 'guest';
-    const result = await wx.showModal({ title: audience === 'guest' ? '允许未登录用户阅读？' : '关闭游客阅读？', content: audience === 'guest' ? (this.data.status?.published ? '这篇已发表文章将立即允许未登录用户阅读正文、封面与已通过的评论，不必等待修改稿审核。微信已缓存的好友卡片无法回收。' : '审核通过后，未登录用户也可以阅读这篇文章及封面、已通过的评论。微信已缓存的好友卡片无法回收。') : '未登录用户将无法继续读取正文、封面和评论；已缓存的微信卡片无法回收。', confirmText: audience === 'guest' ? '允许阅读' : '确认关闭' });
-    if (!result.confirm || !this.active || this.services !== miniServices()) return;
-    this.setData({ busy: '正在保存阅读范围…', error: '' });
-    try {
-      const draft = await this.controller.local();
-      await this.services.publicationStorage.save({ ...draft, audienceChoice: audience }); await this.local();
-      if (this.data.status?.articleId) await this.saveAudience();
-    } catch (error) { this.setData({ error: errorMessage(error, '阅读范围尚未确认，请重试。') }); }
-    finally { this.setData({ busy: '' }); await this.local(); }
-  },
-  async saveAudience() {
-    let draft = await this.controller.local();
-    if (draft.audienceChoice === null && !draft.audienceOperation) return;
-    const status = await this.services.publications.status(this.controller.workId);
-    if (!this.active || this.services !== miniServices()) throw new Error('账号或页面已变化，请重新打开。');
-    if (!draft.audienceOperation && draft.audienceChoice === (status.audience ?? 'account')) { await this.services.publicationStorage.save({ ...draft, audienceChoice: null }); this.setData({ status, audience: status.audience ?? 'account' }); return; }
-    draft = { ...draft, audienceOperation: draft.audienceOperation ?? { operationId: newId(), expectedVersion: status.audienceVersion ?? 0, audience: draft.audienceChoice!, consentVersion: 'guest-reading-v1' } };
-    await this.services.publicationStorage.save(draft);
-    try {
-      const result = await this.services.social.audience(this.controller.workId, draft.audienceOperation!);
-      if (!this.active || this.services !== miniServices()) return;
-      await this.services.publicationStorage.save({ ...draft, audienceChoice: null, audienceOperation: null });
-      this.setData({ status: { ...status, ...result }, audience: result.audience, audiencePending: false });
-    } catch (error) {
-      if ((error as { status?: number }).status === 409) await this.services.publicationStorage.save({ ...draft, audienceOperation: null });
-      throw error;
-    }
-  },
-  async retryAudience() {
-    if (this.data.busy) return;
-    this.setData({ busy: '正在核对阅读范围…', error: '' });
-    try { await this.saveAudience(); } catch (error) { this.setData({ error: errorMessage(error, '阅读范围尚未确认，请重试。') }); }
-    finally { this.setData({ busy: '' }); await this.local(); }
   },
   editName() { if (!this.data.busy && !this.data.readOnly && !this.data.pendingRetry && !this.data.actionRetry) this.setData({ editingName: true }); },
   closeName() { this.setData({ editingName: false, nameKeyboardHeight: 0 }); },

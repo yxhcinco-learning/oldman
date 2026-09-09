@@ -45,7 +45,8 @@ export class MiniPublicationStorage {
     if (value.workId !== id || value.path && (!value.path.startsWith(this.root + '/') || value.path.slice(this.root.length + 1).includes('/') || value.path.includes('..'))) throw new Error('发表设置无法读取，请保留现场后重试。');
     const previous = value.cropBackup?.path;
     if (previous && (!previous.startsWith(this.root + '/') || previous.slice(this.root.length + 1).includes('/') || previous.includes('..'))) throw new Error('原封面无法读取，请保留现场后重试。');
-    return value;
+    // Ignore obsolete reading-audience choices and retries from older local drafts.
+    return { ...value, audienceChoice: null, audienceOperation: null };
   }
   async load(id: string): Promise<PublicationDraft> {
     return this.queue(async () => {

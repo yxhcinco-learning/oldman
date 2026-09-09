@@ -49,7 +49,7 @@ async function setup() {
 }
 
 describe('读者社交真实 SQLite 事务', () => {
-  it('真实schema3迁移保留身份作品已审版本，迁移中途失败不留下部分表或扩大旧受众', async () => {
+  it('真实schema3迁移保留身份作品已审版本，迁移中途失败不留下部分表，已发表旧文章直接可读', async () => {
     const s = await setup(); s.identity.close();
     const tables = ['social_daily_metrics', 'social_events', 'social_operations', 'flower_ledger', 'flower_accounts', 'comment_audit',
       'comment_reports', 'article_comments', 'author_follows', 'article_collections', 'article_likes', 'publication_audience_consents', 'public_authors'];
@@ -69,7 +69,7 @@ describe('读者社交真实 SQLite 事务', () => {
       expect(migrated.statistics().schemaVersion).toBe(4);
       expect(migrated.authenticate(s.a.token, true).userId).toBe(s.a.userId);
       expect(new PublicationStore(migrated).publicArticle(s.b.token, s.articleId).body).toContain('公开文字');
-      expect(() => new SocialStore(migrated).article(s.articleId)).toThrow();
+      expect(new SocialStore(migrated).article(s.articleId).id).toBe(s.articleId);
       migrated.publicationTransaction(db => {
         expect(db.prepare('SELECT snapshot FROM cloud_works').get()!.snapshot).toBe(snapshot);
         expect(db.prepare('SELECT COUNT(*) n FROM public_authors').get()!.n).toBe(3);
@@ -78,22 +78,26 @@ describe('读者社交真实 SQLite 事务', () => {
       });
     } finally { migrated.close(); }
   });
-  it('旧受众只允许登录，逐篇同意后匿名投影不含私有字段，收回同步切断正文图片评论', async () => {
+  it('已发表旧文章直接支持游客，兼容受众不限制阅读，撤回切断公开内容', async () => {
     const s = await setup(); expect(s.identity.statistics().schemaVersion).toBe(4);
     expect(s.publications.status(s.a.token, s.draft.id)).toMatchObject({ audience: 'account', audienceVersion: 0 });
-    expect(() => s.social.article(s.articleId)).toThrow(); expect(() => s.social.image(s.articleId, 'reading')).toThrow();
+    expect(s.social.article(s.articleId).id).toBe(s.articleId); expect(s.social.image(s.articleId, 'reading').byteLength).toBeGreaterThan(100);
     expect(s.publications.publicArticle(s.b.token, s.articleId).body).toContain('公开文字');
     const approved = s.social.submitComment(s.b.token, s.articleId, { operationId: op(), text: '可读评论' });
     s.social.adminReview(approved.id, () => 'reviewer', { operationId: op(), expectedVersion: 1, action: 'approve', reason: '' });
-    s.open(); const value = s.social.article(s.articleId);
-    expect(value).toMatchObject({ publicAuthorId: s.authorId, audienceVersion: 1, counts: { comments: 1, likes: 0, flowers: 0 } });
+    const value = s.social.article(s.articleId);
+    expect(value).toMatchObject({ publicAuthorId: s.authorId, audienceVersion: 0, counts: { comments: 1, likes: 0, flowers: 0 } });
     expect(Object.keys(value).sort()).toEqual(['aiAssisted', 'audienceVersion', 'authorName', 'body', 'counts', 'id', 'publicAuthorId', 'publishedAt', 'title', 'version'].sort());
     expect(JSON.stringify(value)).not.toContain(s.a.userId); expect(JSON.stringify(value)).not.toContain('不公开');
     expect(s.social.image(s.articleId, 'thumbnail').byteLength).toBeGreaterThan(100);
     expect(s.social.comments(s.articleId).comments).toHaveLength(1);
-    s.social.audience(s.a.token, s.draft.id, consent('account', 1));
+    s.social.audience(s.a.token, s.draft.id, consent('account', 0));
+    expect(s.social.article(s.articleId).id).toBe(s.articleId);
+    expect(s.social.author(s.authorId).articles).toBe(1);
+    expect(s.social.authorArticles(s.authorId).articles).toHaveLength(1);
+    s.withdraw();
     expect(() => s.social.article(s.articleId)).toThrow(); expect(() => s.social.image(s.articleId, 'thumbnail')).toThrow(); expect(() => s.social.comments(s.articleId)).toThrow();
-    expect(s.social.authorArticles(s.authorId).articles).toHaveLength(0); expect(s.social.authorArticles(s.authorId, s.b.token).articles).toHaveLength(1);
+    expect(s.social.authorArticles(s.authorId).articles).toHaveLength(0); expect(s.social.authorArticles(s.authorId, s.b.token).articles).toHaveLength(0);
   });
   it('时间游标稳定分页：评论收藏关系花记录作者文章及审核举报队列按时间倒序，新插入不重复旧页', async () => {
     const s = await setup(); s.open();
@@ -330,7 +334,7 @@ describe('读者社交隔离真实 HTTP 与权限', () => {
   });
   it('匿名白名单与普通账号/后台CSRF分开，禁止任意字段、私有列表参数和不支持礼物', async () => {
     const s = await httpSetup();
-    expect((await fetch(s.address + '/api/public/articles/' + s.articleId)).status).toBe(404); s.open();
+    expect((await fetch(s.address + '/api/public/articles/' + s.articleId)).status).toBe(200); s.open();
     const article = await fetch(s.address + '/api/public/articles/' + s.articleId); expect(article.status).toBe(200); expect(article.headers.get('cache-control')).toBe('no-store');
     expect((await fetch(s.address + '/api/public/articles/' + s.articleId, { headers: s.headers })).status).toBe(400);
     for (const route of ['me/collections', 'me/following', 'me/flowers', `articles/${s.articleId}/engagement`]) expect((await fetch(s.address + '/api/mini/' + route)).status).toBe(401);

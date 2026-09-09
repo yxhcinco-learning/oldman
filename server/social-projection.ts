@@ -14,11 +14,11 @@ export function publicSocialFields(db: DatabaseSync, article: { id: string; user
   return { publicAuthorId: ensurePublicAuthor(db, article.user_id), audienceVersion: article.audience_version, counts: engagementCounts(db, article.id) };
 }
 export interface ReadableArticle { id: string; user_id: string; audience: 'account' | 'guest'; audience_version: number; published_id: string; content: string; version: number; first_published_at: string; asset_id: string }
-export function readableArticle(db: DatabaseSync, articleId: string, guest: boolean): ReadableArticle {
+export function readableArticle(db: DatabaseSync, articleId: string): ReadableArticle {
   const row = readSocial<ReadableArticle>(db, `SELECT a.id,a.user_id,a.audience,a.audience_version,a.published_id,a.version,a.first_published_at,s.content,s.asset_id
     FROM publication_articles a JOIN publication_submissions s ON s.id=a.published_id
     JOIN cloud_works w ON w.user_id=a.user_id AND w.id=a.work_id
     WHERE a.id=? AND s.state='approved' AND w.purged=0 AND w.deleted_at IS NULL`, articleId);
-  if (!row || guest && row.audience !== 'guest') throw publicationMissing();
+  if (!row) throw publicationMissing();
   return row;
 }

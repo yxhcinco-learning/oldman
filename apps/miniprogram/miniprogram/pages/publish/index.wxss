@@ -1,6 +1,6 @@
 .publish-page { padding: 8px var(--page-gutter) calc(32px + env(safe-area-inset-bottom)); }
 .settings-page { padding-bottom: calc(144px + env(safe-area-inset-bottom)); }
-.publish-dock { display: block; padding-top: 10px; }
+.publish-dock { display: block; padding-top: 10px; border-top: 0; }
 .submission-note { margin: 0 0 10px; text-align: center; color: var(--muted); font-size: 14px; line-height: 22px; }
 .publication-document { display: flex; align-items: baseline; gap: 12px; margin: 4px 0 20px; }
 .document-title { flex: 1; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; color: var(--forest); font: 600 21px/32px "Songti SC", serif; }
@@ -12,7 +12,7 @@ button.cover-entry.has-cover { padding: 0; border: 0; }
 .cover-edit { position: absolute; right: 12px; bottom: 12px; padding: 4px 12px; border-radius: 20px; background: rgba(21,59,46,.9); color: white; font-size: 14px; line-height: 24px; }
 .cover-hint { color: var(--muted); font-size: 14px; line-height: 22px; }
 .cover-validation { min-height: 8px; padding-top: 8px; color: var(--sienna); font-size: 14px; line-height: 22px; }
-button.publication-option { display: flex; width: 100%; min-height: 72px; padding: 12px 0; align-items: center; gap: 12px; border-bottom: 1px solid var(--line); border-radius: 0; color: var(--ink); text-align: left; font-size: 18px; line-height: 28px; }
+button.publication-option { display: flex; width: 100%; min-height: 72px; padding: 12px 0; align-items: center; gap: 12px; border-radius: 0; color: var(--ink); text-align: left; font-size: 18px; line-height: 28px; }
 .publication-option .option-value { flex: 1; min-width: 0; color: var(--forest-soft); font-size: 17px; text-align: right; overflow-wrap: anywhere; }
 .option-chevron { flex: 0 0 8px; width: 8px; height: 8px; margin: 0 4px; border-top: 1.5px solid var(--forest-soft); border-right: 1.5px solid var(--forest-soft); transform: rotate(45deg); }
 button.creation-option { font-size: 16px; }
@@ -41,7 +41,7 @@ button.creation-option { font-size: 16px; }
 .submitted-work text { display: block; margin-top: 8px; color: var(--muted); font-size: 14px; line-height: 22px; }
 .result-detail { margin: 12px auto 0; }
 .result-links, .status-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; margin-top: 12px; }
-.status-actions { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--line); }
+.status-actions { margin-top: 24px; padding-top: 12px; }
 .status-actions .danger { color: var(--sienna); }
 .review-status { margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--line); color: var(--forest-soft); font-size: 16px; line-height: 26px; }
 .review-status .section-title { margin-bottom: 8px; color: var(--forest); font-size: 18px; font-weight: 600; line-height: 28px; }

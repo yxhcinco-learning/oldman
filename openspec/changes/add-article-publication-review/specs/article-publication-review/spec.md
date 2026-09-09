@@ -53,7 +53,7 @@
 - **THEN** 拒绝访问；审核只能看到已提交快照，不能修改作者原文，普通用户不能调用审核接口
 
 ### Requirement: Authenticated public reading and friend sharing
-文章 Tab SHALL 保留有效登录入口，展示真实已审核内容，按首次发表时间倒序每页 20 篇；详情及图片 MUST 核对当前发表状态及文章受众。历史文章默认仅登录可读，作者明确同意游客公开后才允许对应匿名投影。好友分享只使用已发表标题、处理后的封面和稳定文章 ID；需要登录时返回原文章。游客例外与同意、公开字段及互动续接共同受 `public-reader-entry` 能力约束，不开放私有作品。
+文章 Tab SHALL 保留有效登录入口，展示真实已审核内容，按首次发表时间倒序每页 20 篇；详情及图片 MUST 核对当前发表状态。所有新旧已审核发表文章均允许对应匿名投影，不设置阅读范围。好友分享只使用已发表标题、处理后的封面和稳定文章 ID；需要登录时返回原文章。游客例外、公开字段及互动续接共同受 `public-reader-entry` 能力约束，不开放私有作品。
 
 #### Scenario: Empty list and unavailable service differ
 - **WHEN** 列表请求成功且没有已审核文章
@@ -67,7 +67,7 @@
 
 #### Scenario: Logged out reader opens shared link
 - **WHEN** 接收者未登录打开有效好友分享
-- **THEN** 作者已明确同意游客公开时可直接只读当前审核版；否则先登录再返回目标文章，不进入作者编辑页面或匿名网页，不自动扩大历史受众
+- **THEN** 当前已审核发表文章（包含历史文章）可直接只读当前审核版，不进入作者编辑页面或匿名网页；未发表内容仍不可公开读取
 
 ### Requirement: Publication lifecycle preserves private recovery
 作品删除 MUST 在线事务撤销待审和公开内容，失败不删除原稿；回收站恢复不自动发表。永久删除 SHALL 清除在线投稿正文及专属图片，只保留无正文必要记录。JSON v6 SHALL 保持文字和会话备份，不包含封面或投稿身份。
