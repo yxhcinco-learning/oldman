@@ -68,6 +68,28 @@
 - **WHEN** 用户切换他人作者主页、自己的关系列表和个人中心
 - **THEN** 他人页面显示默认头像和可读公开内容，本人列表展示自己的关系，个人中心原有资料编辑与文章入口保持清楚可达
 
+#### Scenario: Preserve established writing entries in the personal center
+- **WHEN** 在个人中心加入收藏、花朵与关系入口
+- **THEN** “最近在写”保持原稿分组右日期、整张续写卡、字数与圆箭头；“我的文章”保持右侧“全部 N 篇”入口和浅色缩进容器内的最多两条摘要，不用口号或单独“继续写”按钮替代原有入口
+
+### Requirement: Secondary actions stay attached to their targets
+作者主页关注操作 MUST 位于头像、名字的身份区域右侧，不能脱离作者资料独占下方空行。收藏列表 SHALL 把取消收藏收在每条文章右下角的已收藏图标热区，与作者及日期同一行，失效项仍可移除；点击该操作不得同时打开文章。公开评论 SHALL 默认用“更多”图标展开二级操作再举报，不常驻“举报”文字；必要操作具有清楚的可访问名称及至少 48px 热区。
+
+#### Scenario: Follow an author and manage a saved article
+- **WHEN** 在不同手机宽度查看作者主页和收藏列表
+- **THEN** 关注按钮与当前作者身份对齐且长名字不挤压按钮；取消收藏贴近对应文章，操作只移除该篇，返回及其他文章状态保持
+
+#### Scenario: Report from a comment menu
+- **WHEN** 用户打开评论“更多”，选择举报，随后取消或提交
+- **THEN** 举报在二级界面可达，操作始终对应该条评论；返回恢复原留言上下文，不意外删除评论、发布草稿或跳转文章
+
+### Requirement: New engagement pages avoid redundant introductory copy
+正常作者、收藏、关系、花朵及评论页面 SHALL 直接展示资料、列表或当前操作，不常驻“留给下次慢慢读”“仅自己可见”等通用开场说明及重复口号。MUST 保留解释实际状态、权限或操作后果所需的信息，包括待审评论仅自己可见、空态/失败重试、领取规则、余额不足与礼物禁用；移除提示不改变原有私有数据边界。
+
+#### Scenario: Read a normal list or an actionable state
+- **WHEN** 查看正常收藏/关系/评论列表或遇到审核中、空列表、失败与礼物用尽
+- **THEN** 正常内容前无冗余介绍，异常和待审仍显示帮助用户继续操作的明确状态；隐私范围继续由实际权限保证
+
 ### Requirement: H5 review remains an isolated prototype
 本轮 H5 SHALL 明确标注“设计演示”，账号、花朵、评论审核、分享及网络状态 MUST 仅在原型内模拟；不得调用真实微信登录、公开接口、支付、管理员审核或消息发送。原型证据 SHALL 仅用于页面与交互评审，不能替代小程序实现、后端联调或真机验收。
 
