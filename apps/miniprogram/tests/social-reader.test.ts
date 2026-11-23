@@ -13,6 +13,7 @@ interface Reader {
   onLoad(query:Record<string,string>):void;onShow():Promise<void>;onHide():void;onUnload():void;refresh():Promise<void>;
   react(event:object):Promise<void>;applyReaction(kind:'like'|'collect'|'follow',active:boolean):Promise<void>;publishComment():Promise<void>;sendFlower():Promise<void>;openGift():Promise<void>;
   commentMore(event:object):Promise<void>;openComments():void;keyboard(event:object):void;refreshSocial():Promise<void>;loadComments(more?:boolean):Promise<void>;
+  onShareAppMessage():{title:string;path:string;imageUrl:string};
   setData(data:object):void;
 }
 const deferred=<T>()=>{let resolve!:(value:T)=>void;const promise=new Promise<T>(yes=>{resolve=yes;});return{promise,resolve};};
@@ -45,6 +46,11 @@ describe('真实阅读页控制器的游客、互动与生命周期',()=>{
   it('图片写盘后重新核对受众；回收权限即清可见正文、评论和分享',async()=>{
     const s=await setup(false);s.social.article.mockResolvedValueOnce(article).mockRejectedValueOnce(Object.assign(new Error('已关闭'),{status:404}));
     await s.page.refresh();expect(s.page.data).toMatchObject({article:null,image:'',shareReady:false,comments:[]});expect(s.hideShareMenu).toHaveBeenCalled();
+  });
+  it('文章与封面核验后生成稳定分享卡片，页面失效后拒绝继续分享',async()=>{
+    const s=await setup(false);
+    expect(s.page.onShareAppMessage()).toEqual({title:article.title,path:'/pages/article/index?id=article&source=share',imageUrl:'/public/confirmed.jpg'});
+    s.page.onHide();expect(()=>s.page.onShareAppMessage()).toThrow('这篇文章暂时无法分享。');
   });
   it('页面隐藏后迟到读取不安装正文或图片',async()=>{
     const s=await setup(),read=deferred<PublicArticle>();s.social.article.mockReturnValueOnce(read.promise);

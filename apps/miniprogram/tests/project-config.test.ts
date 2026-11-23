@@ -248,6 +248,20 @@ describe('微信小程序公共工程配置', () => {
     expect(readText('../miniprogram/components/username-editor/index.wxml')).toContain('type="nickname"');
     expect(privacy).toContain('发送给 DeepSeek');
   });
+
+  it('公开阅读页在固定操作栏提供受核验保护的好友分享入口', () => {
+    const reader = readText('../miniprogram/pages/article/index.wxml');
+    const dockStart = reader.indexOf('<view wx:if="{{article}}" class="social-dock">');
+    const sheetStart = reader.indexOf('<view wx:if="{{sheet}}"', dockStart);
+    const dock = reader.slice(dockStart, sheetStart);
+    expect(dockStart).toBeGreaterThanOrEqual(0);
+    expect(sheetStart).toBeGreaterThan(dockStart);
+    expect(dock).toContain('wx:if="{{shareReady}}"');
+    expect(dock).toContain('open-type="share"');
+    expect(dock).toContain('src="/assets/social-share.svg"');
+    expect(dock).toContain('aria-label="分享给好友"');
+    expect(reader.match(/open-type="share"/g)).toHaveLength(2);
+  });
   it('访谈是紧凑开关，主题固定且换题属于当前回复', () => {
     const editor = readText('../miniprogram/pages/editor/index.wxml');
     const interview = readText('../miniprogram/pages/interview/index.wxml');

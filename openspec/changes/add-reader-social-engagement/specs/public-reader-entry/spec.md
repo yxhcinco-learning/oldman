@@ -5,7 +5,7 @@
 ## ADDED Requirements
 
 ### Requirement: Approved publication allows guest reading
-系统 SHALL 向游客提供当前已审核且已发表的文章、处理后的公开封面和已通过评论，包含历史文章；MUST 移除发表设置及审核详情中的阅读范围选择。旧 audience 字段与接口仅保留兼容元数据，不决定阅读权限，也不要求作者另行开放。私有工作稿及未审核修改 MUST 保持不可公开读取。
+系统 SHALL 向游客提供当前已审核且已发表的文章、处理后的公开封面和已通过评论，包含历史文章；MUST 移除发表设置及审核详情中的阅读范围选择。旧 audience 字段与接口仅保留兼容元数据，不决定阅读权限，也不要求作者另行开放。私有工作稿及未审核修改 MUST 保持不可公开读取。文章与公开封面完成当前有效性核验后，阅读页 SHALL 在固定操作栏提供原生好友分享一级入口；失效或核验未完成时 MUST 隐藏该入口。
 
 #### Scenario: Open an eligible shared article
 - **WHEN** 未登录用户打开仍有效的已审核发表文章
@@ -18,6 +18,10 @@
 #### Scenario: Revoke publication
 - **WHEN** 文章被撤回、下架或删除
 - **THEN** 后续游客正文、封面和评论读取立即拒绝，作者公开列表不再包含该文章，客户端清理已加载的失效阅读状态；不承诺回收微信已缓存的好友卡片
+
+#### Scenario: Share without scrolling to the article end
+- **WHEN** 读者已打开并完成当前有效性核验的已发表文章
+- **THEN** 固定操作栏直接显示“分享”按钮，复用当前标题、稳定文章路径和已核实封面生成微信好友卡片，无需滚动到正文或评论末尾
 
 ### Requirement: Public projections preserve private boundaries
 系统 MUST 以明确字段白名单提供公开文章、作者和评论，不公开工作稿、私有作品标识、账号内部标识、OpenID、自选头像、未通过评论、小文会话或未审核修改。作者身份 SHALL 使用稳定公开作者标识和默认头像；匿名读取 MUST 有分页、响应大小和频率边界，不能获得个人收藏、关系明细、库存或待审内容。

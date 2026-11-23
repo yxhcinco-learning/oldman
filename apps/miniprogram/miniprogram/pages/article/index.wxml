@@ -25,6 +25,7 @@
   <button class="dock-action {{engagement.like.active ? 'selected' : ''}}" data-kind="like" bindtap="react" disabled="{{busy}}" aria-label="{{engagement.like.active ? '取消点赞' : '点赞'}}"><image src="/assets/social-heart.svg" /><text>{{counts.likes || '赞'}}</text></button>
   <button class="dock-action {{engagement.collection.active ? 'selected' : ''}}" data-kind="collect" bindtap="react" disabled="{{busy}}" aria-label="{{engagement.collection.active ? '取消收藏' : '收藏'}}"><image src="/assets/social-star.svg" /><text>{{engagement.collection.active ? '已收藏' : '收藏'}}</text></button>
   <button class="dock-action" bindtap="openGift" aria-label="送礼物"><image src="/assets/social-flower.svg" /><text>送花</text></button>
+  <button wx:if="{{shareReady}}" open-type="share" class="dock-action" aria-label="分享给好友"><image src="/assets/social-share.svg" /><text>分享</text></button>
 </view>
 <view wx:if="{{sheet}}" class="social-mask" style="bottom: {{keyboardHeight}}px" bindtap="closeSheet" catchtouchmove="noop">
   <view class="social-sheet {{compactKeyboard ? 'compact-keyboard' : ''}}" style="height: {{sheetHeight}}px; max-height: {{sheetHeight}}px" catchtap="noop" role="dialog" aria-modal="true" aria-label="{{sheet === 'gift' ? '送礼物' : '评论'}}">

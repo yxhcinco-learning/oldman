@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 if (!process.env.MINI_AUTOMATOR_PATH || !process.env.MINI_QA_OUTPUT || !process.env.MINI_QA_COVER || !process.env.MINI_QA_EXPECTED_WIDTH) throw new Error('需要独立 automator、截图目录、合成封面和实际窗口宽度。');
 const mini = await createRequire(import.meta.url)(process.env.MINI_AUTOMATOR_PATH).connect({ wsEndpoint: 'ws://127.0.0.1:9420' });
 const output = resolve(process.env.MINI_QA_OUTPUT); await mkdir(output, { recursive: true });
-const passed = [], exceptions = [];
+const passed = [], exceptions = [], layoutEvidence = {};
 mini.on('exception', value => exceptions.push(value));
 const check = (name, value) => { assert.ok(value, name); passed.push(name); };
 const wait = async test => { for (let i = 0; i < 80; i++) { if (await test()) return; await new Promise(r => setTimeout(r, 100)); } throw new Error('页面未就绪'); };
@@ -65,7 +65,7 @@ try {
       else if (path.includes('/authors/')) data = q.profile();
       else if (path.endsWith('/articles/' + q.article.id)) data = q.article;
       else throw new Error('未登记的隔离请求');
-      return { statusCode: 200, data: data instanceof ArrayBuffer ? data : JSON.parse(JSON.stringify(data)) };
+      return { statusCode: 200, data: binary ? data : JSON.parse(JSON.stringify(data)) };
     };
     s.social = new (require('social/client.js').MiniSocialClient)({ authorizedRequest: run => run('qa-only-token') }, { request });
     getApp().__socialQa = q;
@@ -75,13 +75,34 @@ try {
   let page;
   const open = async (url, key) => { page = await mini.reLaunch(url); await wait(async () => !await page.data('loading') && (!key || !!await page.data(key))); await new Promise(r => setTimeout(r, 500)); return page; };
   const capture = async name => { await new Promise(r => setTimeout(r, 250)); await mini.screenshot({ path: resolve(output, name + '.png') }); };
-  const box = async selector => { const item = await page.$(selector); assert.ok(item, selector); return { ...await item.offset(), ...await item.size() }; };
+  const rectangle = async item => {
+    const offset = await item.offset(), size = await item.size();
+    return { left: Number(offset.left), top: Number(offset.top), width: Number(size.width), height: Number(size.height) };
+  };
+  const box = async selector => { const item = await page.$(selector); assert.ok(item, selector); return rectangle(item); };
   await open('/pages/article/index?id=qa-social-article&source=share', 'article');
+  try { await wait(async () => await page.data('shareReady')); }
+  catch { throw new Error('分享入口未就绪：' + (await page.data('socialError') || await page.data('error') || '未知原因')); }
   check('游客直读正文且不换码', !await page.data('logged') && await mini.evaluate(() => getApp().__socialQa.loginCount === 0));
   check('游客读取仅发独立公开请求', await mini.evaluate(() => getApp().__socialQa.requests.every(r => r.path.startsWith('/api/public/') && !r.authenticated)));
   const dock = await box('.social-dock'); check('阅读底栏位于实际屏宽内', dock.left >= 0 && dock.left + dock.width <= info.windowWidth + 1);
+  const dockActions = await page.$$('.social-dock .dock-action');
+  check('已核验文章在固定底栏显示原生分享入口', dockActions.length === 4 && await dockActions[3].attribute('open-type') === 'share');
+  const dockComment = await page.$('.social-dock .dock-comment'); assert.ok(dockComment);
+  const initialDockItems = [await rectangle(dockComment), ...await Promise.all(dockActions.map(rectangle))];
+  layoutEvidence.initial = { dock, items: initialDockItems };
+  check('底栏五个入口触控区至少48px且首屏可见', initialDockItems.every(item => item.width >= 48 && item.height >= 48 && item.left >= 0 && item.top >= 0 && item.left + item.width <= info.windowWidth + 1 && item.top + item.height <= info.windowHeight + 1));
+  check('底栏五个入口从左到右互不重叠', initialDockItems.every((item, index) => !index || initialDockItems[index - 1].left + initialDockItems[index - 1].width <= item.left + 1));
   await capture('reader-guest');
-  await page.callMethod('openComments'); await page.callMethod('inputComment', { detail: { value: '一段登录前的评论' } });
+  await mini.pageScrollTo(2000); await new Promise(r => setTimeout(r, 250));
+  const scrolledDock = await box('.social-dock'), scrolledActions = await page.$$('.social-dock .dock-action'), scrolledComment = await page.$('.social-dock .dock-comment'); assert.ok(scrolledComment);
+  const scrolledDockItems = [await rectangle(scrolledComment), ...await Promise.all(scrolledActions.map(rectangle))];
+  layoutEvidence.scrolled = { dock: scrolledDock, items: scrolledDockItems };
+  check('长文滚动后底栏及分享仍固定可见', Math.abs(scrolledDock.top - dock.top) <= 1 && scrolledDockItems.length === 5 && scrolledDockItems.every(item => item.top >= 0 && item.top + item.height <= info.windowHeight + 1));
+  await capture('reader-scrolled');
+  await scrolledComment.tap(); await wait(async () => await page.data('sheet') === 'comments');
+  check('实际点击底栏评论入口可打开评论面板', await page.data('sheet') === 'comments');
+  await page.callMethod('inputComment', { detail: { value: '一段登录前的评论' } });
   await page.callMethod('publishComment'); await wait(async () => (await mini.currentPage()).path === 'pages/login/index'); page = await mini.currentPage();
   check('明确发布才进入可取消登录', !!await page.data('socialReturn'));
   await page.callMethod('cancel'); await wait(async () => (await mini.currentPage()).path === 'pages/article/index'); page = await mini.currentPage(); await wait(async () => !!await page.data('article'));
@@ -151,7 +172,7 @@ try {
   await open('/pages/article/index?id=qa-social-article'); await wait(async () => !!await page.data('error'));
   check('下架清理正文图片与评论', !await page.data('article') && !await page.data('image') && !(await page.data('comments')).length); await capture('article-unavailable');
   check('无运行时异常', exceptions.length === 0);
-  await writeFile(resolve(output, 'report.json'), JSON.stringify({ info, passed, exceptions, evidence: '真实开发者工具页面及文件；账号/网络/原生弹窗/键盘为替身，非真机' }, null, 2));
+  await writeFile(resolve(output, 'report.json'), JSON.stringify({ info, layoutEvidence, passed, exceptions, evidence: '真实开发者工具页面及文件；账号/网络/原生弹窗/键盘为替身，非真机' }, null, 2));
   console.log(JSON.stringify({ passed: passed.length, width: info.windowWidth, height: info.screenHeight, exceptions }));
 } catch (error) {
   await writeFile(resolve(output, 'failure.json'), JSON.stringify({ passed, exceptions, error: String(error), stack: error.stack }, null, 2)); throw error;
